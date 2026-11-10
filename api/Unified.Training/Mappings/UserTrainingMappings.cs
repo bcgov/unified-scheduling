@@ -1,5 +1,6 @@
 using Mapster;
 using Unified.Db.Models.Training;
+using Unified.Training.Helpers;
 using Unified.Training.Models;
 
 namespace Unified.Training.Mappings;
@@ -35,6 +36,7 @@ public static class UserTrainingMappings
             .Map(dest => dest.TrainingId, src => src.TrainingId)
             .Map(dest => dest.AwardedOn, src => src.AwardedOn)
             .Map(dest => dest.EndingOn, src => src.EndingOn)
+            .Map(dest => dest.AllDay, src => UserTrainingHelper.ResolveAllDay(src.AllDay))
             .Map(dest => dest.Notes, src => src.Notes == null ? null : src.Notes.Trim());
 
         return config;

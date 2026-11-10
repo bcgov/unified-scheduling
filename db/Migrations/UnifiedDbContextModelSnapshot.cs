@@ -2840,6 +2840,9 @@ namespace Unified.Db.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
                     NpgsqlPropertyBuilderExtensions.HasIdentityOptions(b.Property<int>("Id"), 200L, null, null, null, null, null);
 
+                    b.Property<bool>("AllDay")
+                        .HasColumnType("boolean");
+
                     b.Property<DateTimeOffset>("AwardedOn")
                         .HasColumnType("timestamp with time zone");
 

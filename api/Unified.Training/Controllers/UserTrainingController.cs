@@ -97,8 +97,7 @@ public sealed class UserTrainingController(
         CancellationToken cancellationToken
     )
     {
-        await validator.ValidateAndThrowAsync(request, cancellationToken);
-
+        // Update validation needs the persisted classification when AllDay is omitted.
         var result = await userTrainingService.UpdateAsync(id, request, cancellationToken);
 
         return result is null ? NotFound() : Ok(result);

@@ -14,6 +14,7 @@ export interface UserTrainingResponse {
   trainingCategoryName: string;
   awardedOn: string;
   endingOn: string;
+  allDay?: boolean;
   /** @nullable */
   expiryDate?: string | null;
   noticeState: string;

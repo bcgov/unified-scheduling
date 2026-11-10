@@ -304,6 +304,7 @@ describe('assignment sidebar warnings', () => {
       startDate: '2025-03-09',
       endDate: '2025-03-09',
       locationId: 1,
+      timeZoneId: 'America/Vancouver',
       userIds: [borrowedId],
     });
     expect(data.contributions['training.events'].events.map((event) => event.id)).toEqual([

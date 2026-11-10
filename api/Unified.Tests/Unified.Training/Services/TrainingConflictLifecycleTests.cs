@@ -95,6 +95,82 @@ public sealed class TrainingConflictLifecycleTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task UpdateAsync_TimedTraining_PreservesActiveOverrideAndInvalidatesAtTouchingBoundary()
+    {
+        var record = await CreateOverriddenTrainingAsync(
+            Request(AssignmentStart.AddMinutes(-30), AssignmentStart.AddMinutes(30), allDay: false)
+        );
+
+        await _service.UpdateAsync(
+            record.Id,
+            Request(AssignmentStart.AddMinutes(30), AssignmentEnd.AddMinutes(30), allDay: false),
+            TestContext.Current.CancellationToken
+        );
+        Assert.True(Assert.Single(await ConflictsAsync()).IsOverridden);
+
+        await _service.UpdateAsync(
+            record.Id,
+            Request(AssignmentEnd, AssignmentEnd.AddHours(1), allDay: false),
+            TestContext.Current.CancellationToken
+        );
+        Assert.Empty(await ConflictsAsync());
+        Assert.NotNull(
+            (await _db.CalendarConflictOverrides.SingleAsync(TestContext.Current.CancellationToken)).InvalidatedOn
+        );
+    }
+
+    [Fact]
+    public async Task UpdateAsync_TimedTrainingWithOmittedClassification_PreservesIntervalAndOverride()
+    {
+        var request = Request(AssignmentStart.AddMinutes(-30), AssignmentStart.AddMinutes(30), allDay: false);
+        var record = await CreateOverriddenTrainingAsync(request);
+
+        var updated = await _service.UpdateAsync(
+            record.Id,
+            request with
+            {
+                AllDay = null,
+                Notes = "Legacy update",
+            },
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.NotNull(updated);
+        Assert.False(updated.AllDay);
+        Assert.Equal(record.AwardedOn, updated.AwardedOn);
+        Assert.Equal(record.EndingOn, updated.EndingOn);
+        Assert.True(Assert.Single(await ConflictsAsync()).IsOverridden);
+        Assert.Null(
+            (await _db.CalendarConflictOverrides.SingleAsync(TestContext.Current.CancellationToken)).InvalidatedOn
+        );
+    }
+
+    [Fact]
+    public async Task UpdateAsync_WhenOnlyClassificationChanges_RechecksAndInvalidatesOverride()
+    {
+        var request = Request(Day(2026, 10, 21), Day(2026, 10, 22));
+        var record = await CreateOverriddenTrainingAsync(request);
+
+        var updated = await _service.UpdateAsync(
+            record.Id,
+            request with
+            {
+                AllDay = false,
+            },
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.NotNull(updated);
+        Assert.False(updated.AllDay);
+        Assert.Equal(record.AwardedOn, updated.AwardedOn);
+        Assert.Equal(record.EndingOn, updated.EndingOn);
+        Assert.Empty(await ConflictsAsync());
+        Assert.NotNull(
+            (await _db.CalendarConflictOverrides.SingleAsync(TestContext.Current.CancellationToken)).InvalidatedOn
+        );
+    }
+
+    [Fact]
     public async Task UpdateAsync_WhenConflictRemains_PreservesOverride()
     {
         var record = await CreateOverriddenTrainingAsync();
@@ -343,9 +419,12 @@ public sealed class TrainingConflictLifecycleTests : IAsyncLifetime
         );
     }
 
-    private async Task<UserTrainingResponse> CreateOverriddenTrainingAsync()
+    private async Task<UserTrainingResponse> CreateOverriddenTrainingAsync(UserTrainingRequest? request = null)
     {
-        var record = await _service.CreateAsync(Request(Day(2026, 10, 22)), TestContext.Current.CancellationToken);
+        var record = await _service.CreateAsync(
+            request ?? Request(Day(2026, 10, 22)),
+            TestContext.Current.CancellationToken
+        );
         await _conflicts.CreateOverrideAsync(
             new CalendarConflictAcknowledgement
             {
@@ -368,13 +447,14 @@ public sealed class TrainingConflictLifecycleTests : IAsyncLifetime
             TestContext.Current.CancellationToken
         );
 
-    private static UserTrainingRequest Request(DateTimeOffset start, DateTimeOffset? end = null) =>
+    private static UserTrainingRequest Request(DateTimeOffset start, DateTimeOffset? end = null, bool allDay = true) =>
         new()
         {
             UserId = UserId,
             TrainingId = 1,
             AwardedOn = start,
             EndingOn = end ?? start,
+            AllDay = allDay,
         };
 
     private static DateTimeOffset Day(int year, int month, int day) => new(year, month, day, 0, 0, 0, TimeSpan.Zero);

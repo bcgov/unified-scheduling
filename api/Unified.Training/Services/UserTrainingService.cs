@@ -1,22 +1,29 @@
 using System.Data;
+using FluentValidation;
+using FluentValidation.Results;
 using Mapster;
 using Microsoft.EntityFrameworkCore;
 using Unified.Calendar.Conflicts;
+using Unified.Common.Time;
 using Unified.Db;
 using Unified.Db.Models.Training;
 using Unified.Training.Helpers;
 using Unified.Training.Mappings;
 using Unified.Training.Models;
+using Unified.Training.Validators;
 
 namespace Unified.Training.Services;
 
 public sealed class UserTrainingService(
     UnifiedDbContext db,
     ICalendarConflictService? conflictService = null,
-    TimeProvider? timeProvider = null
+    TimeProvider? timeProvider = null,
+    UserTrainingRequestValidator? validator = null
 ) : IUserTrainingService
 {
+    private static readonly ITimeZoneService TimeZones = new TimeZoneService();
     private static readonly DateTimeOffset MinDateTimeOffsetUtc = DateTimeOffset.MinValue;
+    private readonly UserTrainingRequestValidator _validator = validator ?? new UserTrainingRequestValidator();
 
     public async Task<IReadOnlyCollection<UserTrainingResponse>> GetUserTrainings(
         Guid userId,
@@ -39,6 +46,7 @@ public sealed class UserTrainingService(
                     ut.Training.TrainingCategory != null ? ut.Training.TrainingCategory.Name : string.Empty,
                 AwardedOn = ut.AwardedOn,
                 EndingOn = ut.EndingOn == MinDateTimeOffsetUtc ? ut.AwardedOn : ut.EndingOn,
+                AllDay = ut.AllDay,
                 ExpiryDate = ut.ExpiryDate,
                 NoticeState = ut.NoticeState,
                 Notes = ut.Notes,
@@ -69,6 +77,7 @@ public sealed class UserTrainingService(
                     ut.Training.TrainingCategory != null ? ut.Training.TrainingCategory.Name : string.Empty,
                 AwardedOn = ut.AwardedOn,
                 EndingOn = ut.EndingOn == MinDateTimeOffsetUtc ? ut.AwardedOn : ut.EndingOn,
+                AllDay = ut.AllDay,
                 ExpiryDate = ut.ExpiryDate,
                 NoticeState = ut.NoticeState,
                 Notes = ut.Notes,
@@ -84,11 +93,23 @@ public sealed class UserTrainingService(
     )
     {
         var trainingRules = await GetTrainingRulesAsync(request.TrainingId, cancellationToken: cancellationToken);
-        var awardedOnUtc = request.AwardedOn.ToUniversalTime();
-
         return new UserTrainingExpiryDateResponse
         {
-            ExpiryDate = UserTrainingHelper.CalculateExpiryDate(awardedOnUtc, trainingRules.ValidityDays),
+            // Preserve the original UTC calculation for callers omitting both new parameters.
+            ExpiryDate =
+                request.UserId is null && request.AllDay is null
+                    ? UserTrainingHelper.CalculateExpiryDate(
+                        request.AwardedOn.ToUniversalTime(),
+                        trainingRules.ValidityDays
+                    )
+                    : await ResolveExpiryDateAsync(
+                        request.UserId,
+                        request.AwardedOn,
+                        UserTrainingHelper.ResolveAllDay(request.AllDay),
+                        trainingRules.ValidityDays,
+                        null,
+                        cancellationToken
+                    ),
         };
     }
 
@@ -114,9 +135,14 @@ public sealed class UserTrainingService(
         EnsureTrainingAllowsRenewal(trainingRules.Rotating, latestVersion);
 
         var validityDays = trainingRules.ValidityDays;
-        var expiryDate =
-            normalizedRequest.ExpiryDate
-            ?? UserTrainingHelper.CalculateExpiryDate(normalizedRequest.EndingOn, validityDays);
+        var expiryDate = await ResolveExpiryDateAsync(
+            normalizedRequest.UserId,
+            normalizedRequest.EndingOn,
+            normalizedRequest.AllDay!.Value,
+            validityDays,
+            normalizedRequest.ExpiryDate,
+            cancellationToken
+        );
 
         EnsureExpiryIsAfterPreviousVersion(expiryDate, latestVersion?.ExpiryDate);
 
@@ -135,9 +161,10 @@ public sealed class UserTrainingService(
         CancellationToken cancellationToken = default
     )
     {
-        var normalizedRequest = UserTrainingHelper.NormalizeToUtc(request);
-
         var entity = await db.UserTrainings.SingleOrDefaultAsync(ut => ut.Id == id, cancellationToken);
+        var normalizedRequest = UserTrainingHelper.NormalizeToUtc(request, entity?.AllDay);
+        await _validator.ValidateAndThrowAsync(normalizedRequest, cancellationToken);
+
         if (entity is null)
             return null;
 
@@ -149,9 +176,14 @@ public sealed class UserTrainingService(
             cancellationToken: cancellationToken
         );
         var validityDays = trainingRules.ValidityDays;
-        var expiryDate =
-            normalizedRequest.ExpiryDate
-            ?? UserTrainingHelper.CalculateExpiryDate(normalizedRequest.EndingOn, validityDays);
+        var expiryDate = await ResolveExpiryDateAsync(
+            normalizedRequest.UserId,
+            normalizedRequest.EndingOn,
+            normalizedRequest.AllDay!.Value,
+            validityDays,
+            normalizedRequest.ExpiryDate,
+            cancellationToken
+        );
 
         var previousVersionExpiryDate = await db
             .UserTrainings.Where(ut =>
@@ -173,7 +205,9 @@ public sealed class UserTrainingService(
         EnsureExpiryIsBeforeNextVersion(expiryDate, nextVersionExpiryDate);
 
         var datesChanged =
-            entity.AwardedOn != normalizedRequest.AwardedOn || entity.EndingOn != normalizedRequest.EndingOn;
+            entity.AwardedOn != normalizedRequest.AwardedOn
+            || entity.EndingOn != normalizedRequest.EndingOn
+            || entity.AllDay != normalizedRequest.AllDay;
         await using var transaction =
             datesChanged && db.Database.CurrentTransaction is null
                 ? await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken)
@@ -212,6 +246,41 @@ public sealed class UserTrainingService(
             await transaction.CommitAsync(cancellationToken);
 
         return true;
+    }
+
+    private async Task<DateTimeOffset?> ResolveExpiryDateAsync(
+        Guid? userId,
+        DateTimeOffset endingOn,
+        bool allDay,
+        int? validityDays,
+        DateTimeOffset? explicitExpiry,
+        CancellationToken cancellationToken
+    )
+    {
+        if (allDay && validityDays is null && explicitExpiry is null)
+            return null;
+
+        var timeZoneId = await db
+            .Users.Where(user => user.Id == userId)
+            .Select(user => user.HomeLocation != null ? user.HomeLocation.Timezone : null)
+            .SingleOrDefaultAsync(cancellationToken);
+        var normalizedTimeZoneId = TimeZoneService.NormalizeOptionalTimeZoneId(timeZoneId);
+        if (normalizedTimeZoneId is null)
+            throw new ValidationException([
+                new ValidationFailure(
+                    nameof(UserTrainingRequest.UserId),
+                    "The training user must have a home location with a valid timezone for timed training or expiry calculations."
+                ),
+            ]);
+
+        return explicitExpiry
+            ?? UserTrainingHelper.CalculateExpiryDate(
+                endingOn,
+                validityDays,
+                allDay,
+                TimeZones.ResolveRequired(normalizedTimeZoneId),
+                TimeZones
+            );
     }
 
     private async Task InvalidateOverridesAsync(int userTrainingId, CancellationToken cancellationToken)
@@ -345,6 +414,7 @@ public sealed class UserTrainingService(
                     ut.Training.TrainingCategory != null ? ut.Training.TrainingCategory.Name : string.Empty,
                 AwardedOn = ut.AwardedOn,
                 EndingOn = ut.EndingOn == MinDateTimeOffsetUtc ? ut.AwardedOn : ut.EndingOn,
+                AllDay = ut.AllDay,
                 ExpiryDate = ut.ExpiryDate,
                 NoticeState = ut.NoticeState,
                 Notes = ut.Notes,

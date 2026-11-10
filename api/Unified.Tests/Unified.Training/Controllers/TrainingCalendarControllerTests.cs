@@ -15,6 +15,28 @@ namespace Unified.Tests.Training.Controllers;
 public sealed class TrainingCalendarControllerTests
 {
     [Fact]
+    public async Task GetEvents_InvalidTimeZone_ThrowsValidationException()
+    {
+        await using var db = new SqliteTestUnifiedDbContext(
+            new DbContextOptionsBuilder<UnifiedDbContext>().UseSqlite("Data Source=:memory:").Options
+        );
+        var controller = new TrainingCalendarController(
+            new TrainingCalendarEventService(db),
+            new TrainingCalendarEventsRequestValidator()
+        );
+        var request = new TrainingCalendarEventsRequest
+        {
+            StartDate = new DateOnly(2026, 1, 5),
+            EndDate = new DateOnly(2026, 1, 5),
+            TimeZoneId = "Invalid/Zone",
+        };
+
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            controller.GetEvents(request, TestContext.Current.CancellationToken)
+        );
+    }
+
+    [Fact]
     public void GetEvents_RequiresExistingUserTrainingsViewPolicy()
     {
         var controller = typeof(TrainingCalendarController);

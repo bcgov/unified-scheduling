@@ -10,6 +10,11 @@ export interface UserTrainingRequest {
   trainingId: number;
   awardedOn: string;
   endingOn: string;
+  /**
+   * When omitted, creates are all-day and updates preserve the existing classification.
+   * @nullable
+   */
+  allDay?: boolean | null;
   /** @nullable */
   expiryDate?: string | null;
   /** @nullable */

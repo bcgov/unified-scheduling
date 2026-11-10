@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Unified.Common.Reporting;
+using Unified.Common.Time;
 using Unified.Db;
 using Unified.Training.Mappings;
 
@@ -25,7 +26,30 @@ public sealed class UserTrainingReportQueryHandler(UnifiedDbContext db, TimeProv
         var totalRows = pageRows.Count;
 
         var rows = pageRows
-            .Select(row => UserTrainingReportMappings.ToReportRowValue(row, ResolveStatus(row, now)))
+            .Select(row =>
+            {
+                var result = UserTrainingReportMappings.ToReportRowValue(row, ResolveStatus(row, now));
+                var timeZoneId = TimeZoneService.NormalizeOptionalTimeZoneId(row.TimeZoneId);
+                if (timeZoneId is null)
+                    return result;
+
+                var timeZone = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
+                // Retain the instant while preserving its applicable local date in report output.
+                return result with
+                {
+                    AwardedOn =
+                        !row.AllDay && result.AwardedOn is { } awardedOn
+                            ? TimeZoneInfo.ConvertTime(awardedOn, timeZone)
+                            : result.AwardedOn,
+                    EndingOn =
+                        !row.AllDay && result.EndingOn is { } endingOn
+                            ? TimeZoneInfo.ConvertTime(endingOn, timeZone)
+                            : result.EndingOn,
+                    ExpiryDate = result.ExpiryDate is { } expiry
+                        ? TimeZoneInfo.ConvertTime(expiry, timeZone)
+                        : result.ExpiryDate,
+                };
+            })
             .ToArray();
 
         return new UserTrainingReportResponse(rows, totalRows);
@@ -123,11 +147,13 @@ public sealed class UserTrainingReportQueryHandler(UnifiedDbContext db, TimeProv
                     ? ut.User.HomeLocation.Region.Name
                     : null,
             LocationName = ut.User.HomeLocation != null ? ut.User.HomeLocation.Name : null,
+            TimeZoneId = ut.User.HomeLocation != null ? ut.User.HomeLocation.Timezone : null,
             TrainingId = ut.TrainingId,
             TrainingCode = ut.Training.Code,
             TrainingDescription = ut.Training.Description,
             AwardedOn = ut.AwardedOn,
             EndingOn = ut.EndingOn,
+            AllDay = ut.AllDay,
             ExpiryDate = ut.ExpiryDate,
             Version = ut.Version,
             NoticeState = ut.NoticeState,
@@ -194,11 +220,13 @@ public sealed class UserTrainingReportQueryHandler(UnifiedDbContext db, TimeProv
                         ? user.HomeLocation.Region.Name
                         : null,
                 LocationName = user.HomeLocation != null ? user.HomeLocation.Name : null,
+                TimeZoneId = user.HomeLocation != null ? user.HomeLocation.Timezone : null,
                 TrainingId = training.Id,
                 TrainingCode = training.Code,
                 TrainingDescription = training.Description,
                 AwardedOn = null,
                 EndingOn = null,
+                AllDay = false,
                 ExpiryDate = null,
                 Version = null,
                 NoticeState = string.Empty,
