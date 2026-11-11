@@ -2490,6 +2490,7 @@ describe('CalendarSchedulingAssignmentModal', () => {
           {
             id: 42,
             title: 'Location shift',
+            shiftSeriesId: 200,
             startAtUtc: '2026-07-13T16:00:00Z',
             endAtUtc: '2026-07-14T00:00:00Z',
             timeZoneId: 'America/Vancouver',
