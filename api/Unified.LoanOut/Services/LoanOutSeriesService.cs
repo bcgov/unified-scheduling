@@ -50,7 +50,8 @@ public sealed class LoanOutSeriesService(
             [
                 (input, token) => LocationGuard.EnsureValidAsync(db, input.LocationId, input.LoanOutLocationId, token),
                 (input, token) => UserGuard.EnsureValidAsync(db, input.UserIds, token),
-                (input, token) => DuplicateLoanOutGuard.EnsureValidAsync(db, input, recurrenceExpander, token),
+                (input, token) =>
+                    DuplicateLoanOutGuard.EnsureValidAsync(db, input, recurrenceExpander, cancellationToken: token),
             ],
             cancellationToken: cancellationToken
         );
@@ -146,7 +147,7 @@ public sealed class LoanOutSeriesService(
             [
                 (input, token) => LocationGuard.EnsureValidAsync(db, input.LocationId, input.LoanOutLocationId, token),
                 (input, token) => UserGuard.EnsureValidAsync(db, input.UserIds, token),
-                (input, token) => DuplicateLoanOutGuard.EnsureValidAsync(db, input, recurrenceExpander, token),
+                (input, token) => DuplicateLoanOutGuard.EnsureValidAsync(db, input, recurrenceExpander, id, token),
             ],
             cancellationToken: cancellationToken
         );

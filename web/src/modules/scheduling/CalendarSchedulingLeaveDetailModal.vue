@@ -160,8 +160,13 @@ const modalTitle = computed(() => {
   return `${entityLabel.value} Details`;
 });
 
+const activeLocationId = computed(() => selectedRecord.value?.locationId ?? props.event.locationId ?? null);
+// Only the location's own employees can take leave here; loaned-in users belong to another home location.
+// Falls back to all loaded users when the location cannot be resolved.
 const employeeOptions = computed<SelectOption[]>(() =>
-  users.value.map((user) => ({ code: user.id, description: formatUserOptionLabel(user) })),
+  users.value
+    .filter((user) => activeLocationId.value == null || user.homeLocationId === activeLocationId.value)
+    .map((user) => ({ code: user.id, description: formatUserOptionLabel(user) })),
 );
 
 watch(

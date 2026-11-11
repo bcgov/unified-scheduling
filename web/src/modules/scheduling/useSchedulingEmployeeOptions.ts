@@ -30,9 +30,9 @@ export function useSchedulingEmployeeOptions(
   const availableLoanOutUsers = ref<LoanOutCalendarUser[]>([]);
   const requestGuard = createLatestRequestGuard();
 
-  const employeeOptions = computed<SelectOption[]>(() => {
+  function toUserSelectOptions(users: (UserResponse | LoanOutCalendarUser)[]): SelectOption[] {
     const usersById = new Map<string, UserResponse | LoanOutCalendarUser>();
-    for (const user of [...availableUsers.value, ...availableLoanOutUsers.value]) {
+    for (const user of users) {
       if (!usersById.has(user.id)) {
         usersById.set(user.id, user);
       }
@@ -41,7 +41,14 @@ export function useSchedulingEmployeeOptions(
       code: user.id,
       description: formatUserOptionLabel(user),
     }));
-  });
+  }
+
+  // Home-location users plus employees loaned in for the selected date (shift tab).
+  const employeeOptions = computed<SelectOption[]>(() =>
+    toUserSelectOptions([...availableUsers.value, ...availableLoanOutUsers.value]),
+  );
+  // Home-location users only; loaned-in employees cannot be given leave or loaned out from this location.
+  const homeEmployeeOptions = computed<SelectOption[]>(() => toUserSelectOptions(availableUsers.value));
 
   async function loadEmployeeOptions(nextLocationId: number | null) {
     const requestId = requestGuard.begin();
@@ -107,6 +114,7 @@ export function useSchedulingEmployeeOptions(
   return {
     availableUsers,
     employeeOptions,
+    homeEmployeeOptions,
     isLoadingUsers,
     loadEmployeeOptions,
   };

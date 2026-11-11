@@ -66,8 +66,13 @@ const modalTitle = computed(() =>
     : `${tab.value === 'edit' ? 'Edit' : tab.value === 'delete' ? 'Delete' : ''} ${entityLabel.value}${tab.value === 'details' ? ' Details' : ''}`.trim(),
 );
 const timeZone = computed(() => resolveSchedulingTimeZoneId(entity.value?.timeZoneId ?? props.event.timeZoneId));
+const activeLocationId = computed(() => props.event.locationId ?? null);
+// Only the location's own employees can be loaned out; loaned-in users belong to another home location.
+// Falls back to all users when the location cannot be resolved.
 const employeeOptions = computed(() =>
-  users.allUsers.map((user) => ({ code: user.id, description: formatUserOptionLabel(user) })),
+  users.allUsers
+    .filter((user) => activeLocationId.value == null || user.homeLocationId === activeLocationId.value)
+    .map((user) => ({ code: user.id, description: formatUserOptionLabel(user) })),
 );
 const formData = ref<LoanOutFormData>({});
 

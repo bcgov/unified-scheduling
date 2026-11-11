@@ -298,6 +298,74 @@ describe('CalendarSchedulingAddResourceModal', () => {
     wrapper.unmount();
   });
 
+  it('offers loaned-in employees on the shift tab but not on the leave or loan-out tabs', async () => {
+    const homeUserId = '3d6f0a75-0a77-4dd9-9f5a-f4d0a0bc4f62';
+    const loanedInUserId = '7b1c2d3e-4f5a-4b6c-8d7e-9f0a1b2c3d4e';
+    server.use(
+      http.get('/api/scheduling/assignments/entries', () => HttpResponse.json([])),
+      http.get('/api/scheduling/assignments/series', () => HttpResponse.json([])),
+      http.post('/api/loan-out/scheduling/users', () =>
+        HttpResponse.json([
+          {
+            id: loanedInUserId,
+            idirName: 'lloaned',
+            isEnabled: true,
+            firstName: 'Lee',
+            lastName: 'Loaned',
+            email: 'lee.loaned@example.com',
+            employeeNumber: '2001',
+            homeLocationId: 99,
+            loanOutMetaData: [],
+          },
+        ]),
+      ),
+    );
+    vi.doMock('@/modules/scheduling/calendarSchedulingShiftApi', () => buildShiftApiMock({}));
+    vi.doMock('@/api-access/generated/users/users', buildUsersModuleMock);
+
+    const { default: CalendarSchedulingAddResourceModal } =
+      await import('@/modules/scheduling/CalendarSchedulingAddResourceModal.vue');
+    const app = createModalTestApp();
+    useConfigStore(app.pinia).config = {
+      defaultLunchMinutes: 30,
+      featureFlags: { Scheduling: { enabled: true }, LoanOut: { enabled: true }, Leave: { enabled: true } },
+    };
+    useLocationsStore(app.pinia).setSelectedLocationId(12);
+    const wrapper = mount(CalendarSchedulingAddResourceModal, {
+      props: { initialDate: '2026-08-24', timeZone: 'America/Vancouver' },
+      global: {
+        plugins: app.mountPlugins,
+        stubs: {
+          UaModal: { template: '<div><slot name="alerts"/><slot/><slot name="actions"/></div>' },
+          CalendarSchedulingResourceTabs: {
+            template: '<div><slot name="schedule"/><slot name="leave"/><slot name="loanout"/></div>',
+          },
+          CalendarSchedulingShiftForm: {
+            name: 'CalendarSchedulingShiftForm',
+            props: ['employeeOptions'],
+            template: '<div />',
+          },
+          LeaveForm: { name: 'LeaveForm', props: ['employeeOptions'], template: '<div />' },
+          LoanOutForm: { name: 'LoanOutForm', props: ['employeeOptions'], template: '<div />' },
+        },
+      },
+    });
+
+    const shiftForm = wrapper.findComponent({ name: 'CalendarSchedulingShiftForm' });
+    await vi.waitFor(() =>
+      expect((shiftForm.props('employeeOptions') as { code: string }[]).map((option) => option.code)).toEqual([
+        homeUserId,
+        loanedInUserId,
+      ]),
+    );
+
+    const codesOf = (name: string) =>
+      (wrapper.findComponent({ name }).props('employeeOptions') as { code: string }[]).map((option) => option.code);
+    expect(codesOf('LeaveForm')).toEqual([homeUserId]);
+    expect(codesOf('LoanOutForm')).toEqual([homeUserId]);
+    wrapper.unmount();
+  });
+
   it('does not load shift lists when location changes', async () => {
     const loadEntries = vi.fn().mockResolvedValue({ data: { value: [] }, error: { value: null } });
     const loadSeries = vi.fn().mockResolvedValue({ data: { value: [] }, error: { value: null } });
