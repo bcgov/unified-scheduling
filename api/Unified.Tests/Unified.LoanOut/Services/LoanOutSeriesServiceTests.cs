@@ -280,14 +280,15 @@ public sealed class LoanOutSeriesServiceTests : IAsyncLifetime
     }
 
     [Theory]
-    [InlineData(30, 19, 22)]
-    [InlineData(30, 19, 10)]
-    [InlineData(19, 30, 22)]
-    [InlineData(30, 30, 10)]
-    public async Task UpdateLoanOutSeriesAsync_WhenOccurrenceDatesAreRetained_RejectsBeforeShiftValidation(
+    [InlineData(30, 19, 22, true)]
+    [InlineData(30, 19, 10, false)]
+    [InlineData(19, 30, 22, false)]
+    [InlineData(30, 30, 10, false)]
+    public async Task UpdateLoanOutSeriesAsync_WhenOccurrenceDatesAreRetained_ChecksWithdrawnShifts(
         int originalEndDay,
         int newEndDay,
-        int shiftDay
+        int shiftDay,
+        bool blocked
     )
     {
         var ct = TestContext.Current.CancellationToken;
@@ -306,18 +307,27 @@ public sealed class LoanOutSeriesServiceTests : IAsyncLifetime
             RecurrenceRule = $"FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR;UNTIL=202612{newEndDay:00}T235959Z",
         };
 
-        var exception = await Assert.ThrowsAsync<ConflictValidationException>(() =>
-            _service.UpdateLoanOutSeriesAsync(created.Id, updatedRequest, ct)
-        );
-        Assert.True(exception.Errors.ContainsKey("LoanOut"));
-        Assert.False(_db.ChangeTracker.HasChanges());
-        Assert.Null(_schedulingLoanOutService.LastCheckedLocationId);
-        Assert.Empty(_schedulingLoanOutService.RestoredEntries);
+        if (blocked)
+        {
+            var exception = await Assert.ThrowsAsync<ConflictValidationException>(() =>
+                _service.UpdateLoanOutSeriesAsync(created.Id, updatedRequest, ct)
+            );
+            Assert.True(exception.Errors.ContainsKey("LoanOut"));
+            Assert.Empty(_schedulingLoanOutService.RestoredEntries);
+        }
+        else
+        {
+            var updated = await _service.UpdateLoanOutSeriesAsync(created.Id, updatedRequest, ct);
+            Assert.NotNull(updated);
+            Assert.Equal(updatedRequest.RecurrenceRule, updated.RecurrenceRule);
+        }
+        Assert.Equal(originalEndDay > newEndDay ? 10 : null, _schedulingLoanOutService.LastCheckedLocationId);
         _db.ChangeTracker.Clear();
         var retained = await _service.GetLoanOutSeriesByIdAsync(created.Id, ct);
         Assert.NotNull(retained);
-        Assert.Equal(request.RecurrenceRule, retained.RecurrenceRule);
-        Assert.Equal(created.LoanOutEntryIds.Order(), retained.LoanOutEntryIds.Order());
+        Assert.Equal(blocked ? request.RecurrenceRule : updatedRequest.RecurrenceRule, retained.RecurrenceRule);
+        if (blocked)
+            Assert.Equal(created.LoanOutEntryIds.Order(), retained.LoanOutEntryIds.Order());
     }
 
     [Theory]
