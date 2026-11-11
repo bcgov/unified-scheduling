@@ -931,10 +931,9 @@ public sealed class BiOracleStatMappingSeedTests
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => Seeder(definition).SeedAsync(context, ct));
 
-        Assert.Empty(
-            context
-                .ChangeTracker.Entries()
-                .Where(entry => entry.State is EntityState.Added or EntityState.Modified or EntityState.Deleted)
+        Assert.DoesNotContain(
+            context.ChangeTracker.Entries(),
+            entry => entry.State is EntityState.Added or EntityState.Modified or EntityState.Deleted
         );
         Assert.Equal(0, await context.SaveChangesAsync(ct));
         context.ChangeTracker.Clear();
