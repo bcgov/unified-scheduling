@@ -36,7 +36,6 @@ public enum CalendarEventTypeCode
     General,
     Holiday,
     Deadline,
-    AwayLocation,
 }
 
 [JsonConverter(typeof(JsonStringEnumConverter))]
@@ -62,7 +61,6 @@ public static class CalendarCodeMappings
             CalendarEventTypeCode.General => Unified.Db.Models.Calendar.CalendarEventTypeCodes.General,
             CalendarEventTypeCode.Holiday => Unified.Db.Models.Calendar.CalendarEventTypeCodes.Holiday,
             CalendarEventTypeCode.Deadline => Unified.Db.Models.Calendar.CalendarEventTypeCodes.Deadline,
-            CalendarEventTypeCode.AwayLocation => Unified.Db.Models.Calendar.CalendarEventTypeCodes.AwayLocation,
             _ => throw new InvalidOperationException($"Unknown calendar event type enum '{code}'."),
         };
 
@@ -90,7 +88,6 @@ public static class CalendarCodeMappings
             Unified.Db.Models.Calendar.CalendarEventTypeCodes.General => CalendarEventTypeCode.General,
             Unified.Db.Models.Calendar.CalendarEventTypeCodes.Holiday => CalendarEventTypeCode.Holiday,
             Unified.Db.Models.Calendar.CalendarEventTypeCodes.Deadline => CalendarEventTypeCode.Deadline,
-            Unified.Db.Models.Calendar.CalendarEventTypeCodes.AwayLocation => CalendarEventTypeCode.AwayLocation,
             _ => throw new InvalidOperationException($"Unknown calendar event type code '{dbCode}'."),
         };
 

@@ -93,12 +93,6 @@ public enum Permissions
     ActingPositionsEdit,
     ActingPositionsExpire,
 
-    // --- Away Locations ---
-    AwayLocationsView,
-    AwayLocationsCreate,
-    AwayLocationsEdit,
-    AwayLocationsExpire,
-
     // --- IDIR ---
     IdirEdit,
 

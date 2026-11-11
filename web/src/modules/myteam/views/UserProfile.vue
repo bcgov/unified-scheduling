@@ -136,13 +136,6 @@ onMounted(async () => {
         <UaBtn v-if="showLoanOutTab" variant="outlined" :to="{ name: 'UserLoanOut', params: { userId: props.userId } }">
           Loan-out
         </UaBtn>
-        <UaBtn
-          v-if="accessControl.hasPermission(Permissions.AwayLocationsView)"
-          variant="outlined"
-          :to="{ name: 'UserAwayLocations', params: { userId: props.userId } }"
-        >
-          Away Locations
-        </UaBtn>
         <UaBtn variant="outlined" disabled>Schedule</UaBtn>
         <UaBtn variant="outlined" disabled>Work History</UaBtn>
         <UaBtn variant="outlined" disabled>Deactivate</UaBtn>

@@ -87,7 +87,6 @@ public static class UserManagementModule
         services.AddScoped<IRoleService, RoleService>();
         services.AddScoped<IPermissionService, PermissionService>();
         services.AddScoped<IActingPositionService, ActingPositionService>();
-        services.AddScoped<IAwayLocationService, AwayLocationService>();
 
         services.AddSeeder<UnifiedDbContext, UserSeeder>();
         services.AddSeeder<UnifiedDbContext, RoleSeeder>();
@@ -106,8 +105,6 @@ public static class UserManagementModule
         services.AddScoped<DeleteRoleWithReassignmentRequestDtoValidator>();
         services.AddScoped<ActingPositionRequestValidator>();
         services.AddScoped<ExpireActingPositionRequestValidator>();
-        services.AddScoped<AwayLocationRequestValidator>();
-        services.AddScoped<ExpireAwayLocationRequestValidator>();
 
         // Register save rules for business logic validation
         services.AddScoped<ISaveRule, UserBadgeNumberUniqueRule>();
@@ -134,11 +131,6 @@ public static class UserManagementModule
             .AddPermissionPolicy(Permissions.ActingPositionsExpire)
             // Admin
             .AddPermissionPolicy(Permissions.HangfireDashboardView)
-            // Away Locations
-            .AddPermissionPolicy(Permissions.AwayLocationsView)
-            .AddPermissionPolicy(Permissions.AwayLocationsCreate)
-            .AddPermissionPolicy(Permissions.AwayLocationsEdit)
-            .AddPermissionPolicy(Permissions.AwayLocationsExpire)
             // Leave
             .AddPermissionPolicy(Permissions.UsersLeaveCreate)
             .AddPermissionPolicy(Permissions.UsersLeaveEdit)

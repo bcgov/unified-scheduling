@@ -61,7 +61,7 @@ export const PostApiCalendarEventsResponse = zod.object({
             ]),
           ])
           .optional(),
-        eventTypeCode: zod.enum(['General', 'Holiday', 'Deadline', 'AwayLocation']),
+        eventTypeCode: zod.enum(['General', 'Holiday', 'Deadline']),
         statusTypeCode: zod.enum(['Draft', 'Active', 'Cancelled']),
         cancelledAt: zod.iso.datetime({ offset: true }).nullish(),
         cancelledByUserId: zod.uuid().nullish(),

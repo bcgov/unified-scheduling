@@ -11,5 +11,4 @@ export const CalendarEventTypeCode = {
   General: 'General',
   Holiday: 'Holiday',
   Deadline: 'Deadline',
-  AwayLocation: 'AwayLocation',
 } as const;
