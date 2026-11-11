@@ -44,6 +44,7 @@ import {
 import { resolveShiftSeriesLinksFromAssignmentSeries } from './calendarSchedulingAssignmentSeriesLinks';
 import { useSchedulingAssignmentMutation, type SaveAssignmentOptions } from './useSchedulingAssignmentMutation';
 import { useSchedulingAssignmentLoad } from './useSchedulingAssignmentLoad';
+import { loadAssignmentEntries } from './calendarSchedulingAssignmentApi';
 import {
   promoteAssignmentShiftEntryLinks,
   useSchedulingAssignmentShiftOptions,
@@ -59,6 +60,7 @@ import {
   canAddAssignmentLinkToShift,
   getSchedulingLifecycleCapabilities,
   isSchedulingLinkable,
+  isSchedulingCancelled,
   isSchedulingPublished,
 } from './schedulingLifecycle';
 import { resolveSchedulingTimeZoneId } from './schedulingTimeZone';
@@ -131,6 +133,9 @@ const concurrencyToken = ref<number | null>(null);
 const hasConcurrencyConflict = ref(false);
 const mutationGuard = createLatestRequestGuard();
 const assignmentLoad = useSchedulingAssignmentLoad();
+const loadedAssignmentSeries = ref<AssignmentSeriesResponse | null>(null);
+const assignmentSeriesEntries = ref<AssignmentEntryResponse[]>([]);
+const assignmentEntriesRequestGuard = createLatestRequestGuard();
 const assignmentLoadError = assignmentLoad.error;
 const assignmentLoadState = assignmentLoad.state;
 const isLoadingAssignment = assignmentLoad.isLoading;
@@ -195,6 +200,30 @@ const assignmentOccurrences = computed(() => {
     timeZoneId.value,
   );
   if (!range) return [];
+  if (modalMode.value !== 'create' && selectedOpenScope.value === 'series') {
+    const series = loadedAssignmentSeries.value;
+    if (!series) return [];
+
+    // Keep this aligned with AssignmentSeriesUpdatePlanner and the submitted payload.
+    const regeneratesEntries =
+      series.recurrenceRule?.trim() !== formData.value.recurrenceRule?.trim() ||
+      Date.parse(series.startAtUtc ?? '') !== range.start.toMillis() ||
+      Date.parse(series.endAtUtc ?? '') !== range.end.toMillis() ||
+      series.timeZoneId?.trim() !== timeZoneId.value.trim() ||
+      // buildCreateAssignmentPayload always submits allDay: false.
+      (series.allDay ?? false) !== false;
+
+    if (!regeneratesEntries) {
+      return assignmentSeriesEntries.value
+        .filter((entry) => !isSchedulingCancelled(entry.statusTypeCode))
+        .flatMap((entry) => {
+          const start = DateTime.fromISO(entry.startAtUtc ?? '', { zone: timeZoneId.value });
+          const end = entry.endAtUtc ? DateTime.fromISO(entry.endAtUtc, { zone: timeZoneId.value }) : start;
+          return start.isValid && end.isValid ? [{ start, end, dateKey: start.toISODate() ?? '' }] : [];
+        })
+        .sort((left, right) => left.start.toMillis() - right.start.toMillis());
+    }
+  }
   if (!hasAssignmentRecurrence.value || !formData.value.recurrenceRule) return [range];
 
   return expandSchedulingRecurrence(range.start, range.end.diff(range.start), formData.value.recurrenceRule);
@@ -460,6 +489,7 @@ watch(
     ] as const,
   ([initialDate]) => {
     assignmentLoad.reset();
+    loadedAssignmentSeries.value = null;
     mutationGuard.begin();
     concurrencyToken.value = null;
     hasConcurrencyConflict.value = false;
@@ -490,11 +520,44 @@ watch([activeLocationId, () => formData.value.date, timeZoneId, canLoadLoanOutUs
 });
 
 watch(
-  [activeLocationId, () => formData.value.date, timeZoneId, assignmentShiftQueryRange],
+  [
+    activeLocationId,
+    () => formData.value.date,
+    timeZoneId,
+    () => assignmentShiftQueryRange.value?.startAtUtc,
+    () => assignmentShiftQueryRange.value?.endAtUtc,
+  ],
   () => {
     void loadShiftOptions();
   },
   { immediate: true, flush: 'post' },
+);
+
+watch(
+  loadedAssignmentSeries,
+  async (series, _previous, onCleanup) => {
+    const requestId = assignmentEntriesRequestGuard.begin();
+    onCleanup(() => {
+      assignmentEntriesRequestGuard.begin();
+    });
+    assignmentSeriesEntries.value = [];
+    if (!series?.id) return;
+
+    try {
+      const result = await loadAssignmentEntries({ AssignmentSeriesId: series.id });
+      if (!assignmentEntriesRequestGuard.isCurrent(requestId)) return;
+      if (result.error.value || !result.data.value) {
+        apiError.value = result.error.value?.message || 'Failed to load assignment entries.';
+        return;
+      }
+      assignmentSeriesEntries.value = result.data.value;
+    } catch (error: unknown) {
+      if (assignmentEntriesRequestGuard.isCurrent(requestId)) {
+        apiError.value = error instanceof Error ? error.message : 'Failed to load assignment entries.';
+      }
+    }
+  },
+  { flush: 'sync' },
 );
 
 watch(
@@ -507,6 +570,7 @@ watch(
 
 async function selectOpenScope(scope: AssignmentOpenScope) {
   assignmentLoad.reset();
+  loadedAssignmentSeries.value = null;
   mutationGuard.begin();
   concurrencyToken.value = null;
   hasConcurrencyConflict.value = false;
@@ -1728,6 +1792,7 @@ async function handleLifecycleAction() {
 
 async function loadInitialAssignment() {
   concurrencyToken.value = null;
+  loadedAssignmentSeries.value = null;
   if (modalMode.value === 'create') {
     assignmentLoadState.value = 'loaded';
     return;
@@ -1738,6 +1803,7 @@ async function loadInitialAssignment() {
   await assignmentLoad.load(kind, id, (assignment) => {
     concurrencyToken.value = assignment.concurrencyToken ?? null;
     if (kind === 'series') {
+      loadedAssignmentSeries.value = assignment as AssignmentSeriesResponse;
       formData.value = createFormDataFromAssignmentSeries(assignment as AssignmentSeriesResponse);
       existingShiftSeriesLinks.value = (formData.value.shiftSeriesLinks ?? []).map((link) => ({ ...link }));
     } else {
