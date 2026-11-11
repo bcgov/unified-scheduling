@@ -180,8 +180,7 @@ describe('assignment drops', () => {
               categoryId: 10,
               subCategoryId: 20,
               capacity: 4,
-              shiftEntryLinks: [
-                ...(existingTargetLink
+              shiftEntryLinks: (existingTargetLink
                   ? [
                       { shiftEntryId: 44, assignedUserIds: [existingUserId, draggedUserId] },
                       { shiftEntryId: 45, assignedUserIds: [otherShiftUserId, draggedUserId] },
@@ -190,7 +189,6 @@ describe('assignment drops', () => {
                       { shiftEntryId: 45, assignedUserIds: [otherShiftUserId, draggedUserId] },
                       { shiftEntryId: 44, assignedUserIds: [draggedUserId] },
                     ]),
-              ],
             },
           ]);
         }
