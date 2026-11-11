@@ -18,7 +18,7 @@ describe('useWeeklyRecords with flat Stats subcategories', () => {
   let wrapper: VueWrapper | undefined;
   afterEach(() => wrapper?.unmount());
 
-  async function createRecords() {
+  async function createRecords(referenceDataReady = ref(true)) {
     const app = await createTestApp({ loadConfig: false });
     let records!: ReturnType<typeof useWeeklyRecords>;
     wrapper = mount(
@@ -43,6 +43,7 @@ describe('useWeeklyRecords with flat Stats subcategories', () => {
               { id: 36, name: 'Level 1 Air', unitOfMeasure: 'count' },
               { id: 38, name: 'Level 2 Air', unitOfMeasure: 'count' },
             ]),
+            referenceDataReady,
           );
           return () => h('div');
         },
@@ -122,5 +123,21 @@ describe('useWeeklyRecords with flat Stats subcategories', () => {
     expect(records.dayAssignmentsMap.value['2026-11-02']).toEqual([]);
     expect(records.dayStatusMap.value['2026-11-02']).toBe('Submitted');
     expect(records.error.value).toBe('');
+  });
+
+  it('does not send a day save when reference data failed to load', async () => {
+    let saveRequests = 0;
+    server.use(
+      http.put('*/api/stats/records/day', () => {
+        saveRequests++;
+        return HttpResponse.json([]);
+      }),
+    );
+    const records = await createRecords(ref(false));
+
+    expect(await records.saveDay('2026-11-02', [], 'Submitted', 3)).toBe(
+      'Reference data is unavailable. Reload the page before saving.',
+    );
+    expect(saveRequests).toBe(0);
   });
 });

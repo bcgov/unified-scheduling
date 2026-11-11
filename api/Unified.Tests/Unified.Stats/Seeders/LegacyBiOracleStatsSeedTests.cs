@@ -131,6 +131,28 @@ public sealed class LegacyBiOracleStatsSeedTests
     }
 
     [Fact]
+    public async Task SeedAsync_NewSeedIdMatchesMetricButDiffersInMetadata_RejectsOverwriting()
+    {
+        await using var db = CreateContext();
+        db.SubCategoryMetrics.Add(
+            new SubCategoryMetric
+            {
+                Id = 500,
+                SubCategoryId = 132,
+                MetricId = 42,
+                DisplayOrder = 99,
+            }
+        );
+        await db.SaveChangesAsync(CancellationToken);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            new SubCategoryMetricSeeder(NullLogger<SubCategoryMetricSeeder>.Instance).SeedAsync(db, CancellationToken)
+        );
+        var existing = await db.SubCategoryMetrics.AsNoTracking().SingleAsync(s => s.Id == 500, CancellationToken);
+        Assert.Equal((132, 42, 99), (existing.SubCategoryId, existing.MetricId, existing.DisplayOrder));
+    }
+
+    [Fact]
     public void Mappings_OriginalIds_RetainTheirSourceAndTargetAssociations()
     {
         var original = MappingSet.Mappings.Where(m => m.Id <= 516).OrderBy(m => m.Id).ToArray();

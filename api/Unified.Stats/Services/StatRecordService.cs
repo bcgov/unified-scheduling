@@ -242,9 +242,9 @@ public sealed class StatRecordService(UnifiedDbContext db, ILogger<StatRecordSer
                 || r.SubCategoryMetric.SubCategory.Category!.IsArchived
             )
             .Select(r => r.Id)
-            .ToListAsync(cancellationToken);
+            .ToHashSetAsync(cancellationToken);
         var retainedArchivedRecords = existingRecords
-            .Where(r => !incomingIds.Contains(r.Id) && archivedRecordIds.Contains(r.Id))
+            .Where(r => archivedRecordIds.Contains(r.Id))
             .ToList();
         foreach (var record in retainedArchivedRecords)
         {
@@ -271,11 +271,12 @@ public sealed class StatRecordService(UnifiedDbContext db, ILogger<StatRecordSer
             {
                 // Update existing record
                 var entity = existingRecords.FirstOrDefault(r => r.Id == item.Id.Value);
+                if (archivedRecordIds.Contains(item.Id.Value))
+                    continue; // Archived values and associations are immutable; status was handled above.
                 if (entity is null || (!canOverrideSignedOff && entity.Status == StatRecordStatus.SignedOff))
                 {
-                    continue; // stale ID or signed-off — skip
                     logger.LogDebug("Skipping stale stat record id {StatRecordId} while saving day", item.Id.Value);
-                    continue; // stale ID - skip rather than error
+                    continue; // stale ID or signed-off - skip
                 }
 
                 entity.SubCategoryMetricId = item.SubCategoryMetricId;

@@ -2270,7 +2270,13 @@ public class SubCategoryMetricSeeder(ILogger<SubCategoryMetricSeeder> logger) : 
 
             if (
                 seed.Id >= LegacyBiOracleStatsSeedData.FirstMetricId
-                && (existing.SubCategoryId != seed.SubCategoryId || existing.MetricId != seed.MetricId)
+                && (
+                    existing.SubCategoryId != seed.SubCategoryId
+                    || existing.MetricId != seed.MetricId
+                    || existing.DisplayOrder != seed.DisplayOrder
+                    || existing.IsRequired != seed.IsRequired
+                    || existing.IsArchived != ArchivedIds.Contains(seed.Id)
+                )
             )
             {
                 throw new InvalidOperationException(

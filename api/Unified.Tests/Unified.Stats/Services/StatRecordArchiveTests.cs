@@ -14,7 +14,7 @@ public sealed class StatRecordArchiveTests
     [InlineData("subcategory", false)]
     [InlineData("category", false)]
     [InlineData("metric", true)]
-    public async Task SaveDayAsync_OmittedArchivedRecords_PreservesHistoryAndStillSavesActiveRecords(
+    public async Task SaveDayAsync_OmittedAndSubmittedArchivedRecords_PreserveHistoryAndStillSaveActiveRecords(
         string archiveLevel,
         bool overrideSignedOff
     )
@@ -89,13 +89,15 @@ public sealed class StatRecordArchiveTests
                 SubCategoryMetricId = scm.Id,
                 Value = value,
                 Comment = "Keep original",
+                PerformedAtLocationId = 5,
                 Status = status,
             };
         db.StatRecords.AddRange(
             Record(1, oldScm, 37),
             Record(2, activeScm, 2),
             Record(3, activeScm, 3),
-            Record(4, oldScm, 41, StatRecordStatus.SignedOff)
+            Record(4, oldScm, 41, StatRecordStatus.SignedOff),
+            Record(5, oldScm, 43)
         );
         await db.SaveChangesAsync(cancellationToken);
         var service = new StatRecordService(db, NullLogger<StatRecordService>.Instance);
@@ -111,9 +113,25 @@ public sealed class StatRecordArchiveTests
                 [
                     new SaveDayRecordItem
                     {
+                        Id = 1,
+                        SubCategoryMetricId = 449,
+                        Value = 999,
+                        Comment = "Changed",
+                        PerformedAtLocationId = 8,
+                    },
+                    new SaveDayRecordItem
+                    {
                         Id = 2,
                         SubCategoryMetricId = 449,
                         Value = 7,
+                    },
+                    new SaveDayRecordItem
+                    {
+                        Id = 4,
+                        SubCategoryMetricId = 449,
+                        Value = 998,
+                        Comment = "Changed signed-off",
+                        PerformedAtLocationId = 8,
                     },
                 ],
             },
@@ -124,17 +142,23 @@ public sealed class StatRecordArchiveTests
         );
 
         var records = await db.StatRecords.AsNoTracking().OrderBy(r => r.Id).ToArrayAsync(cancellationToken);
-        Assert.Equal(new[] { 1, 2, 4 }, records.Select(r => r.Id));
+        Assert.Equal(new[] { 1, 2, 4, 5 }, records.Select(r => r.Id));
         Assert.Equal(37m, records[0].Value);
         Assert.Equal("Keep original", records[0].Comment);
         Assert.Equal(418, records[0].SubCategoryMetricId);
+        Assert.Equal(5, records[0].PerformedAtLocationId);
         Assert.Equal(StatRecordStatus.Submitted, records[0].Status);
         Assert.Equal(7m, records[1].Value);
         Assert.Equal(StatRecordStatus.Submitted, records[1].Status);
         Assert.Equal(41m, records[2].Value);
+        Assert.Equal("Keep original", records[2].Comment);
+        Assert.Equal(418, records[2].SubCategoryMetricId);
+        Assert.Equal(5, records[2].PerformedAtLocationId);
         Assert.Equal(overrideSignedOff ? StatRecordStatus.Submitted : StatRecordStatus.SignedOff, records[2].Status);
+        Assert.Equal(43m, records[3].Value);
+        Assert.Equal(StatRecordStatus.Submitted, records[3].Status);
         Assert.Equal(
-            3,
+            4,
             (
                 await service.GetAllAsync(new StatRecordQueryParams { LocationId = 1, GroupId = 3 }, cancellationToken)
             ).Count
@@ -156,8 +180,18 @@ public sealed class StatRecordArchiveTests
             cancellationToken
         );
         Assert.Equal(
-            new[] { 1, 4 },
+            new[] { 1, 4, 5 },
             await db.StatRecords.OrderBy(r => r.Id).Select(r => r.Id).ToArrayAsync(cancellationToken)
+        );
+        var archivedStatuses = await db.StatRecords.OrderBy(r => r.Id).Select(r => r.Status).ToArrayAsync(cancellationToken);
+        Assert.Equal(
+            new[]
+            {
+                StatRecordStatus.Draft,
+                overrideSignedOff ? StatRecordStatus.Draft : StatRecordStatus.SignedOff,
+                StatRecordStatus.Draft,
+            },
+            archivedStatuses
         );
     }
 }

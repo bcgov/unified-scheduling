@@ -79,7 +79,9 @@ with ID 1, covering all 296 active statistic columns in the
 119 location mappings (118 legacy mappings plus
 Ahousaht Provincial Court) from JUSTIN location codes to CORIN location IDs. The
 initial stat mapping effective date is 2026-11-01, with no expiry, regardless of
-when seeding first runs. Persisted mappings remain immutable. Deployments that
+when seeding first runs. Existing sets retain their assigned effective date.
+Persisted mapping rows remain immutable; missing rows can be added only when
+the set has no persisted ETL run references. Deployments that
 require the BI Oracle mappings select this data set through the central `SeedData:DataSets`
 mechanism.
 
@@ -140,16 +142,17 @@ mapping definitions must supply an effective date explicitly. JUSTIN mapping cod
 must be exactly four characters without surrounding whitespace; validation rejects
 invalid codes rather than trimming or changing their case.
 
-### One-time development/test mapping reset
+### Mapping deployment preflight
 
-Fresh databases seed the complete configuration without cleanup. Development/test
-databases containing an earlier version of mapping set 1 or the PR's former
-mapping set 2 require an explicit reset of that unused BI mapping configuration.
-The normal seeder deliberately rejects changes to persisted mappings and does
-not perform this reset.
-
-Stop the API and any ETL process, connect to the intended development/test
-PostgreSQL database, and inspect the existing sets and mappings:
+Fresh databases seed set 1 with all 661 mappings, effective 2026-11-01.
+The earlier 516 mappings were inserted by the application seeder; the
+`AddBiOracleEtlSchema` migration creates the tables but inserts no mapping rows.
+An existing partial set 1 can receive only its missing mappings when all
+persisted definitions match and no ETL runs reference it. Its existing effective
+date and expiry are retained; repeated seeding makes no mapping changes.
+Conflicting definitions, IDs owned by another set, and overlapping effective
+periods are rejected before writes are staged. The final save is atomic.
+Inspect each deployment before selecting the BI mapping data set:
 
 ```sql
 SELECT s."Id", s."EffectiveDate", s."ExpiryDate",
@@ -164,40 +167,39 @@ SELECT r."Id", r."LoadId", r."MappingSetId", r."ReportingMonth",
        r."Status", r."StartedAt", COUNT(c."Id") AS staged_cell_count
 FROM etl."BiOracleEtlRuns" r
 LEFT JOIN etl."BiOracleStatStages" c ON c."LoadId" = r."LoadId"
-WHERE r."MappingSetId" IN (1, 2)
 GROUP BY r."Id", r."LoadId", r."MappingSetId", r."ReportingMonth",
          r."Status", r."StartedAt"
 ORDER BY r."Id";
+
+SELECT m."Id", m."MappingSetId", m."SubCategoryMetricId",
+       m."TargetTable", m."TargetColumn"
+FROM etl."BiOracleStatMappings" m
+ORDER BY m."MappingSetId", m."Id";
+
+SELECT "Id", "SubCategoryId", "MetricId", "DisplayOrder", "IsRequired", "IsArchived"
+FROM public."SubCategoryMetrics"
+WHERE "Id" BETWEEN 449 AND 511
+ORDER BY "Id";
+
+SELECT pg_get_serial_sequence('public."SubCategoryMetrics"', 'Id') AS sequence_name,
+       MAX("Id") AS maximum_id
+FROM public."SubCategoryMetrics";
 ```
 
-If there are ETL run references, stop and resolve their retention with the data
-owner before resetting; the cleanup below refuses to delete referenced sets.
-If the configuration is already the current set 1 with 661 matching mappings,
-effective 2026-11-01 with no expiry, no reset is needed. Otherwise, after confirming
-sets 1 and 2 contain only the unused development/test configuration, run:
+Compare persisted mapping rows with the checked-in definitions, not just their
+count. If a set has ETL run references, preserve it and its mapping rows. An
+additional effective-dated set can carry the expanded crosswalk, but it needs
+new unique mapping-row IDs for all 661 definitions and a business-approved
+effective date; the old set needs an appropriate expiry date. These dates and
+IDs must be supplied explicitly through the existing seed configuration; the
+seeder does not invent a version or backdate one. An explicitly configured
+expiry can close an old version, while an omitted expiry preserves its existing
+value. ETL associations are never changed.
 
-```sql
-BEGIN;
-LOCK TABLE etl."BiOracleStatMappingSets", etl."BiOracleStatMappings",
-           etl."BiOracleEtlRuns" IN SHARE ROW EXCLUSIVE MODE;
-DO $reset$
-BEGIN
-    IF EXISTS (SELECT 1 FROM etl."BiOracleEtlRuns" WHERE "MappingSetId" IN (1, 2)) THEN
-        RAISE EXCEPTION 'BI mapping reset refused: mapping sets are referenced by ETL runs';
-    END IF;
-END;
-$reset$;
-DELETE FROM etl."BiOracleStatMappings" WHERE "MappingSetId" IN (1, 2);
-DELETE FROM etl."BiOracleStatMappingSets" WHERE "Id" IN (1, 2);
-COMMIT;
-```
-
-Restart the API with `FeatureFlags:Stats:Enabled` enabled and
-`BiOracleMappingsDataSet` included in the existing `SeedData:DataSets` selection.
-Normal startup seeding recreates set 1 and mappings 1-661. Re-run the inspection
-query to confirm the date, expiry, count, and ID range. No identity-sequence reset
-is required. This procedure leaves ETL runs/stages, location mappings, StatRecords,
-and all other Stats reference data untouched.
+The safeguard checks persisted ETL runs of every status. Because ETL history
+is retained for only three months, absence of runs cannot establish that a set
+was never used; confirm any purged or external history during preflight. Do not
+reset or repurpose mapping sets as part of routine deployment.
 
 ## Seeders
 
