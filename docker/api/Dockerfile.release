@@ -1,5 +1,5 @@
 # Build stage
-FROM mcr.microsoft.com/dotnet/sdk:10.0.301 AS build
+FROM mcr.microsoft.com/dotnet/sdk:11.0.100 AS build
 WORKDIR /src
 
 # Copy project files
@@ -34,7 +34,7 @@ WORKDIR /src/api/Unified.Api
 RUN dotnet publish Unified.Api.csproj -c Release -o /app/publish --no-restore
 
 # Runtime stage. Keep this image version aligned with the Microsoft.Playwright package.
-FROM mcr.microsoft.com/playwright/dotnet:v1.62.0-noble AS runtime
+FROM mcr.microsoft.com/playwright/dotnet:v1.64.1-noble AS runtime
 # Refresh Noble's system and ICU timezone data for BC's permanent Pacific Time rules.
 RUN apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends tzdata tzdata-icu \
