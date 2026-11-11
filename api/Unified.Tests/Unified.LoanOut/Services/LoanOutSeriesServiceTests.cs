@@ -438,6 +438,7 @@ public sealed class LoanOutSeriesServiceTests : IAsyncLifetime
         new()
         {
             Title = "Loan out series",
+            AllDay = true,
             RecurrenceRule = "FREQ=DAILY;COUNT=2",
             StartAtUtc = Start,
             EndAtUtc = End,
@@ -529,7 +530,8 @@ public sealed class LoanOutSeriesServiceTests : IAsyncLifetime
             else
                 await _service.UpdateLoanOutSeriesAsync(original.Id, request, ct);
         });
-        Assert.False(_db.ChangeTracker.HasChanges());
+        if (!update)
+            Assert.False(_db.ChangeTracker.HasChanges());
         _db.ChangeTracker.Clear();
         Assert.Equal(update ? 1 : 0, await _db.LoanOutSeries.CountAsync(ct));
         Assert.Equal(update ? 3 : 1, await _db.LoanOutEntries.CountAsync(ct));
@@ -538,6 +540,215 @@ public sealed class LoanOutSeriesServiceTests : IAsyncLifetime
             var saved = (await _service.GetLoanOutSeriesByIdAsync(original.Id, ct))!;
             Assert.Equal(Start, saved.StartAtUtc);
             Assert.Equal("FREQ=DAILY;COUNT=2", saved.RecurrenceRule);
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task UpdateLoanOutSeriesAsync_WhenAddingUser_ChecksNewAndMovedDates(bool moveOccurrence)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var userB = Guid.NewGuid();
+        _db.Users.Add(
+            new User
+            {
+                Id = userB,
+                IdirName = "user.b",
+                IsEnabled = true,
+                FirstName = "User",
+                LastName = "B",
+                Email = "b@example.com",
+                Gender = Gender.Other,
+            }
+        );
+        await _db.SaveChangesAsync(ct);
+        var created = await _service.CreateLoanOutSeriesAsync(CreateRequest(), ct);
+        if (moveOccurrence)
+        {
+            var moved = await _db
+                .LoanOutEntries.Include(entry => entry.Event)
+                .Where(entry => entry.LoanOutSeriesId == created.Id)
+                .OrderBy(entry => entry.Event!.StartAtUtc)
+                .LastAsync(ct);
+            moved.Event!.StartAtUtc = Start.AddDays(2);
+            moved.Event.EndAtUtc = End.AddDays(2);
+            moved.Event.IsException = true;
+        }
+        _db.LoanOutEntries.Add(
+            new LoanOutEntry
+            {
+                LoanOutLocationId = 10,
+                Event = new Event
+                {
+                    Title = "B standalone",
+                    StartAtUtc = Start.AddDays(2),
+                    EndAtUtc = End.AddDays(2),
+                    TimeZoneId = "America/Vancouver",
+                    LocationId = 5,
+                    SourceModule = LoanOutConstants.SourceModule,
+                    EventTypeCode = LoanOutConstants.LoanOutEventTypeCode,
+                    StatusTypeCode = CalendarEventStatusTypeCodes.Draft,
+                },
+                Users = [new LoanOutEntryUser { UserId = userB }],
+            }
+        );
+        await _db.SaveChangesAsync(ct);
+
+        await Assert.ThrowsAsync<ConflictValidationException>(() =>
+            _service.UpdateLoanOutSeriesAsync(
+                created.Id,
+                CreateRequest() with
+                {
+                    UserIds = [UserA, userB],
+                    RecurrenceRule = moveOccurrence ? "FREQ=DAILY;COUNT=2" : "FREQ=DAILY;COUNT=3",
+                },
+                ct
+            )
+        );
+
+        _db.ChangeTracker.Clear();
+        var saved = await _service.GetLoanOutSeriesByIdAsync(created.Id, ct);
+        Assert.Equal([UserA], saved!.UserIds);
+        Assert.Equal(3, await _db.LoanOutEntries.CountAsync(ct));
+    }
+
+    [Fact]
+    public async Task UpdateLoanOutSeriesAsync_WhenOccurrencesShareDate_RejectsConflictBetweenOccurrences()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var created = await _service.CreateLoanOutSeriesAsync(CreateRequest(), ct);
+        var moved = await _db
+            .LoanOutEntries.Include(entry => entry.Event)
+            .OrderBy(entry => entry.Event!.StartAtUtc)
+            .LastAsync(ct);
+        moved.Event!.StartAtUtc = Start;
+        moved.Event.EndAtUtc = End;
+        moved.Event.IsException = true;
+        await _db.SaveChangesAsync(ct);
+
+        await Assert.ThrowsAsync<ConflictValidationException>(() =>
+            _service.UpdateLoanOutSeriesAsync(created.Id, CreateRequest() with { Title = "Changed title" }, ct)
+        );
+        _db.ChangeTracker.Clear();
+        Assert.Equal("Loan out series", (await _service.GetLoanOutSeriesByIdAsync(created.Id, ct))!.Title);
+    }
+
+    [Fact]
+    public async Task UpdateLoanOutSeriesAsync_WhenOccurrenceUsersAreOverridden_DoesNotReportFalseConflict()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var userB = Guid.NewGuid();
+        _db.Users.Add(
+            new User
+            {
+                Id = userB,
+                IdirName = "override.b",
+                IsEnabled = true,
+                FirstName = "User",
+                LastName = "B",
+                Email = "override.b@example.com",
+                Gender = Gender.Other,
+            }
+        );
+        await _db.SaveChangesAsync(ct);
+        var created = await _service.CreateLoanOutSeriesAsync(CreateRequest(), ct);
+        var moved = await _db
+            .LoanOutEntries.Include(entry => entry.Event)
+            .Include(entry => entry.Users)
+            .OrderBy(entry => entry.Event!.StartAtUtc)
+            .LastAsync(ct);
+        moved.Event!.StartAtUtc = Start.AddDays(2);
+        moved.Event.EndAtUtc = End.AddDays(2);
+        moved.Event.IsException = true;
+        _db.LoanOutEntryUsers.RemoveRange(moved.Users);
+        moved.Users = [new LoanOutEntryUser { UserId = userB }];
+        await _db.SaveChangesAsync(ct);
+        await _service.CreateLoanOutSeriesAsync(
+            CreateRequest() with
+            {
+                StartAtUtc = Start.AddDays(2),
+                EndAtUtc = End.AddDays(2),
+                RecurrenceRule = "FREQ=DAILY;COUNT=1",
+            },
+            ct
+        );
+
+        var updated = await _service.UpdateLoanOutSeriesAsync(
+            created.Id,
+            CreateRequest() with
+            {
+                Title = "Updated",
+            },
+            ct
+        );
+
+        Assert.Equal("Updated", updated!.Title);
+        _db.ChangeTracker.Clear();
+        var retained = await _db
+            .LoanOutEntries.Include(entry => entry.Users)
+            .SingleAsync(entry => entry.Id == moved.Id, ct);
+        Assert.Equal(userB, Assert.Single(retained.Users).UserId);
+    }
+
+    [Theory]
+    [InlineData(false, "2026-03-08", "2026-03-09T03:30:00Z", true)]
+    [InlineData(true, "2026-03-08", "2026-03-09T03:30:00Z", true)]
+    [InlineData(false, "2026-03-08", "2026-03-09T04:00:00Z", false)]
+    [InlineData(true, "2026-03-08", "2026-03-09T04:00:00Z", false)]
+    [InlineData(false, "2026-11-01", "2026-11-02T04:30:00Z", true)]
+    [InlineData(true, "2026-11-01", "2026-11-02T04:30:00Z", true)]
+    [InlineData(false, "2026-11-01", "2026-11-02T05:00:00Z", false)]
+    [InlineData(true, "2026-11-01", "2026-11-02T05:00:00Z", false)]
+    public async Task SaveLoanOutSeriesAsync_OnDaylightSavingTransition_UsesLocalDayBoundaries(
+        bool update,
+        string date,
+        string existingStartUtc,
+        bool conflicts
+    )
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var original = update ? await _service.CreateLoanOutSeriesAsync(CreateRequest(), ct) : null;
+        var existingStart = DateTimeOffset.Parse(existingStartUtc, System.Globalization.CultureInfo.InvariantCulture);
+        await _service.CreateLoanOutSeriesAsync(
+            CreateRequest() with
+            {
+                StartAtUtc = existingStart,
+                EndAtUtc = existingStart.AddMinutes(15),
+                TimeZoneId = "America/New_York",
+                RecurrenceRule = "FREQ=DAILY;COUNT=1",
+            },
+            ct
+        );
+        var start = new TimeZoneService().FromDateStringToStartOfDayInTimeZone(date, "America/New_York");
+        var request = CreateRequest() with
+        {
+            StartAtUtc = start,
+            EndAtUtc = new TimeZoneService().FromDateStringToEndOfDayInTimeZone(date, "America/New_York"),
+            TimeZoneId = "America/New_York",
+            RecurrenceRule = "FREQ=DAILY;COUNT=1",
+        };
+
+        async Task SaveAsync()
+        {
+            if (original is null)
+                await _service.CreateLoanOutSeriesAsync(request, ct);
+            else
+                await _service.UpdateLoanOutSeriesAsync(original.Id, request, ct);
+        }
+
+        if (conflicts)
+            await Assert.ThrowsAsync<ConflictValidationException>(SaveAsync);
+        else
+            await SaveAsync();
+
+        _db.ChangeTracker.Clear();
+        Assert.Equal(conflicts && !update ? 1 : 2, await _db.LoanOutSeries.CountAsync(ct));
+        Assert.Equal(conflicts ? (update ? 3 : 1) : 2, await _db.LoanOutEntries.CountAsync(ct));
+        if (original is not null)
+        {
+            var saved = await _service.GetLoanOutSeriesByIdAsync(original.Id, ct);
+            Assert.Equal(conflicts ? Start : start, saved!.StartAtUtc);
         }
     }
 

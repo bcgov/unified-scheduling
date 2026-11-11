@@ -417,6 +417,64 @@ public sealed class LoanOutEntryServiceTests : IAsyncLifetime
         Assert.False(await _db.LoanOutEntries.AnyAsync(ct));
     }
 
+    [Theory]
+    [InlineData(false, "2026-03-08", "2026-03-09T03:30:00Z", true)]
+    [InlineData(true, "2026-03-08", "2026-03-09T03:30:00Z", true)]
+    [InlineData(false, "2026-03-08", "2026-03-09T04:00:00Z", false)]
+    [InlineData(true, "2026-03-08", "2026-03-09T04:00:00Z", false)]
+    [InlineData(false, "2026-11-01", "2026-11-02T04:30:00Z", true)]
+    [InlineData(true, "2026-11-01", "2026-11-02T04:30:00Z", true)]
+    [InlineData(false, "2026-11-01", "2026-11-02T05:00:00Z", false)]
+    [InlineData(true, "2026-11-01", "2026-11-02T05:00:00Z", false)]
+    public async Task SaveLoanOutEntryAsync_OnDaylightSavingTransition_UsesLocalDayBoundaries(
+        bool update,
+        string date,
+        string existingStartUtc,
+        bool conflicts
+    )
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var original = update ? await _service.CreateLoanOutEntryAsync(CreateRequest(), ct) : null;
+        var existingStart = DateTimeOffset.Parse(existingStartUtc, System.Globalization.CultureInfo.InvariantCulture);
+        await _service.CreateLoanOutEntryAsync(
+            CreateRequest() with
+            {
+                StartAtUtc = existingStart,
+                EndAtUtc = existingStart.AddMinutes(15),
+                TimeZoneId = "America/New_York",
+            },
+            ct
+        );
+        var start = new TimeZoneService().FromDateStringToStartOfDayInTimeZone(date, "America/New_York");
+        var request = CreateRequest() with
+        {
+            StartAtUtc = start,
+            EndAtUtc = start.AddHours(1),
+            TimeZoneId = "America/New_York",
+        };
+
+        async Task SaveAsync()
+        {
+            if (original is null)
+                await _service.CreateLoanOutEntryAsync(request, ct);
+            else
+                await _service.UpdateLoanOutEntryAsync(original.Id, request, ct);
+        }
+
+        if (conflicts)
+            await Assert.ThrowsAsync<ConflictValidationException>(SaveAsync);
+        else
+            await SaveAsync();
+
+        _db.ChangeTracker.Clear();
+        Assert.Equal(conflicts && !update ? 1 : 2, await _db.LoanOutEntries.CountAsync(ct));
+        if (original is not null)
+        {
+            var saved = await _service.GetLoanOutEntryByIdAsync(original.Id, ct);
+            Assert.Equal(conflicts ? Start : start, saved!.StartAtUtc);
+        }
+    }
+
     private static LoanOutEntryRequest CreateRequest() =>
         new()
         {

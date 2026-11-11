@@ -26,10 +26,10 @@ const users = [
   },
 ];
 
-async function mountEditTab(options: { eventLocationId?: number; entityLocationId: number | null }) {
+async function mountEditTab(options: { eventLocationId?: number; entityLocationId: number | null; series?: boolean }) {
   server.use(
     http.get('*/api/users*', () => HttpResponse.json(users)),
-    http.get('*/api/scheduling/loan-out/entries/42', () =>
+    http.get(options.series ? '*/api/scheduling/loan-out/series/7' : '*/api/scheduling/loan-out/entries/42', () =>
       HttpResponse.json({
         id: 42,
         statusTypeCode: 'Draft',
@@ -39,7 +39,7 @@ async function mountEditTab(options: { eventLocationId?: number; entityLocationI
         startAtUtc: '2026-07-03T07:00:00Z',
         endAtUtc: '2026-07-04T07:00:00Z',
         timeZoneId: 'America/Vancouver',
-        recurrenceRule: null,
+        recurrenceRule: options.series ? 'FREQ=DAILY;COUNT=2' : null,
       }),
     ),
   );
@@ -58,7 +58,7 @@ async function mountEditTab(options: { eventLocationId?: number; entityLocationI
     title: 'Loan Out',
     start: '2026-07-03T07:00:00Z',
     locationId: options.eventLocationId,
-    metadata: { loanOutEntryId: '42' },
+    metadata: { loanOutEntryId: '42', ...(options.series ? { loanOutSeriesId: '7' } : {}) },
   };
   const wrapper = mount(CalendarSchedulingLoanOutDetailModal, {
     props: { event },
@@ -67,6 +67,11 @@ async function mountEditTab(options: { eventLocationId?: number; entityLocationI
       stubs: { UaModal: { template: '<section><slot /></section>' }, LoanOutForm: true },
     },
   });
+  if (options.series) {
+    const seriesButton = wrapper.findAll('button').find((button) => button.text() === 'The entire series');
+    expect(seriesButton).toBeDefined();
+    await seriesButton!.trigger('click');
+  }
   await vi.waitFor(() => expect(wrapper.findAll('[role="tab"]')).toHaveLength(2));
   await wrapper.get('[role="tab"]:last-child').trigger('click');
   return wrapper;
@@ -87,5 +92,25 @@ describe('CalendarSchedulingLoanOutDetailModal employee options', () => {
   it('falls back to all users when the loan-out location cannot be resolved', async () => {
     const wrapper = await mountEditTab({ entityLocationId: null });
     await vi.waitFor(() => expect(optionCodes(wrapper)).toEqual([homeUserId, loanedInUserId]));
+  });
+
+  it('uses the loaded entry location when the event omits its location', async () => {
+    const wrapper = await mountEditTab({ entityLocationId: 12 });
+    await vi.waitFor(() => expect(optionCodes(wrapper)).toEqual([homeUserId]));
+  });
+
+  it('uses the loaded entry location instead of a conflicting event location', async () => {
+    const wrapper = await mountEditTab({ eventLocationId: 99, entityLocationId: 12 });
+    await vi.waitFor(() => expect(optionCodes(wrapper)).toEqual([homeUserId]));
+  });
+
+  it('uses the series location when opened from an occurrence with a location override', async () => {
+    const wrapper = await mountEditTab({ eventLocationId: 99, entityLocationId: 12, series: true });
+    await vi.waitFor(() => expect(optionCodes(wrapper)).toEqual([homeUserId]));
+  });
+
+  it('falls back to the event location when the loaded entity has no location', async () => {
+    const wrapper = await mountEditTab({ eventLocationId: 12, entityLocationId: null });
+    await vi.waitFor(() => expect(optionCodes(wrapper)).toEqual([homeUserId]));
   });
 });
