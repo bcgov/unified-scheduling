@@ -183,7 +183,10 @@ public sealed class StatRecordArchiveTests
             new[] { 1, 4, 5 },
             await db.StatRecords.OrderBy(r => r.Id).Select(r => r.Id).ToArrayAsync(cancellationToken)
         );
-        var archivedStatuses = await db.StatRecords.OrderBy(r => r.Id).Select(r => r.Status).ToArrayAsync(cancellationToken);
+        var archivedStatuses = await db
+            .StatRecords.OrderBy(r => r.Id)
+            .Select(r => r.Status)
+            .ToArrayAsync(cancellationToken);
         Assert.Equal(
             new[]
             {

@@ -17,8 +17,9 @@ public sealed class BiOracleStatMappingSeedTests
     [Fact]
     public void ProductionData_OriginalMappingIds_RetainTheirSourceAndTargetAssociations()
     {
-        var mappings = Assert.Single(BiOracleStatMappingSeedData.Definitions).Mappings
-            .Where(mapping => mapping.Id <= 516)
+        var mappings = Assert
+            .Single(BiOracleStatMappingSeedData.Definitions)
+            .Mappings.Where(mapping => mapping.Id <= 516)
             .OrderBy(mapping => mapping.Id)
             .ToArray();
         Assert.Equal(Enumerable.Range(1, 516), mappings.Select(mapping => mapping.Id));
@@ -414,7 +415,10 @@ public sealed class BiOracleStatMappingSeedTests
         );
         Assert.Contains("has ETL history", exception.Message);
         Assert.Single(await context.BiOracleStatMappings.ToArrayAsync(TestContext.Current.CancellationToken));
-        Assert.Equal(1, (await context.BiOracleEtlRuns.SingleAsync(TestContext.Current.CancellationToken)).MappingSetId);
+        Assert.Equal(
+            1,
+            (await context.BiOracleEtlRuns.SingleAsync(TestContext.Current.CancellationToken)).MappingSetId
+        );
     }
 
     [Fact]
@@ -462,11 +466,12 @@ public sealed class BiOracleStatMappingSeedTests
 
         await using var context = CreateContext(databaseName);
         await Seeder(
-            MappingSet(
-                Mapping(1, 100, BiOracleTargetTable.SheriffServices, "GRD_ESC_HRS_L1"),
-                Mapping(2, 101, BiOracleTargetTable.SheriffServicesHours, "GRD_ESC_REG_HRS_L1")
+                MappingSet(
+                    Mapping(1, 100, BiOracleTargetTable.SheriffServices, "GRD_ESC_HRS_L1"),
+                    Mapping(2, 101, BiOracleTargetTable.SheriffServicesHours, "GRD_ESC_REG_HRS_L1")
+                )
             )
-        ).SeedAsync(context, TestContext.Current.CancellationToken);
+            .SeedAsync(context, TestContext.Current.CancellationToken);
 
         Assert.Equal(2, await context.BiOracleStatMappings.CountAsync(TestContext.Current.CancellationToken));
     }
@@ -584,11 +589,12 @@ public sealed class BiOracleStatMappingSeedTests
             await context.BiOracleEtlRuns.ToArrayAsync(cancellationToken: TestContext.Current.CancellationToken)
         );
         await Seeder(
-            MappingSet(
-                Mapping(1, 100, BiOracleTargetTable.SheriffServices, "GRD_ESC_HRS_L1"),
-                Mapping(2, 101, BiOracleTargetTable.SheriffServicesHours, "GRD_ESC_REG_HRS_L1")
+                MappingSet(
+                    Mapping(1, 100, BiOracleTargetTable.SheriffServices, "GRD_ESC_HRS_L1"),
+                    Mapping(2, 101, BiOracleTargetTable.SheriffServicesHours, "GRD_ESC_REG_HRS_L1")
+                )
             )
-        ).SeedAsync(context, TestContext.Current.CancellationToken);
+            .SeedAsync(context, TestContext.Current.CancellationToken);
         Assert.Equal(2, await context.BiOracleStatMappings.CountAsync(TestContext.Current.CancellationToken));
     }
 
@@ -771,13 +777,18 @@ public sealed class BiOracleStatMappingSeedTests
         var existingDate = new DateOnly(2026, month, day);
         if (existingCount > 0)
         {
-            await Seeder(definition with
-            {
-                EffectiveDate = existingDate,
-                Mappings = definition.Mappings.Take(existingCount).ToArray(),
-            }).SeedAsync(context, ct);
+            await Seeder(
+                    definition with
+                    {
+                        EffectiveDate = existingDate,
+                        Mappings = definition.Mappings.Take(existingCount).ToArray(),
+                    }
+                )
+                .SeedAsync(context, ct);
         }
-        var originalRows = await context.BiOracleStatMappings.AsNoTracking().OrderBy(mapping => mapping.Id)
+        var originalRows = await context
+            .BiOracleStatMappings.AsNoTracking()
+            .OrderBy(mapping => mapping.Id)
             .Select(mapping => new
             {
                 mapping.Id,
@@ -787,7 +798,8 @@ public sealed class BiOracleStatMappingSeedTests
                 mapping.TargetColumn,
                 mapping.CreatedOn,
                 mapping.UpdatedOn,
-            }).ToArrayAsync(ct);
+            })
+            .ToArrayAsync(ct);
         Assert.Equal(existingCount, originalRows.Length);
         context.ChangeTracker.Clear();
 
@@ -797,7 +809,9 @@ public sealed class BiOracleStatMappingSeedTests
         Assert.Equal(1, set.Id);
         Assert.Equal(existingCount == 0 ? definition.EffectiveDate : existingDate, set.EffectiveDate);
         Assert.Null(set.ExpiryDate);
-        var completeRows = await context.BiOracleStatMappings.AsNoTracking().OrderBy(mapping => mapping.Id)
+        var completeRows = await context
+            .BiOracleStatMappings.AsNoTracking()
+            .OrderBy(mapping => mapping.Id)
             .Select(mapping => new
             {
                 mapping.Id,
@@ -807,14 +821,25 @@ public sealed class BiOracleStatMappingSeedTests
                 mapping.TargetColumn,
                 mapping.CreatedOn,
                 mapping.UpdatedOn,
-            }).ToArrayAsync(ct);
+            })
+            .ToArrayAsync(ct);
         Assert.Equal(661, completeRows.Length);
         Assert.Equal(originalRows, completeRows.Take(existingCount).ToArray());
         Assert.Equal(
-            definition.Mappings.OrderBy(mapping => mapping.Id).Select(mapping =>
-                (mapping.Id, definition.Id, mapping.SubCategoryMetricId, mapping.TargetTable, mapping.TargetColumn)),
+            definition
+                .Mappings.OrderBy(mapping => mapping.Id)
+                .Select(mapping =>
+                    (mapping.Id, definition.Id, mapping.SubCategoryMetricId, mapping.TargetTable, mapping.TargetColumn)
+                ),
             completeRows.Select(mapping =>
-                (mapping.Id, mapping.MappingSetId, mapping.SubCategoryMetricId, mapping.TargetTable, mapping.TargetColumn))
+                (
+                    mapping.Id,
+                    mapping.MappingSetId,
+                    mapping.SubCategoryMetricId,
+                    mapping.TargetTable,
+                    mapping.TargetColumn
+                )
+            )
         );
 
         context.ChangeTracker.Clear();
@@ -823,7 +848,9 @@ public sealed class BiOracleStatMappingSeedTests
         Assert.Equal(1, await context.BiOracleStatMappingSets.CountAsync(ct));
         Assert.Equal(
             completeRows,
-            await context.BiOracleStatMappings.AsNoTracking().OrderBy(mapping => mapping.Id)
+            await context
+                .BiOracleStatMappings.AsNoTracking()
+                .OrderBy(mapping => mapping.Id)
                 .Select(mapping => new
                 {
                     mapping.Id,
@@ -833,7 +860,8 @@ public sealed class BiOracleStatMappingSeedTests
                     mapping.TargetColumn,
                     mapping.CreatedOn,
                     mapping.UpdatedOn,
-                }).ToArrayAsync(ct)
+                })
+                .ToArrayAsync(ct)
         );
     }
 
@@ -857,49 +885,57 @@ public sealed class BiOracleStatMappingSeedTests
         await Seeder(MappingSet([firstMapping], 1, originalDate, null)).SeedAsync(context, ct);
         if (conflict is "other-set" or "overlap")
         {
-            context.BiOracleStatMappingSets.Add(new BiOracleStatMappingSet
-            {
-                Id = 2,
-                EffectiveDate = new DateOnly(2026, 9, 1),
-                ExpiryDate = conflict == "overlap" ? new DateOnly(2026, 10, 31) : new DateOnly(2026, 10, 26),
-            });
+            context.BiOracleStatMappingSets.Add(
+                new BiOracleStatMappingSet
+                {
+                    Id = 2,
+                    EffectiveDate = new DateOnly(2026, 9, 1),
+                    ExpiryDate = conflict == "overlap" ? new DateOnly(2026, 10, 31) : new DateOnly(2026, 10, 26),
+                }
+            );
             if (conflict == "other-set")
             {
-                context.BiOracleStatMappings.Add(new BiOracleStatMapping
-                {
-                    Id = missingMapping.Id,
-                    MappingSetId = 2,
-                    SubCategoryMetricId = missingMapping.SubCategoryMetricId,
-                    TargetTable = missingMapping.TargetTable,
-                    TargetColumn = missingMapping.TargetColumn,
-                });
+                context.BiOracleStatMappings.Add(
+                    new BiOracleStatMapping
+                    {
+                        Id = missingMapping.Id,
+                        MappingSetId = 2,
+                        SubCategoryMetricId = missingMapping.SubCategoryMetricId,
+                        TargetTable = missingMapping.TargetTable,
+                        TargetColumn = missingMapping.TargetColumn,
+                    }
+                );
             }
         }
         if (conflict == "history")
         {
-            context.BiOracleEtlRuns.Add(new BiOracleEtlRun
-            {
-                LoadId = Guid.NewGuid(),
-                MappingSetId = 1,
-                ReportingMonth = new DateOnly(2026, 11, 1),
-                StartedAt = SeedTime,
-                Status = BiOracleEtlRunStatus.Succeeded,
-            });
+            context.BiOracleEtlRuns.Add(
+                new BiOracleEtlRun
+                {
+                    LoadId = Guid.NewGuid(),
+                    MappingSetId = 1,
+                    ReportingMonth = new DateOnly(2026, 11, 1),
+                    StartedAt = SeedTime,
+                    Status = BiOracleEtlRunStatus.Succeeded,
+                }
+            );
         }
         if (conflict == "archived")
             (await context.SubCategoryMetrics.SingleAsync(metric => metric.Id == 6, ct)).IsArchived = true;
         await context.SaveChangesAsync(ct);
         var originalMappingCount = await context.BiOracleStatMappings.CountAsync(ct);
         context.ChangeTracker.Clear();
-        var requestedMapping = conflict == "definition"
-            ? firstMapping with { TargetColumn = "CA_HSM_HRS" }
-            : firstMapping;
+        var requestedMapping =
+            conflict == "definition" ? firstMapping with { TargetColumn = "CA_HSM_HRS" } : firstMapping;
         var definition = MappingSet([missingMapping, requestedMapping], 1, new DateOnly(2026, 11, 1), null);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => Seeder(definition).SeedAsync(context, ct));
 
-        Assert.Empty(context.ChangeTracker.Entries()
-            .Where(entry => entry.State is EntityState.Added or EntityState.Modified or EntityState.Deleted));
+        Assert.Empty(
+            context
+                .ChangeTracker.Entries()
+                .Where(entry => entry.State is EntityState.Added or EntityState.Modified or EntityState.Deleted)
+        );
         Assert.Equal(0, await context.SaveChangesAsync(ct));
         context.ChangeTracker.Clear();
         var retainedSet = await context.BiOracleStatMappingSets.SingleAsync(set => set.Id == 1, ct);
@@ -911,15 +947,19 @@ public sealed class BiOracleStatMappingSeedTests
         Assert.Equal(firstMapping.TargetTable, retainedMapping.TargetTable);
         Assert.Equal(firstMapping.TargetColumn, retainedMapping.TargetColumn);
         if (conflict == "other-set")
-            Assert.Equal(2, (await context.BiOracleStatMappings.SingleAsync(mapping => mapping.Id == 2, ct)).MappingSetId);
+            Assert.Equal(
+                2,
+                (await context.BiOracleStatMappings.SingleAsync(mapping => mapping.Id == 2, ct)).MappingSetId
+            );
         if (conflict == "history")
             Assert.Equal(1, (await context.BiOracleEtlRuns.SingleAsync(ct)).MappingSetId);
     }
 
     private static UnifiedDbContext CreateRelationalContext(SqliteConnection connection) =>
-        new SqliteTestUnifiedDbContext(
-            new DbContextOptionsBuilder<UnifiedDbContext>().UseSqlite(connection).Options
-        ) { AuditDisabled = true };
+        new SqliteTestUnifiedDbContext(new DbContextOptionsBuilder<UnifiedDbContext>().UseSqlite(connection).Options)
+        {
+            AuditDisabled = true,
+        };
 
     private static async Task SeedTaxonomyAsync(UnifiedDbContext context)
     {

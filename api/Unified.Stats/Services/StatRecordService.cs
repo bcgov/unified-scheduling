@@ -243,9 +243,7 @@ public sealed class StatRecordService(UnifiedDbContext db, ILogger<StatRecordSer
             )
             .Select(r => r.Id)
             .ToHashSetAsync(cancellationToken);
-        var retainedArchivedRecords = existingRecords
-            .Where(r => archivedRecordIds.Contains(r.Id))
-            .ToList();
+        var retainedArchivedRecords = existingRecords.Where(r => archivedRecordIds.Contains(r.Id)).ToList();
         foreach (var record in retainedArchivedRecords)
         {
             // Preserve the whole day's submit/draft behavior without changing retired

@@ -32,11 +32,12 @@ public sealed class BiOracleStatMappingSeeder(
 
         var mappingSets = await ResolveEffectiveDatesAsync(dbContext, configuredMappingSets, cancellationToken);
         var archivedMetricIds = await ValidateSubCategoryMetricsAsync(dbContext, mappingSets, cancellationToken);
-        var plans = new List<(
-            BiOracleStatMappingSetSeedDefinition Definition,
-            BiOracleStatMappingSet? ExistingSet,
-            BiOracleStatMappingSeedDefinition[] MissingMappings
-        )>();
+        var plans =
+            new List<(
+                BiOracleStatMappingSetSeedDefinition Definition,
+                BiOracleStatMappingSet? ExistingSet,
+                BiOracleStatMappingSeedDefinition[] MissingMappings
+            )>();
 
         foreach (var definition in mappingSets)
         {
@@ -121,8 +122,8 @@ public sealed class BiOracleStatMappingSeeder(
         BiOracleStatMappingSeedValidator.Validate(
             resolvedSets
                 .Concat(
-                    existingSets.Values
-                        .Where(existing => !resolvedSets.Any(definition => definition.Id == existing.Id))
+                    existingSets
+                        .Values.Where(existing => !resolvedSets.Any(definition => definition.Id == existing.Id))
                         .Select(existing => new BiOracleStatMappingSetSeedDefinition
                         {
                             Id = existing.Id,
@@ -185,10 +186,7 @@ public sealed class BiOracleStatMappingSeeder(
             );
         }
 
-        var unexpectedIds = existingMappings
-            .Select(mapping => mapping.Id)
-            .Except(requestedIds)
-            .ToArray();
+        var unexpectedIds = existingMappings.Select(mapping => mapping.Id).Except(requestedIds).ToArray();
         if (unexpectedIds.Length > 0)
         {
             throw new InvalidOperationException(
