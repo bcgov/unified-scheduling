@@ -17,8 +17,8 @@ On Modified `BaseEntity` rows, `AuditableEntityInterceptor` sets `UpdatedOn` to 
 caller explicitly changed it to a non-null value. An unchanged prior timestamp or a value cleared to null
 receives a fresh UTC timestamp. Added rows retain their existing behavior: `CreatedOn` is database-generated
 and caller-supplied `UpdatedOn` values are preserved. No historical values are backfilled.
-Audit.NET snapshots changes before EF save interceptors run, so `AuditRecordEntityAction` reconciles the
-persisted `UpdatedOn` into modified audit records and their changed-column list.
+Audit.NET snapshots changes before EF save interceptors run, so the interceptor captures the prior
+`UpdatedOn` and `AuditRecordEntityAction` records both prior and persisted values in modified audit records.
 
 `ExecuteUpdate[Async]` and raw SQL bypass this interceptor and Audit.NET's SaveChanges history capture.
 The five existing bulk updates remain unchanged: last-login and pending-registration updates in

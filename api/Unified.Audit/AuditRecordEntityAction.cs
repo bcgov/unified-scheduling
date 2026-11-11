@@ -27,33 +27,41 @@ public sealed class AuditRecordEntityAction(ICurrentActorResolver actorResolver,
     /// </summary>
     public bool Populate(AuditEvent auditEvent, EventEntry entry, AuditRecord record)
     {
+        var trackedEntry = entry.GetEntry();
+        DateTimeOffset? previousUpdatedOn = null;
+        var hasPreviousUpdatedOn =
+            string.Equals(entry.Action, "Update", StringComparison.Ordinal)
+            && trackedEntry.Entity is BaseEntity baseEntity
+            && AuditableEntityInterceptor.TryTakePreviousUpdatedOn(baseEntity, out previousUpdatedOn);
+
         if (auditEvent.GetEntityFrameworkEvent()?.Success != true)
         {
             return false;
         }
 
         var actor = actorResolver.Resolve();
-        var entityType = entry.GetEntry().Metadata;
+        var entityType = trackedEntry.Metadata;
         var changedColumns = entry
             .Changes?.Select(change => change.ColumnName)
             .Where(columnName => !ShouldExclude(entityType, entry.Table, columnName))
             .ToList();
 
-        if (string.Equals(entry.Action, "Update", StringComparison.Ordinal))
+        var updatedOnColumn = GetUpdatedOnColumnName(entityType, entry.Table);
+        var updatedOnWasChanged =
+            hasPreviousUpdatedOn
+            || (
+                updatedOnColumn is not null && changedColumns?.Contains(updatedOnColumn, StringComparer.Ordinal) == true
+            );
+        if (
+            updatedOnWasChanged
+            && updatedOnColumn is not null
+            && !ShouldExclude(entityType, entry.Table, updatedOnColumn)
+        )
         {
-            var trackedEntry = entry.GetEntry();
-            var updatedOnColumn = GetUpdatedOnColumnName(entityType, entry.Table);
-            if (
-                updatedOnColumn is not null
-                && !ShouldExclude(entityType, entry.Table, updatedOnColumn)
-                && trackedEntry.Property(nameof(BaseEntity.UpdatedOn)).CurrentValue is not null
-            )
+            changedColumns ??= [];
+            if (!changedColumns.Contains(updatedOnColumn, StringComparer.Ordinal))
             {
-                changedColumns ??= [];
-                if (!changedColumns.Contains(updatedOnColumn, StringComparer.Ordinal))
-                {
-                    changedColumns.Add(updatedOnColumn);
-                }
+                changedColumns.Add(updatedOnColumn);
             }
         }
 
@@ -64,8 +72,22 @@ public sealed class AuditRecordEntityAction(ICurrentActorResolver actorResolver,
         record.EntityType = entityType.ClrType.Name;
         record.TableName = entry.Table; // Every table in this schema uses a single "Id" column as its primary key.
         record.EntityPK = entry.PrimaryKey.Values.Single()?.ToString() ?? string.Empty;
-        record.OldValues = BuildValues(entry, entityType, oldValues: true);
-        record.NewValues = BuildValues(entry, entityType, oldValues: false);
+        record.OldValues = BuildValues(
+            entry,
+            entityType,
+            oldValues: true,
+            updatedOnWasChanged,
+            hasPreviousUpdatedOn,
+            previousUpdatedOn
+        );
+        record.NewValues = BuildValues(
+            entry,
+            entityType,
+            oldValues: false,
+            updatedOnWasChanged,
+            hasPreviousUpdatedOn,
+            previousUpdatedOn
+        );
         record.ChangedColumns = changedColumns is { Count: > 0 } ? [.. changedColumns] : null;
         // Populated from the ambient System.Diagnostics.Activity (Audit.Core.Configuration.IncludeActivityTrace, set in AuditModule).
         record.CorrelationId = auditEvent.Activity?.TraceId;
@@ -75,7 +97,14 @@ public sealed class AuditRecordEntityAction(ICurrentActorResolver actorResolver,
 
     // entry.Action reflects the state EF Core captured pre-save (Insert/Update/Delete); by the time
     // this runs the save has already completed and the live EntityEntry.State has been reset.
-    private string? BuildValues(EventEntry entry, IEntityType entityType, bool oldValues)
+    private string? BuildValues(
+        EventEntry entry,
+        IEntityType entityType,
+        bool oldValues,
+        bool updatedOnWasChanged,
+        bool hasPreviousUpdatedOn,
+        DateTimeOffset? previousUpdatedOn
+    )
     {
         Dictionary<string, object?> values = [];
 
@@ -91,18 +120,16 @@ public sealed class AuditRecordEntityAction(ICurrentActorResolver actorResolver,
                 values[change.ColumnName] = oldValues ? change.OriginalValue : change.NewValue;
             }
 
-            if (!oldValues)
+            var updatedOnColumn = GetUpdatedOnColumnName(entityType, entry.Table);
+            if (
+                updatedOnColumn is not null
+                && !ShouldExclude(entityType, entry.Table, updatedOnColumn)
+                && ((oldValues && hasPreviousUpdatedOn) || (!oldValues && updatedOnWasChanged))
+            )
             {
-                var trackedEntry = entry.GetEntry();
-                var updatedOnColumn = GetUpdatedOnColumnName(entityType, entry.Table);
-                if (
-                    updatedOnColumn is not null
-                    && !ShouldExclude(entityType, entry.Table, updatedOnColumn)
-                    && trackedEntry.Property(nameof(BaseEntity.UpdatedOn)).CurrentValue is { } updatedOn
-                )
-                {
-                    values[updatedOnColumn] = updatedOn;
-                }
+                values[updatedOnColumn] = oldValues
+                    ? previousUpdatedOn
+                    : entry.GetEntry().CurrentValues[nameof(BaseEntity.UpdatedOn)];
             }
         }
         else

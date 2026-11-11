@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Unified.Db.Models.Abstract;
@@ -14,7 +15,33 @@ namespace Unified.Audit;
 public sealed class AuditableEntityInterceptor(ICurrentActorResolver actorResolver, TimeProvider? timeProvider = null)
     : SaveChangesInterceptor
 {
+    private static readonly ConditionalWeakTable<BaseEntity, PreviousUpdatedOn> PreviousUpdatedOnValues = new();
     private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
+
+    internal static void CapturePreviousUpdatedOn(BaseEntity entity, DateTimeOffset? updatedOn)
+    {
+        lock (PreviousUpdatedOnValues)
+        {
+            PreviousUpdatedOnValues.Remove(entity);
+            PreviousUpdatedOnValues.Add(entity, new(updatedOn));
+        }
+    }
+
+    internal static bool TryTakePreviousUpdatedOn(BaseEntity entity, out DateTimeOffset? updatedOn)
+    {
+        lock (PreviousUpdatedOnValues)
+        {
+            if (PreviousUpdatedOnValues.TryGetValue(entity, out var previousUpdatedOn))
+            {
+                PreviousUpdatedOnValues.Remove(entity);
+                updatedOn = previousUpdatedOn.Value;
+                return true;
+            }
+        }
+
+        updatedOn = null;
+        return false;
+    }
 
     public override InterceptionResult<int> SavingChanges(DbContextEventData eventData, InterceptionResult<int> result)
     {
@@ -59,6 +86,7 @@ public sealed class AuditableEntityInterceptor(ICurrentActorResolver actorResolv
             {
                 entry.Entity.UpdatedById = actor.ActorUserId;
                 var updatedOn = entry.Property(entity => entity.UpdatedOn);
+                CapturePreviousUpdatedOn(entry.Entity, updatedOn.OriginalValue);
                 if (
                     !updatedOn.IsModified
                     || updatedOn.CurrentValue is null
@@ -70,4 +98,6 @@ public sealed class AuditableEntityInterceptor(ICurrentActorResolver actorResolv
             }
         }
     }
+
+    private sealed record PreviousUpdatedOn(DateTimeOffset? Value);
 }

@@ -227,6 +227,26 @@ public sealed class AuditPipelineTests : IAsyncLifetime
         Assert.Equal(clock.UtcNow, persistedRegion.UpdatedOn);
         Assert.Equal(3, resolver.ResolveCount);
         Assert.Equal(9, await dbContext.AuditRecords.CountAsync(TestContext.Current.CancellationToken));
+
+        var regionAudits = await dbContext
+            .AuditRecords.Where(record =>
+                record.Action == "Modified"
+                && record.EntityType == nameof(Region)
+                && record.EntityPK == region.Id.ToString()
+            )
+            .OrderBy(record => record.Id)
+            .ToListAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(2, regionAudits.Count);
+        using var secondEditOldValues = JsonDocument.Parse(regionAudits[1].OldValues!);
+        Assert.Equal(
+            clock.UtcNow.AddHours(-1),
+            secondEditOldValues.RootElement.GetProperty(nameof(Region.UpdatedOn)).GetDateTimeOffset()
+        );
+        using var secondEditNewValues = JsonDocument.Parse(regionAudits[1].NewValues!);
+        Assert.Equal(
+            clock.UtcNow,
+            secondEditNewValues.RootElement.GetProperty(nameof(Region.UpdatedOn)).GetDateTimeOffset()
+        );
     }
 
     [Theory]
