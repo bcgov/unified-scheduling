@@ -1,12 +1,21 @@
-import type { BrandDefinition, DashboardTileId } from './types';
+import type { BrandDefinition, DashboardTileId, LogoDefinition } from './types';
 import type { BrandSettingsOptions } from '@/api-access/generated/models';
 
 import { resolveBrandAssetUrl } from './brandAssetUrl';
 
-export const fixedPrimaryLogo = {
-  url: '/images/bcid-logo-rev-en.svg',
+export const fixedPrimaryLogo: LogoDefinition = {
+  url: resolveBrandAssetUrl('/images/bcid-logo-rev-en.svg'),
   alt: 'B.C. Government Logo',
-} as const;
+};
+
+function getLogoPair(...logos: { url?: string | null; alt?: string | null }[]): LogoDefinition {
+  const selected = logos.find((logo) => logo.url?.trim());
+
+  return {
+    url: resolveBrandAssetUrl(selected?.url),
+    alt: selected?.alt?.trim() || undefined,
+  };
+}
 
 /** Bundled fallback values when runtime branding configuration omits a setting. */
 export const defaultBrand: BrandDefinition = {
@@ -15,6 +24,7 @@ export const defaultBrand: BrandDefinition = {
   backgroundColor: '#FAF9F8',
   activeColor: '#e3a82b',
   dashboardMessage: 'Select your work location, then choose a module below to get started.',
+  primaryLogo: fixedPrimaryLogo,
 
   dashboardTiles: ['myProfile', 'myTeam', 'stats', 'schedule', 'admin', 'reporting', 'training'],
   dashboardBanner: {
@@ -23,9 +33,6 @@ export const defaultBrand: BrandDefinition = {
     tagline: '',
     imageUrl: '',
   },
-
-  secondaryLogoUrl: '',
-  secondaryLogoAlt: '',
 
   backgroundImageUrl: '',
 
@@ -56,6 +63,16 @@ export function resolveBrandingConfig(
   const header = defaultBrand.dashboardBanner;
   const selectedTileIds = settings.quickLinks ?? defaults.quickLinks;
   const color = (value?: string | null) => value?.trim() || undefined;
+  const primaryLogo = getLogoPair(
+    { url: settings.primaryLogoUrl, alt: settings.primaryLogoAlt },
+    { url: defaults.primaryLogoUrl, alt: defaults.primaryLogoAlt },
+    defaultBrand.primaryLogo,
+  );
+  const secondaryLogo = getLogoPair(
+    { url: settings.secondaryLogoUrl, alt: settings.secondaryLogoAlt },
+    { url: defaults.secondaryLogoUrl, alt: defaults.secondaryLogoAlt },
+    { url: defaultBrand.secondaryLogo?.url, alt: defaultBrand.secondaryLogo?.alt },
+  );
 
   return {
     ...defaultBrand,
@@ -64,6 +81,7 @@ export function resolveBrandingConfig(
     backgroundColor: color(settings.backgroundColor) ?? color(defaults.backgroundColor) ?? defaultBrand.backgroundColor,
     activeColor:
       color(settings.navigationSelectedColor) ?? color(defaults.navigationSelectedColor) ?? defaultBrand.activeColor,
+    primaryLogo,
     dashboardTiles:
       selectedTileIds == null
         ? defaultBrand.dashboardTiles
@@ -85,10 +103,7 @@ export function resolveBrandingConfig(
       logoUrl: resolveBrandAssetUrl(settings.header?.logoUrl ?? defaults.header?.logoUrl ?? header?.logoUrl),
       logoAlt: settings.header?.logoAlt ?? defaults.header?.logoAlt ?? header?.logoAlt,
     },
-    secondaryLogoUrl: resolveBrandAssetUrl(
-      settings.secondaryLogoUrl ?? defaults.secondaryLogoUrl ?? defaultBrand.secondaryLogoUrl,
-    ),
-    secondaryLogoAlt: settings.secondaryLogoAlt ?? defaults.secondaryLogoAlt ?? defaultBrand.secondaryLogoAlt,
+    secondaryLogo: secondaryLogo.url ? secondaryLogo : undefined,
     backgroundImageUrl: resolveBrandAssetUrl(
       settings.backgroundImageUrl ?? defaults.backgroundImageUrl ?? defaultBrand.backgroundImageUrl,
     ),

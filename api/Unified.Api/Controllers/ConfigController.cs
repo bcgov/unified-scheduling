@@ -5,6 +5,7 @@ using Unified.Api.Models;
 using Unified.Api.Options;
 using Unified.Common.FeatureFlags;
 using Unified.Infrastructure.Email.Ches;
+using Unified.Scheduling.Options;
 
 namespace Unified.Api.Controllers;
 
@@ -15,7 +16,8 @@ public class ConfigController(
     IEnumerable<IFeatureFlags> featureFlags,
     IOptions<ApplicationOptions> applicationOptions,
     IOptions<BrandingOptions> brandingOptions,
-    IConfiguration configuration
+    IConfiguration configuration,
+    IOptions<WorkingHoursOptions> workingHoursOptions
 ) : ControllerBase
 {
     /// <summary>
@@ -39,6 +41,7 @@ public class ConfigController(
             SelectedBrand = brandingOptions.Value.SelectedBrand,
             BrandingOptions = brandingOptions.Value.Brands,
             EmailDistributionAvailable = ChesEmailConfiguration.IsEnabled(configuration),
+            DefaultLunchMinutes = workingHoursOptions.Value.DefaultLunchMinutes,
         };
 
         logger.LogDebug(

@@ -26,6 +26,7 @@ describe('assignment drop editing', () => {
       const updates: unknown[] = [];
       const assignment = {
         id: 257,
+        concurrencyToken: 7,
         assignmentDefinitionId: 7,
         assignmentSeriesId: 211,
         title: 'Custom assignment',
@@ -145,6 +146,7 @@ describe('assignment drop editing', () => {
         } else {
           expect(updates).toEqual([
             {
+              concurrencyToken: assignment.concurrencyToken,
               assignmentDefinitionId: 7,
               assignmentSeriesId: 211,
               title: assignment.title,

@@ -1,3 +1,4 @@
+using FluentValidation;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -19,8 +20,10 @@ using Unified.Db.Models.Leave;
 using Unified.Db.Models.LoanOut;
 using Unified.Db.Models.Lookup;
 using Unified.Db.Models.Scheduling;
+using Unified.Db.Models.Stats;
 using Unified.Db.Models.UserManagement;
 using Unified.Leave.Conflicts;
+using Unified.Leave.FeatureFlags;
 using Unified.LoanOut.Constants;
 using Unified.LoanOut.Factories;
 using Unified.LoanOut.Mappers;
@@ -30,6 +33,7 @@ using Unified.Scheduling;
 using Unified.Scheduling.Factories;
 using Unified.Scheduling.Mappings;
 using Unified.Scheduling.Models;
+using Unified.Scheduling.Options;
 using Unified.Scheduling.Services;
 using Unified.Tests.TestHelpers;
 
@@ -46,6 +50,7 @@ public class ShiftServiceTests : IAsyncLifetime
     private UnifiedDbContext _dbContext = null!;
     private ShiftService _service = null!;
     private CalendarConflictService _conflictService = null!;
+    private IShiftAssignmentService _assignmentService = null!;
 
     public async ValueTask InitializeAsync()
     {
@@ -96,18 +101,19 @@ public class ShiftServiceTests : IAsyncLifetime
             recurrenceExpander
         );
 
+        _assignmentService = new ShiftAssignmentService(
+            NullLogger<ShiftAssignmentService>.Instance,
+            _dbContext,
+            timeZoneService,
+            conflictService,
+            schedulingLoanOutService,
+            SchedulingLoanOutTestServices.CreateAvailability(_dbContext, timeZoneService)
+        );
         _service = CreateShift(
             _dbContext,
             materializationService,
             recurrenceExpander,
-            new ShiftAssignmentService(
-                NullLogger<ShiftAssignmentService>.Instance,
-                _dbContext,
-                timeZoneService,
-                conflictService,
-                schedulingLoanOutService,
-                SchedulingLoanOutTestServices.CreateAvailability(_dbContext, timeZoneService)
-            ),
+            _assignmentService,
             timeZoneService,
             TimeProvider.System,
             conflictService
@@ -326,6 +332,238 @@ public class ShiftServiceTests : IAsyncLifetime
                 && item.ResourceId == userId,
             TestContext.Current.CancellationToken
         );
+    }
+
+    [Fact]
+    public async Task UpdateShiftSeriesAsync_LegacyUnknownLunch_PreservesUnknownInMaterializedEntriesAndResponses()
+    {
+        var legacy = await AddShiftSeriesAsync();
+        var updated = await _service.UpdateShiftSeriesAsync(
+            legacy.Id,
+            CreateShiftSeriesRequest(recurrenceRule: "FREQ=DAILY;COUNT=2"),
+            TestContext.Current.CancellationToken
+        );
+        Assert.Null(updated!.LunchAvailableMinutes);
+        Assert.Null(updated.WorkedLunchMinutes);
+        var entries = await _service.GetShiftEntriesAsync(
+            new ShiftEntryQueryParams { ShiftSeriesId = legacy.Id },
+            TestContext.Current.CancellationToken
+        );
+        Assert.Equal(2, entries.Count);
+        Assert.All(
+            entries,
+            entry =>
+            {
+                Assert.Null(entry.LunchAvailableMinutes);
+                Assert.Null(entry.WorkedLunchMinutes);
+            }
+        );
+    }
+
+    [Fact]
+    public async Task UpdateShiftSeriesAsync_LunchOmissionAndOverrides_ArePreservedIndependently()
+    {
+        var request = CreateShiftSeriesRequest(recurrenceRule: "FREQ=DAILY;COUNT=2") with
+        {
+            LunchAvailableMinutes = 60,
+            WorkedLunchMinutes = 30,
+        };
+        var created = await _service.CreateShiftSeriesAsync(request, TestContext.Current.CancellationToken);
+        var entries = await _dbContext
+            .ShiftEntries.Where(x => x.ShiftSeriesId == created.Id)
+            .OrderBy(x => x.Id)
+            .ToListAsync(TestContext.Current.CancellationToken);
+        entries[1].LunchAvailableMinutes = 45;
+        entries[1].WorkedLunchMinutes = 15;
+        await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var metadata = await _service.UpdateShiftSeriesAsync(
+            created.Id,
+            request with
+            {
+                Description = "Updated",
+                LunchAvailableMinutes = null,
+                WorkedLunchMinutes = null,
+            },
+            TestContext.Current.CancellationToken
+        );
+        Assert.Equal(60, metadata!.LunchAvailableMinutes);
+        Assert.Equal(30, metadata.WorkedLunchMinutes);
+        Assert.Equal(60, entries[0].LunchAvailableMinutes);
+        Assert.Equal(30, entries[0].WorkedLunchMinutes);
+        Assert.Equal(45, entries[1].LunchAvailableMinutes);
+        Assert.Equal(15, entries[1].WorkedLunchMinutes);
+
+        await _service.UpdateShiftSeriesAsync(
+            created.Id,
+            request with
+            {
+                LunchAvailableMinutes = 45,
+                WorkedLunchMinutes = 0,
+            },
+            TestContext.Current.CancellationToken
+        );
+        Assert.Equal(45, entries[0].LunchAvailableMinutes);
+        Assert.Equal(0, entries[0].WorkedLunchMinutes);
+        Assert.Equal(45, entries[1].LunchAvailableMinutes);
+        Assert.Equal(15, entries[1].WorkedLunchMinutes);
+    }
+
+    [Fact]
+    public async Task UpdateShiftSeriesAsync_LunchUpdate_SkipsMovedAndCancelledOccurrences()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var request = CreateShiftSeriesRequest(recurrenceRule: "FREQ=DAILY;COUNT=3") with
+        {
+            LunchAvailableMinutes = 60,
+            WorkedLunchMinutes = 0,
+        };
+        var created = await _service.CreateShiftSeriesAsync(request, cancellationToken);
+        var entries = await _dbContext
+            .ShiftEntries.Include(entry => entry.Event)
+            .Where(entry => entry.ShiftSeriesId == created.Id)
+            .OrderBy(entry => entry.Event!.StartAtUtc)
+            .ToListAsync(cancellationToken);
+        entries[1].Event!.LocationId = 9;
+        entries[1].WorkedLunchMinutes = 45;
+        entries[2].Event!.StatusTypeCode = CalendarEventStatusTypeCodes.Cancelled;
+        entries[2].WorkedLunchMinutes = 45;
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        var updated = await _service.UpdateShiftSeriesAsync(
+            created.Id,
+            request with
+            {
+                LunchAvailableMinutes = 30,
+                WorkedLunchMinutes = 0,
+            },
+            cancellationToken
+        );
+
+        Assert.Equal(30, updated!.LunchAvailableMinutes);
+        Assert.Equal(0, updated.WorkedLunchMinutes);
+        _dbContext.ChangeTracker.Clear();
+        entries = await _dbContext
+            .ShiftEntries.Include(entry => entry.Event)
+            .Where(entry => entry.ShiftSeriesId == created.Id)
+            .OrderBy(entry => entry.Event!.StartAtUtc)
+            .ToListAsync(cancellationToken);
+        Assert.Equal(30, entries[0].LunchAvailableMinutes);
+        Assert.Equal(0, entries[0].WorkedLunchMinutes);
+        Assert.Equal(9, entries[1].Event!.LocationId);
+        Assert.Equal(60, entries[1].LunchAvailableMinutes);
+        Assert.Equal(45, entries[1].WorkedLunchMinutes);
+        Assert.Equal(CalendarEventStatusTypeCodes.Cancelled, entries[2].Event!.StatusTypeCode);
+        Assert.Equal(60, entries[2].LunchAvailableMinutes);
+        Assert.Equal(45, entries[2].WorkedLunchMinutes);
+    }
+
+    [Fact]
+    public async Task UpdateShiftSeriesAsync_InvalidPropagatedLunch_IsRejectedBeforeChangingParentOrChildren()
+    {
+        var request = CreateShiftSeriesRequest() with { LunchAvailableMinutes = 60, WorkedLunchMinutes = 15 };
+        var created = await _service.CreateShiftSeriesAsync(request, TestContext.Current.CancellationToken);
+        var parent = await _dbContext
+            .ShiftSeries.Include(x => x.EventSeries)
+            .SingleAsync(x => x.Id == created.Id, TestContext.Current.CancellationToken);
+        var child = await _dbContext.ShiftEntries.SingleAsync(
+            x => x.ShiftSeriesId == created.Id,
+            TestContext.Current.CancellationToken
+        );
+        child.WorkedLunchMinutes = 45;
+        await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            _service.UpdateShiftSeriesAsync(
+                created.Id,
+                request with
+                {
+                    Title = "Must not change",
+                    LunchAvailableMinutes = 30,
+                    WorkedLunchMinutes = null,
+                },
+                TestContext.Current.CancellationToken
+            )
+        );
+        Assert.Equal("Series", parent.EventSeries!.Title);
+        Assert.Equal(60, parent.LunchAvailableMinutes);
+        Assert.Equal(15, parent.WorkedLunchMinutes);
+        Assert.Equal(60, child.LunchAvailableMinutes);
+        Assert.Equal(45, child.WorkedLunchMinutes);
+        await _dbContext.Entry(parent).ReloadAsync(TestContext.Current.CancellationToken);
+        await _dbContext.Entry(parent.EventSeries!).ReloadAsync(TestContext.Current.CancellationToken);
+        await _dbContext.Entry(child).ReloadAsync(TestContext.Current.CancellationToken);
+        Assert.Equal("Series", parent.EventSeries!.Title);
+        Assert.Equal(60, parent.LunchAvailableMinutes);
+        Assert.Equal(15, parent.WorkedLunchMinutes);
+        Assert.Equal(60, child.LunchAvailableMinutes);
+        Assert.Equal(45, child.WorkedLunchMinutes);
+    }
+
+    [Fact]
+    public async Task UpdateShiftSeriesAsync_RecurrenceChange_RetainsLunchForRegeneratedOccurrences()
+    {
+        var request = CreateShiftSeriesRequest() with { LunchAvailableMinutes = 45, WorkedLunchMinutes = 15 };
+        var created = await _service.CreateShiftSeriesAsync(request, TestContext.Current.CancellationToken);
+        await _service.UpdateShiftSeriesAsync(
+            created.Id,
+            request with
+            {
+                RecurrenceRule = "FREQ=DAILY;COUNT=2",
+                LunchAvailableMinutes = null,
+                WorkedLunchMinutes = null,
+            },
+            TestContext.Current.CancellationToken
+        );
+        var entries = await _dbContext
+            .ShiftEntries.Where(x => x.ShiftSeriesId == created.Id)
+            .ToListAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(2, entries.Count);
+        Assert.All(
+            entries,
+            entry =>
+            {
+                Assert.Equal(45, entry.LunchAvailableMinutes);
+                Assert.Equal(15, entry.WorkedLunchMinutes);
+            }
+        );
+    }
+
+    [Fact]
+    public async Task UpdateShiftEntryAsync_InvalidEffectiveLunch_DoesNotChangeTrackedEvent()
+    {
+        var created = await _service.CreateShiftEntryAsync(
+            CreateShiftEntryRequest() with
+            {
+                LunchAvailableMinutes = 30,
+                WorkedLunchMinutes = 15,
+            },
+            TestContext.Current.CancellationToken
+        );
+        var entry = await _dbContext
+            .ShiftEntries.Include(x => x.Event)
+            .SingleAsync(x => x.Id == created.Id, TestContext.Current.CancellationToken);
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            _service.UpdateShiftEntryAsync(
+                created.Id,
+                CreateShiftEntryRequest(title: "Must not change") with
+                {
+                    WorkedLunchMinutes = 45,
+                },
+                TestContext.Current.CancellationToken
+            )
+        );
+        Assert.Equal("Entry", entry.Event!.Title);
+        Assert.Equal(30, entry.LunchAvailableMinutes);
+        Assert.Equal(15, entry.WorkedLunchMinutes);
+
+        var updated = await _service.UpdateShiftEntryAsync(
+            created.Id,
+            CreateShiftEntryRequest(title: "Updated"),
+            TestContext.Current.CancellationToken
+        );
+        Assert.Equal(30, updated!.LunchAvailableMinutes);
+        Assert.Equal(15, updated.WorkedLunchMinutes);
     }
 
     [Fact]
@@ -2138,7 +2376,11 @@ public class ShiftServiceTests : IAsyncLifetime
         var cancellationToken = TestContext.Current.CancellationToken;
         var start = new DateTimeOffset(2026, 6, 1, 16, 0, 0, TimeSpan.Zero);
         var source = await _service.CreateShiftSeriesAsync(
-            CreateShiftSeriesRequest(recurrenceRule: "FREQ=DAILY;COUNT=3"),
+            CreateShiftSeriesRequest(recurrenceRule: "FREQ=DAILY;COUNT=3") with
+            {
+                LunchAvailableMinutes = 30,
+                WorkedLunchMinutes = 15,
+            },
             cancellationToken
         );
         if (overrideFirstTime)
@@ -2221,6 +2463,7 @@ public class ShiftServiceTests : IAsyncLifetime
         var copied = await _dbContext
             .ShiftEntries.Include(entry => entry.Event)
             .Include(entry => entry.Users)
+            .Include(entry => entry.ShiftSeries)
             .Where(entry => entry.Event!.LocationId == 9)
             .OrderBy(entry => entry.Event!.StartAtUtc)
             .ToListAsync(cancellationToken);
@@ -2251,6 +2494,13 @@ public class ShiftServiceTests : IAsyncLifetime
                     Assert.NotNull(entry.ShiftSeriesId);
                 Assert.Equal(entry.Event!.StartAtUtc.AddHours(7), entry.Event.EndAtUtc);
                 Assert.Equal(UserA, Assert.Single(entry.Users).UserId);
+                Assert.Equal(30, entry.LunchAvailableMinutes);
+                Assert.Equal(15, entry.WorkedLunchMinutes);
+                if (entry.ShiftSeries is not null)
+                {
+                    Assert.Equal(30, entry.ShiftSeries.LunchAvailableMinutes);
+                    Assert.Equal(15, entry.ShiftSeries.WorkedLunchMinutes);
+                }
             }
         );
         var originals = await _dbContext
@@ -2515,6 +2765,353 @@ public class ShiftServiceTests : IAsyncLifetime
         );
     }
 
+    [Theory]
+    [InlineData(false, null, null, false)]
+    [InlineData(true, null, null, false)]
+    [InlineData(false, 0, 0, false)]
+    [InlineData(true, 0, 0, false)]
+    [InlineData(false, null, 0, false)]
+    [InlineData(true, null, 0, false)]
+    [InlineData(false, 30, null, false)]
+    [InlineData(true, 30, null, false)]
+    [InlineData(true, 30, 15, false)]
+    [InlineData(true, 30, 15, true)]
+    [InlineData(true, null, null, true)]
+    public async Task TransferLoanedOutUserShift_HistoricalLunchAndOverrides_PreservesExactValues(
+        bool recurring,
+        int? available,
+        int? worked,
+        bool overrideLunch
+    )
+    {
+        var token = TestContext.Current.CancellationToken;
+        var source = await _service.CreateShiftSeriesAsync(
+            CreateShiftSeriesRequest(recurrenceRule: "FREQ=DAILY;COUNT=2"),
+            token
+        );
+        Assert.Equal(60, source.LunchAvailableMinutes);
+        Assert.Equal(0, source.WorkedLunchMinutes);
+        var parent = await _dbContext.ShiftSeries.SingleAsync(series => series.Id == source.Id, token);
+        parent.LunchAvailableMinutes = available;
+        parent.WorkedLunchMinutes = worked;
+        var originals = await _dbContext
+            .ShiftEntries.Include(shift => shift.Event)
+            .Where(shift => shift.ShiftSeriesId == source.Id)
+            .OrderBy(shift => shift.Event!.StartAtUtc)
+            .ToListAsync(token);
+        foreach (var shift in originals)
+        {
+            shift.LunchAvailableMinutes = available;
+            shift.WorkedLunchMinutes = worked;
+        }
+        if (overrideLunch)
+        {
+            originals[0].LunchAvailableMinutes = 20;
+            originals[0].WorkedLunchMinutes = 10;
+            originals[1].LunchAvailableMinutes = null;
+            originals[1].WorkedLunchMinutes = null;
+        }
+        await _dbContext.SaveChangesAsync(token);
+        var transfers = CreateTransferService();
+        var loanOuts = originals
+            .Select(shift => new LoanOutEntry
+            {
+                LoanOutLocationId = 9,
+                Event = new Event
+                {
+                    StartAtUtc = shift.Event!.StartAtUtc.AddHours(-9),
+                    EndAtUtc = shift.Event.StartAtUtc.AddHours(15),
+                    AllDay = true,
+                },
+                Users = [new LoanOutEntryUser { UserId = UserA }],
+            })
+            .ToList();
+
+        if (recurring)
+            Assert.True(
+                await transfers.TransferLoanedOutUserShift(
+                    new LoanOutSeries
+                    {
+                        LoanOutLocationId = 9,
+                        EventSeries = new EventSeries
+                        {
+                            StartAtUtc = loanOuts[0].Event!.StartAtUtc,
+                            EndAtUtc = loanOuts[0].Event!.EndAtUtc,
+                            TimeZoneId = "America/Vancouver",
+                            RecurrenceRule = "FREQ=DAILY;COUNT=2",
+                        },
+                        LoanOutEntries = loanOuts,
+                    },
+                    cancellationToken: token
+                )
+            );
+        else
+            foreach (var loanOut in loanOuts)
+                Assert.True(await transfers.TransferLoanedOutUserShift(loanOut, cancellationToken: token));
+
+        _dbContext.ChangeTracker.Clear();
+        var copies = await _dbContext
+            .ShiftEntries.Include(shift => shift.Event)
+            .Include(shift => shift.ShiftSeries)
+            .Where(shift => shift.Event!.LocationId == 9)
+            .OrderBy(shift => shift.Event!.StartAtUtc)
+            .ToListAsync(token);
+        Assert.Equal(2, copies.Count);
+        if (recurring && !overrideLunch)
+            Assert.Single(copies.Select(copy => copy.ShiftSeriesId).Distinct());
+        for (var index = 0; index < copies.Count; index++)
+        {
+            Assert.Equal(originals[index].LunchAvailableMinutes, copies[index].LunchAvailableMinutes);
+            Assert.Equal(originals[index].WorkedLunchMinutes, copies[index].WorkedLunchMinutes);
+            if (recurring && !overrideLunch)
+            {
+                Assert.NotNull(copies[index].ShiftSeriesId);
+                Assert.Equal(available, copies[index].ShiftSeries!.LunchAvailableMinutes);
+                Assert.Equal(worked, copies[index].ShiftSeries!.WorkedLunchMinutes);
+            }
+            else
+                Assert.Null(copies[index].ShiftSeriesId);
+        }
+        var hours = await CreateWorkingHoursService()
+            .QueryAsync(
+                new WorkingHoursQuery
+                {
+                    StartDate = new DateOnly(2026, 6, 1),
+                    EndDate = new DateOnly(2026, 6, 2),
+                    ShiftLocationIds = [9],
+                },
+                token
+            );
+        Assert.Equal(2, hours.Count);
+        foreach (
+            var copy in copies.Where(copy => copy.LunchAvailableMinutes is null || copy.WorkedLunchMinutes is null)
+        )
+            Assert.Null(Assert.Single(hours, result => result.ShiftEntryId == copy.Id).OvertimeMinutes);
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public async Task QueryWorkingHours_RealLoanOutTransfer_UsesDestinationAssignmentsAndRestoresSourceEligibility(
+        bool sharedShift,
+        bool modifyLoanOut
+    )
+    {
+        var token = TestContext.Current.CancellationToken;
+        _dbContext.EventTypes.AddRange(
+            CreateEventType(LoanOutConstants.LoanOutEventTypeCode),
+            CreateEventType(SchedulingConstants.AssignmentEventTypeCode)
+        );
+        _dbContext.StatGroups.Add(new StatGroup { Id = 1, Name = "Group" });
+        _dbContext.StatCategories.Add(
+            new StatCategory
+            {
+                Id = 10,
+                GroupId = 1,
+                Name = "Category",
+            }
+        );
+        _dbContext.SubCategories.Add(
+            new SubCategory
+            {
+                Id = 11,
+                CategoryId = 10,
+                Name = "Subcategory",
+            }
+        );
+        await _dbContext.SaveChangesAsync(token);
+        var sourceUsers = sharedShift ? new[] { UserA, UserB } : new[] { UserA };
+        var request = CreateShiftEntryRequest(userIds: sourceUsers) with
+        {
+            LunchAvailableMinutes = 0,
+            WorkedLunchMinutes = 0,
+        };
+        var source = await _service.CreateShiftEntryAsync(request, token);
+        await AddOvertimeAssignmentAsync(
+            source.Id,
+            5,
+            request.StartAtUtc.AddHours(-1),
+            request.StartAtUtc,
+            sourceUsers
+        );
+        var workingHours = CreateWorkingHoursService();
+        var query = new WorkingHoursQuery
+        {
+            StartDate = new DateOnly(2026, 6, 1),
+            EndDate = new DateOnly(2026, 6, 1),
+            ShiftLocationIds = [5, 9],
+        };
+        var initial = await workingHours.QueryAsync(query, token);
+        Assert.Equal(sourceUsers.Length, initial.Count);
+        Assert.All(initial, result => Assert.Equal(60, result.OvertimeMinutes));
+        var loanOutService = new LoanOutEntryService(
+            NullLogger<LoanOutEntryService>.Instance,
+            _dbContext,
+            new LoanOutEventMapper(new CalendarEventMapper()),
+            Entry<LoanOutEntryRequest, LoanOutEntry>(new LoanOutEventFactory()),
+            CreateTransferService()
+        );
+        var loanOutRequest = new LoanOutEntryRequest
+        {
+            Title = "Loan-out",
+            StartAtUtc = request.StartAtUtc.AddHours(-9),
+            EndAtUtc = request.StartAtUtc.AddHours(15),
+            TimeZoneId = "America/Vancouver",
+            LocationId = 5,
+            LoanOutLocationId = 9,
+            UserIds = [UserA],
+        };
+
+        var loanOut = await loanOutService.CreateLoanOutEntryAsync(loanOutRequest, token);
+
+        _dbContext.ChangeTracker.Clear();
+        var destination = await _dbContext
+            .ShiftEntries.Include(shift => shift.Users)
+            .SingleAsync(shift => shift.Event!.LocationId == 9, token);
+        Assert.Equal(UserA, Assert.Single(destination.Users).UserId);
+        var afterTransfer = await workingHours.QueryAsync(query, token);
+        Assert.Equal(sourceUsers.Length, afterTransfer.Count);
+        Assert.DoesNotContain(afterTransfer, result => result.ShiftEntryId == source.Id && result.UserId == UserA);
+        var destinationHours = Assert.Single(afterTransfer, result => result.ShiftEntryId == destination.Id);
+        Assert.Equal(0, destinationHours.PaidOutsideShiftMinutes);
+        Assert.Equal(0, destinationHours.OvertimeMinutes);
+        if (sharedShift)
+            Assert.Equal(60, Assert.Single(afterTransfer, result => result.UserId == UserB).OvertimeMinutes);
+        var remainingAssignmentUsers = await _dbContext
+            .ShiftAssignmentEntryUsers.Where(user => user.ShiftAssignmentEntry!.ShiftEntryId == source.Id)
+            .Select(user => user.UserId)
+            .ToListAsync(token);
+        Assert.Equal(sharedShift ? new[] { UserB } : [], remainingAssignmentUsers);
+        foreach (var locationIds in new[] { new[] { 5 }, new[] { 9 }, new[] { 5, 9 } })
+        {
+            var filtered = await workingHours.QueryAsync(
+                query with
+                {
+                    ShiftLocationIds = locationIds,
+                    UserIds = [UserA],
+                },
+                token
+            );
+            if (locationIds.Contains(9))
+                Assert.Equal(destination.Id, Assert.Single(filtered).ShiftEntryId);
+            else
+                Assert.Empty(filtered);
+        }
+        var disabled = await CreateWorkingHoursService(loanOutEnabled: false).QueryAsync(query, token);
+        Assert.Contains(disabled, result => result.ShiftEntryId == source.Id && result.UserId == UserA);
+
+        await AddOvertimeAssignmentAsync(
+            destination.Id,
+            9,
+            request.EndAtUtc!.Value,
+            request.EndAtUtc.Value.AddHours(2),
+            [UserA]
+        );
+        var assigned = await workingHours.QueryAsync(query, token);
+        Assert.Equal(120, Assert.Single(assigned, result => result.ShiftEntryId == destination.Id).OvertimeMinutes);
+        if (sharedShift)
+            Assert.Equal(60, Assert.Single(assigned, result => result.UserId == UserB).OvertimeMinutes);
+
+        // Existing loan-out guards require removing destination shifts before withdrawing the loan-out.
+        Assert.True(await _service.DeleteShiftEntryAsync(destination.Id, token));
+        if (modifyLoanOut)
+            Assert.NotNull(
+                await loanOutService.UpdateLoanOutEntryAsync(
+                    loanOut.Id,
+                    loanOutRequest with
+                    {
+                        StartAtUtc = loanOutRequest.StartAtUtc.AddDays(1),
+                        EndAtUtc = loanOutRequest.EndAtUtc!.Value.AddDays(1),
+                    },
+                    token
+                )
+            );
+        else
+            Assert.True(await loanOutService.DeleteLoanOutEntryAsync(loanOut.Id, token));
+        var restored = await workingHours.QueryAsync(query, token);
+        Assert.Equal(sourceUsers.Length, restored.Count);
+        var restoredUser = Assert.Single(restored, result => result.UserId == UserA);
+        Assert.Equal(source.Id, restoredUser.ShiftEntryId);
+        Assert.Equal(0, restoredUser.OvertimeMinutes);
+    }
+
+    private async Task AddOvertimeAssignmentAsync(
+        int shiftId,
+        int locationId,
+        DateTimeOffset start,
+        DateTimeOffset end,
+        IReadOnlyCollection<Guid> userIds
+    )
+    {
+        var definition = new AssignmentDefinition
+        {
+            LocationId = locationId,
+            Name = $"Assignment at {locationId}",
+            NormalizedName = $"ASSIGNMENT AT {locationId}",
+            CategoryId = 10,
+            SubCategoryId = 11,
+            DefaultCapacity = 10,
+            EffectiveDateUtc = start.AddDays(-1),
+        };
+        var assignment = new AssignmentEntry
+        {
+            AssignmentDefinition = definition,
+            Event = new Event
+            {
+                Title = "Overtime assignment",
+                StartAtUtc = start,
+                EndAtUtc = end,
+                TimeZoneId = "America/Vancouver",
+                SourceModule = SchedulingConstants.SourceModule,
+                EventTypeCode = SchedulingConstants.AssignmentEventTypeCode,
+                StatusTypeCode = CalendarEventStatusTypeCodes.Draft,
+                LocationId = locationId,
+            },
+            Capacity = 10,
+            CategoryId = 10,
+            SubCategoryId = 11,
+        };
+        _dbContext.AssignmentEntries.Add(assignment);
+        await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        await _assignmentService.LinkShiftEntryAsync(
+            new ShiftAssignmentEntryRequest
+            {
+                ShiftEntryId = shiftId,
+                AssignmentEntryId = assignment.Id,
+                UserIds = userIds,
+            },
+            TestContext.Current.CancellationToken
+        );
+    }
+
+    private SchedulingLoanOutService CreateTransferService() =>
+        SchedulingLoanOutTestServices.Create(
+            _dbContext,
+            new SchedulingLoanOutEventMapper(CreateCalendarTimeZoneResolver(), new TimeZoneService()),
+            () => _service,
+            () => _assignmentService,
+            CreateCalendarTimeZoneResolver(),
+            new TimeZoneService(),
+            new IcalNetRecurrenceExpander(new TimeZoneService(), CreateCalendarTimeZoneResolver())
+        );
+
+    private WorkingHoursService CreateWorkingHoursService(bool loanOutEnabled = true) =>
+        new(
+            NullLogger<WorkingHoursService>.Instance,
+            _dbContext,
+            Options.Create(new WorkingHoursOptions()),
+            new TimeZoneService(),
+            Options.Create(new LeaveFeatureFlags { Enabled = false }),
+            CreateCalendarTimeZoneResolver(),
+            SchedulingLoanOutTestServices.CreateAvailability(
+                _dbContext,
+                new TimeZoneService(),
+                loanOutEnabled: loanOutEnabled
+            )
+        );
+
     private sealed class CountingRecurrenceExpander(IRecurrenceExpander inner) : IRecurrenceExpander
     {
         public int BoundedExpansionCount { get; private set; }
@@ -2650,7 +3247,7 @@ public class ShiftServiceTests : IAsyncLifetime
         return shiftEntry;
     }
 
-    private static ShiftSeriesRequest CreateShiftSeriesRequest(
+    private static ShiftSeriesUpdateRequest CreateShiftSeriesRequest(
         string title = "Series",
         IReadOnlyCollection<Guid>? userIds = null,
         string recurrenceRule = "FREQ=DAILY;COUNT=1"

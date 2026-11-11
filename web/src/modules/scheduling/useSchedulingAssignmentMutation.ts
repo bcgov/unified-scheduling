@@ -5,6 +5,7 @@ import * as assignmentApi from './calendarSchedulingAssignmentApi';
 export interface SaveAssignmentOptions {
   payload: AssignmentSavePayload;
   isEdit: boolean;
+  concurrencyToken?: number;
   assignmentEntryId?: number;
   assignmentSeriesId?: number;
   conflictOverrides?: CalendarConflictAcknowledgement[];
@@ -14,11 +15,17 @@ export function useSchedulingAssignmentMutation() {
   function save(options: SaveAssignmentOptions) {
     const { payload } = options;
     if (options.isEdit) {
+      if (!Number.isInteger(options.concurrencyToken) || !options.concurrencyToken || options.concurrencyToken < 0) {
+        throw new Error('Reload the assignment before saving. Its version is missing.');
+      }
       if (payload.kind === 'series') {
         if (!isValidId(options.assignmentSeriesId)) {
           throw new Error('An assignment series ID is required when editing a series.');
         }
-        return assignmentApi.updateAssignmentSeries(options.assignmentSeriesId, payload.body);
+        return assignmentApi.updateAssignmentSeries(options.assignmentSeriesId, {
+          ...payload.body,
+          concurrencyToken: options.concurrencyToken,
+        });
       }
 
       if (!isValidId(options.assignmentEntryId)) {
@@ -26,6 +33,7 @@ export function useSchedulingAssignmentMutation() {
       }
       return assignmentApi.updateAssignmentEntry(options.assignmentEntryId, {
         ...payload.body,
+        concurrencyToken: options.concurrencyToken,
         conflictOverrides: options.conflictOverrides,
       });
     }

@@ -27,4 +27,9 @@ public class ConfigResponse
     public string? SelectedBrand { get; internal set; }
     public Dictionary<string, BrandSettingsOptions> BrandingOptions { get; set; } = [];
     public bool EmailDistributionAvailable { get; set; }
+
+    /// <summary>
+    /// Default available lunch duration for new shifts, in minutes.
+    /// </summary>
+    public int DefaultLunchMinutes { get; set; }
 }

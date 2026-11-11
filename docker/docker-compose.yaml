@@ -25,6 +25,8 @@ services:
   api:
     image: '${COMPOSE_PROJECT_NAME}-api'
     environment:
+      # Keep every project's build/restore outputs separate from the host's bin/obj.
+      - ArtifactsPath=/opt/app-root/artifacts
       - ASPNETCORE_URLS=${ASPNETCORE_URLS}
       - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Development}
       - DatabaseConnectionString=${DatabaseConnectionString}

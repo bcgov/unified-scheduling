@@ -132,6 +132,7 @@ public sealed class AssignmentRequestValidatorTests
     private static AssignmentEntryUpdateRequest CreateEntryUpdateRequest(int capacity) =>
         new()
         {
+            ConcurrencyToken = 1,
             AssignmentDefinitionId = 1,
             Title = "Assignment",
             Color = "#123456",

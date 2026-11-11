@@ -50,5 +50,12 @@ export function useSchedulingAssignmentLoad() {
     }
   }
 
-  return { error, isLoading, load, state, statusTypeCode };
+  function reset() {
+    guard.begin();
+    state.value = 'idle';
+    error.value = '';
+    statusTypeCode.value = null;
+  }
+
+  return { error, isLoading, load, reset, state, statusTypeCode };
 }

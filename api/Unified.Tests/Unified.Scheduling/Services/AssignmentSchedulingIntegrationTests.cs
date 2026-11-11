@@ -40,6 +40,7 @@ using Unified.LoanOut.Models;
 using Unified.LoanOut.Services;
 using Unified.Scheduling;
 using Unified.Scheduling.Factories;
+using Unified.Scheduling.Interceptors;
 using Unified.Scheduling.Mappings;
 using Unified.Scheduling.Models;
 using Unified.Scheduling.Services;
@@ -76,7 +77,7 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
 
         var options = new DbContextOptionsBuilder<UnifiedDbContext>()
             .UseSqlite(_connection)
-            .AddInterceptors(_transactionIsolationRecorder)
+            .AddInterceptors(new SchedulingConcurrencyInterceptor(), _transactionIsolationRecorder)
             .Options;
         _db = new SqliteTestUnifiedDbContext(options);
         await _db.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
@@ -403,6 +404,502 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             CalendarConflictQuery query,
             CancellationToken cancellationToken = default
         ) => Task.FromResult<IReadOnlyCollection<CalendarConflictParticipant>>([participant]);
+    }
+
+    [Theory]
+    [InlineData("shift-entry")]
+    [InlineData("shift-series")]
+    [InlineData("assignment-entry")]
+    [InlineData("assignment-series")]
+    public async Task SchedulingUpdate_WhenVersionIsStale_DoesNotPersistAnyChanges(string scope)
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var isSeries = scope.EndsWith("series");
+        var (shiftId, assignmentId) = isSeries ? await CreateSeriesIdsAsync() : await CreateEntryIdsAsync();
+        var before = await CaptureSchedulingStateAsync();
+        _db.ChangeTracker.Clear();
+
+        await Assert.ThrowsAsync<DbUpdateConcurrencyException>(async () =>
+        {
+            switch (scope)
+            {
+                case "shift-entry":
+                    await _shiftService.UpdateShiftEntryAsync(
+                        shiftId,
+                        CreateShiftEntryRequest(At(9), At(17)) with
+                        {
+                            ConcurrencyToken = 99,
+                            Title = "Stale edit",
+                            AssignmentEntryLinks = [],
+                        },
+                        cancellationToken
+                    );
+                    break;
+                case "shift-series":
+                    await _shiftService.UpdateShiftSeriesAsync(
+                        shiftId,
+                        CreateShiftSeriesRequest() with
+                        {
+                            ConcurrencyToken = 99,
+                            Title = "Stale edit",
+                            AssignmentSeriesLinks = [],
+                        },
+                        cancellationToken
+                    );
+                    break;
+                case "assignment-entry":
+                    await _assignmentService.UpdateAssignmentEntryAsync(
+                        assignmentId,
+                        CreateAssignmentEntryUpdateRequest() with
+                        {
+                            ConcurrencyToken = 99,
+                            Title = "Stale edit",
+                            ShiftEntryLinks = [],
+                        },
+                        cancellationToken
+                    );
+                    break;
+                default:
+                    await _assignmentService.UpdateAssignmentSeriesAsync(
+                        assignmentId,
+                        CreateAssignmentSeriesRequest() with
+                        {
+                            ConcurrencyToken = 99,
+                            Title = "Stale edit",
+                            ShiftSeriesLinks = [],
+                        },
+                        cancellationToken
+                    );
+                    break;
+            }
+        });
+
+        _db.ChangeTracker.Clear();
+        Assert.Equal(before, await CaptureSchedulingStateAsync());
+    }
+
+    [Theory]
+    [InlineData("shift-entry")]
+    [InlineData("shift-series")]
+    [InlineData("assignment-entry")]
+    [InlineData("assignment-series")]
+    public async Task SchedulingUpdate_WhenOnlyRelationshipsChange_TouchesTheSchedulingRoot(string scope)
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var (shiftId, assignmentId) = scope.EndsWith("series")
+            ? await CreateSeriesIdsAsync()
+            : await CreateEntryIdsAsync();
+        global::Unified.Db.Models.Abstract.BaseEntity root;
+        uint returnedVersion;
+        switch (scope)
+        {
+            case "shift-entry":
+                var shiftEntry = await _shiftService.UpdateShiftEntryAsync(
+                    shiftId,
+                    CreateShiftEntryRequest(At(9), At(17)) with
+                    {
+                        UserIds = [UserA, UserB],
+                    },
+                    cancellationToken
+                );
+                root = await _db.ShiftEntries.SingleAsync(item => item.Id == shiftId, cancellationToken);
+                returnedVersion = shiftEntry!.ConcurrencyToken;
+                break;
+            case "shift-series":
+                var shiftSeries = await _shiftService.UpdateShiftSeriesAsync(
+                    shiftId,
+                    CreateShiftSeriesRequest() with
+                    {
+                        UserIds = [UserA, UserB],
+                    },
+                    cancellationToken
+                );
+                root = await _db.ShiftSeries.SingleAsync(item => item.Id == shiftId, cancellationToken);
+                returnedVersion = shiftSeries!.ConcurrencyToken;
+                break;
+            case "assignment-entry":
+                var assignmentEntry = await _assignmentService.UpdateAssignmentEntryAsync(
+                    assignmentId,
+                    CreateAssignmentEntryUpdateRequest() with
+                    {
+                        ShiftEntryLinks = [],
+                    },
+                    cancellationToken
+                );
+                root = await _db.AssignmentEntries.SingleAsync(item => item.Id == assignmentId, cancellationToken);
+                returnedVersion = assignmentEntry!.ConcurrencyToken;
+                break;
+            default:
+                var assignmentSeries = await _assignmentService.UpdateAssignmentSeriesAsync(
+                    assignmentId,
+                    CreateAssignmentSeriesRequest() with
+                    {
+                        ShiftSeriesLinks = [],
+                    },
+                    cancellationToken
+                );
+                root = await _db.AssignmentSeries.SingleAsync(item => item.Id == assignmentId, cancellationToken);
+                returnedVersion = assignmentSeries!.ConcurrencyToken;
+                break;
+        }
+
+        Assert.NotNull(root.UpdatedOn);
+        Assert.Equal(root.ConcurrencyToken, returnedVersion);
+    }
+
+    [Theory]
+    [InlineData(false, "add")]
+    [InlineData(false, "update")]
+    [InlineData(false, "remove")]
+    [InlineData(false, "unchanged")]
+    [InlineData(true, "add")]
+    [InlineData(true, "update")]
+    [InlineData(true, "remove")]
+    [InlineData(true, "suppress")]
+    [InlineData(true, "unchanged")]
+    public async Task AssignmentLinks_TouchOnlyRootsWhoseRelationshipsChange(bool series, string mutation)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var (shiftId, assignmentId) = series ? await CreateSeriesIdsAsync() : await CreateEntryIdsAsync();
+        var shift = await _db
+            .ShiftEntries.Include(entry => entry.Users)
+            .SingleAsync(entry => series ? entry.ShiftSeriesId == shiftId : entry.Id == shiftId, ct);
+        var assignment = await _db.AssignmentEntries.SingleAsync(
+            entry => series ? entry.AssignmentSeriesId == assignmentId : entry.Id == assignmentId,
+            ct
+        );
+        shift.Users.Add(new ShiftEntryUser { UserId = UserB });
+        await _db.SaveChangesAsync(ct);
+        var entryLink = await _db.ShiftAssignmentEntries.SingleAsync(ct);
+        var seriesLink = series ? await _db.ShiftAssignmentSeriesLinks.SingleAsync(ct) : null;
+        if (mutation == "add")
+        {
+            if (series)
+                await _linkService.DeleteShiftSeriesLinkAsync(seriesLink!.Id, ct);
+            else
+                await _linkService.DeleteShiftEntryLinkAsync(entryLink.Id, ct);
+        }
+        await ResetSchedulingTouchesAsync();
+
+        if (series)
+        {
+            if (mutation == "add")
+                await _linkService.LinkShiftSeriesAsync(
+                    new ShiftAssignmentSeriesRequest
+                    {
+                        ShiftSeriesId = shiftId,
+                        AssignmentSeriesId = assignmentId,
+                        AssignedUserIds = [UserA],
+                    },
+                    ct
+                );
+            else if (mutation == "remove")
+                await _linkService.DeleteShiftSeriesLinkAsync(seriesLink!.Id, ct);
+            else if (mutation == "suppress")
+                await _linkService.DeleteShiftEntryLinkAsync(entryLink.Id, ct);
+            else
+                await _linkService.UpdateShiftSeriesLinkAsync(
+                    seriesLink!.Id,
+                    new ShiftAssignmentSeriesUpdateRequest
+                    {
+                        AssignedUserIds = mutation == "unchanged" ? [UserA] : [UserA, UserB],
+                    },
+                    ct
+                );
+        }
+        else
+        {
+            if (mutation == "add")
+                await _linkService.LinkShiftEntryAsync(
+                    new ShiftAssignmentEntryRequest
+                    {
+                        ShiftEntryId = shiftId,
+                        AssignmentEntryId = assignmentId,
+                        UserIds = [UserA],
+                    },
+                    ct
+                );
+            else if (mutation == "remove")
+                await _linkService.DeleteShiftEntryLinkAsync(entryLink.Id, ct);
+            else
+                await _linkService.UpdateShiftEntryLinkAsync(
+                    entryLink.Id,
+                    new ShiftAssignmentEntryUpdateRequest
+                    {
+                        UserIds = mutation == "unchanged" ? [UserA] : [UserA, UserB],
+                    },
+                    ct
+                );
+        }
+
+        var roots = new List<global::Unified.Db.Models.Abstract.BaseEntity> { shift, assignment };
+        if (series)
+        {
+            roots.Add(await _db.ShiftSeries.SingleAsync(item => item.Id == shiftId, ct));
+            roots.Add(await _db.AssignmentSeries.SingleAsync(item => item.Id == assignmentId, ct));
+        }
+        Assert.All(roots, root => Assert.Equal(mutation != "unchanged", root.UpdatedOn.HasValue));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ReplaceAssignmentLinks_TouchesBothPreviousAndNewShifts(bool series)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var (oldShiftId, assignmentId) = series ? await CreateSeriesIdsAsync() : await CreateEntryIdsAsync();
+        var newShiftId = series
+            ? (await _shiftService.CreateShiftSeriesAsync(CreateShiftSeriesRequest(), ct)).Id
+            : (await _shiftService.CreateShiftEntryAsync(CreateShiftEntryRequest(At(9), At(17)), ct)).Id;
+        await ResetSchedulingTouchesAsync();
+
+        await using var transaction = await _db.Database.BeginTransactionAsync(ct);
+        if (series)
+            await _linkService.ReplaceAssignmentSeriesLinksAsync(
+                assignmentId,
+                [new ShiftSeriesLinkRequest { ShiftSeriesId = newShiftId, AssignedUserIds = [UserA] }],
+                ct
+            );
+        else
+            await _linkService.ReplaceAssignmentEntryLinksAsync(
+                assignmentId,
+                [new ShiftEntryLinkRequest { ShiftEntryId = newShiftId, AssignedUserIds = [UserA] }],
+                ct
+            );
+        await transaction.CommitAsync(ct);
+
+        Assert.All(
+            await _db
+                .ShiftEntries.Where(entry =>
+                    series
+                        ? entry.ShiftSeriesId == oldShiftId || entry.ShiftSeriesId == newShiftId
+                        : entry.Id == oldShiftId || entry.Id == newShiftId
+                )
+                .ToListAsync(ct),
+            entry => Assert.NotNull(entry.UpdatedOn)
+        );
+        Assert.NotNull(
+            (
+                await _db.AssignmentEntries.SingleAsync(
+                    entry => series ? entry.AssignmentSeriesId == assignmentId : entry.Id == assignmentId,
+                    ct
+                )
+            ).UpdatedOn
+        );
+        if (series)
+        {
+            Assert.All(await _db.ShiftSeries.ToListAsync(ct), root => Assert.NotNull(root.UpdatedOn));
+            Assert.NotNull((await _db.AssignmentSeries.SingleAsync(ct)).UpdatedOn);
+            Assert.Equal(newShiftId, (await _db.ShiftAssignmentSeriesLinks.SingleAsync(ct)).ShiftSeriesId);
+        }
+        else
+            Assert.Equal(newShiftId, (await _db.ShiftAssignmentEntries.SingleAsync(ct)).ShiftEntryId);
+    }
+
+    [Theory]
+    [InlineData(false, "title")]
+    [InlineData(false, "users")]
+    [InlineData(false, "unchanged")]
+    [InlineData(false, "override")]
+    [InlineData(false, "user-override")]
+    [InlineData(false, "location-override")]
+    [InlineData(false, "cancelled")]
+    [InlineData(true, "title")]
+    [InlineData(true, "unchanged")]
+    [InlineData(true, "override")]
+    [InlineData(true, "cancelled")]
+    public async Task SeriesPropagation_TouchesOnlyChangedOccurrences(bool assignment, string change)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var id = assignment
+            ? (await _assignmentService.CreateAssignmentSeriesAsync(CreateAssignmentSeriesRequest(), ct)).Id
+            : (await _shiftService.CreateShiftSeriesAsync(CreateShiftSeriesRequest(), ct)).Id;
+        global::Unified.Db.Models.Abstract.BaseEntity root;
+        Event occurrence;
+        if (assignment)
+        {
+            var entry = await _db.AssignmentEntries.Include(entry => entry.Event).SingleAsync(ct);
+            root = entry;
+            occurrence = entry.Event!;
+        }
+        else
+        {
+            var entry = await _db.ShiftEntries.Include(entry => entry.Event).SingleAsync(ct);
+            root = entry;
+            occurrence = entry.Event!;
+        }
+        if (change == "override")
+            occurrence.Title = "Occurrence override";
+        if (change == "user-override")
+            (await _db.ShiftEntries.Include(entry => entry.Users).SingleAsync(ct)).Users.Add(
+                new ShiftEntryUser { UserId = UserC }
+            );
+        if (change == "location-override")
+            occurrence.LocationId = null;
+        if (change == "cancelled")
+            occurrence.StatusTypeCode = CalendarEventStatusTypeCodes.Cancelled;
+        await _db.SaveChangesAsync(ct);
+        await ResetSchedulingTouchesAsync();
+
+        if (assignment)
+            await _assignmentService.UpdateAssignmentSeriesAsync(
+                id,
+                CreateAssignmentSeriesRequest() with
+                {
+                    Title = change == "unchanged" ? "Assignment series" : "Updated series",
+                },
+                ct
+            );
+        else
+            await _shiftService.UpdateShiftSeriesAsync(
+                id,
+                CreateShiftSeriesRequest() with
+                {
+                    Title = change is "unchanged" or "users" or "user-override" ? "Shift series" : "Updated series",
+                    UserIds = change is "users" or "user-override" ? [UserA, UserB] : [UserA],
+                },
+                ct
+            );
+
+        Assert.Equal(change is "title" or "users", root.UpdatedOn.HasValue);
+        if (change == "override")
+            Assert.Equal("Occurrence override", occurrence.Title);
+        if (change == "user-override")
+            Assert.Equal(
+                [UserA, UserC],
+                (await _db.ShiftEntries.Include(entry => entry.Users).SingleAsync(ct))
+                    .Users.Select(user => user.UserId)
+                    .Order()
+            );
+        if (change == "location-override")
+            Assert.Null(occurrence.LocationId);
+        if (change == "cancelled")
+            Assert.Equal(CalendarEventStatusTypeCodes.Cancelled, occurrence.StatusTypeCode);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task SeriesRegeneration_TouchesManuallyLinkedSurvivingRoots(bool assignment)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var shift = await _shiftService.CreateShiftSeriesAsync(CreateShiftSeriesRequest(), ct);
+        var work = await _assignmentService.CreateAssignmentSeriesAsync(CreateAssignmentSeriesRequest(), ct);
+        var shiftEntry = await _db.ShiftEntries.SingleAsync(ct);
+        var assignmentEntry = await _db.AssignmentEntries.SingleAsync(ct);
+        await _linkService.LinkShiftEntryAsync(
+            new ShiftAssignmentEntryRequest
+            {
+                ShiftEntryId = shiftEntry.Id,
+                AssignmentEntryId = assignmentEntry.Id,
+                UserIds = [UserA],
+            },
+            ct
+        );
+        await ResetSchedulingTouchesAsync();
+
+        if (assignment)
+            await _assignmentService.UpdateAssignmentSeriesAsync(
+                work.Id,
+                CreateAssignmentSeriesRequest() with
+                {
+                    RecurrenceRule = "FREQ=DAILY;COUNT=2",
+                },
+                ct
+            );
+        else
+            await _shiftService.UpdateShiftSeriesAsync(
+                shift.Id,
+                CreateShiftSeriesRequest() with
+                {
+                    RecurrenceRule = "FREQ=DAILY;COUNT=2",
+                },
+                ct
+            );
+
+        Assert.NotNull(assignment ? shiftEntry.UpdatedOn : assignmentEntry.UpdatedOn);
+        Assert.Empty(await _db.ShiftAssignmentEntries.ToListAsync(ct));
+    }
+
+    private async Task ResetSchedulingTouchesAsync()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var roots = new List<global::Unified.Db.Models.Abstract.BaseEntity>();
+        roots.AddRange(await _db.ShiftEntries.ToListAsync(ct));
+        roots.AddRange(await _db.AssignmentEntries.ToListAsync(ct));
+        roots.AddRange(await _db.ShiftSeries.ToListAsync(ct));
+        roots.AddRange(await _db.AssignmentSeries.ToListAsync(ct));
+        foreach (var root in roots)
+            root.UpdatedOn = null;
+        await _db.SaveChangesAsync(ct);
+    }
+
+    private async Task<(int ShiftId, int AssignmentId)> CreateSeriesIdsAsync()
+    {
+        var (shift, assignment) = await CreateLinkedSeriesAsync();
+        return (shift.Id, assignment.Id);
+    }
+
+    private async Task<(int ShiftId, int AssignmentId)> CreateEntryIdsAsync()
+    {
+        var (shift, assignment, _) = await CreateLinkedEntriesAsync();
+        return (shift.Id, assignment.Id);
+    }
+
+    private async Task<string> CaptureSchedulingStateAsync()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        return System.Text.Json.JsonSerializer.Serialize(
+            new
+            {
+                Events = await _db
+                    .Events.AsNoTracking()
+                    .OrderBy(item => item.Id)
+                    .Select(item => new
+                    {
+                        item.Id,
+                        item.Title,
+                        item.StartAtUtc,
+                        item.EndAtUtc,
+                    })
+                    .ToListAsync(cancellationToken),
+                Series = await _db
+                    .EventSeries.AsNoTracking()
+                    .OrderBy(item => item.Id)
+                    .Select(item => new
+                    {
+                        item.Id,
+                        item.Title,
+                        item.RecurrenceRule,
+                    })
+                    .ToListAsync(cancellationToken),
+                EntryLinks = await _db
+                    .ShiftAssignmentEntries.AsNoTracking()
+                    .OrderBy(item => item.Id)
+                    .Select(item => new
+                    {
+                        item.Id,
+                        item.ShiftEntryId,
+                        item.AssignmentEntryId,
+                    })
+                    .ToListAsync(cancellationToken),
+                SeriesLinks = await _db
+                    .ShiftAssignmentSeriesLinks.AsNoTracking()
+                    .OrderBy(item => item.Id)
+                    .Select(item => new
+                    {
+                        item.Id,
+                        item.ShiftSeriesId,
+                        item.AssignmentSeriesId,
+                    })
+                    .ToListAsync(cancellationToken),
+                LinkUsers = await _db
+                    .ShiftAssignmentEntryUsers.AsNoTracking()
+                    .OrderBy(item => item.Id)
+                    .Select(item => new { item.Id, item.UserId })
+                    .ToListAsync(cancellationToken),
+            }
+        );
     }
 
     [Fact]
@@ -5967,7 +6464,7 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             EffectiveDateUtc = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero),
         };
 
-    private static AssignmentSeriesRequest CreateAssignmentSeriesRequest() =>
+    private static AssignmentSeriesUpdateRequest CreateAssignmentSeriesRequest() =>
         new()
         {
             AssignmentDefinitionId = 100,
@@ -6019,7 +6516,7 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             Capacity = 5,
         };
 
-    private static ShiftSeriesRequest CreateShiftSeriesRequest() =>
+    private static ShiftSeriesUpdateRequest CreateShiftSeriesRequest() =>
         new()
         {
             Title = "Shift series",

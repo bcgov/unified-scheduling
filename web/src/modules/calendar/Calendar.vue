@@ -323,9 +323,9 @@ const printDateRange = computed(() => {
 const runtimeContextKey = computed(() => JSON.stringify(runtimeContext.value));
 const dataContextKey = computed(() =>
   JSON.stringify({
-    activeViewId: activeView.value?.id ?? null,
     startDate: dateRange.value.startDate,
     endDate: dateRange.value.endDate,
+    activeViewId: activeViewId.value,
     period: period.value,
     locationId: activeLocationId.value ?? null,
     filters: queryContext.value.filters,

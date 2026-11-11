@@ -12,4 +12,5 @@ export const calendarSchedulingActionIds = {
   viewLoanOutDetails: 'calendar-scheduling.loanout-details',
   showConflict: 'calendar-scheduling.show-conflict',
   resolveConflict: 'calendar-scheduling.resolve-conflict',
+  showOvertime: 'calendar-scheduling.show-overtime',
 } as const;

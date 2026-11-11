@@ -20,6 +20,11 @@ public sealed class ShiftSeriesRequestValidator : AbstractValidator<ShiftSeriesR
             .LessThan(request => request.EndAtUtc!.Value)
             .When(request => request.EndAtUtc.HasValue);
         RuleFor(request => request.LocationId).NotEmpty().GreaterThan(0);
+        RuleFor(request => request.LunchAvailableMinutes).GreaterThanOrEqualTo(0).LessThanOrEqualTo(60);
+        RuleFor(request => request.WorkedLunchMinutes).GreaterThanOrEqualTo(0);
+        RuleFor(request => request.WorkedLunchMinutes)
+            .LessThanOrEqualTo(request => request.LunchAvailableMinutes)
+            .When(request => request.LunchAvailableMinutes.HasValue);
         RuleFor(request => request.UserIds).NotEmpty().Must(HaveDistinctValues);
         RuleForEach(request => request.UserIds).NotEmpty();
         RuleFor(request => request.AssignmentSeriesLinks)
@@ -36,5 +41,14 @@ public sealed class ShiftSeriesRequestValidator : AbstractValidator<ShiftSeriesR
             return false;
 
         return userIds.Distinct().Count() == userIds.Count;
+    }
+}
+
+public sealed class ShiftSeriesUpdateRequestValidator : AbstractValidator<ShiftSeriesUpdateRequest>
+{
+    public ShiftSeriesUpdateRequestValidator()
+    {
+        Include(new ShiftSeriesRequestValidator());
+        RuleFor(request => request.ConcurrencyToken).GreaterThan(0u);
     }
 }

@@ -332,7 +332,14 @@ public sealed class LoanOutShiftTransferService(
     {
         foreach (var transfer in transfers)
             await DelinkAssignmentUsersAsync(transfer, cancellationToken);
-        if (request is not null)
+        // Series copies materialize parent lunch values; individual copies below retain occurrence overrides.
+        if (
+            request is not null
+            && transfers.All(transfer =>
+                transfer.Shift.LunchAvailableMinutes == request.LunchAvailableMinutes
+                && transfer.Shift.WorkedLunchMinutes == request.WorkedLunchMinutes
+            )
+        )
             await shiftServiceFactory().CreateShiftSeriesAsync(request, cancellationToken);
         else
         {

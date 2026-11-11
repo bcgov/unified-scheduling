@@ -4,6 +4,8 @@ namespace Unified.Scheduling.Models;
 
 public sealed record AssignmentSeriesResponse : CalendarEventSeriesResponse
 {
+    public uint ConcurrencyToken { get; init; }
+
     public int AssignmentDefinitionId { get; init; }
 
     public int CategoryId { get; init; }

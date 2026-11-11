@@ -12,7 +12,7 @@ using Unified.Db;
 namespace Unified.Db.Migrations
 {
     [DbContext(typeof(UnifiedDbContext))]
-    [Migration("20261106203253_RemoveUserAwayLocations")]
+    [Migration("20261111005725_RemoveUserAwayLocations")]
     partial class RemoveUserAwayLocations
     {
         /// <inheritdoc />
@@ -20,7 +20,7 @@ namespace Unified.Db.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.12")
+                .HasAnnotation("ProductVersion", "10.0.14")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -1700,6 +1700,9 @@ namespace Unified.Db.Migrations
                     b.Property<int>("EventId")
                         .HasColumnType("integer");
 
+                    b.Property<int?>("LunchAvailableMinutes")
+                        .HasColumnType("integer");
+
                     b.Property<int?>("ShiftSeriesId")
                         .HasColumnType("integer");
 
@@ -1708,6 +1711,9 @@ namespace Unified.Db.Migrations
 
                     b.Property<DateTimeOffset?>("UpdatedOn")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("WorkedLunchMinutes")
+                        .HasColumnType("integer");
 
                     b.HasKey("Id");
 
@@ -1800,11 +1806,17 @@ namespace Unified.Db.Migrations
                     b.Property<int>("EventSeriesId")
                         .HasColumnType("integer");
 
+                    b.Property<int?>("LunchAvailableMinutes")
+                        .HasColumnType("integer");
+
                     b.Property<Guid?>("UpdatedById")
                         .HasColumnType("uuid");
 
                     b.Property<DateTimeOffset?>("UpdatedOn")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("WorkedLunchMinutes")
+                        .HasColumnType("integer");
 
                     b.HasKey("Id");
 
@@ -2842,6 +2854,9 @@ namespace Unified.Db.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
                     NpgsqlPropertyBuilderExtensions.HasIdentityOptions(b.Property<int>("Id"), 200L, null, null, null, null, null);
+
+                    b.Property<bool>("AllDay")
+                        .HasColumnType("boolean");
 
                     b.Property<DateTimeOffset>("AwardedOn")
                         .HasColumnType("timestamp with time zone");

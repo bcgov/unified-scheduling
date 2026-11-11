@@ -16,7 +16,7 @@ import { createTestApp } from '../../helpers/createTestApp';
 
 function createModalTestApp(permissions = Object.values(Permissions)) {
   const pinia = createPinia();
-  useConfigStore(pinia).config = { featureFlags: { Scheduling: { enabled: true } } };
+  useConfigStore(pinia).config = { defaultLunchMinutes: 30, featureFlags: { Scheduling: { enabled: true } } };
   useAuthStore(pinia).setUserInfo({
     isAuthenticated: true,
     isRegistered: true,
@@ -187,6 +187,71 @@ describe('CalendarSchedulingAddResourceModal', () => {
     await vi.waitFor(() => expect(wrapper.get('[role="alert"]').text()).toBe(message));
     expect(form.props('formErrors')).toEqual({ userIds: message });
     expect(wrapper.emitted('close')).toBeUndefined();
+    wrapper.unmount();
+  });
+
+  it.each([
+    { kind: 'entry', resource: false, minutes: 30 },
+    { kind: 'entry', resource: true, minutes: 30 },
+    { kind: 'series', resource: false, minutes: 30 },
+    { kind: 'series', resource: true, minutes: 30 },
+    { kind: 'entry', resource: false, minutes: 20 },
+    { kind: 'entry', resource: false, minutes: 0 },
+  ])('uses configured lunch for $kind creation ($resource, $minutes)', async ({ kind, resource, minutes }) => {
+    server.use(
+      http.get('/api/scheduling/assignments/entries', () => HttpResponse.json([])),
+      http.get('/api/scheduling/assignments/series', () => HttpResponse.json([])),
+    );
+    const response = {
+      data: { value: { id: 321 } },
+      error: { value: null },
+      execute: vi.fn().mockResolvedValue(undefined),
+    };
+    const postEntry = vi.fn().mockReturnValue(response);
+    const postSeries = vi.fn().mockReturnValue(response);
+    vi.doMock('@/modules/scheduling/calendarSchedulingShiftApi', () => buildShiftApiMock({ postEntry, postSeries }));
+    vi.doMock('@/api-access/generated/users/users', buildUsersModuleMock);
+    const { default: CalendarSchedulingAddResourceModal } =
+      await import('@/modules/scheduling/CalendarSchedulingAddResourceModal.vue');
+    const app = createModalTestApp();
+    const config = useConfigStore(app.pinia);
+    config.config = { featureFlags: { Scheduling: { enabled: true } }, defaultLunchMinutes: minutes };
+    useLocationsStore(app.pinia).setSelectedLocationId(12);
+    const userId = '3d6f0a75-0a77-4dd9-9f5a-f4d0a0bc4f62';
+    const wrapper = mount(CalendarSchedulingAddResourceModal, {
+      props: {
+        initialDate: '2026-08-24',
+        timeZone: 'America/Vancouver',
+        resource: resource ? { id: userId, type: 'user', title: 'Alex Alpha' } : undefined,
+      },
+      global: { plugins: app.mountPlugins },
+      attachTo: document.body,
+    });
+    await flushPromises();
+    const form = wrapper.findComponent({ name: 'CalendarSchedulingShiftForm' });
+    expect(form.props('modelValue')).toMatchObject({ lunchAvailableMinutes: minutes, workedLunchMinutes: 0 });
+    const lunchSelect = form
+      .findAllComponents({ name: 'UaSelect' })
+      .find((select) => select.vm.$attrs.id === 'new-shift-lunch-available');
+    expect(lunchSelect?.props('items')).toContainEqual(expect.objectContaining({ code: minutes }));
+    form.vm.$emit('update:modelValue', {
+      ...form.props('modelValue'),
+      userIds: [userId],
+      repeatMode: kind === 'series' ? 'custom' : 'never',
+      recurrenceRule: kind === 'series' ? 'FREQ=DAILY;COUNT=2' : null,
+    });
+    // A later config update must not reset the user's in-progress form.
+    config.config = { ...config.config, defaultLunchMinutes: 60 };
+    await flushPromises();
+    const saveButton = Array.from(document.querySelectorAll('button')).find((button) =>
+      button.textContent?.includes('Save'),
+    );
+    saveButton?.dispatchEvent(new Event('click', { bubbles: true }));
+    await flushPromises();
+    expect(kind === 'series' ? postSeries : postEntry).toHaveBeenCalledWith(
+      expect.objectContaining({ lunchAvailableMinutes: minutes, workedLunchMinutes: 0 }),
+      expect.anything(),
+    );
     wrapper.unmount();
   });
 
