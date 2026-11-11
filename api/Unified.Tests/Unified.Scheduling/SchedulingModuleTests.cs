@@ -1,12 +1,18 @@
 using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
+using Unified.Api.Services;
+using Unified.Audit;
 using Unified.Authorization.Seeders;
 using Unified.Calendar;
+using Unified.Common.Interceptors;
+using Unified.Common.Interceptors.PostSave;
 using Unified.Common.Mvc;
 using Unified.Common.Scheduling;
 using Unified.Common.Seeding;
@@ -19,6 +25,7 @@ using Unified.LoanOut;
 using Unified.LoanOut.Services;
 using Unified.Scheduling;
 using Unified.Scheduling.Controllers;
+using Unified.Scheduling.Interceptors;
 using Unified.Scheduling.Models;
 using Unified.Scheduling.Options;
 using Unified.Scheduling.Services;
@@ -28,6 +35,61 @@ namespace Unified.Tests.Scheduling;
 
 public sealed class SchedulingModuleTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void SchedulingConcurrencyInterceptor_IsScopedAndIncludedInDbOptionsOnlyWhenEnabled(bool enabled)
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(
+                new Dictionary<string, string?>
+                {
+                    ["FeatureFlags:Scheduling:Enabled"] = enabled.ToString(),
+                    ["FeatureFlags:Calendar:Enabled"] = "True",
+                    ["FeatureFlags:Stats:Enabled"] = "True",
+                    ["DatabaseConnectionString"] = "Host=localhost;Database=unused",
+                }
+            )
+            .Build();
+        var services = new ServiceCollection();
+        services.AddSchedulingModule(configuration);
+        services.AddDbModule(configuration);
+        using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true });
+        using var scope = provider.CreateScope();
+        using var secondScope = provider.CreateScope();
+        var interceptors = scope.ServiceProvider.GetServices<IInterceptor>().ToArray();
+        var options = scope.ServiceProvider.GetRequiredService<DbContextOptions<UnifiedDbContext>>();
+        var configured = options.FindExtension<CoreOptionsExtension>()?.Interceptors ?? [];
+        if (enabled)
+        {
+            var interceptor = Assert.IsType<SchedulingConcurrencyInterceptor>(Assert.Single(interceptors));
+            Assert.Contains(interceptor, configured);
+            Assert.Same(interceptor, Assert.Single(scope.ServiceProvider.GetServices<IInterceptor>()));
+            Assert.NotSame(interceptor, Assert.Single(secondScope.ServiceProvider.GetServices<IInterceptor>()));
+        }
+        else
+        {
+            Assert.Empty(interceptors);
+            Assert.DoesNotContain(configured, item => item is SchedulingConcurrencyInterceptor);
+        }
+
+        services.AddInterceptors();
+        var registrations = services
+            .Where(item => item.ServiceType == typeof(IInterceptor))
+            .Select(item => item.ImplementationType)
+            .ToArray();
+        Type[] expected = enabled
+            ?
+            [
+                typeof(SchedulingConcurrencyInterceptor),
+                typeof(AuditableEntityInterceptor),
+                typeof(SaveRulesInterceptor),
+                typeof(PostSaveInterceptor),
+            ]
+            : [typeof(AuditableEntityInterceptor), typeof(SaveRulesInterceptor), typeof(PostSaveInterceptor)];
+        Assert.Equal(expected, registrations);
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

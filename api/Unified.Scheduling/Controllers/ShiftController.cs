@@ -18,7 +18,8 @@ public sealed class ShiftController(
     IShiftService shiftService,
     ShiftSeriesRequestValidator shiftSeriesRequestValidator,
     ShiftEntryRequestValidator shiftEntryRequestValidator,
-    ShiftEntryUpdateRequestValidator shiftEntryUpdateRequestValidator
+    ShiftEntryUpdateRequestValidator shiftEntryUpdateRequestValidator,
+    ShiftSeriesUpdateRequestValidator shiftSeriesUpdateRequestValidator
 ) : ControllerBase
 {
     [HttpGet("series")]
@@ -61,14 +62,15 @@ public sealed class ShiftController(
     [Authorize(Policy = SchedulingPolicies.ShiftsEdit)]
     [ProducesResponseType(typeof(ShiftSeriesResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ShiftSeriesResponse>> UpdateShiftSeries(
         int id,
-        [FromBody] ShiftSeriesRequest request,
+        [FromBody] ShiftSeriesUpdateRequest request,
         CancellationToken cancellationToken
     )
     {
-        await shiftSeriesRequestValidator.ValidateAndThrowAsync(request, cancellationToken);
+        await shiftSeriesUpdateRequestValidator.ValidateAndThrowAsync(request, cancellationToken);
         var result = await shiftService.UpdateShiftSeriesAsync(id, request, cancellationToken);
         return result is null ? NotFound() : Ok(result);
     }

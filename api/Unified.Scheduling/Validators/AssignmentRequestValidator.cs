@@ -60,6 +60,7 @@ public sealed class AssignmentEntryUpdateRequestValidator : AbstractValidator<As
 {
     public AssignmentEntryUpdateRequestValidator()
     {
+        RuleFor(request => request.ConcurrencyToken).GreaterThan(0u);
         RuleFor(request => request.AssignmentDefinitionId).GreaterThan(0);
         RuleFor(request => request.Title).NotEmpty().MaximumLength(200);
         RuleFor(request => request.Description).MaximumLength(2000);
@@ -89,5 +90,14 @@ internal static class AssignmentRequestValidatorExtensions
             .Must(links => links is null || links.Select(link => link.ShiftEntryId).Distinct().Count() == links.Count())
             .WithMessage("Shift entry links must be unique.");
         validator.RuleForEach(linksSelector).SetValidator(new ShiftEntryLinkRequestValidator());
+    }
+}
+
+public sealed class AssignmentSeriesUpdateRequestValidator : AbstractValidator<AssignmentSeriesUpdateRequest>
+{
+    public AssignmentSeriesUpdateRequestValidator()
+    {
+        Include(new AssignmentSeriesRequestValidator());
+        RuleFor(request => request.ConcurrencyToken).GreaterThan(0u);
     }
 }

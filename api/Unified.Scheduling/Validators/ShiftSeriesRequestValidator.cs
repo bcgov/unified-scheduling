@@ -43,3 +43,12 @@ public sealed class ShiftSeriesRequestValidator : AbstractValidator<ShiftSeriesR
         return userIds.Distinct().Count() == userIds.Count;
     }
 }
+
+public sealed class ShiftSeriesUpdateRequestValidator : AbstractValidator<ShiftSeriesUpdateRequest>
+{
+    public ShiftSeriesUpdateRequestValidator()
+    {
+        Include(new ShiftSeriesRequestValidator());
+        RuleFor(request => request.ConcurrencyToken).GreaterThan(0u);
+    }
+}

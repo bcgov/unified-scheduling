@@ -1,3 +1,4 @@
+import type { ShiftSeriesUpdateRequest } from '@/api-access/generated/models/shiftSeriesUpdateRequest';
 import type { ShiftEntryRequest } from '@/api-access/generated/models/shiftEntryRequest';
 import type { ShiftEntryUpdateRequest } from '@/api-access/generated/models/shiftEntryUpdateRequest';
 import type { ShiftSeriesRequest } from '@/api-access/generated/models/shiftSeriesRequest';
@@ -34,7 +35,7 @@ export async function updateShiftEntry(id: number, body: ShiftEntryUpdateRequest
   return result;
 }
 
-export async function updateShiftSeries(id: number, body: ShiftSeriesRequest) {
+export async function updateShiftSeries(id: number, body: ShiftSeriesUpdateRequest) {
   const result = putApiSchedulingShiftsSeriesId(id, body, { options: { immediate: false } });
   await result.execute();
   return result;

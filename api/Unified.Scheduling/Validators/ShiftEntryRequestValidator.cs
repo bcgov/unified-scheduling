@@ -52,6 +52,7 @@ public sealed class ShiftEntryUpdateRequestValidator : AbstractValidator<ShiftEn
 {
     public ShiftEntryUpdateRequestValidator()
     {
+        RuleFor(request => request.ConcurrencyToken).GreaterThan(0u);
         Include(new ShiftEntryRequestValidator());
         RuleForEach(request => request.ConflictOverrides).SetValidator(new CalendarConflictAcknowledgementValidator());
     }

@@ -255,18 +255,21 @@ export function createShiftFormDataFromEntry(
   const event = {
     ...fallbackEvent,
     title: entry.title ?? fallbackEvent.title,
+    notes: entry.notes ?? '',
     start: entry.startAtUtc ?? fallbackEvent.start,
     end: entry.endAtUtc ?? fallbackEvent.end,
     timeZoneId: entry.timeZoneId ?? fallbackEvent.timeZoneId,
     statusTypeCode: entry.statusTypeCode ?? fallbackEvent.statusTypeCode,
     locationId: entry.locationId ?? fallbackEvent.locationId,
-    resourceIds: entry.userIds ?? fallbackEvent.resourceIds,
   };
 
   return {
     ...createShiftFormDataFromEvent(event, timeZoneId),
     lunchAvailableMinutes: entry.lunchAvailableMinutes,
     workedLunchMinutes: entry.workedLunchMinutes,
+    description: entry.description ?? null,
+    color: entry.color ?? null,
+    userIds: entry.userIds ?? [],
     assignmentEntryId: assignmentEntryLinks.length === 1 ? assignmentEntryLinks[0]?.assignmentEntryId : null,
     assignmentEntryIds: assignmentEntryLinks.map((link) => link.assignmentEntryId),
     assignmentEntryLinks,

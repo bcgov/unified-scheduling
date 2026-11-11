@@ -18,7 +18,8 @@ public sealed class AssignmentController(
     IAssignmentService assignmentService,
     AssignmentSeriesRequestValidator assignmentSeriesRequestValidator,
     AssignmentEntryRequestValidator assignmentEntryRequestValidator,
-    AssignmentEntryUpdateRequestValidator assignmentEntryUpdateRequestValidator
+    AssignmentEntryUpdateRequestValidator assignmentEntryUpdateRequestValidator,
+    AssignmentSeriesUpdateRequestValidator assignmentSeriesUpdateRequestValidator
 ) : ControllerBase
 {
     [HttpGet("series")]
@@ -60,14 +61,15 @@ public sealed class AssignmentController(
     [Authorize(Policy = SchedulingPolicies.AssignmentsEdit)]
     [ProducesResponseType(typeof(AssignmentSeriesResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<AssignmentSeriesResponse>> UpdateAssignmentSeries(
         int id,
-        [FromBody] AssignmentSeriesRequest request,
+        [FromBody] AssignmentSeriesUpdateRequest request,
         CancellationToken cancellationToken
     )
     {
-        await assignmentSeriesRequestValidator.ValidateAndThrowAsync(request, cancellationToken);
+        await assignmentSeriesUpdateRequestValidator.ValidateAndThrowAsync(request, cancellationToken);
         var result = await assignmentService.UpdateAssignmentSeriesAsync(id, request, cancellationToken);
         return result is null ? NotFound() : Ok(result);
     }
