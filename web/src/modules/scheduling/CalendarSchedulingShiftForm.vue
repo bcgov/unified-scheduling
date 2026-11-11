@@ -9,7 +9,13 @@ import UaTextarea from '@/shared/components/UaTextarea.vue';
 import type { SelectOption, SelectValue } from '@/types/select';
 import { mdiDelete } from '@mdi/js';
 import { computed, watch } from 'vue';
-import { publishOptions, repeatOptions, type ShiftResourceFormData } from './calendarSchedulingShiftForm';
+import {
+  lunchAvailableOptions,
+  publishOptions,
+  repeatOptions,
+  workedLunchOptions,
+  type ShiftResourceFormData,
+} from './calendarSchedulingShiftForm';
 import { timeOptions } from './schedulingDateTime';
 import { normalizeSchedulingLifecycleStatus } from './schedulingLifecycle';
 import { parsePositiveInteger } from './calendarSchedulingShiftIds';
@@ -120,6 +126,21 @@ const locationOptionsWithSelected = computed(() => {
 
   return [{ code: locationId, description: 'Unknown location' }, ...props.locationOptions];
 });
+function includeSelectedLunch(options: SelectOption[], minutes: number | null | undefined) {
+  return typeof minutes === 'number' && !options.some((option) => option.code === minutes)
+    ? [...options, { code: minutes, description: `${minutes} min` }].sort((a, b) => Number(a.code) - Number(b.code))
+    : options;
+}
+
+const availableLunchOptions = computed(() =>
+  includeSelectedLunch(lunchAvailableOptions, formData.value.lunchAvailableMinutes),
+);
+const availableWorkedLunchOptions = computed(() => {
+  const lunchAvailableMinutes = formData.value.lunchAvailableMinutes;
+  return includeSelectedLunch(workedLunchOptions, formData.value.workedLunchMinutes).filter(
+    (option) => typeof lunchAvailableMinutes === 'number' && Number(option.code) <= lunchAvailableMinutes,
+  );
+});
 
 watch(
   () => formData.value.userIds,
@@ -155,6 +176,32 @@ function updateLocation(value: SelectValue | undefined) {
     assignmentSeriesId: null,
     assignmentSeriesLinks: [],
   };
+}
+
+function updateLunchAvailable(value: SelectValue | undefined) {
+  const lunchAvailableMinutes = typeof value === 'number' ? value : null;
+  const workedLunchMinutes = formData.value.workedLunchMinutes;
+
+  formData.value = {
+    ...formData.value,
+    lunchAvailableMinutes,
+    workedLunchMinutes:
+      lunchAvailableMinutes != null ? Math.min(workedLunchMinutes ?? 0, lunchAvailableMinutes) : workedLunchMinutes,
+  };
+}
+
+function updateWorkedLunch(value: SelectValue | undefined) {
+  const workedLunchMinutes = typeof value === 'number' ? value : null;
+  const lunchAvailableMinutes = formData.value.lunchAvailableMinutes;
+
+  if (
+    workedLunchMinutes != null &&
+    (typeof lunchAvailableMinutes !== 'number' || workedLunchMinutes > lunchAvailableMinutes)
+  ) {
+    return;
+  }
+
+  updateField('workedLunchMinutes', workedLunchMinutes);
 }
 
 function updateSelectedAssignmentEntry(value: SelectValue | undefined) {
@@ -361,6 +408,38 @@ function handleRecurrenceChange(value: string | null) {
           {{ formErrors.endTime }}
         </p>
       </div>
+    </div>
+
+    <label class="shift-form__label" :for="`${idPrefix}-lunch-available`">Lunch Break</label>
+    <div class="shift-form__lunch-field">
+      <UaSelect
+        :id="`${idPrefix}-lunch-available`"
+        :model-value="formData.lunchAvailableMinutes"
+        aria-label="Lunch Break"
+        :items="availableLunchOptions"
+        :error="Boolean(formErrors.lunchAvailableMinutes)"
+        :disabled="disabled"
+        @update:model-value="updateLunchAvailable"
+      />
+      <p v-if="formErrors.lunchAvailableMinutes" class="shift-form__field-error">
+        {{ formErrors.lunchAvailableMinutes }}
+      </p>
+    </div>
+
+    <label class="shift-form__label" :for="`${idPrefix}-worked-lunch`">Worked Lunch</label>
+    <div class="shift-form__lunch-field">
+      <UaSelect
+        :id="`${idPrefix}-worked-lunch`"
+        :model-value="formData.workedLunchMinutes"
+        aria-label="Worked Lunch"
+        :items="availableWorkedLunchOptions"
+        :error="Boolean(formErrors.workedLunchMinutes)"
+        :disabled="disabled"
+        @update:model-value="updateWorkedLunch"
+      />
+      <p v-if="formErrors.workedLunchMinutes" class="shift-form__field-error">
+        {{ formErrors.workedLunchMinutes }}
+      </p>
     </div>
 
     <template v-if="props.showRecurrence">
@@ -636,6 +715,7 @@ function handleRecurrenceChange(value: string | null) {
 .shift-form__time-field,
 .shift-form__repeat-field,
 .shift-form__status-field,
+.shift-form__lunch-field,
 .shift-form__location-field,
 .shift-form__employee-field,
 .shift-form__assignment-field {

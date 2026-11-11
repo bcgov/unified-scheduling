@@ -22,6 +22,11 @@ public sealed class ShiftEntryRequestValidator : AbstractValidator<ShiftEntryReq
             .LessThan(request => request.SeriesEndAtUtc!.Value)
             .When(request => request.SeriesStartAtUtc.HasValue && request.SeriesEndAtUtc.HasValue);
         RuleFor(request => request.LocationId).NotEmpty().GreaterThan(0);
+        RuleFor(request => request.LunchAvailableMinutes).GreaterThanOrEqualTo(0).LessThanOrEqualTo(60);
+        RuleFor(request => request.WorkedLunchMinutes).GreaterThanOrEqualTo(0);
+        RuleFor(request => request.WorkedLunchMinutes)
+            .LessThanOrEqualTo(request => request.LunchAvailableMinutes)
+            .When(request => request.LunchAvailableMinutes.HasValue);
         RuleFor(request => request.UserIds).NotEmpty().Must(HaveDistinctValues);
         RuleForEach(request => request.UserIds).NotEmpty();
         RuleFor(request => request.AssignmentEntryLinks)
@@ -47,6 +52,7 @@ public sealed class ShiftEntryUpdateRequestValidator : AbstractValidator<ShiftEn
 {
     public ShiftEntryUpdateRequestValidator()
     {
+        RuleFor(request => request.ConcurrencyToken).GreaterThan(0u);
         Include(new ShiftEntryRequestValidator());
         RuleForEach(request => request.ConflictOverrides).SetValidator(new CalendarConflictAcknowledgementValidator());
     }

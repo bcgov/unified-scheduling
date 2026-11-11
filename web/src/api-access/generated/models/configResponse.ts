@@ -17,4 +17,5 @@ export interface ConfigResponse {
   selectedBrand?: string | null;
   brandingOptions?: ConfigResponseBrandingOptions;
   emailDistributionAvailable?: boolean;
+  defaultLunchMinutes?: number;
 }

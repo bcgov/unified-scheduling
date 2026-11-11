@@ -8,6 +8,7 @@ import type { AssignmentEntryLinkRequest } from './assignmentEntryLinkRequest.ts
 import type { CalendarConflictAcknowledgement } from './calendarConflictAcknowledgement.ts';
 
 export interface ShiftEntryUpdateRequest {
+  concurrencyToken: number;
   /** @nullable */
   conflictOverrides?: CalendarConflictAcknowledgement[] | null;
   /** @nullable */
@@ -33,5 +34,9 @@ export interface ShiftEntryUpdateRequest {
   allDay?: boolean;
   /** @nullable */
   locationId?: number | null;
+  /** @nullable */
+  lunchAvailableMinutes?: number | null;
+  /** @nullable */
+  workedLunchMinutes?: number | null;
   userIds?: string[];
 }

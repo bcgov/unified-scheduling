@@ -17,6 +17,7 @@ import {
   calendarSchedulingHeaderShowConflictAction,
   calendarSchedulingHeaderLeaveDetailAction,
   calendarSchedulingHeaderLoanOutDetailAction,
+  calendarSchedulingHeaderShowOvertimeAction,
   calendarSchedulingResolveConflictAction,
   calendarSchedulingShowConflictAction,
 } from './calendarSchedulingActions';
@@ -25,6 +26,7 @@ import { calendarShiftViewContribution } from './calendarShiftViewContribution';
 import { calendarSchedulingAssignmentResourcesContribution } from './contributions/calendarSchedulingAssignmentResourcesContribution';
 import { calendarSchedulingEventsContribution } from './contributions/calendarSchedulingEventsContribution';
 import { calendarSchedulingLoanOutContribution } from './contributions/calendarSchedulingLoanOutContribution';
+import { calendarSchedulingWorkingHoursContribution } from './contributions/calendarSchedulingWorkingHoursContribution';
 
 let isRegistered = false;
 
@@ -36,6 +38,7 @@ export function registerCalendarSchedulingModule() {
   calendarRegistry.registerModuleContribution(calendarSchedulingEventsContribution);
   calendarRegistry.registerModuleContribution(calendarSchedulingLoanOutContribution);
   calendarRegistry.registerModuleContribution(calendarSchedulingAssignmentResourcesContribution);
+  calendarRegistry.registerModuleContribution(calendarSchedulingWorkingHoursContribution);
   calendarRegistry.registerView(calendarShiftViewContribution);
   calendarRegistry.registerView(calendarAssignmentViewContribution);
 
@@ -59,6 +62,7 @@ export function registerCalendarSchedulingModule() {
   calendarActionRegistry.registerMatrixCellHeaderAction(calendarSchedulingHeaderLoanOutDetailAction);
   calendarActionRegistry.registerMatrixCellHeaderAction(calendarSchedulingHeaderShowConflictAction);
   calendarActionRegistry.registerMatrixCellHeaderAction(calendarSchedulingHeaderResolveConflictAction);
+  calendarActionRegistry.registerMatrixCellHeaderAction(calendarSchedulingHeaderShowOvertimeAction);
   calendarActionRegistry.registerMatrixEventBlockAction(calendarSchedulingShowConflictAction);
   calendarActionRegistry.registerMatrixEventBlockAction(calendarSchedulingResolveConflictAction);
   calendarActionRegistry.registerViewDetailAction(

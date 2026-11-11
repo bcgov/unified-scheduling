@@ -24,7 +24,7 @@ public sealed class AssignmentService(IAssignmentEntryService entryService, IAss
 
     public Task<AssignmentSeriesResponse?> UpdateAssignmentSeriesAsync(
         int id,
-        AssignmentSeriesRequest request,
+        AssignmentSeriesUpdateRequest request,
         CancellationToken cancellationToken = default
     ) => seriesService.UpdateAssignmentSeriesAsync(id, request, cancellationToken);
 

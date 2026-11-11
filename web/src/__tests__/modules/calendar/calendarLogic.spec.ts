@@ -1,3 +1,4 @@
+import { calendarSchedulingActionIds } from '@/modules/scheduling/calendarSchedulingActionIds';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -373,6 +374,136 @@ describe('scheduling calendar view model', () => {
       subtitle: 'Deputy',
       draggable: true,
       payload: { userId: 'user-1', title: 'Ada' },
+    });
+  });
+
+  it('shows projected overtime on shift headers without adding shift conflict actions', () => {
+    const shiftEvents: CalendarSchedulingEvent[] = [
+      {
+        id: 'shift-conflict',
+        type: 'scheduling.shift',
+        sourceModule: 'calendar-scheduling',
+        title: 'Conflict shift',
+        start: '2025-01-13T09:00:00',
+        end: '2025-01-13T17:00:00',
+        resourceIds: ['user-1'],
+        metadata: { eventId: 101, shiftEntryId: '41', userIds: ['user-1'] },
+      },
+      {
+        id: 'shift-normal',
+        type: 'scheduling.shift',
+        sourceModule: 'calendar-scheduling',
+        title: 'Normal shift',
+        start: '2025-01-14T09:00:00',
+        end: '2025-01-14T17:00:00',
+        resourceIds: ['user-1'],
+        metadata: { eventId: 102, shiftEntryId: '42', userIds: ['user-1'], shiftSeriesId: 100 },
+      },
+    ];
+
+    const viewModel = buildCalendarSchedulingViewModel(
+      {
+        contributions: {
+          'calendar.events': {
+            moduleId: 'calendar',
+            contributionId: 'calendar.events',
+            events: [],
+            data: {
+              conflicts: [
+                {
+                  id: '101:201:user-1',
+                  resourceId: 'user-1',
+                  entry: {
+                    eventId: '101',
+                    eventTypeCode: 'shift',
+                    sourceModule: 'scheduling',
+                    title: 'Conflict shift',
+                    start: '2025-01-13T09:00:00Z',
+                    end: '2025-01-13T17:00:00Z',
+                    sourceEntityId: null,
+                    timeZoneId: null,
+                  },
+                  overlaps: {
+                    eventId: '201',
+                    eventTypeCode: 'assignment',
+                    sourceModule: 'scheduling',
+                    title: 'Assignment',
+                    start: '2025-01-13T10:00:00Z',
+                    end: '2025-01-13T12:00:00Z',
+                    sourceEntityId: null,
+                    timeZoneId: null,
+                  },
+                  overlapStart: '2025-01-13T10:00:00Z',
+                  overlapEnd: '2025-01-13T12:00:00Z',
+                  isOverridden: false,
+                  reportOnEntry: false,
+                  reportOnOverlaps: false,
+                },
+              ],
+            },
+          },
+          'scheduling.events': {
+            moduleId: 'scheduling',
+            contributionId: 'scheduling.events',
+            events: shiftEvents,
+            resources: [
+              {
+                id: 'user-1',
+                type: 'user',
+                sourceModule: 'scheduling',
+                label: 'Alex Alpha',
+                title: 'Alex Alpha',
+              },
+            ] as CalendarSchedulingUserResource[],
+          },
+          'scheduling.working-hours': {
+            moduleId: 'scheduling',
+            contributionId: 'scheduling.working-hours',
+            events: [],
+            data: {
+              results: [
+                {
+                  shiftEntryId: 41,
+                  userId: 'user-1',
+                  date: '2025-01-13',
+                  paidShiftMinutes: 480,
+                  lunchAvailableMinutes: 60,
+                  workedLunchMinutes: 30,
+                  paidOutsideShiftMinutes: 0,
+                  creditedMinutes: 510,
+                  overtimeMinutes: 30,
+                },
+                {
+                  shiftEntryId: 42,
+                  userId: 'user-1',
+                  date: '2025-01-14',
+                  paidShiftMinutes: 420,
+                  lunchAvailableMinutes: 60,
+                  workedLunchMinutes: 0,
+                  paidOutsideShiftMinutes: 0,
+                  creditedMinutes: 420,
+                  overtimeMinutes: 0,
+                },
+              ],
+            },
+          },
+        },
+      },
+      { startDate: '2025-01-13', endDate: '2025-01-20', filters: {} },
+      'week',
+    );
+
+    const headers = viewModel.cells.flatMap((cell) => cell.headers ?? []);
+
+    expect(headers.find((header) => header.id === 'shift-conflict')?.action).toMatchObject({
+      actionId: calendarSchedulingActionIds.showOvertime,
+      ariaLabel: 'Projected overtime: 30m',
+    });
+    expect(headers.find((header) => header.id === 'shift-normal')?.action).toBeUndefined();
+    expect(headers.find((header) => header.id === 'shift-normal')?.info?.icons).toContainEqual({
+      icon: mdiCalendarSync,
+      ariaLabel: 'Part of a shift series',
+      title: 'Part of a shift series',
     });
   });
 
@@ -786,6 +917,157 @@ describe('scheduling calendar view model', () => {
 
     const events = model.cells.flatMap((cell) => cell.groups.flatMap((group) => group.events));
     expect(events.map((item) => item.event.id)).toEqual(['scheduling.assignment-entry.90']);
+  });
+
+  it.each([
+    [false, 0],
+    [true, 0],
+    [false, 30],
+    [true, 30],
+  ] as const)('shows the single header action for conflicts=%s and overtime=%s', (hasConflicts, overtimeMinutes) => {
+    const result = {
+      shiftEntryId: 41,
+      userId: 'user-1',
+      date: '2025-01-13',
+      paidShiftMinutes: 420,
+      lunchAvailableMinutes: 60,
+      workedLunchMinutes: 0,
+      paidOutsideShiftMinutes: overtimeMinutes,
+      workedMinutes: 420 + overtimeMinutes,
+      paidLeaveMinutes: 0,
+      unpaidLeaveMinutes: 0,
+      creditedMinutes: 420 + overtimeMinutes,
+      overtimeMinutes,
+    };
+    const shiftEvents: CalendarSchedulingEvent[] = [
+      {
+        id: 'shift-conflict',
+        type: 'scheduling.shift',
+        sourceModule: 'calendar-scheduling',
+        title: 'Conflict shift',
+        start: '2025-01-13T09:00:00',
+        end: '2025-01-13T17:00:00',
+        resourceIds: ['user-1'],
+        metadata: { eventId: 101, shiftEntryId: '41', userIds: ['user-1'] },
+      },
+      {
+        id: 'shift-normal',
+        type: 'scheduling.shift',
+        sourceModule: 'calendar-scheduling',
+        title: 'Normal shift',
+        start: '2025-01-14T09:00:00',
+        end: '2025-01-14T17:00:00',
+        resourceIds: ['user-1'],
+        metadata: { eventId: 102, userIds: ['user-1'], shiftSeriesId: 100 },
+      },
+    ];
+    const assignmentEvents: CalendarSchedulingEvent[] = [
+      {
+        id: 'assignment-conflict',
+        type: 'scheduling.assignment',
+        sourceModule: 'calendar-scheduling',
+        title: 'Conflict assignment',
+        start: '2025-01-13T10:00:00',
+        end: '2025-01-13T12:00:00',
+        metadata: {
+          eventId: 201,
+          assignedShiftIds: ['41'],
+          assignedUserIds: ['user-1'],
+        },
+      },
+    ];
+
+    const viewModel = buildCalendarSchedulingViewModel(
+      {
+        contributions: {
+          'calendar.events': {
+            moduleId: 'calendar',
+            contributionId: 'calendar.events',
+            events: [],
+            data: {
+              conflicts: hasConflicts
+                ? [
+                    {
+                      id: '201:202:user-1',
+                      resourceId: 'user-1',
+                      entry: {
+                        eventId: '201',
+                        sourceModule: 'scheduling',
+                        title: 'Conflict assignment',
+                        start: '2025-01-13T10:00:00Z',
+                        end: '2025-01-13T12:00:00Z',
+                        sourceEntityId: null,
+                        timeZoneId: null,
+                      },
+                      overlaps: {
+                        eventId: '202',
+                        sourceModule: 'scheduling',
+                        title: 'Assignment',
+                        start: '2025-01-13T10:00:00Z',
+                        end: '2025-01-13T12:00:00Z',
+                        sourceEntityId: null,
+                        timeZoneId: null,
+                      },
+                      overlapStart: '2025-01-13T10:00:00Z',
+                      overlapEnd: '2025-01-13T12:00:00Z',
+                      isOverridden: false,
+                      reportOnEntry: true,
+                      reportOnOverlaps: true,
+                    },
+                  ]
+                : [],
+            },
+          },
+          'scheduling.working-hours': {
+            moduleId: 'scheduling',
+            contributionId: 'scheduling.working-hours',
+            events: [],
+            data: { results: [result] },
+          },
+          'scheduling.events': {
+            moduleId: 'scheduling',
+            contributionId: 'scheduling.events',
+            events: [...shiftEvents, ...assignmentEvents],
+            resources: [
+              {
+                id: 'user-1',
+                type: 'user',
+                sourceModule: 'scheduling',
+                label: 'Alex Alpha',
+                title: 'Alex Alpha',
+              },
+            ] as CalendarSchedulingUserResource[],
+          },
+        },
+      },
+      { startDate: '2025-01-13', endDate: '2025-01-20', filters: {} },
+      'week',
+    );
+
+    const headers = viewModel.cells.flatMap((cell) => cell.headers ?? []);
+
+    const conflictHeader = headers.find((header) => header.id === 'shift-conflict');
+    expect(conflictHeader?.actionId).toBe(calendarSchedulingActionIds.viewHeaderDetails);
+    if (hasConflicts && overtimeMinutes) {
+      expect(conflictHeader?.action?.type).toBe('menu');
+      expect(conflictHeader?.action?.menuItems).toEqual([
+        { actionId: calendarSchedulingActionIds.showConflict, label: 'View conflicts' },
+        { actionId: calendarSchedulingActionIds.showOvertime, label: 'View potential overtime', payload: result },
+      ]);
+    } else if (hasConflicts) {
+      expect(conflictHeader?.action?.actionId).toBe(calendarSchedulingActionIds.showConflict);
+    } else if (overtimeMinutes) {
+      expect(conflictHeader?.action?.actionId).toBe(calendarSchedulingActionIds.showOvertime);
+    } else {
+      expect(conflictHeader?.action).toBeUndefined();
+    }
+    expect(conflictHeader?.conflicts).toHaveLength(hasConflicts ? 1 : 0);
+    expect(headers.find((header) => header.id === 'shift-normal')?.action).toBeUndefined();
+    expect(headers.find((header) => header.id === 'shift-normal')?.info?.icons).toContainEqual({
+      icon: mdiCalendarSync,
+      ariaLabel: 'Part of a shift series',
+      title: 'Part of a shift series',
+    });
   });
 
   it('shows a holiday conflict on the assignment and its linked shift header for the affected user', () => {

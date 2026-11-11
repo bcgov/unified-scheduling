@@ -99,5 +99,5 @@ export const GetApiConfigResponse = zod.object({
       }),
     )
     .optional(),
-  emailDistributionAvailable: zod.boolean().optional(),
+  defaultLunchMinutes: zod.int().optional(),
 });

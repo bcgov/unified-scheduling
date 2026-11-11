@@ -6,6 +6,7 @@ import {
   buildUpdateShiftPayloadWithErrors,
   createInitialShiftFormDataForCreateAction,
   createShiftFormDataFromEntry,
+  createShiftFormDataFromSeries,
   normalizeShiftFormDataForScope,
   normalizeShiftFormTimes,
   validateShiftFormData,
@@ -19,7 +20,7 @@ import {
 } from '@/modules/scheduling/schedulingDateTime';
 
 const baseFormData: ShiftResourceFormData = {
-  ...createInitialShiftFormDataForCreateAction(1),
+  ...createInitialShiftFormDataForCreateAction(1, 60),
   title: 'System System shift',
   date: '2026-06-29',
   startTime: '09:00',
@@ -29,6 +30,76 @@ const baseFormData: ShiftResourceFormData = {
 };
 
 describe('calendarSchedulingShiftForm', () => {
+  it('preserves explicit zero lunch through validation and request mapping', () => {
+    const formData = { ...baseFormData, lunchAvailableMinutes: 0, workedLunchMinutes: 0 };
+    expect(validateShiftFormData(formData, { timeZoneId: 'America/Vancouver' }).errors).toEqual({});
+    const payload = buildCreateShiftPayload({
+      formData,
+      timeZoneId: 'America/Vancouver',
+      locationId: 1,
+      fallbackTitle: 'Shift',
+    });
+    expect(payload?.body).toMatchObject({ lunchAvailableMinutes: 0, workedLunchMinutes: 0 });
+  });
+
+  it('preserves unknown lunch when building an unrelated update', () => {
+    const payload = buildUpdateShiftPayload({
+      formData: { ...baseFormData, lunchAvailableMinutes: null, workedLunchMinutes: null },
+      scope: 'entry',
+      shiftSeriesId: null,
+      timeZoneId: 'America/Vancouver',
+      locationId: 1,
+      fallbackTitle: 'Shift',
+    });
+    expect(payload?.body).toMatchObject({ lunchAvailableMinutes: null, workedLunchMinutes: null });
+  });
+  it.each([0, 20, 30])('initializes new shifts with configured lunch %i and zero worked lunch', (minutes) => {
+    const formData = createInitialShiftFormDataForCreateAction(1, minutes);
+
+    expect(formData.lunchAvailableMinutes).toBe(minutes);
+    expect(formData.workedLunchMinutes).toBe(0);
+  });
+
+  it.each([
+    { description: 'Latest description', color: 'blue', userIds: ['employee-b'] },
+    { description: null, color: null, userIds: [] },
+  ])('uses entry editable values over stale summary values: $description', (entry) => {
+    const fallbackEvent = {
+      id: 'shift-42',
+      type: 'scheduling.shift',
+      sourceModule: 'scheduling',
+      title: 'Registry shift',
+      description: 'Stale description',
+      color: 'red',
+      start: '2026-06-29T16:00:00Z',
+      end: '2026-06-30T00:00:00Z',
+      resourceIds: ['employee-a'],
+      metadata: { userIds: ['employee-a'], userId: 'employee-a' },
+    };
+
+    const formData = createShiftFormDataFromEntry(entry, fallbackEvent, 'America/Vancouver');
+
+    expect(formData).toMatchObject(entry);
+  });
+
+  it.each(['Latest server notes', '', null])('uses loaded entry notes instead of stale summary notes: %s', (notes) => {
+    const formData = createShiftFormDataFromEntry(
+      { id: 42, notes },
+      {
+        id: 'shift-42',
+        type: 'scheduling.shift',
+        sourceModule: 'scheduling',
+        title: 'Registry shift',
+        notes: 'Stale summary notes',
+        start: '2026-06-29T16:00:00Z',
+        end: '2026-06-30T00:00:00Z',
+      },
+      'America/Vancouver',
+    );
+
+    expect(formData.notes).toBe(notes ?? '');
+  });
+
   it('hydrates linked assignments from a shift entry response', () => {
     const formData = createShiftFormDataFromEntry(
       {
@@ -37,6 +108,8 @@ describe('calendarSchedulingShiftForm', () => {
         startAtUtc: '2026-06-29T16:00:00Z',
         endAtUtc: '2026-06-30T00:00:00Z',
         userIds: ['00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000002'],
+        lunchAvailableMinutes: 45,
+        workedLunchMinutes: 15,
         assignmentLinks: [
           {
             assignmentEntryId: 251,
@@ -57,12 +130,38 @@ describe('calendarSchedulingShiftForm', () => {
 
     expect(formData.assignmentEntryIds).toEqual([251]);
     expect(formData.userIds).toEqual(['00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000002']);
+    expect(formData).toMatchObject({ lunchAvailableMinutes: 45, workedLunchMinutes: 15 });
     expect(formData.assignmentEntryLinks).toEqual([
       {
         assignmentEntryId: 251,
         assignedUserIds: ['00000000-0000-0000-0000-000000000001'],
       },
     ]);
+  });
+
+  it('hydrates lunch values from a shift series response', () => {
+    const formData = createShiftFormDataFromSeries(
+      {
+        id: 21,
+        title: 'Registry series',
+        startAtUtc: '2026-06-29T16:00:00Z',
+        endAtUtc: '2026-06-30T00:00:00Z',
+        recurrenceRule: 'RRULE:FREQ=WEEKLY;COUNT=2',
+        lunchAvailableMinutes: 30,
+        workedLunchMinutes: 15,
+      },
+      {
+        id: 'shift-42',
+        type: 'scheduling.shift',
+        sourceModule: 'scheduling',
+        title: 'Registry shift',
+        start: '2026-06-29T16:00:00Z',
+        end: '2026-06-30T00:00:00Z',
+      },
+      'America/Vancouver',
+    );
+
+    expect(formData).toMatchObject({ lunchAvailableMinutes: 30, workedLunchMinutes: 15 });
   });
 
   it('validates and normalizes shared shift form data', () => {
@@ -81,6 +180,20 @@ describe('calendarSchedulingShiftForm', () => {
       cancel: 'no',
     });
     expect(result.errors).toEqual({});
+  });
+
+  it('rejects worked lunch greater than lunch available', () => {
+    const result = validateShiftFormData(
+      {
+        ...baseFormData,
+        lunchAvailableMinutes: 30,
+        workedLunchMinutes: 45,
+      },
+      { timeZoneId: 'America/Vancouver' },
+    );
+
+    expect(result.data).toBeNull();
+    expect(result.errors.workedLunchMinutes).toBe('Worked lunch cannot exceed lunch break.');
   });
 
   it('normalizes backend time-only values to select option values', () => {
@@ -126,6 +239,7 @@ describe('calendarSchedulingShiftForm', () => {
 
     expect(payload?.kind).toBe('entry');
     expect(payload?.publish).toBe(false);
+    expect(payload?.body).toMatchObject({ lunchAvailableMinutes: 60, workedLunchMinutes: 0 });
     expect(payload?.body).not.toHaveProperty('statusTypeCode');
     expect(payload?.body).not.toHaveProperty('cancelledAt');
     expect(payload?.body).not.toHaveProperty('cancelledByUserId');
@@ -152,6 +266,24 @@ describe('calendarSchedulingShiftForm', () => {
 
     expect(unauthorized?.publish).toBe(false);
     expect(authorized?.publish).toBe(true);
+  });
+
+  it('includes lunch values in shift series create requests', () => {
+    const payload = buildCreateShiftPayload({
+      formData: {
+        ...baseFormData,
+        repeatMode: 'custom',
+        recurrenceRule: 'RRULE:FREQ=DAILY;COUNT=2',
+        lunchAvailableMinutes: 45,
+        workedLunchMinutes: 30,
+      },
+      timeZoneId: 'America/Vancouver',
+      locationId: 1,
+      fallbackTitle: 'System System',
+    });
+
+    expect(payload?.kind).toBe('series');
+    expect(payload?.body).toMatchObject({ lunchAvailableMinutes: 45, workedLunchMinutes: 30 });
   });
 
   it('does not build create payloads without a location', () => {
@@ -285,6 +417,54 @@ describe('calendarSchedulingShiftForm', () => {
           assignedUserIds: ['d787ac4b-7969-4509-bc2b-9c85c4cbe3cb'],
         },
       ],
+      lunchAvailableMinutes: 60,
+      workedLunchMinutes: 0,
+    });
+  });
+
+  it('includes occurrence lunch values without creating a series request', () => {
+    const payload = buildUpdateShiftPayload({
+      formData: {
+        ...baseFormData,
+        lunchAvailableMinutes: 30,
+        workedLunchMinutes: 15,
+      },
+      scope: 'entry',
+      timeZoneId: 'America/Vancouver',
+      locationId: 1,
+      fallbackTitle: 'System System',
+      shiftSeriesId: 203,
+    });
+
+    expect(payload).toMatchObject({
+      kind: 'entry',
+      body: {
+        shiftSeriesId: 203,
+        lunchAvailableMinutes: 30,
+        workedLunchMinutes: 15,
+      },
+    });
+  });
+
+  it('includes lunch values in shift series update requests', () => {
+    const payload = buildUpdateShiftPayload({
+      formData: {
+        ...baseFormData,
+        repeatMode: 'custom',
+        recurrenceRule: 'RRULE:FREQ=DAILY;COUNT=2',
+        lunchAvailableMinutes: 15,
+        workedLunchMinutes: 0,
+      },
+      scope: 'series',
+      timeZoneId: 'America/Vancouver',
+      locationId: 1,
+      fallbackTitle: 'System System',
+      shiftSeriesId: 203,
+    });
+
+    expect(payload).toMatchObject({
+      kind: 'series',
+      body: { lunchAvailableMinutes: 15, workedLunchMinutes: 0 },
     });
   });
 

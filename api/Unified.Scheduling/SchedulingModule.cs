@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.OpenApi;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -16,7 +18,10 @@ using Unified.Common.Seeding;
 using Unified.Common.Time;
 using Unified.Db;
 using Unified.Scheduling.FeatureFlags;
+using Unified.Scheduling.Interceptors;
 using Unified.Scheduling.Mappings;
+using Unified.Scheduling.OpenApi;
+using Unified.Scheduling.Options;
 using Unified.Scheduling.Seeders;
 using Unified.Scheduling.Services;
 using Unified.Scheduling.Validators;
@@ -47,14 +52,27 @@ public static class SchedulingModule
             serviceProvider.GetRequiredService<IOptions<SchedulingFeatureFlags>>().Value
         );
 
+        services
+            .AddOptions<WorkingHoursOptions>()
+            .BindConfiguration(WorkingHoursOptions.SectionName)
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
         if (!IsModuleEnabled(config))
             return services;
+
+        services.AddTransient<SchedulingConcurrencyOperationTransformer>();
+        services.Configure<OpenApiOptions>(
+            "v1",
+            options => options.AddOperationTransformer<SchedulingConcurrencyOperationTransformer>()
+        );
 
         if (!CalendarModule.IsModuleEnabled(config))
             throw new InvalidOperationException("Scheduling requires the Calendar module to be enabled.");
         if (!StatsModule.IsModuleEnabled(config))
             throw new InvalidOperationException("Scheduling requires the Stats module to be enabled.");
 
+        services.AddScoped<IInterceptor, SchedulingConcurrencyInterceptor>();
         services.AddSingleton(TimeProvider.System);
         services.TryAddScoped<ISchedulingLoanOutService, NoOpSchedulingLoanOutService>();
         services.TryAddScoped<ShiftLoanOutAvailabilityService>(provider =>
@@ -104,14 +122,18 @@ public static class SchedulingModule
         services.AddScoped<IAssignmentDefinitionService, AssignmentDefinitionService>();
         services.AddScoped<IShiftAssignmentService, ShiftAssignmentService>();
         services.AddScoped<IProposedShiftAssignmentOptionsService, ProposedShiftAssignmentOptionsService>();
+        services.AddScoped<IWorkingHoursService, WorkingHoursService>();
+        services.AddScoped<WorkingHoursQueryValidator>();
         services.AddScoped<ShiftConflictService>();
         SchedulingServiceProvider.Register(services);
         services.AddScoped<ShiftSeriesMaterializationHandler>();
         services.AddScoped<AssignmentSeriesMaterializationHandler>();
         services.AddScoped<ShiftSeriesRequestValidator>();
+        services.AddScoped<ShiftSeriesUpdateRequestValidator>();
         services.AddScoped<ShiftEntryRequestValidator>();
         services.AddScoped<ShiftEntryUpdateRequestValidator>();
         services.AddScoped<AssignmentSeriesRequestValidator>();
+        services.AddScoped<AssignmentSeriesUpdateRequestValidator>();
         services.AddScoped<AssignmentEntryRequestValidator>();
         services.AddScoped<AssignmentEntryUpdateRequestValidator>();
         services.AddScoped<AssignmentDefinitionRequestValidator>();

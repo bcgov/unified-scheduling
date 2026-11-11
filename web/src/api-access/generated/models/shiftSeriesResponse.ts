@@ -6,6 +6,7 @@
  */
 
 export interface ShiftSeriesResponse {
+  concurrencyToken?: number;
   shiftEntryIds?: number[];
   id?: number;
   eventSeriesId?: number;
@@ -37,5 +38,9 @@ export interface ShiftSeriesResponse {
   allDay?: boolean;
   /** @nullable */
   locationId?: number | null;
+  /** @nullable */
+  lunchAvailableMinutes?: number | null;
+  /** @nullable */
+  workedLunchMinutes?: number | null;
   userIds?: string[];
 }

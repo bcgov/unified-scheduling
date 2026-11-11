@@ -415,8 +415,11 @@ public sealed class ShiftAssignmentService(
                 );
         }
 
-        db.ShiftAssignmentSeriesLinkUsers.RemoveRange(seriesLink.Users);
-        ShiftAssignmentUserSync.ReplaceSeriesUsers(seriesLink, selectedUserIds);
+        if (!ShiftUserSync.UserSetsEqual(seriesLink.Users.Select(user => user.UserId), selectedUserIds))
+        {
+            db.ShiftAssignmentSeriesLinkUsers.RemoveRange(seriesLink.Users);
+            ShiftAssignmentUserSync.ReplaceSeriesUsers(seriesLink, selectedUserIds);
+        }
 
         var intersectionKeys = assignableIntersections
             .Select(pair => (pair.shiftEntry.Id, pair.assignmentEntry.Id))
@@ -432,7 +435,10 @@ public sealed class ShiftAssignmentService(
             {
                 if (existingLink.ShiftAssignmentSeriesLinkId == seriesLink.Id)
                 {
-                    if (!existingLink.IsException)
+                    if (
+                        !existingLink.IsException
+                        && !ShiftUserSync.UserSetsEqual(existingLink.Users.Select(user => user.UserId), assignedUserIds)
+                    )
                     {
                         db.ShiftAssignmentEntryUsers.RemoveRange(existingLink.Users);
                         ShiftAssignmentUserSync.ReplaceEntryUsers(existingLink, assignedUserIds);
@@ -682,8 +688,11 @@ public sealed class ShiftAssignmentService(
             if (!updateExisting)
                 throw new InvalidOperationException("Shift entry is already linked to this assignment entry.");
 
-            db.ShiftAssignmentEntryUsers.RemoveRange(link.Users);
-            ShiftAssignmentUserSync.ReplaceEntryUsers(link, selectedUserIds);
+            if (!ShiftUserSync.UserSetsEqual(link.Users.Select(user => user.UserId), selectedUserIds))
+            {
+                db.ShiftAssignmentEntryUsers.RemoveRange(link.Users);
+                ShiftAssignmentUserSync.ReplaceEntryUsers(link, selectedUserIds);
+            }
             ShiftAssignmentUserSync.UpdateExceptionState(link, selectedUserIds);
         }
         else

@@ -7,6 +7,7 @@
 import type { ShiftAssignmentSeriesLinkSummaryResponse } from './shiftAssignmentSeriesLinkSummaryResponse.ts';
 
 export interface AssignmentSeriesResponse {
+  concurrencyToken?: number;
   assignmentDefinitionId?: number;
   categoryId?: number;
   /** @nullable */

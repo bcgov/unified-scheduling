@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { mdiRepeat } from '@mdi/js';
+import { mdiAlertCircle, mdiRepeat } from '@mdi/js';
 import { useRoute } from 'vue-router';
 import CalendarSchedulingShiftDetailModal from './CalendarSchedulingShiftDetailModal.vue';
 import CalendarSchedulingLeaveDetailModal from './CalendarSchedulingLeaveDetailModal.vue';
@@ -12,6 +12,7 @@ import CalendarSchedulingAssignmentDefinitionCreateModal from './CalendarSchedul
 import CalendarSchedulingConflictOverlay from './CalendarSchedulingConflictOverlay.vue';
 import CalendarSchedulingDistributionModal from './CalendarSchedulingDistributionModal.vue';
 import CalendarSchedulingPublishModal from './CalendarSchedulingPublishModal.vue';
+import CalendarSchedulingWorkingHoursModal from './CalendarSchedulingWorkingHoursModal.vue';
 import CalendarConflictDetailModal from '@/modules/calendar/components/CalendarConflictDetailModal.vue';
 import { useCalendarStore } from '@/modules/calendar/calendarStore';
 import type { CalendarPeriod } from '@/modules/calendar/calendarStore';
@@ -66,11 +67,14 @@ import {
   calendarSchedulingLeaveDetailEvent,
   calendarSchedulingLoanOutDetailEvent,
   calendarSchedulingPublishRequest,
+  calendarSchedulingWorkingHoursSelection,
   closeCalendarSchedulingAssignmentModal,
   closeCalendarSchedulingAssignmentTypeCreateModal,
+  closeCalendarSchedulingConflict,
   closeCalendarSchedulingEventDetail,
   closeCalendarSchedulingDistributionModal,
   closeCalendarSchedulingPublishModal,
+  closeCalendarSchedulingWorkingHours,
   closeCalendarSchedulingResourceActionModal,
   closeCalendarSchedulingLeaveDetail,
   closeCalendarSchedulingLoanOutDetail,
@@ -329,8 +333,9 @@ function isAssignmentEvent(event: CalendarEventBase) {
           "
           :conflicts="header.conflicts ?? []"
           :restricted-warnings="header.restrictedWarnings"
-          :icon="header.action?.icon"
+          :icon="mdiAlertCircle"
           :time-zone="model.timeZone"
+          @close="closeCalendarSchedulingConflict"
           @resolve="resolveHeaderConflict($event, cell, header, onHeaderAction)"
         />
       </div>
@@ -372,8 +377,9 @@ function isAssignmentEvent(event: CalendarEventBase) {
           v-if="calendarSchedulingConflictEventId === event.id && conflictEventCellKey === eventCellKey(cell, event)"
           :conflicts="group.events.find((item) => item.event === event)?.conflicts ?? []"
           :restricted-warnings="group.events.find((item) => item.event === event)?.restrictedWarnings"
-          :icon="display?.action?.icon"
+          :icon="mdiAlertCircle"
           :time-zone="model.timeZone"
+          @close="closeCalendarSchedulingConflict"
           @resolve="resolveConflict($event, event, onEventAction)"
         />
       </div>
@@ -409,6 +415,13 @@ function isAssignmentEvent(event: CalendarEventBase) {
     :mode="assignmentDefinitionId ? 'view' : 'create'"
     @close="handleAssignmentDefinitionClose"
     @saved="handleAssignmentDefinitionSaved"
+  />
+
+  <CalendarSchedulingWorkingHoursModal
+    v-if="calendarSchedulingWorkingHoursSelection"
+    :result="calendarSchedulingWorkingHoursSelection.result"
+    :user-name="calendarSchedulingWorkingHoursSelection.userName"
+    @close="closeCalendarSchedulingWorkingHours"
   />
 
   <CalendarSchedulingPublishModal

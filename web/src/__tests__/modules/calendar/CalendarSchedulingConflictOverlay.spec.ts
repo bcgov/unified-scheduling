@@ -20,7 +20,8 @@ describe('CalendarSchedulingConflictOverlay', () => {
       },
     });
     expect(wrapper.text()).toContain('do not have permission to view');
-    expect(wrapper.findAll('button, a')).toHaveLength(0);
+    expect(wrapper.find('[aria-label="Close conflicts"]').exists()).toBe(true);
+    expect(wrapper.findAll('button:not([aria-label="Close conflicts"]), a')).toHaveLength(0);
     expect(wrapper.findAll('.calendar-scheduling-conflict-overlay__item')).toHaveLength(0);
     expect(wrapper.findAll('strong')).toHaveLength(0);
     expect(wrapper.emitted('resolve')).toBeUndefined();

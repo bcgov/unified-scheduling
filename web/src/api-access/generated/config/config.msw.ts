@@ -172,7 +172,7 @@ export const getGetApiConfigResponseMock = (
         },
         undefined,
       ]),
-      emailDistributionAvailable: faker.datatype.boolean(),
+      defaultLunchMinutes: faker.helpers.arrayElement([faker.number.int(), undefined]),
       ...overrideResponse,
     },
     {
@@ -272,7 +272,7 @@ export const getGetApiConfigResponseMock = (
         },
         undefined,
       ]),
-      emailDistributionAvailable: faker.datatype.boolean(),
+      defaultLunchMinutes: faker.helpers.arrayElement([faker.number.int(), undefined]),
       ...overrideResponse,
     },
     {
@@ -372,7 +372,7 @@ export const getGetApiConfigResponseMock = (
         },
         undefined,
       ]),
-      emailDistributionAvailable: faker.datatype.boolean(),
+      defaultLunchMinutes: faker.helpers.arrayElement([faker.number.int(), undefined]),
       ...overrideResponse,
     },
   ]);
