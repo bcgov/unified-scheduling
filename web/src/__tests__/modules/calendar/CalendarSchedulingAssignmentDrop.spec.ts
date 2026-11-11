@@ -180,15 +180,15 @@ describe('assignment drops', () => {
               categoryId: 10,
               subCategoryId: 20,
               capacity: 4,
-              shiftEntryLinks: (existingTargetLink
-                  ? [
-                      { shiftEntryId: 44, assignedUserIds: [existingUserId, draggedUserId] },
-                      { shiftEntryId: 45, assignedUserIds: [otherShiftUserId, draggedUserId] },
-                    ]
-                  : [
-                      { shiftEntryId: 45, assignedUserIds: [otherShiftUserId, draggedUserId] },
-                      { shiftEntryId: 44, assignedUserIds: [draggedUserId] },
-                    ]),
+              shiftEntryLinks: existingTargetLink
+                ? [
+                    { shiftEntryId: 44, assignedUserIds: [existingUserId, draggedUserId] },
+                    { shiftEntryId: 45, assignedUserIds: [otherShiftUserId, draggedUserId] },
+                  ]
+                : [
+                    { shiftEntryId: 45, assignedUserIds: [otherShiftUserId, draggedUserId] },
+                    { shiftEntryId: 44, assignedUserIds: [draggedUserId] },
+                  ],
             },
           ]);
         }
