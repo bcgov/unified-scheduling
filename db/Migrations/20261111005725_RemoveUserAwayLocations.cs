@@ -22,8 +22,17 @@ namespace Unified.Db.Migrations
                 """
             );
 
-            migrationBuilder.DropTable(
-                name: "UserAwayLocations");
+            migrationBuilder.DropTable(name: "UserAwayLocations");
+
+            migrationBuilder.Sql(
+                """
+                DELETE FROM "Events"
+                WHERE "EventTypeCode" = 'AwayLocation';
+
+                DELETE FROM "EventTypes"
+                WHERE "Code" = 'AwayLocation';
+                """
+            );
         }
 
         /// <inheritdoc />
@@ -33,42 +42,61 @@ namespace Unified.Db.Migrations
                 name: "UserAwayLocations",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:IdentitySequenceOptions", "'1000', '1', '', '', 'False', '1'")
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    Id = table
+                        .Column<int>(type: "integer", nullable: false)
+                        .Annotation(
+                            "Npgsql:IdentitySequenceOptions",
+                            "'1000', '1', '', '', 'False', '1'"
+                        )
+                        .Annotation(
+                            "Npgsql:ValueGenerationStrategy",
+                            NpgsqlValueGenerationStrategy.IdentityByDefaultColumn
+                        ),
                     xmin = table.Column<uint>(type: "xid", rowVersion: true, nullable: false),
                     CreatedById = table.Column<Guid>(type: "uuid", nullable: true),
-                    CreatedOn = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false, defaultValueSql: "now()"),
+                    CreatedOn = table.Column<DateTimeOffset>(
+                        type: "timestamp with time zone",
+                        nullable: false,
+                        defaultValueSql: "now()"
+                    ),
                     EventId = table.Column<int>(type: "integer", nullable: false),
                     UpdatedById = table.Column<Guid>(type: "uuid", nullable: true),
-                    UpdatedOn = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
-                    UserId = table.Column<Guid>(type: "uuid", nullable: false)
+                    UpdatedOn = table.Column<DateTimeOffset>(
+                        type: "timestamp with time zone",
+                        nullable: true
+                    ),
+                    UserId = table.Column<Guid>(type: "uuid", nullable: false),
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_UserAwayLocations", x => x.Id);
-                });
+                }
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_UserAwayLocations_CreatedById",
                 table: "UserAwayLocations",
-                column: "CreatedById");
+                column: "CreatedById"
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_UserAwayLocations_EventId",
                 table: "UserAwayLocations",
                 column: "EventId",
-                unique: true);
+                unique: true
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_UserAwayLocations_UpdatedById",
                 table: "UserAwayLocations",
-                column: "UpdatedById");
+                column: "UpdatedById"
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_UserAwayLocations_UserId",
                 table: "UserAwayLocations",
-                column: "UserId");
+                column: "UserId"
+            );
         }
     }
 }
