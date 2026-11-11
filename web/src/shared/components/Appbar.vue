@@ -28,7 +28,7 @@ const handleLogout = () => {
   <div class="app-bar-wrapper">
     <v-app-bar class="app-bar" :height="80" flat>
       <RouterLink class="appbar-branding appbar-branding-link" to="/dashboard" aria-label="Go to dashboard home">
-        <div class="appbar-logo">
+        <div class="appbar-logo appbar-logo--primary">
           <img :src="branding.primaryLogoUrl.value" :alt="branding.primaryLogoAlt.value" />
         </div>
         <template v-if="branding.secondaryLogoUrl.value">
@@ -178,14 +178,11 @@ const handleLogout = () => {
 
 .appbar-logo img {
   display: block;
+  flex: 0 0 auto;
   width: auto;
-  height: clamp(28px, 3.75vw, 48px);
-  max-width: clamp(112px, 15vw, 192px);
-  object-fit: contain;
-}
-.appbar-logo--secondary img {
   height: clamp(40px, 4.7vw, 76px);
-  max-width: clamp(72px, 17.2vw, 220px);
+  max-width: clamp(140px, 20vw, 280px);
+  object-fit: contain;
 }
 
 .appbar-logo-separator {
@@ -326,6 +323,10 @@ const handleLogout = () => {
   }
   .appbar-logo {
     height: 44px;
+  }
+  .appbar-logo img {
+    height: clamp(36px, 10vw, 44px);
+    max-width: min(55vw, 220px);
   }
   .appbar-logo-separator {
     height: 36px;

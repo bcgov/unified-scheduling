@@ -68,7 +68,6 @@ export const GetApiConfigResponse = zod.object({
   supportEmail: zod.string().nullish(),
   applicationName: zod.string().nullish(),
   selectedBrand: zod.string().nullish(),
-  emailDistributionAvailable: zod.boolean().optional(),
   brandingOptions: zod
     .record(
       zod.string(),
@@ -78,6 +77,8 @@ export const GetApiConfigResponse = zod.object({
         navigationSelectedColor: zod.string().nullish(),
         quickLinks: zod.array(zod.string()).nullish(),
         dashboardMessage: zod.string().nullish(),
+        primaryLogoUrl: zod.string().nullish(),
+        primaryLogoAlt: zod.string().nullish(),
         secondaryLogoUrl: zod.string().nullish(),
         secondaryLogoAlt: zod.string().nullish(),
         backgroundImageUrl: zod.string().nullish(),

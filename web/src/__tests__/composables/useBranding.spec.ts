@@ -12,6 +12,8 @@ const brandingOptions: Record<string, BrandSettingsOptions> = {
     primaryColor: '#123456',
     backgroundColor: '#eeeeee',
     navigationSelectedColor: '#abcdef',
+    primaryLogoUrl: '/images/default-logo.svg',
+    primaryLogoAlt: 'Default operations logo',
     quickLinks: ['myProfile', 'training'],
     dashboardMessage: 'Default message',
   },
@@ -20,6 +22,8 @@ const brandingOptions: Record<string, BrandSettingsOptions> = {
     primaryColor: '#654321',
     backgroundColor: '#dddddd',
     navigationSelectedColor: '#fedcba',
+    primaryLogoUrl: '/images/bcss-logo.svg',
+    primaryLogoAlt: 'BC Sheriff Service crest',
     quickLinks: ['schedule', 'myTeam'],
     dashboardMessage: 'BCSS message',
     secondaryLogoUrl: '/images/bcss-logo.svg',
@@ -89,6 +93,8 @@ describe('useBranding', () => {
     expect(branding.dashboardMessage.value).toBe('BCSS message');
 
     authenticate();
+    expect(branding.primaryLogoUrl.value).toBe('/images/bcss-logo.svg');
+    expect(branding.primaryLogoAlt.value).toBe('BC Sheriff Service crest');
     expect(branding.secondaryLogoUrl.value).toBe('/images/bcss-logo.svg');
 
     configStore.config.selectedBrand = 'unknown';
@@ -99,12 +105,32 @@ describe('useBranding', () => {
     expect(branding.activeColor.value).toBe('#abcdef');
     expect(branding.dashboardTiles.value).toEqual(['myProfile', 'training']);
     expect(branding.dashboardMessage.value).toBe('Default message');
+    expect(branding.primaryLogoUrl.value).toBe('/images/default-logo.svg');
+    expect(branding.primaryLogoAlt.value).toBe('Default operations logo');
     expect(branding.secondaryLogoUrl.value).toBeNull();
     expect(branding.secondaryLogoAlt.value).toBeUndefined();
     expect(branding.backgroundImageUrl.value).toBeNull();
   });
 
-  it('shows BCSS logos and overlay only while authenticated and keeps the primary logo fixed', () => {
+  it('provides empty alt text for configured logos without descriptions', () => {
+    useConfigStore().config = {
+      brandingOptions: {
+        default: {
+          primaryLogoUrl: '/images/primary.svg',
+          secondaryLogoUrl: '/images/secondary.svg',
+        },
+      },
+    };
+    authenticate();
+    const branding = useBranding();
+
+    expect(branding.primaryLogoUrl.value).toBe('/images/primary.svg');
+    expect(branding.primaryLogoAlt.value).toBe('');
+    expect(branding.secondaryLogoUrl.value).toBe('/images/secondary.svg');
+    expect(branding.secondaryLogoAlt.value).toBe('');
+  });
+
+  it('shows the configured primary logo and overlay only while authenticated', () => {
     useConfigStore().config = { selectedBrand: 'BCSS', brandingOptions };
     const branding = useBranding();
 
@@ -113,6 +139,7 @@ describe('useBranding', () => {
     expect(branding.backgroundImageUrl.value).toBeNull();
     expect(branding.dashboardBanner.value).toEqual(defaultBrand.dashboardBanner);
     expect(branding.primaryLogoUrl.value).toBe('/images/bcid-logo-rev-en.svg');
+    expect(branding.primaryLogoAlt.value).toBe('B.C. Government Logo');
 
     authenticate();
 
@@ -123,8 +150,8 @@ describe('useBranding', () => {
       title: 'BCSS dashboard',
       subtitle: 'Sheriff operations',
     });
-    expect(branding.primaryLogoUrl.value).toBe('/images/bcid-logo-rev-en.svg');
-    expect(branding.primaryLogoAlt.value).toBe('B.C. Government Logo');
+    expect(branding.primaryLogoUrl.value).toBe('/images/bcss-logo.svg');
+    expect(branding.primaryLogoAlt.value).toBe('BC Sheriff Service crest');
 
     useAuthStore().clearUserInfo();
 
@@ -132,5 +159,7 @@ describe('useBranding', () => {
     expect(branding.secondaryLogoAlt.value).toBeUndefined();
     expect(branding.backgroundImageUrl.value).toBeNull();
     expect(branding.dashboardBanner.value).toEqual(defaultBrand.dashboardBanner);
+    expect(branding.primaryLogoUrl.value).toBe('/images/bcid-logo-rev-en.svg');
+    expect(branding.primaryLogoAlt.value).toBe('B.C. Government Logo');
   });
 });

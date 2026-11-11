@@ -9,6 +9,10 @@ export interface DashboardBanner {
   logoUrl?: string;
   logoAlt?: string;
 }
+export interface LogoDefinition {
+  url: string;
+  alt?: string;
+}
 /** A single named brand's full configuration. */
 export interface BrandDefinition {
   /** Unique key selected by the /api/config selectedBrand value. */
@@ -24,10 +28,11 @@ export interface BrandDefinition {
   dashboardBanner?: DashboardBanner;
   dashboardMessage: string;
 
+  /** Primary logo shown in the app bar once the user is authenticated. */
+  primaryLogo: LogoDefinition;
+
   /** Secondary logo shown in the app bar once the user is authenticated. */
-  secondaryLogoUrl: string;
-  /** Alt text for the header logo. */
-  secondaryLogoAlt: string;
+  secondaryLogo?: LogoDefinition;
 
   /** Optional background overlay image shown behind authenticated page content when a URL is provided. */
   backgroundImageUrl: string;
