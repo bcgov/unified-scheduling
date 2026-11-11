@@ -2,7 +2,6 @@ import { computed } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import { getBrandingConfig } from '@/branding';
 import { defaultBrand, fixedPrimaryLogo } from '@/branding/brandingConfig';
-import { resolveBrandAssetUrl } from '@/branding/brandAssetUrl';
 
 /**
  * Auth-gated view of the branding configuration.
@@ -13,41 +12,30 @@ import { resolveBrandAssetUrl } from '@/branding/brandAssetUrl';
  */
 export const useBranding = () => {
   const authStore = useAuthStore();
+  const brand = computed(() => getBrandingConfig());
 
   // Custom branding always applies once the user has logged in.
   const isBrandingActive = computed(() => authStore.isAuthenticated);
 
-  const primaryLogoUrl = computed(() =>
-    isBrandingActive.value && getBrandingConfig().primaryLogoUrl
-      ? getBrandingConfig().primaryLogoUrl
-      : resolveBrandAssetUrl(fixedPrimaryLogo.url),
-  );
-  const primaryLogoAlt = computed(() =>
-    isBrandingActive.value && getBrandingConfig().primaryLogoUrl
-      ? getBrandingConfig().primaryLogoAlt
-      : fixedPrimaryLogo.alt,
-  );
-  const secondaryLogoUrl = computed(() =>
-    isBrandingActive.value && getBrandingConfig().secondaryLogoUrl ? getBrandingConfig().secondaryLogoUrl : null,
-  );
-  const secondaryLogoAlt = computed(() =>
-    isBrandingActive.value && getBrandingConfig().secondaryLogoUrl ? getBrandingConfig().secondaryLogoAlt : undefined,
-  );
-  const backgroundImageUrl = computed(() =>
-    isBrandingActive.value && getBrandingConfig().backgroundImageUrl ? getBrandingConfig().backgroundImageUrl : null,
-  );
-  const applicationName = computed(() => getBrandingConfig().applicationName);
-  const primaryColor = computed(() => getBrandingConfig().primaryColor);
-  const backgroundColor = computed(() => getBrandingConfig().backgroundColor);
-  const activeColor = computed(() => getBrandingConfig().activeColor);
+  const primaryLogo = computed(() => (isBrandingActive.value ? brand.value.primaryLogo : fixedPrimaryLogo));
+  const primaryLogoUrl = computed(() => primaryLogo.value.url);
+  const primaryLogoAlt = computed(() => primaryLogo.value.alt ?? '');
+  const secondaryLogo = computed(() => (isBrandingActive.value ? brand.value.secondaryLogo : null));
+  const secondaryLogoUrl = computed(() => secondaryLogo.value?.url || null);
+  const secondaryLogoAlt = computed(() => (secondaryLogo.value?.url ? (secondaryLogo.value.alt ?? '') : undefined));
+  const backgroundImageUrl = computed(() => (isBrandingActive.value ? brand.value.backgroundImageUrl || null : null));
+  const applicationName = computed(() => brand.value.applicationName);
+  const primaryColor = computed(() => brand.value.primaryColor);
+  const backgroundColor = computed(() => brand.value.backgroundColor);
+  const activeColor = computed(() => brand.value.activeColor);
   const brandingStyles = computed(() => ({
     '--ua-brand-blue': primaryColor.value,
     '--ua-navigation-selected': activeColor.value,
   }));
-  const dashboardTiles = computed(() => getBrandingConfig().dashboardTiles);
-  const dashboardMessage = computed(() => getBrandingConfig().dashboardMessage);
+  const dashboardTiles = computed(() => brand.value.dashboardTiles);
+  const dashboardMessage = computed(() => brand.value.dashboardMessage);
   const dashboardBanner = computed(() =>
-    isBrandingActive.value ? getBrandingConfig().dashboardBanner : defaultBrand.dashboardBanner,
+    isBrandingActive.value ? brand.value.dashboardBanner : defaultBrand.dashboardBanner,
   );
 
   return {

@@ -112,6 +112,24 @@ describe('useBranding', () => {
     expect(branding.backgroundImageUrl.value).toBeNull();
   });
 
+  it('provides empty alt text for configured logos without descriptions', () => {
+    useConfigStore().config = {
+      brandingOptions: {
+        default: {
+          primaryLogoUrl: '/images/primary.svg',
+          secondaryLogoUrl: '/images/secondary.svg',
+        },
+      },
+    };
+    authenticate();
+    const branding = useBranding();
+
+    expect(branding.primaryLogoUrl.value).toBe('/images/primary.svg');
+    expect(branding.primaryLogoAlt.value).toBe('');
+    expect(branding.secondaryLogoUrl.value).toBe('/images/secondary.svg');
+    expect(branding.secondaryLogoAlt.value).toBe('');
+  });
+
   it('shows the configured primary logo and overlay only while authenticated', () => {
     useConfigStore().config = { selectedBrand: 'BCSS', brandingOptions };
     const branding = useBranding();
