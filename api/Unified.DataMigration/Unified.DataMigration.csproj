@@ -5,12 +5,16 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="Cronos" Version="0.11.1" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.12" />
+    <PackageReference Include="Npgsql" Version="10.0.3" />
   </ItemGroup>
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <InternalsVisibleTo Include="Unified.Tests" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Unified.Common\Unified.Common.csproj" />
     <ProjectReference Include="..\..\db\db.csproj" />
   </ItemGroup>
 </Project>
