@@ -6,15 +6,32 @@ import { server } from '@/__tests__/mocks/server';
 import { Permissions } from '@/api-access/generated/models';
 import { useLocationsStore } from '@/stores/LocationsStore';
 import CalendarSchedulingAssignmentModal from '@/modules/scheduling/CalendarSchedulingAssignmentModal.vue';
+import {
+  calendarDropAction,
+  calendarDropUserOnAssignmentResourceAction,
+} from '@/modules/scheduling/calendarSchedulingActions';
+import {
+  calendarSchedulingAssignmentModalAssignedUserId,
+  calendarSchedulingAssignmentModalAssignmentDefinitionId,
+  calendarSchedulingAssignmentModalDraggedUserOnly,
+  calendarSchedulingAssignmentModalEntryId,
+  calendarSchedulingAssignmentModalMode,
+  calendarSchedulingAssignmentModalShiftEntryIds,
+  closeCalendarSchedulingAssignmentModal,
+} from '@/modules/scheduling/calendarSchedulingState';
 
 const draggedUserId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const existingUserId = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const otherShiftUserId = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
 
-describe('assignment drop editing', () => {
-  it.each(['Draft', 'Published'])(
-    'preserves loaded values and enforces lifecycle for %s assignments',
-    async (statusTypeCode) => {
+describe('assignment drops', () => {
+  it.each([
+    { statusTypeCode: 'Draft', existingTargetLink: true },
+    { statusTypeCode: 'Draft', existingTargetLink: false },
+    { statusTypeCode: 'Published', existingTargetLink: true },
+  ])(
+    'preserves loaded values and enforces lifecycle for $statusTypeCode assignments (existing target link: $existingTargetLink)',
+    async ({ statusTypeCode, existingTargetLink }) => {
       let releaseDefinitions!: () => void;
       const definitionsReady = new Promise<void>((resolve) => {
         releaseDefinitions = resolve;
@@ -45,8 +62,8 @@ describe('assignment drop editing', () => {
         capacity: 4,
         statusTypeCode,
         assignmentLinks: [
-          { id: 301, shiftEntryId: 44, assignedUserIds: [existingUserId] },
-          { id: 302, shiftEntryId: 45, assignedUserIds: [otherShiftUserId] },
+          ...(existingTargetLink ? [{ id: 301, shiftEntryId: 44, assignedUserIds: [existingUserId] }] : []),
+          { id: 302, shiftEntryId: 45, assignedUserIds: [otherShiftUserId, draggedUserId] },
         ],
       };
       server.use(
@@ -91,7 +108,7 @@ describe('assignment drop editing', () => {
               endAtUtc: '2026-07-14T00:00:00Z',
               locationId: 12,
               statusTypeCode: 'Draft',
-              userIds: [otherShiftUserId],
+              userIds: [otherShiftUserId, draggedUserId],
             },
           ]),
         ),
@@ -163,10 +180,15 @@ describe('assignment drop editing', () => {
               categoryId: 10,
               subCategoryId: 20,
               capacity: 4,
-              shiftEntryLinks: [
-                { shiftEntryId: 44, assignedUserIds: [existingUserId, draggedUserId] },
-                { shiftEntryId: 45, assignedUserIds: [otherShiftUserId] },
-              ],
+              shiftEntryLinks: existingTargetLink
+                ? [
+                    { shiftEntryId: 44, assignedUserIds: [existingUserId, draggedUserId] },
+                    { shiftEntryId: 45, assignedUserIds: [otherShiftUserId, draggedUserId] },
+                  ]
+                : [
+                    { shiftEntryId: 45, assignedUserIds: [otherShiftUserId, draggedUserId] },
+                    { shiftEntryId: 44, assignedUserIds: [draggedUserId] },
+                  ],
             },
           ]);
         }
@@ -176,4 +198,157 @@ describe('assignment drop editing', () => {
       }
     },
   );
+
+  it.each([
+    { entryPoint: 'schedule', shared: true },
+    { entryPoint: 'schedule', shared: false },
+    { entryPoint: 'assignment', shared: true },
+    { entryPoint: 'untargeted', shared: true },
+    { entryPoint: 'manual', shared: true },
+  ])('saves the intended users for $entryPoint links (shared shift: $shared)', async ({ entryPoint, shared }) => {
+    const userIds = shared ? [existingUserId, draggedUserId, otherShiftUserId] : [draggedUserId];
+    const creates: unknown[] = [];
+    server.use(
+      http.get('*/api/users', () =>
+        HttpResponse.json(userIds.map((id, index) => ({ id, firstName: `User ${index}`, lastName: 'Test' }))),
+      ),
+      http.get('*/api/scheduling/assignment-definitions', () =>
+        HttpResponse.json([
+          {
+            id: 7,
+            name: 'Court coverage',
+            locationId: 12,
+            categoryId: 10,
+            subCategoryId: 20,
+            defaultCapacity: 4,
+            defaultStartTime: '09:00',
+            defaultEndTime: '17:00',
+            effectiveDateUtc: '2026-07-01T00:00:00Z',
+          },
+        ]),
+      ),
+      http.get('*/api/scheduling/shifts/series', () => HttpResponse.json([])),
+      http.get('*/api/scheduling/shifts/entries', () =>
+        HttpResponse.json([
+          {
+            id: 44,
+            startAtUtc: '2026-07-13T16:00:00Z',
+            endAtUtc: '2026-07-14T00:00:00Z',
+            locationId: 12,
+            statusTypeCode: 'Draft',
+            userIds,
+          },
+        ]),
+      ),
+      http.post('*/api/scheduling/assignments/entries', async ({ request }) => {
+        creates.push(await request.json());
+        return HttpResponse.json({ id: 257 });
+      }),
+    );
+    const app = await createTestApp({ loadConfig: false, permissions: Object.values(Permissions) });
+    useLocationsStore(app.pinia).setSelectedLocationId(12);
+    closeCalendarSchedulingAssignmentModal();
+    const isAssignmentView = entryPoint === 'assignment';
+    const hasTargetUser = entryPoint === 'schedule';
+    const resourceId = hasTargetUser ? draggedUserId : 'assignment-definition-7';
+    const resourceType = hasTargetUser ? 'user' : 'assignment';
+    const shift = {
+      id: 'scheduling.shift-entry.44',
+      type: 'scheduling.shift',
+      sourceModule: 'scheduling',
+      title: 'Shift',
+      start: '2026-07-13T16:00:00Z',
+      end: '2026-07-14T00:00:00Z',
+      locationId: 12,
+      statusTypeCode: 'Draft',
+      resourceIds: userIds,
+      metadata: { shiftEntryId: '44', userIds },
+    };
+    await (isAssignmentView ? calendarDropUserOnAssignmentResourceAction : calendarDropAction).execute(
+      {
+        drag: {
+          source: 'side-panel',
+          itemId: isAssignmentView ? draggedUserId : 'assignment-definition-7',
+          itemType: isAssignmentView ? 'user' : 'assignment',
+          payload: { assignmentDefinitionId: 7 },
+        },
+        drop: { resourceId, resourceType, date: '2026-07-13' },
+        model: {
+          timeZone: 'America/Vancouver',
+          payload: {
+            events: hasTargetUser
+              ? [
+                  {
+                    ...shift,
+                    id: 'scheduling.assignment-entry.90',
+                    type: 'scheduling.assignment',
+                    metadata: {
+                      assignmentEntryId: '90',
+                      assignmentDefinitionId: '7',
+                      assignedUserIds: [existingUserId],
+                    },
+                    resourceIds: [existingUserId],
+                  },
+                ]
+              : [],
+          },
+          days: [{ date: '2026-07-13', label: 'Mon, Jul 13' }],
+          primaryColumn: {
+            label: hasTargetUser ? 'TEAM' : 'ASSIGNMENTS',
+            resources: [{ id: resourceId, type: resourceType, title: 'Target' }],
+          },
+          cells: [
+            {
+              resourceId,
+              date: '2026-07-13',
+              headers: entryPoint === 'manual' ? [] : [{ text: 'Shift', payload: shift }],
+              payload: { shiftEvents: [shift] },
+              groups: [],
+            },
+          ],
+        },
+      },
+      { featureFlags: {}, permissions: Object.values(Permissions) },
+    );
+    const wrapper = mount(CalendarSchedulingAssignmentModal, {
+      props: {
+        mode: calendarSchedulingAssignmentModalMode.value,
+        assignmentEntryId: calendarSchedulingAssignmentModalEntryId.value,
+        initialDate: '2026-07-13',
+        initialAssignmentDefinitionId: calendarSchedulingAssignmentModalAssignmentDefinitionId.value,
+        initialShiftEntryIds: calendarSchedulingAssignmentModalShiftEntryIds.value,
+        initialAssignedUserId: calendarSchedulingAssignmentModalAssignedUserId.value,
+        draggedUserOnly: calendarSchedulingAssignmentModalDraggedUserOnly.value,
+        timeZone: 'America/Vancouver',
+      },
+      global: { plugins: app.mountPlugins },
+      attachTo: document.body,
+    });
+    try {
+      await flushPromises();
+      const vm = wrapper.vm as unknown as {
+        selectedShiftEntryId: number | null;
+        addSelectedShiftEntry(): void;
+        handleSave(): Promise<void>;
+      };
+      if (entryPoint === 'manual') {
+        vm.selectedShiftEntryId = 44;
+        vm.addSelectedShiftEntry();
+      }
+      await vm.handleSave();
+      expect(creates).toEqual([
+        expect.objectContaining({
+          shiftEntryLinks: [
+            {
+              shiftEntryId: 44,
+              assignedUserIds: hasTargetUser || isAssignmentView ? [draggedUserId] : userIds,
+            },
+          ],
+        }),
+      ]);
+    } finally {
+      wrapper.unmount();
+      closeCalendarSchedulingAssignmentModal();
+    }
+  });
 });

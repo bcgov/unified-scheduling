@@ -226,11 +226,13 @@ export const calendarDropAction: CalendarDropAction = {
             assignmentEntryId,
             shiftEntryIds,
             assignedUserId,
+            draggedUserOnly: Boolean(assignedUserId),
           }
         : {
             assignmentDefinitionId: resolveAssignmentDefinitionId(context) ?? undefined,
             shiftEntryIds,
             assignedUserId,
+            draggedUserOnly: Boolean(assignedUserId),
           },
     );
   },
@@ -541,6 +543,7 @@ function resolveTargetUserId(context: CalendarMatrixDropActionContext) {
 
 function resolveExistingAssignmentEntryId(context: CalendarMatrixDropActionContext) {
   const definitionId = resolveAssignmentDefinitionId(context);
+  const targetUserId = resolveTargetUserId(context);
   const events = (context.model.payload as CalendarSchedulingMatrixPayload | undefined)?.events ?? [];
   const matchingEvent = events.find(
     (event) =>
@@ -548,6 +551,7 @@ function resolveExistingAssignmentEntryId(context: CalendarMatrixDropActionConte
       !isSchedulingCancelled(event.statusTypeCode) &&
       !isSchedulingPublished(event.statusTypeCode) &&
       (!definitionId || resolveEventAssignmentDefinitionId(event) === definitionId) &&
+      (!targetUserId || eventIncludesUser(event, targetUserId)) &&
       assignmentEntryMatchesDate(event, context.drop.date, context.model.timeZone),
   );
 
