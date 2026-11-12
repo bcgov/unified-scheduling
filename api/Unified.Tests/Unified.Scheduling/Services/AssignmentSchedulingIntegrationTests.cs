@@ -5034,15 +5034,8 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
                     )
                 );
         }
-        var duplicateDates = recurring && newDay == 3;
-        var updateRejected = duplicateDates || failTransfer;
-        if (duplicateDates)
-        {
-            // The updated recurrence retains an existing loan-out date and is rejected before transfer.
-            var error = await Assert.ThrowsAsync<ConflictValidationException>(UpdateAsync);
-            Assert.True(error.Errors.ContainsKey("LoanOut"));
-        }
-        else if (failTransfer)
+        var updateRejected = failTransfer;
+        if (failTransfer)
         {
             var error = await Assert.ThrowsAsync<InvalidOperationException>(UpdateAsync);
             Assert.Equal("Destination copy failed.", error.Message);

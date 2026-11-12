@@ -210,6 +210,32 @@ describe('CalendarSchedulingLeaveDetailModal', () => {
     wrapper.unmount();
   });
 
+  it('only offers employees whose home location matches the leave location on the edit tab', async () => {
+    const homeUserId = '00000000-0000-0000-0000-000000000001';
+    const loanedInUserId = '00000000-0000-0000-0000-000000000099';
+    server.use(
+      http.get('*/api/users*', () =>
+        HttpResponse.json([
+          { id: homeUserId, firstName: 'Alex', lastName: 'Alpha', isEnabled: true, homeLocationId: 3 },
+          { id: loanedInUserId, firstName: 'Lee', lastName: 'Loaned', isEnabled: true, homeLocationId: 99 },
+        ]),
+      ),
+    );
+    const wrapper = await mountModal();
+    const vm = wrapper.vm as unknown as {
+      selectOpenScope: (scope: 'event') => Promise<void>;
+      selectTab: (tabId: 'edit') => void;
+    };
+
+    await vm.selectOpenScope('event');
+    vm.selectTab('edit');
+    await flushPromises();
+
+    const options = wrapper.getComponent({ name: 'LeaveForm' }).props('employeeOptions') as { code: string }[];
+    expect(options.map((option) => option.code)).toEqual([homeUserId]);
+    wrapper.unmount();
+  });
+
   it.each(['series', 'event'] as const)(
     'shows the scoped %s hours and all-day mode through an all-day exception',
     async (scope) => {

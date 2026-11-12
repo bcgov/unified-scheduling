@@ -114,12 +114,16 @@ const activeLocationId = computed<number | null>(() => {
 });
 
 const formData = ref<ShiftResourceFormData>(createInitialFormData(props.resource, props.initialDate));
-const { employeeOptions, isLoadingUsers } = useSchedulingEmployeeOptions(activeLocationId, formData, {
-  resource: toRef(props, 'resource'),
-  onError: (message) => {
-    apiError.value = message;
+const { employeeOptions, homeEmployeeOptions, isLoadingUsers } = useSchedulingEmployeeOptions(
+  activeLocationId,
+  formData,
+  {
+    resource: toRef(props, 'resource'),
+    onError: (message) => {
+      apiError.value = message;
+    },
   },
-});
+);
 const timeZoneId = computed(() =>
   resolveSchedulingTimeZoneId(
     activeLocationId.value ? locationsStore.entitiesMap[activeLocationId.value]?.timezone : undefined,
@@ -424,7 +428,7 @@ async function handleSaveLeave() {
   const built = buildLeaveRequest(leaveFormData.value, {
     locationId: activeLocationId.value,
     timeZoneId: timeZoneId.value,
-    employeeOptions: employeeOptions.value,
+    employeeOptions: homeEmployeeOptions.value,
   });
   if (built.error !== undefined) {
     apiError.value = built.error;
@@ -464,7 +468,7 @@ async function handleSaveLoanOut() {
   const built = buildLoanOutRequest(loanOutFormData.value, {
     locationId: activeLocationId.value,
     timeZoneId: timeZoneId.value,
-    employeeOptions: employeeOptions.value,
+    employeeOptions: homeEmployeeOptions.value,
   });
   if (built.error !== undefined) {
     apiError.value = built.error;
@@ -583,7 +587,7 @@ function applyServerValidationErrors(rawError: unknown) {
           <LeaveForm
             v-model="leaveFormData"
             :disabled="isSaving || !canCreateLeave"
-            :employee-options="employeeOptions"
+            :employee-options="homeEmployeeOptions"
             :loading-employees="isLoadingUsers"
             :time-zone-id="timeZoneId"
             show-required
@@ -599,7 +603,7 @@ function applyServerValidationErrors(rawError: unknown) {
             v-model="loanOutFormData"
             :home-location-id="activeLocationId"
             :disabled="isSaving || !canCreateLoanOut"
-            :employee-options="employeeOptions"
+            :employee-options="homeEmployeeOptions"
             :loading-employees="isLoadingUsers"
             :form-errors="loanOutFormErrors"
             :time-zone-id="timeZoneId"

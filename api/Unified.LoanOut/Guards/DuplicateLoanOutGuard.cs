@@ -16,6 +16,7 @@ public static class DuplicateLoanOutGuard
     public static async Task EnsureValidAsync(
         UnifiedDbContext db,
         LoanOutEntryRequest request,
+        int? existingEntryId = null,
         CancellationToken cancellationToken = default
     )
     {
@@ -23,14 +24,22 @@ public static class DuplicateLoanOutGuard
         cancellationToken.ThrowIfCancellationRequested();
         var timeZone = timeZoneService.ResolveOrUtc(request.TimeZoneId);
         var requestDate = GetLocalDate(request.StartAtUtc, timeZone);
-        var startAtUtc = timeZoneService.ToUtcInstant(requestDate.ToDateTime(TimeOnly.MinValue), timeZone);
-        var dayStartUtc = startAtUtc;
-        var dayEndUtc = dayStartUtc.AddDays(1);
+        var dateRange = timeZoneService.ConvertInclusiveLocalDateRangeToUtcRange(requestDate, requestDate, timeZone);
         var exists = await GetResourceLoanOuts(db, request.UserIds)
             .AnyAsync(
-                entry => entry.Event!.StartAtUtc >= dayStartUtc && entry.Event.StartAtUtc < dayEndUtc,
+                entry =>
+                    entry.Event!.StartAtUtc >= dateRange.StartAtUtc
+                    && entry.Event.StartAtUtc < dateRange.EndAtUtc
+                    && entry.Users.Any(user =>
+                        request.UserIds.Contains(user.UserId)
+                        && (
+                            existingEntryId == null
+                            || !(entry.Id == existingEntryId && request.UserIds.Contains(user.UserId))
+                        )
+                    ),
                 cancellationToken
             );
+
         ThrowIfDuplicate(exists);
     }
 
@@ -43,36 +52,86 @@ public static class DuplicateLoanOutGuard
     {
         ArgumentNullException.ThrowIfNull(db);
         cancellationToken.ThrowIfCancellationRequested();
-        var occurrences = recurrenceExpander.ExpandAllBounded(
-            new EventSeries
-            {
-                StartAtUtc = request.StartAtUtc,
-                EndAtUtc = request.EndAtUtc,
-                TimeZoneId = request.TimeZoneId,
-                RecurrenceRule = request.RecurrenceRule,
-            },
-            400
-        );
-        if (request.UserIds.Count == 0 || occurrences.Count == 0)
+
+        if (request.UserIds.Count == 0)
             return;
 
         var timeZone = timeZoneService.ResolveOrUtc(request.TimeZoneId);
-        var recurrenceDates = occurrences
-            .Select(occurrence => GetLocalDate(occurrence.StartAtUtc, timeZone))
-            .ToHashSet();
-        var dateRange = GetDateRange(
-            occurrences.Min(occurrence => occurrence.StartAtUtc),
-            occurrences.Max(occurrence => occurrence.StartAtUtc),
-            request.TimeZoneId
-        );
-        var existingStarts = await GetResourceLoanOuts(db, request.UserIds)
-            .Where(entry =>
-                entry.Event!.StartAtUtc >= dateRange.StartAtUtc && entry.Event.StartAtUtc <= dateRange.EndAtUtc
+        var occurrenceDates = recurrenceExpander
+            .ExpandAllBounded(
+                new EventSeries
+                {
+                    StartAtUtc = request.StartAtUtc,
+                    EndAtUtc = request.EndAtUtc,
+                    TimeZoneId = request.TimeZoneId,
+                    RecurrenceRule = request.RecurrenceRule,
+                },
+                400
             )
-            .Select(entry => entry.Event!.StartAtUtc)
+            .Select(occurrence => GetLocalDate(occurrence.StartAtUtc, timeZone));
+        await EnsureDateUserPairsValidAsync(
+            db,
+            occurrenceDates.SelectMany(date => request.UserIds.Select(userId => (date, userId))),
+            timeZone,
+            existingSeriesId: null,
+            cancellationToken: cancellationToken
+        );
+    }
+
+    public static async Task EnsureOccurrencesValidAsync(
+        UnifiedDbContext db,
+        IReadOnlyCollection<LoanOutEntry> entries,
+        string? timeZoneId,
+        int existingSeriesId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        ArgumentNullException.ThrowIfNull(db);
+        cancellationToken.ThrowIfCancellationRequested();
+        var timeZone = timeZoneService.ResolveOrUtc(timeZoneId);
+        var pairs = entries
+            .Where(entry => entry.Event != null && entry.Event.StatusTypeCode != CalendarEventStatusTypeCodes.Cancelled)
+            .SelectMany(entry =>
+                entry
+                    .Users.Select(user => user.UserId)
+                    .Distinct()
+                    .Select(userId => (GetLocalDate(entry.Event!.StartAtUtc, timeZone), userId))
+            );
+        await EnsureDateUserPairsValidAsync(db, pairs, timeZone, existingSeriesId, cancellationToken);
+    }
+
+    private static async Task EnsureDateUserPairsValidAsync(
+        UnifiedDbContext db,
+        IEnumerable<(DateOnly Date, Guid UserId)> pairs,
+        TimeZoneInfo timeZone,
+        int? existingSeriesId,
+        CancellationToken cancellationToken
+    )
+    {
+        var proposedPairs = new HashSet<(DateOnly Date, Guid UserId)>();
+        foreach (var pair in pairs)
+            ThrowIfDuplicate(!proposedPairs.Add(pair));
+        if (proposedPairs.Count == 0)
+            return;
+
+        var userIds = proposedPairs.Select(pair => pair.UserId).Distinct().ToList();
+        var dateRange = timeZoneService.ConvertInclusiveLocalDateRangeToUtcRange(
+            proposedPairs.Min(pair => pair.Date),
+            proposedPairs.Max(pair => pair.Date),
+            timeZone
+        );
+        var otherUsers = await GetResourceLoanOuts(db, userIds)
+            .Where(entry =>
+                (existingSeriesId == null || entry.LoanOutSeriesId != existingSeriesId)
+                && entry.Event!.StartAtUtc >= dateRange.StartAtUtc
+                && entry.Event.StartAtUtc < dateRange.EndAtUtc
+            )
+            .SelectMany(entry => entry.Users, (entry, user) => new { entry.Event!.StartAtUtc, user.UserId })
+            .Where(row => userIds.Contains(row.UserId))
             .ToListAsync(cancellationToken);
-        var exists = existingStarts.Any(start => recurrenceDates.Contains(GetLocalDate(start, timeZone)));
-        ThrowIfDuplicate(exists);
+        ThrowIfDuplicate(
+            otherUsers.Any(row => proposedPairs.Contains((GetLocalDate(row.StartAtUtc, timeZone), row.UserId)))
+        );
     }
 
     private static IQueryable<LoanOutEntry> GetResourceLoanOuts(
@@ -85,7 +144,8 @@ public static class DuplicateLoanOutGuard
                 entry.Event != null
                 && entry.Event.StatusTypeCode != CalendarEventStatusTypeCodes.Cancelled
                 && entry.Users.Any(user => userIds.Contains(user.UserId))
-            );
+            )
+            .AsQueryable();
 
     private static DateOnly GetLocalDate(DateTimeOffset instant, TimeZoneInfo timeZone) =>
         DateOnly.FromDateTime(timeZoneService.ToLocalUnspecified(instant, timeZone));
@@ -101,16 +161,5 @@ public static class DuplicateLoanOutGuard
                 }
             );
         }
-    }
-
-    private static UtcDateRange GetDateRange(DateTimeOffset startAtUtc, DateTimeOffset? endAtUtc, string? timeZoneId)
-    {
-        var timeZone = timeZoneService.ResolveOrUtc(timeZoneId);
-        var lastInstant = endAtUtc ?? startAtUtc;
-        return timeZoneService.ConvertInclusiveLocalDateRangeToUtcRange(
-            GetLocalDate(startAtUtc, timeZone),
-            GetLocalDate(lastInstant, timeZone),
-            timeZone
-        );
     }
 }
