@@ -31,8 +31,13 @@ public sealed class BiOracleStatMappingSeeder(
         }
 
         var mappingSets = await ResolveEffectiveDatesAsync(dbContext, configuredMappingSets, cancellationToken);
-        BiOracleStatMappingSeedValidator.Validate(mappingSets);
         var archivedMetricIds = await ValidateSubCategoryMetricsAsync(dbContext, mappingSets, cancellationToken);
+        var plans =
+            new List<(
+                BiOracleStatMappingSetSeedDefinition Definition,
+                BiOracleStatMappingSet? ExistingSet,
+                BiOracleStatMappingSeedDefinition[] MissingMappings
+            )>();
 
         foreach (var definition in mappingSets)
         {
@@ -41,30 +46,50 @@ public sealed class BiOracleStatMappingSeeder(
                 cancellationToken
             );
 
-            var isNewMappingSet = mappingSet is null;
+            var missingMappings = await ValidateMappingsAsync(
+                dbContext,
+                definition,
+                mappingSet is null,
+                archivedMetricIds,
+                cancellationToken
+            );
+            plans.Add((definition, mappingSet, missingMappings));
+        }
+
+        // Validate every set before staging writes, including expiry changes for approved versions.
+        foreach (var (definition, mappingSet, missingMappings) in plans)
+        {
             if (mappingSet is null)
             {
-                mappingSet = new BiOracleStatMappingSet
-                {
-                    Id = definition.Id,
-                    EffectiveDate = definition.EffectiveDate!.Value,
-                    ExpiryDate = definition.ExpiryDate,
-                };
-                await dbContext.BiOracleStatMappingSets.AddAsync(mappingSet, cancellationToken);
+                await dbContext.BiOracleStatMappingSets.AddAsync(
+                    new BiOracleStatMappingSet
+                    {
+                        Id = definition.Id,
+                        EffectiveDate = definition.EffectiveDate!.Value,
+                        ExpiryDate = definition.ExpiryDate,
+                    },
+                    cancellationToken
+                );
             }
             else
             {
-                if (mappingSet.EffectiveDate != definition.EffectiveDate!.Value)
-                {
-                    throw new InvalidOperationException(
-                        $"BiOracle mapping set {definition.Id} has already been assigned a different effective date."
-                    );
-                }
-
                 mappingSet.ExpiryDate = definition.ExpiryDate;
             }
 
-            await SeedMappingsAsync(dbContext, definition, isNewMappingSet, archivedMetricIds, cancellationToken);
+            foreach (var mapping in missingMappings)
+            {
+                await dbContext.BiOracleStatMappings.AddAsync(
+                    new BiOracleStatMapping
+                    {
+                        Id = mapping.Id,
+                        MappingSetId = definition.Id,
+                        SubCategoryMetricId = mapping.SubCategoryMetricId,
+                        TargetTable = mapping.TargetTable,
+                        TargetColumn = mapping.TargetColumn,
+                    },
+                    cancellationToken
+                );
+            }
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -76,25 +101,40 @@ public sealed class BiOracleStatMappingSeeder(
         CancellationToken cancellationToken
     )
     {
-        var runtimeDatedIds = mappingSets
-            .Where(mappingSet => mappingSet.EffectiveDate is null)
-            .Select(mappingSet => mappingSet.Id)
-            .ToArray();
-        var existingEffectiveDates = await dbContext
-            .BiOracleStatMappingSets.Where(mappingSet => runtimeDatedIds.Contains(mappingSet.Id))
-            .ToDictionaryAsync(mappingSet => mappingSet.Id, mappingSet => mappingSet.EffectiveDate, cancellationToken);
+        var existingSets = await dbContext.BiOracleStatMappingSets.ToDictionaryAsync(
+            mappingSet => mappingSet.Id,
+            cancellationToken
+        );
         var seedDate = DateOnly.FromDateTime(_timeProvider.GetUtcNow().UtcDateTime);
 
-        return mappingSets
+        var resolvedSets = mappingSets
             .Select(mappingSet =>
-                mappingSet.EffectiveDate is not null
-                    ? mappingSet
-                    : mappingSet with
-                    {
-                        EffectiveDate = existingEffectiveDates.GetValueOrDefault(mappingSet.Id, seedDate),
-                    }
-            )
+            {
+                existingSets.TryGetValue(mappingSet.Id, out var existing);
+                return mappingSet with
+                {
+                    EffectiveDate = existing?.EffectiveDate ?? mappingSet.EffectiveDate ?? seedDate,
+                    ExpiryDate = mappingSet.ExpiryDate ?? existing?.ExpiryDate,
+                };
+            })
             .ToArray();
+
+        BiOracleStatMappingSeedValidator.Validate(
+            resolvedSets
+                .Concat(
+                    existingSets
+                        .Values.Where(existing => !resolvedSets.Any(definition => definition.Id == existing.Id))
+                        .Select(existing => new BiOracleStatMappingSetSeedDefinition
+                        {
+                            Id = existing.Id,
+                            EffectiveDate = existing.EffectiveDate,
+                            ExpiryDate = existing.ExpiryDate,
+                            Mappings = [],
+                        })
+                )
+                .ToArray()
+        );
+        return resolvedSets;
     }
 
     private static async Task<HashSet<int>> ValidateSubCategoryMetricsAsync(
@@ -124,7 +164,7 @@ public sealed class BiOracleStatMappingSeeder(
         return metrics.Where(metric => metric.IsArchived).Select(metric => metric.Id).ToHashSet();
     }
 
-    private static async Task SeedMappingsAsync(
+    private static async Task<BiOracleStatMappingSeedDefinition[]> ValidateMappingsAsync(
         UnifiedDbContext dbContext,
         BiOracleStatMappingSetSeedDefinition mappingSet,
         bool isNewMappingSet,
@@ -132,16 +172,21 @@ public sealed class BiOracleStatMappingSeeder(
         CancellationToken cancellationToken
     )
     {
-        var existingMappings = isNewMappingSet
-            ? Array.Empty<BiOracleStatMapping>()
-            : await dbContext
-                .BiOracleStatMappings.Where(mapping => mapping.MappingSetId == mappingSet.Id)
-                .ToArrayAsync(cancellationToken);
+        var requestedIds = mappingSet.Mappings.Select(mapping => mapping.Id).ToArray();
+        var existingMappings = await dbContext
+            .BiOracleStatMappings.Where(mapping =>
+                mapping.MappingSetId == mappingSet.Id || requestedIds.Contains(mapping.Id)
+            )
+            .ToArrayAsync(cancellationToken);
+        var conflictingMapping = existingMappings.FirstOrDefault(mapping => mapping.MappingSetId != mappingSet.Id);
+        if (conflictingMapping is not null)
+        {
+            throw new InvalidOperationException(
+                $"BiOracle mapping {conflictingMapping.Id} already belongs to mapping set {conflictingMapping.MappingSetId} and cannot be repurposed for set {mappingSet.Id}."
+            );
+        }
 
-        var unexpectedIds = existingMappings
-            .Select(mapping => mapping.Id)
-            .Except(mappingSet.Mappings.Select(mapping => mapping.Id))
-            .ToArray();
+        var unexpectedIds = existingMappings.Select(mapping => mapping.Id).Except(requestedIds).ToArray();
         if (unexpectedIds.Length > 0)
         {
             throw new InvalidOperationException(
@@ -149,18 +194,12 @@ public sealed class BiOracleStatMappingSeeder(
             );
         }
 
+        var missingMappings = new List<BiOracleStatMappingSeedDefinition>();
         foreach (var definition in mappingSet.Mappings)
         {
             var existing = existingMappings.SingleOrDefault(mapping => mapping.Id == definition.Id);
             if (existing is null)
             {
-                if (!isNewMappingSet)
-                {
-                    throw new InvalidOperationException(
-                        $"BiOracle mapping set {mappingSet.Id} is persisted and cannot accept new mappings."
-                    );
-                }
-
                 if (archivedMetricIds.Contains(definition.SubCategoryMetricId))
                 {
                     throw new InvalidOperationException(
@@ -168,17 +207,7 @@ public sealed class BiOracleStatMappingSeeder(
                     );
                 }
 
-                await dbContext.BiOracleStatMappings.AddAsync(
-                    new BiOracleStatMapping
-                    {
-                        Id = definition.Id,
-                        MappingSetId = mappingSet.Id,
-                        SubCategoryMetricId = definition.SubCategoryMetricId,
-                        TargetTable = definition.TargetTable,
-                        TargetColumn = definition.TargetColumn,
-                    },
-                    cancellationToken
-                );
+                missingMappings.Add(definition);
                 continue;
             }
 
@@ -193,5 +222,18 @@ public sealed class BiOracleStatMappingSeeder(
                 );
             }
         }
+
+        if (
+            !isNewMappingSet
+            && missingMappings.Count > 0
+            && await dbContext.BiOracleEtlRuns.AnyAsync(run => run.MappingSetId == mappingSet.Id, cancellationToken)
+        )
+        {
+            throw new InvalidOperationException(
+                $"BiOracle mapping set {mappingSet.Id} has ETL history and cannot accept new mappings. An approved new effective-dated set with globally unique mapping IDs and a non-overlapping expiry date for the historical set is required."
+            );
+        }
+
+        return missingMappings.ToArray();
     }
 }

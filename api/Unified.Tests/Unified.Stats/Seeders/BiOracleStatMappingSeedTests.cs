@@ -1,8 +1,12 @@
+using System.Security.Cryptography;
+using System.Text;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Unified.Db;
 using Unified.Db.Models.Stats;
 using Unified.Stats.Seeders;
+using Unified.Tests.TestHelpers;
 
 namespace Unified.Tests.Stats.Seeders;
 
@@ -11,17 +15,42 @@ public sealed class BiOracleStatMappingSeedTests
     private static readonly DateTimeOffset SeedTime = new(2026, 9, 26, 23, 30, 0, TimeSpan.Zero);
 
     [Fact]
+    public void ProductionData_OriginalMappingIds_RetainTheirSourceAndTargetAssociations()
+    {
+        var mappings = Assert
+            .Single(BiOracleStatMappingSeedData.Definitions)
+            .Mappings.Where(mapping => mapping.Id <= 516)
+            .OrderBy(mapping => mapping.Id)
+            .ToArray();
+        Assert.Equal(Enumerable.Range(1, 516), mappings.Select(mapping => mapping.Id));
+        var associations = string.Join(
+            "\n",
+            mappings.Select(mapping =>
+                $"{mapping.Id}|{mapping.SubCategoryMetricId}|{mapping.TargetTable}|{mapping.TargetColumn}"
+            )
+        );
+        // Fingerprint of the original 516-row application seed in commit ed962694.
+        Assert.Equal(
+            "69E1F4457C2CF045D6F3086BFA48252AC81F67D5F839384CF165937F08E63C2E",
+            Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(associations)))
+        );
+    }
+
+    [Fact]
     public void ProductionData_HasExpectedMappingsAndCorrectedOthersTaxonomy()
     {
         var mappingSet = Assert.Single(BiOracleStatMappingSeedData.Definitions);
 
-        Assert.Null(mappingSet.EffectiveDate);
-        Assert.Equal(516, mappingSet.Mappings.Count);
-        Assert.Equal(Enumerable.Range(1, 516), mappingSet.Mappings.Select(mapping => mapping.Id));
+        Assert.Equal(1, mappingSet.Id);
+        Assert.Equal(new DateOnly(2026, 11, 1), mappingSet.EffectiveDate);
+        Assert.Null(mappingSet.ExpiryDate);
+        Assert.Equal(661, mappingSet.Mappings.Count);
+        Assert.Equal(Enumerable.Range(1, 661), mappingSet.Mappings.Select(mapping => mapping.Id));
         Assert.Equal(
-            210,
+            296,
             mappingSet.Mappings.Select(mapping => (mapping.TargetTable, mapping.TargetColumn)).Distinct().Count()
         );
+        BiOracleStatMappingSeedValidator.Validate(BiOracleStatMappingSeedData.Definitions);
         Assert.Contains(
             mappingSet.Mappings,
             mapping => mapping.SubCategoryMetricId == 88 && mapping.TargetColumn == "CVF_OTHR_HRS"
@@ -43,7 +72,9 @@ public sealed class BiOracleStatMappingSeedTests
     [Fact]
     public void ProductionData_HasApprovedLocationLevelMappingsOnly()
     {
-        var mappings = Assert.Single(BiOracleStatMappingSeedData.Definitions).Mappings;
+        var mappings = Assert
+            .Single(BiOracleStatMappingSeedData.Definitions, definition => definition.Id == 1)
+            .Mappings;
         (int SubCategoryMetricId, string TargetColumn)[] expectedMappings =
         [
             (366, "CCRT_KMS"),
@@ -68,10 +99,18 @@ public sealed class BiOracleStatMappingSeedTests
             (407, "HLD_CELL_HRS"),
             (433, "CVF_CRTORD_RCVD"),
             (434, "CVF_CRTORD_CONC"),
+            (435, "CVF_DOCS_RCVD"),
+            (436, "CVF_DOCS_CONC"),
+            (437, "CVF_OTHR_RCVD"),
+            (438, "CVF_OTHR_CONC"),
             (439, "CVF_WARR_RCVD"),
             (440, "CVF_WARR_CONC"),
             (441, "CRIM_CRTORD_RCVD"),
             (442, "CRIM_CRTORD_CONC"),
+            (443, "CRIM_DOCS_RCVD"),
+            (444, "CRIM_DOCS_CONC"),
+            (445, "CRIM_OTHR_RCVD"),
+            (446, "CRIM_OTHR_CONC"),
             (447, "CRIM_WARR_RCVD"),
             (448, "CRIM_WARR_CONC"),
         ];
@@ -145,7 +184,6 @@ public sealed class BiOracleStatMappingSeedTests
                 locationLevelIds.Contains(mapping.SubCategoryMetricId)
                 && mapping.TargetTable == BiOracleTargetTable.SheriffServicesHours
         );
-        Assert.DoesNotContain(mappings, mapping => new[] { 435, 436, 443, 444 }.Contains(mapping.SubCategoryMetricId));
         Assert.Equal(
             mappings.Count,
             mappings
@@ -256,6 +294,7 @@ public sealed class BiOracleStatMappingSeedTests
     [InlineData("UNKNOWN", "GRD_ESC_HRS_L1")]
     [InlineData(BiOracleTargetTable.SheriffServices, "")]
     [InlineData(BiOracleTargetTable.SheriffServices, "CRT_LOC_ID")]
+    [InlineData(BiOracleTargetTable.SheriffServices, "NIL_REPORT")]
     public void Validate_InvalidOrControlTarget_Throws(string targetTable, string targetColumn)
     {
         var mappingSet = MappingSet(Mapping(1, 100, targetTable, targetColumn));
@@ -332,8 +371,11 @@ public sealed class BiOracleStatMappingSeedTests
         Assert.Equal(new DateOnly(2026, 9, 26), mappingSet.EffectiveDate);
     }
 
-    [Fact]
-    public async Task SeedAsync_NewMappingForUsedMappingSet_Throws()
+    [Theory]
+    [InlineData(BiOracleEtlRunStatus.Running)]
+    [InlineData(BiOracleEtlRunStatus.Succeeded)]
+    [InlineData(BiOracleEtlRunStatus.Failed)]
+    public async Task SeedAsync_NewMappingForUsedMappingSet_Throws(string status)
     {
         await using var context = CreateContext();
         context.SubCategoryMetrics.AddRange(new SubCategoryMetric { Id = 100 }, new SubCategoryMetric { Id = 101 });
@@ -357,6 +399,7 @@ public sealed class BiOracleStatMappingSeedTests
                 MappingSetId = 1,
                 ReportingMonth = new DateOnly(2026, 9, 1),
                 StartedAt = new DateTimeOffset(2026, 9, 25, 12, 0, 0, TimeSpan.Zero),
+                Status = status,
             }
         );
         await context.SaveChangesAsync(TestContext.Current.CancellationToken);
@@ -367,8 +410,14 @@ public sealed class BiOracleStatMappingSeedTests
             )
         );
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             seeder.SeedAsync(context, TestContext.Current.CancellationToken)
+        );
+        Assert.Contains("has ETL history", exception.Message);
+        Assert.Single(await context.BiOracleStatMappings.ToArrayAsync(TestContext.Current.CancellationToken));
+        Assert.Equal(
+            1,
+            (await context.BiOracleEtlRuns.SingleAsync(TestContext.Current.CancellationToken)).MappingSetId
         );
     }
 
@@ -401,7 +450,7 @@ public sealed class BiOracleStatMappingSeedTests
     }
 
     [Fact]
-    public async Task SeedAsync_NewMappingForPersistedSetWithoutEtlRuns_Throws()
+    public async Task SeedAsync_NewMappingForPersistedSetWithoutEtlRuns_InsertsMissingMapping()
     {
         var databaseName = $"BiOracleSeed-{Guid.NewGuid()}";
         await using (var initialContext = CreateContext(databaseName))
@@ -416,24 +465,19 @@ public sealed class BiOracleStatMappingSeedTests
         }
 
         await using var context = CreateContext(databaseName);
-        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            Seeder(
-                    MappingSet(
-                        Mapping(1, 100, BiOracleTargetTable.SheriffServices, "GRD_ESC_HRS_L1"),
-                        Mapping(2, 101, BiOracleTargetTable.SheriffServicesHours, "GRD_ESC_REG_HRS_L1")
-                    )
+        await Seeder(
+                MappingSet(
+                    Mapping(1, 100, BiOracleTargetTable.SheriffServices, "GRD_ESC_HRS_L1"),
+                    Mapping(2, 101, BiOracleTargetTable.SheriffServicesHours, "GRD_ESC_REG_HRS_L1")
                 )
-                .SeedAsync(context, TestContext.Current.CancellationToken)
-        );
+            )
+            .SeedAsync(context, TestContext.Current.CancellationToken);
 
-        Assert.Contains("persisted", exception.Message);
-        Assert.Single(
-            await context.BiOracleStatMappings.ToArrayAsync(cancellationToken: TestContext.Current.CancellationToken)
-        );
+        Assert.Equal(2, await context.BiOracleStatMappings.CountAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]
-    public async Task SeedAsync_PersistedSetWithoutMappings_RejectsPopulation()
+    public async Task SeedAsync_PersistedSetWithoutMappingsOrEtlRuns_PopulatesMappings()
     {
         var databaseName = $"BiOracleSeed-{Guid.NewGuid()}";
         await using (var initialContext = CreateContext(databaseName))
@@ -446,13 +490,10 @@ public sealed class BiOracleStatMappingSeedTests
         }
 
         await using var context = CreateContext(databaseName);
-        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            Seeder(MappingSet(Mapping(1, 100, BiOracleTargetTable.SheriffServices, "GRD_ESC_HRS_L1")))
-                .SeedAsync(context, TestContext.Current.CancellationToken)
-        );
+        await Seeder(MappingSet(Mapping(1, 100, BiOracleTargetTable.SheriffServices, "GRD_ESC_HRS_L1")))
+            .SeedAsync(context, TestContext.Current.CancellationToken);
 
-        Assert.Contains("persisted", exception.Message);
-        Assert.Empty(
+        Assert.Single(
             await context.BiOracleStatMappings.ToArrayAsync(cancellationToken: TestContext.Current.CancellationToken)
         );
     }
@@ -518,7 +559,7 @@ public sealed class BiOracleStatMappingSeedTests
     }
 
     [Fact]
-    public async Task SeedAsync_UsedSetAfterEtlRunsDeleted_RejectsNewMapping()
+    public async Task SeedAsync_WhenNoEtlReferencesRemain_PermitsAdditiveSeeding()
     {
         var databaseName = $"BiOracleSeed-{Guid.NewGuid()}";
         await using (var initialContext = CreateContext(databaseName))
@@ -547,18 +588,14 @@ public sealed class BiOracleStatMappingSeedTests
         Assert.Empty(
             await context.BiOracleEtlRuns.ToArrayAsync(cancellationToken: TestContext.Current.CancellationToken)
         );
-        await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            Seeder(
-                    MappingSet(
-                        Mapping(1, 100, BiOracleTargetTable.SheriffServices, "GRD_ESC_HRS_L1"),
-                        Mapping(2, 101, BiOracleTargetTable.SheriffServicesHours, "GRD_ESC_REG_HRS_L1")
-                    )
+        await Seeder(
+                MappingSet(
+                    Mapping(1, 100, BiOracleTargetTable.SheriffServices, "GRD_ESC_HRS_L1"),
+                    Mapping(2, 101, BiOracleTargetTable.SheriffServicesHours, "GRD_ESC_REG_HRS_L1")
                 )
-                .SeedAsync(context, TestContext.Current.CancellationToken)
-        );
-        Assert.Single(
-            await context.BiOracleStatMappings.ToArrayAsync(cancellationToken: TestContext.Current.CancellationToken)
-        );
+            )
+            .SeedAsync(context, TestContext.Current.CancellationToken);
+        Assert.Equal(2, await context.BiOracleStatMappings.CountAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -718,6 +755,219 @@ public sealed class BiOracleStatMappingSeedTests
         );
 
         Assert.Contains("missing SubCategoryMetric", exception.Message);
+    }
+
+    [Theory]
+    [InlineData(0, 11, 1)]
+    [InlineData(516, 11, 1)]
+    [InlineData(516, 10, 27)]
+    public async Task SeedAsync_ProductionMappings_CreatesOrExtendsSetWithoutChangingExistingRows(
+        int existingCount,
+        int month,
+        int day
+    )
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync(ct);
+        await using var context = CreateRelationalContext(connection);
+        await context.Database.EnsureCreatedAsync(ct);
+        await SeedTaxonomyAsync(context);
+        var definition = Assert.Single(BiOracleStatMappingSeedData.Definitions);
+        var existingDate = new DateOnly(2026, month, day);
+        if (existingCount > 0)
+        {
+            await Seeder(
+                    definition with
+                    {
+                        EffectiveDate = existingDate,
+                        Mappings = definition.Mappings.Take(existingCount).ToArray(),
+                    }
+                )
+                .SeedAsync(context, ct);
+        }
+        var originalRows = await context
+            .BiOracleStatMappings.AsNoTracking()
+            .OrderBy(mapping => mapping.Id)
+            .Select(mapping => new
+            {
+                mapping.Id,
+                mapping.MappingSetId,
+                mapping.SubCategoryMetricId,
+                mapping.TargetTable,
+                mapping.TargetColumn,
+                mapping.CreatedOn,
+                mapping.UpdatedOn,
+            })
+            .ToArrayAsync(ct);
+        Assert.Equal(existingCount, originalRows.Length);
+        context.ChangeTracker.Clear();
+
+        await Seeder(definition).SeedAsync(context, ct);
+
+        var set = await context.BiOracleStatMappingSets.SingleAsync(ct);
+        Assert.Equal(1, set.Id);
+        Assert.Equal(existingCount == 0 ? definition.EffectiveDate : existingDate, set.EffectiveDate);
+        Assert.Null(set.ExpiryDate);
+        var completeRows = await context
+            .BiOracleStatMappings.AsNoTracking()
+            .OrderBy(mapping => mapping.Id)
+            .Select(mapping => new
+            {
+                mapping.Id,
+                mapping.MappingSetId,
+                mapping.SubCategoryMetricId,
+                mapping.TargetTable,
+                mapping.TargetColumn,
+                mapping.CreatedOn,
+                mapping.UpdatedOn,
+            })
+            .ToArrayAsync(ct);
+        Assert.Equal(661, completeRows.Length);
+        Assert.Equal(originalRows, completeRows.Take(existingCount).ToArray());
+        Assert.Equal(
+            definition
+                .Mappings.OrderBy(mapping => mapping.Id)
+                .Select(mapping =>
+                    (mapping.Id, definition.Id, mapping.SubCategoryMetricId, mapping.TargetTable, mapping.TargetColumn)
+                ),
+            completeRows.Select(mapping =>
+                (
+                    mapping.Id,
+                    mapping.MappingSetId,
+                    mapping.SubCategoryMetricId,
+                    mapping.TargetTable,
+                    mapping.TargetColumn
+                )
+            )
+        );
+
+        context.ChangeTracker.Clear();
+        await Seeder(definition).SeedAsync(context, ct);
+        Assert.Equal(set.EffectiveDate, (await context.BiOracleStatMappingSets.SingleAsync(ct)).EffectiveDate);
+        Assert.Equal(1, await context.BiOracleStatMappingSets.CountAsync(ct));
+        Assert.Equal(
+            completeRows,
+            await context
+                .BiOracleStatMappings.AsNoTracking()
+                .OrderBy(mapping => mapping.Id)
+                .Select(mapping => new
+                {
+                    mapping.Id,
+                    mapping.MappingSetId,
+                    mapping.SubCategoryMetricId,
+                    mapping.TargetTable,
+                    mapping.TargetColumn,
+                    mapping.CreatedOn,
+                    mapping.UpdatedOn,
+                })
+                .ToArrayAsync(ct)
+        );
+    }
+
+    [Theory]
+    [InlineData("definition")]
+    [InlineData("other-set")]
+    [InlineData("history")]
+    [InlineData("archived")]
+    [InlineData("overlap")]
+    public async Task SeedAsync_UnsafeAdditiveUpdate_LeavesPersistedAndTrackedDataUnchanged(string conflict)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync(ct);
+        await using var context = CreateRelationalContext(connection);
+        await context.Database.EnsureCreatedAsync(ct);
+        await SeedTaxonomyAsync(context);
+        var firstMapping = Mapping(1, 5, BiOracleTargetTable.SheriffServices, "CA_REG_HRS");
+        var missingMapping = Mapping(2, 6, BiOracleTargetTable.SheriffServices, "CA_REG_OT_HRS");
+        var originalDate = new DateOnly(2026, 10, 27);
+        await Seeder(MappingSet([firstMapping], 1, originalDate, null)).SeedAsync(context, ct);
+        if (conflict is "other-set" or "overlap")
+        {
+            context.BiOracleStatMappingSets.Add(
+                new BiOracleStatMappingSet
+                {
+                    Id = 2,
+                    EffectiveDate = new DateOnly(2026, 9, 1),
+                    ExpiryDate = conflict == "overlap" ? new DateOnly(2026, 10, 31) : new DateOnly(2026, 10, 26),
+                }
+            );
+            if (conflict == "other-set")
+            {
+                context.BiOracleStatMappings.Add(
+                    new BiOracleStatMapping
+                    {
+                        Id = missingMapping.Id,
+                        MappingSetId = 2,
+                        SubCategoryMetricId = missingMapping.SubCategoryMetricId,
+                        TargetTable = missingMapping.TargetTable,
+                        TargetColumn = missingMapping.TargetColumn,
+                    }
+                );
+            }
+        }
+        if (conflict == "history")
+        {
+            context.BiOracleEtlRuns.Add(
+                new BiOracleEtlRun
+                {
+                    LoadId = Guid.NewGuid(),
+                    MappingSetId = 1,
+                    ReportingMonth = new DateOnly(2026, 11, 1),
+                    StartedAt = SeedTime,
+                    Status = BiOracleEtlRunStatus.Succeeded,
+                }
+            );
+        }
+        if (conflict == "archived")
+            (await context.SubCategoryMetrics.SingleAsync(metric => metric.Id == 6, ct)).IsArchived = true;
+        await context.SaveChangesAsync(ct);
+        var originalMappingCount = await context.BiOracleStatMappings.CountAsync(ct);
+        context.ChangeTracker.Clear();
+        var requestedMapping =
+            conflict == "definition" ? firstMapping with { TargetColumn = "CA_HSM_HRS" } : firstMapping;
+        var definition = MappingSet([missingMapping, requestedMapping], 1, new DateOnly(2026, 11, 1), null);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => Seeder(definition).SeedAsync(context, ct));
+
+        Assert.DoesNotContain(
+            context.ChangeTracker.Entries(),
+            entry => entry.State is EntityState.Added or EntityState.Modified or EntityState.Deleted
+        );
+        Assert.Equal(0, await context.SaveChangesAsync(ct));
+        context.ChangeTracker.Clear();
+        var retainedSet = await context.BiOracleStatMappingSets.SingleAsync(set => set.Id == 1, ct);
+        Assert.Equal(originalDate, retainedSet.EffectiveDate);
+        Assert.Null(retainedSet.ExpiryDate);
+        Assert.Equal(originalMappingCount, await context.BiOracleStatMappings.CountAsync(ct));
+        var retainedMapping = await context.BiOracleStatMappings.SingleAsync(mapping => mapping.Id == 1, ct);
+        Assert.Equal(firstMapping.SubCategoryMetricId, retainedMapping.SubCategoryMetricId);
+        Assert.Equal(firstMapping.TargetTable, retainedMapping.TargetTable);
+        Assert.Equal(firstMapping.TargetColumn, retainedMapping.TargetColumn);
+        if (conflict == "other-set")
+            Assert.Equal(
+                2,
+                (await context.BiOracleStatMappings.SingleAsync(mapping => mapping.Id == 2, ct)).MappingSetId
+            );
+        if (conflict == "history")
+            Assert.Equal(1, (await context.BiOracleEtlRuns.SingleAsync(ct)).MappingSetId);
+    }
+
+    private static UnifiedDbContext CreateRelationalContext(SqliteConnection connection) =>
+        new SqliteTestUnifiedDbContext(new DbContextOptionsBuilder<UnifiedDbContext>().UseSqlite(connection).Options)
+        {
+            AuditDisabled = true,
+        };
+
+    private static async Task SeedTaxonomyAsync(UnifiedDbContext context)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await new StatGroupSeeder(NullLogger<StatGroupSeeder>.Instance).SeedAsync(context, ct);
+        await new StatCategorySeeder(NullLogger<StatCategorySeeder>.Instance).SeedAsync(context, ct);
+        await new SubCategorySeeder(NullLogger<SubCategorySeeder>.Instance).SeedAsync(context, ct);
+        await new StatMetricSeeder(NullLogger<StatMetricSeeder>.Instance).SeedAsync(context, ct);
+        await new SubCategoryMetricSeeder(NullLogger<SubCategoryMetricSeeder>.Instance).SeedAsync(context, ct);
     }
 
     private static BiOracleStatMappingSeeder Seeder(
