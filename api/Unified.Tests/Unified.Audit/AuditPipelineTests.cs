@@ -120,7 +120,11 @@ public sealed class AuditPipelineTests : IAsyncLifetime
     {
         var explicitCreatorId = Guid.NewGuid();
         var resolver = new CountingCurrentActorResolver(_actorId, ActorName);
-        var (connection, dbContext) = await CreateSqliteDbContextWithUsersAsync(resolver, _actorId, explicitCreatorId);
+        var (connection, dbContext) = await CreateSqliteDbContextWithUsersAsync(
+            new AuditableEntityInterceptor(resolver),
+            _actorId,
+            explicitCreatorId
+        );
         await using var _ = connection;
         await using var __ = dbContext;
 
@@ -142,6 +146,168 @@ public sealed class AuditPipelineTests : IAsyncLifetime
         Assert.Equal(_actorId, region.UpdatedById);
         Assert.Equal(2, resolver.ResolveCount);
         Assert.Equal(3, await dbContext.AuditRecords.CountAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task SaveChanges_WithAuditableEntityInterceptor_Should_StampUtcOnlyForModifiedEntities(bool useAsync)
+    {
+        var clock = new FixedTimeProvider(new DateTimeOffset(2026, 1, 2, 3, 4, 5, TimeSpan.Zero));
+        var resolver = new CountingCurrentActorResolver(_actorId, ActorName);
+        var (connection, dbContext) = await CreateSqliteDbContextWithUsersAsync(
+            new AuditableEntityInterceptor(resolver, clock),
+            _actorId
+        );
+        await using var _ = connection;
+        await using var __ = dbContext;
+
+        var region = new Region { Name = "South" };
+        var profile = new TrainingProfileType { Code = "BASIC", Name = "Basic" };
+        var unchanged = new Region { Name = "Unchanged" };
+        var previousTimestamp = clock.UtcNow.AddDays(-1);
+        var deleted = new Region { Name = "Deleted", UpdatedOn = previousTimestamp };
+        dbContext.AddRange(region, profile, unchanged, deleted);
+        await SaveAsync(dbContext, useAsync);
+
+        var createdOn = region.CreatedOn;
+        Assert.NotEqual(DateTimeOffset.MinValue, createdOn);
+        Assert.Null(region.UpdatedOn);
+        Assert.Null(profile.UpdatedOn);
+        Assert.Equal(previousTimestamp, deleted.UpdatedOn);
+
+        region.Name = "Central";
+        profile.Name = "Advanced";
+        dbContext.Regions.Remove(deleted);
+        var added = new Region { Name = "Added", UpdatedOn = previousTimestamp };
+        dbContext.Regions.Add(added);
+        await SaveAsync(dbContext, useAsync);
+
+        var persistedRegion = await dbContext
+            .Regions.AsNoTracking()
+            .SingleAsync(r => r.Id == region.Id, TestContext.Current.CancellationToken);
+        var persistedProfile = await dbContext
+            .TrainingProfileTypes.AsNoTracking()
+            .SingleAsync(p => p.Id == profile.Id, TestContext.Current.CancellationToken);
+        Assert.Equal(clock.UtcNow, persistedRegion.UpdatedOn);
+        Assert.Equal(TimeSpan.Zero, persistedRegion.UpdatedOn!.Value.Offset);
+        Assert.Equal(clock.UtcNow, persistedProfile.UpdatedOn);
+        Assert.Equal(createdOn, persistedRegion.CreatedOn);
+        Assert.Equal(_actorId, persistedRegion.CreatedById);
+        Assert.Equal(_actorId, persistedRegion.UpdatedById);
+        Assert.Null(unchanged.UpdatedOn);
+        Assert.Equal(previousTimestamp, added.UpdatedOn);
+        Assert.Equal(previousTimestamp, deleted.UpdatedOn);
+        Assert.Equal(2, resolver.ResolveCount);
+        Assert.Equal(8, await dbContext.AuditRecords.CountAsync(TestContext.Current.CancellationToken));
+
+        var regionAudit = await dbContext.AuditRecords.SingleAsync(
+            record =>
+                record.Action == "Modified"
+                && record.EntityType == nameof(Region)
+                && record.EntityPK == region.Id.ToString(),
+            TestContext.Current.CancellationToken
+        );
+        using (var regionNewValues = JsonDocument.Parse(regionAudit.NewValues!))
+        {
+            Assert.Equal(
+                clock.UtcNow,
+                regionNewValues.RootElement.GetProperty(nameof(Region.UpdatedOn)).GetDateTimeOffset()
+            );
+        }
+        Assert.Contains(nameof(Region.UpdatedOn), regionAudit.ChangedColumns!);
+
+        clock.UtcNow = clock.UtcNow.AddHours(1);
+        region.Name = "North";
+        await SaveAsync(dbContext, useAsync);
+
+        persistedRegion = await dbContext
+            .Regions.AsNoTracking()
+            .SingleAsync(r => r.Id == region.Id, TestContext.Current.CancellationToken);
+        Assert.Equal(clock.UtcNow, persistedRegion.UpdatedOn);
+        Assert.Equal(3, resolver.ResolveCount);
+        Assert.Equal(9, await dbContext.AuditRecords.CountAsync(TestContext.Current.CancellationToken));
+
+        var regionAudits = await dbContext
+            .AuditRecords.Where(record =>
+                record.Action == "Modified"
+                && record.EntityType == nameof(Region)
+                && record.EntityPK == region.Id.ToString()
+            )
+            .OrderBy(record => record.Id)
+            .ToListAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(2, regionAudits.Count);
+        using var secondEditOldValues = JsonDocument.Parse(regionAudits[1].OldValues!);
+        Assert.Equal(
+            clock.UtcNow.AddHours(-1),
+            secondEditOldValues.RootElement.GetProperty(nameof(Region.UpdatedOn)).GetDateTimeOffset()
+        );
+        using var secondEditNewValues = JsonDocument.Parse(regionAudits[1].NewValues!);
+        Assert.Equal(
+            clock.UtcNow,
+            secondEditNewValues.RootElement.GetProperty(nameof(Region.UpdatedOn)).GetDateTimeOffset()
+        );
+    }
+
+    [Theory]
+    [InlineData(false, false, false)]
+    [InlineData(true, false, false)]
+    [InlineData(false, true, false)]
+    [InlineData(true, true, false)]
+    [InlineData(false, false, true)]
+    [InlineData(true, false, true)]
+    public async Task SaveChanges_WithAuditableEntityInterceptor_Should_PreserveOnlyChangedNonNullTimestamp(
+        bool useAsync,
+        bool clearTimestamp,
+        bool markWholeEntity
+    )
+    {
+        var clock = new FixedTimeProvider(new DateTimeOffset(2026, 1, 2, 3, 4, 5, TimeSpan.Zero));
+        var (connection, dbContext) = await CreateSqliteDbContextWithUsersAsync(
+            new AuditableEntityInterceptor(new FakeCurrentActorResolver(_actorId, ActorName), clock),
+            _actorId
+        );
+        await using var _ = connection;
+        await using var __ = dbContext;
+
+        var previousTimestamp = clock.UtcNow.AddDays(-2);
+        var region = new Region { Name = "South", UpdatedOn = previousTimestamp };
+        dbContext.Regions.Add(region);
+        await SaveAsync(dbContext, useAsync);
+
+        region.Name = "North";
+        if (markWholeEntity)
+        {
+            dbContext.Entry(region).State = EntityState.Modified;
+        }
+        else
+        {
+            region.UpdatedOn = clearTimestamp ? null : previousTimestamp.AddDays(1);
+        }
+        await SaveAsync(dbContext, useAsync);
+
+        var persisted = await dbContext
+            .Regions.AsNoTracking()
+            .SingleAsync(r => r.Id == region.Id, TestContext.Current.CancellationToken);
+        var expected = clearTimestamp || markWholeEntity ? clock.UtcNow : previousTimestamp.AddDays(1);
+        Assert.Equal(expected, persisted.UpdatedOn);
+        Assert.Equal(_actorId, persisted.UpdatedById);
+
+        var auditRecord = await dbContext.AuditRecords.SingleAsync(
+            record => record.Action == "Modified" && record.EntityPK == region.Id.ToString(),
+            TestContext.Current.CancellationToken
+        );
+        using var newValues = JsonDocument.Parse(auditRecord.NewValues!);
+        Assert.Equal(expected, newValues.RootElement.GetProperty(nameof(Region.UpdatedOn)).GetDateTimeOffset());
+        Assert.Contains(nameof(Region.UpdatedOn), auditRecord.ChangedColumns!);
+        if (clearTimestamp)
+        {
+            using var oldValues = JsonDocument.Parse(auditRecord.OldValues!);
+            Assert.Equal(
+                previousTimestamp,
+                oldValues.RootElement.GetProperty(nameof(Region.UpdatedOn)).GetDateTimeOffset()
+            );
+        }
     }
 
     [Fact]
@@ -349,7 +515,7 @@ public sealed class AuditPipelineTests : IAsyncLifetime
     private static async Task<(
         SqliteConnection Connection,
         UnifiedDbContext DbContext
-    )> CreateSqliteDbContextWithUsersAsync(ICurrentActorResolver actorResolver, params Guid[] userIds)
+    )> CreateSqliteDbContextWithUsersAsync(AuditableEntityInterceptor interceptor, params Guid[] userIds)
     {
         var connection = new SqliteConnection("Data Source=:memory:");
         await connection.OpenAsync(TestContext.Current.CancellationToken);
@@ -376,10 +542,29 @@ public sealed class AuditPipelineTests : IAsyncLifetime
 
         var options = new DbContextOptionsBuilder<UnifiedDbContext>()
             .UseSqlite(connection)
-            .AddInterceptors(new AuditableEntityInterceptor(actorResolver))
+            .AddInterceptors(interceptor)
             .Options;
 
         return (connection, new SqliteTestUnifiedDbContext(options));
+    }
+
+    private static async Task SaveAsync(UnifiedDbContext dbContext, bool useAsync)
+    {
+        if (useAsync)
+        {
+            await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+        else
+        {
+            dbContext.SaveChanges();
+        }
+    }
+
+    private sealed class FixedTimeProvider(DateTimeOffset utcNow) : TimeProvider
+    {
+        public DateTimeOffset UtcNow { get; set; } = utcNow;
+
+        public override DateTimeOffset GetUtcNow() => UtcNow;
     }
 
     private sealed class FakeCurrentActorResolver(Guid actorId, string actorName) : ICurrentActorResolver

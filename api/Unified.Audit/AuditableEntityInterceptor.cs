@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Unified.Db.Models.Abstract;
@@ -5,14 +6,43 @@ using Unified.Db.Models.Abstract;
 namespace Unified.Audit;
 
 /// <summary>
-/// Stamps <see cref="BaseEntity"/> actor columns before EF writes them, using the same
+/// Stamps <see cref="BaseEntity"/> audit columns before EF writes them, using the same
 /// <see cref="ICurrentActorResolver"/> the audit trail uses.
 ///
-/// Timestamps remain database-generated; this interceptor only populates <c>CreatedById</c> and
-/// <c>UpdatedById</c>.
+/// <c>CreatedOn</c> remains database-generated. Modified rows receive a UTC <c>UpdatedOn</c>
+/// unless the caller explicitly changed it to a non-null value.
 /// </summary>
-public sealed class AuditableEntityInterceptor(ICurrentActorResolver actorResolver) : SaveChangesInterceptor
+public sealed class AuditableEntityInterceptor(ICurrentActorResolver actorResolver, TimeProvider? timeProvider = null)
+    : SaveChangesInterceptor
 {
+    private static readonly ConditionalWeakTable<BaseEntity, PreviousUpdatedOn> PreviousUpdatedOnValues = new();
+    private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
+
+    internal static void CapturePreviousUpdatedOn(BaseEntity entity, DateTimeOffset? updatedOn)
+    {
+        lock (PreviousUpdatedOnValues)
+        {
+            PreviousUpdatedOnValues.Remove(entity);
+            PreviousUpdatedOnValues.Add(entity, new(updatedOn));
+        }
+    }
+
+    internal static bool TryTakePreviousUpdatedOn(BaseEntity entity, out DateTimeOffset? updatedOn)
+    {
+        lock (PreviousUpdatedOnValues)
+        {
+            if (PreviousUpdatedOnValues.TryGetValue(entity, out var previousUpdatedOn))
+            {
+                PreviousUpdatedOnValues.Remove(entity);
+                updatedOn = previousUpdatedOn.Value;
+                return true;
+            }
+        }
+
+        updatedOn = null;
+        return false;
+    }
+
     public override InterceptionResult<int> SavingChanges(DbContextEventData eventData, InterceptionResult<int> result)
     {
         Stamp(eventData.Context);
@@ -55,7 +85,19 @@ public sealed class AuditableEntityInterceptor(ICurrentActorResolver actorResolv
             else
             {
                 entry.Entity.UpdatedById = actor.ActorUserId;
+                var updatedOn = entry.Property(entity => entity.UpdatedOn);
+                CapturePreviousUpdatedOn(entry.Entity, updatedOn.OriginalValue);
+                if (
+                    !updatedOn.IsModified
+                    || updatedOn.CurrentValue is null
+                    || updatedOn.CurrentValue == updatedOn.OriginalValue
+                )
+                {
+                    updatedOn.CurrentValue = _timeProvider.GetUtcNow();
+                }
             }
         }
     }
+
+    private sealed record PreviousUpdatedOn(DateTimeOffset? Value);
 }

@@ -2,15 +2,28 @@
 
 Provides automatic audit trail capture for EF Core `SaveChanges` operations, built directly on top of
 [Audit.NET](https://github.com/thepirat000/Audit.NET) (`Audit.EntityFramework.Core`)'s own `AuditDbContext`
-and built-in `EntityFrameworkDataProvider` - no custom `IInterceptor` or `AuditDataProvider` subclass.
+and built-in `EntityFrameworkDataProvider` - no custom `IInterceptor` or `AuditDataProvider` subclass
+is needed for history capture. A separate `AuditableEntityInterceptor` stamps entity audit columns.
 
 ## How it's wired
 
 `Unified.Db.UnifiedDbContext` inherits Audit.NET's `Audit.EntityFramework.AuditDbContext` instead of plain
 `DbContext`. That base class overrides `SaveChanges`/`SaveChangesAsync` itself, so **every** save on
 `UnifiedDbContext` is captured automatically - registering an EF Core `IInterceptor` for auditing is not
-needed (`api/Unified.Api/Services/InterceptorRegistration.cs` now only registers `SaveRulesInterceptor`,
-for business validation, which is unrelated to auditing).
+needed. `api/Unified.Api/Services/InterceptorRegistration.cs` registers `AuditableEntityInterceptor`
+before the business-rule and post-save interceptors to stamp `BaseEntity` actor columns and update times.
+
+On Modified `BaseEntity` rows, `AuditableEntityInterceptor` sets `UpdatedOn` to current UTC unless the
+caller explicitly changed it to a non-null value. An unchanged prior timestamp or a value cleared to null
+receives a fresh UTC timestamp. Added rows retain their existing behavior: `CreatedOn` is database-generated
+and caller-supplied `UpdatedOn` values are preserved. No historical values are backfilled.
+Audit.NET snapshots changes before EF save interceptors run, so the interceptor captures the prior
+`UpdatedOn` and `AuditRecordEntityAction` records both prior and persisted values in modified audit records.
+
+`ExecuteUpdate[Async]` and raw SQL bypass this interceptor and Audit.NET's SaveChanges history capture.
+The five existing bulk updates remain unchanged: last-login and pending-registration updates in
+`UserAccountResolutionService`, and notice claim, failure reset, and completion in
+`UserTrainingExpiryNotificationService`. These paths still have no automatic `UpdatedOn` stamping.
 
 `AddAuditModule()` registers `AuditRecordOptions` (bound from configuration), `AddHttpContextAccessor()`,
 and `ICurrentActorResolver` (`HttpContextActorResolver`, which resolves the current user from the
