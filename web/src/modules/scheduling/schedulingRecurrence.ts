@@ -17,17 +17,23 @@ export function expandSchedulingRecurrence(
   try {
     const options = RRule.parseString(recurrenceRule.replace(/^RRULE:/i, ''));
     options.dtstart = toFloatingDate(firstStart);
+    const until = options.until;
+    // Allow every timezone offset through the floating-date cutoff, then compare actual instants.
+    if (until) options.until = new Date(until.getTime() + 24 * 60 * 60 * 1000);
+    const timeZoneId = firstStart.zoneName ?? 'UTC';
     const rule = new RRule(options);
     const dates = rule.all((_date, index) => index < maxOccurrences);
 
-    return dates.map((date) => {
-      const start = fromFloatingDate(date, firstStart.zoneName ?? 'UTC');
-      return {
-        start,
-        end: start.plus(duration),
-        dateKey: start.toISODate() ?? '',
-      };
-    });
+    return dates
+      .map((date) => {
+        const start = fromFloatingDate(date, timeZoneId);
+        return {
+          start,
+          end: start.plus(duration),
+          dateKey: start.toISODate() ?? '',
+        };
+      })
+      .filter((occurrence) => !until || occurrence.start.toMillis() <= until.getTime());
   } catch {
     return [];
   }

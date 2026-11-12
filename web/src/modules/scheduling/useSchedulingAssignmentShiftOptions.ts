@@ -13,6 +13,7 @@ export interface SchedulingAssignmentShiftOptionsOptions {
   locationId: ComputedRef<number | null>;
   date: ComputedRef<string | undefined>;
   timeZoneId: ComputedRef<string>;
+  dateRange?: ComputedRef<{ startAtUtc: string; endAtUtc: string } | null>;
   enabled?: ComputedRef<boolean>;
   onError(message: string): void;
   onLoaded?(): void;
@@ -37,7 +38,7 @@ export function useSchedulingAssignmentShiftOptions(options: SchedulingAssignmen
 
     isLoading.value = true;
     try {
-      const dateRange = toUtcCalendarDayRange(options.date.value, options.timeZoneId.value);
+      const dateRange = options.dateRange?.value ?? toUtcCalendarDayRange(options.date.value, options.timeZoneId.value);
       const params = {
         LocationId: options.locationId.value,
         ...(dateRange ? { StartAtUtc: dateRange.startAtUtc, EndAtUtc: dateRange.endAtUtc } : {}),

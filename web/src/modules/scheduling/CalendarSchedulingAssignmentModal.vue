@@ -44,6 +44,7 @@ import {
 import { resolveShiftSeriesLinksFromAssignmentSeries } from './calendarSchedulingAssignmentSeriesLinks';
 import { useSchedulingAssignmentMutation, type SaveAssignmentOptions } from './useSchedulingAssignmentMutation';
 import { useSchedulingAssignmentLoad } from './useSchedulingAssignmentLoad';
+import { loadAssignmentEntries } from './calendarSchedulingAssignmentApi';
 import {
   promoteAssignmentShiftEntryLinks,
   useSchedulingAssignmentShiftOptions,
@@ -59,9 +60,11 @@ import {
   canAddAssignmentLinkToShift,
   getSchedulingLifecycleCapabilities,
   isSchedulingLinkable,
+  isSchedulingCancelled,
   isSchedulingPublished,
 } from './schedulingLifecycle';
 import { resolveSchedulingTimeZoneId } from './schedulingTimeZone';
+import { expandSchedulingRecurrence } from './schedulingRecurrence';
 import { createLatestRequestGuard } from './latestRequestGuard';
 import { parsePositiveInteger } from './calendarSchedulingShiftIds';
 import { toUtcBusinessDateInput } from './assignmentDefinitionDateHelpers';
@@ -72,6 +75,7 @@ import {
   normalizeTimeOptionValue,
   parseFormDateTime,
   timeOptions,
+  toUtcCalendarDayRange,
 } from './schedulingDateTime';
 import { Permissions } from '@/api-access/generated/models';
 import { useAccessControl } from '@/composables/useAccessControl';
@@ -129,6 +133,9 @@ const concurrencyToken = ref<number | null>(null);
 const hasConcurrencyConflict = ref(false);
 const mutationGuard = createLatestRequestGuard();
 const assignmentLoad = useSchedulingAssignmentLoad();
+const loadedAssignmentSeries = ref<AssignmentSeriesResponse | null>(null);
+const assignmentSeriesEntries = ref<AssignmentEntryResponse[]>([]);
+const assignmentEntriesRequestGuard = createLatestRequestGuard();
 const assignmentLoadError = assignmentLoad.error;
 const assignmentLoadState = assignmentLoad.state;
 const isLoadingAssignment = assignmentLoad.isLoading;
@@ -182,10 +189,61 @@ const timeZoneId = computed(() =>
     props.timeZone,
   ),
 );
+const hasAssignmentRecurrence = computed(
+  () => selectedOpenScope.value === 'series' || formData.value.repeatMode === 'custom',
+);
+const assignmentOccurrences = computed(() => {
+  const range = buildLocalDateTimeRange(
+    formData.value.date,
+    formData.value.startTime,
+    formData.value.endTime,
+    timeZoneId.value,
+  );
+  if (!range) return [];
+  if (modalMode.value !== 'create' && selectedOpenScope.value === 'series') {
+    const series = loadedAssignmentSeries.value;
+    if (!series) return [];
+
+    // Keep this aligned with AssignmentSeriesUpdatePlanner and the submitted payload.
+    const regeneratesEntries =
+      series.recurrenceRule?.trim() !== formData.value.recurrenceRule?.trim() ||
+      Date.parse(series.startAtUtc ?? '') !== range.start.toMillis() ||
+      Date.parse(series.endAtUtc ?? '') !== range.end.toMillis() ||
+      series.timeZoneId?.trim() !== timeZoneId.value.trim() ||
+      // buildCreateAssignmentPayload always submits allDay: false.
+      (series.allDay ?? false) !== false;
+
+    if (!regeneratesEntries) {
+      return assignmentSeriesEntries.value
+        .filter((entry) => !isSchedulingCancelled(entry.statusTypeCode))
+        .flatMap((entry) => {
+          const start = DateTime.fromISO(entry.startAtUtc ?? '', { zone: timeZoneId.value });
+          const end = entry.endAtUtc ? DateTime.fromISO(entry.endAtUtc, { zone: timeZoneId.value }) : start;
+          return start.isValid && end.isValid ? [{ start, end, dateKey: start.toISODate() ?? '' }] : [];
+        })
+        .sort((left, right) => left.start.toMillis() - right.start.toMillis());
+    }
+  }
+  if (!hasAssignmentRecurrence.value || !formData.value.recurrenceRule) return [range];
+
+  return expandSchedulingRecurrence(range.start, range.end.diff(range.start), formData.value.recurrenceRule);
+});
+const assignmentShiftQueryRange = computed(() => {
+  if (!hasAssignmentRecurrence.value) return null;
+  const first = assignmentOccurrences.value[0]?.start;
+  const last = assignmentOccurrences.value.at(-1)?.start;
+  if (!first || !last) return null;
+
+  // Include boundary days for shift-local date matches, including shifts ending at midnight.
+  const firstDay = toUtcCalendarDayRange(first.minus({ days: 1 }).toISODate() ?? undefined, timeZoneId.value);
+  const lastDay = toUtcCalendarDayRange(last.plus({ days: 1 }).toISODate() ?? undefined, timeZoneId.value);
+  return firstDay && lastDay ? { startAtUtc: firstDay.startAtUtc, endAtUtc: lastDay.endAtUtc } : null;
+});
 const assignmentShiftOptions = useSchedulingAssignmentShiftOptions({
   locationId: activeLocationId,
   date: computed(() => formData.value.date || props.initialDate),
   timeZoneId,
+  dateRange: assignmentShiftQueryRange,
   enabled: canViewShifts,
   onError: (message) => {
     apiError.value = message;
@@ -296,7 +354,6 @@ const locationOptionsWithSelected = computed(() => {
 
   return [{ code: locationId, description: 'Unknown location' }, ...locationsStore.selectOptions];
 });
-const hasAssignmentRecurrence = computed(() => isSeriesScope.value || formData.value.repeatMode === 'custom');
 const shouldShowSingleShiftLinks = computed(() => canViewShifts.value && !hasAssignmentRecurrence.value);
 const shouldShowRecurringShiftLinks = computed(() => canViewShifts.value && hasAssignmentRecurrence.value);
 const targetDateStart = computed(() => {
@@ -432,6 +489,7 @@ watch(
     ] as const,
   ([initialDate]) => {
     assignmentLoad.reset();
+    loadedAssignmentSeries.value = null;
     mutationGuard.begin();
     concurrencyToken.value = null;
     hasConcurrencyConflict.value = false;
@@ -462,11 +520,44 @@ watch([activeLocationId, () => formData.value.date, timeZoneId, canLoadLoanOutUs
 });
 
 watch(
-  [activeLocationId, () => formData.value.date, timeZoneId],
+  [
+    activeLocationId,
+    () => formData.value.date,
+    timeZoneId,
+    () => assignmentShiftQueryRange.value?.startAtUtc,
+    () => assignmentShiftQueryRange.value?.endAtUtc,
+  ],
   () => {
     void loadShiftOptions();
   },
   { immediate: true, flush: 'post' },
+);
+
+watch(
+  loadedAssignmentSeries,
+  async (series, _previous, onCleanup) => {
+    const requestId = assignmentEntriesRequestGuard.begin();
+    onCleanup(() => {
+      assignmentEntriesRequestGuard.begin();
+    });
+    assignmentSeriesEntries.value = [];
+    if (!series?.id) return;
+
+    try {
+      const result = await loadAssignmentEntries({ AssignmentSeriesId: series.id });
+      if (!assignmentEntriesRequestGuard.isCurrent(requestId)) return;
+      if (result.error.value || !result.data.value) {
+        apiError.value = result.error.value?.message || 'Failed to load assignment entries.';
+        return;
+      }
+      assignmentSeriesEntries.value = result.data.value;
+    } catch (error: unknown) {
+      if (assignmentEntriesRequestGuard.isCurrent(requestId)) {
+        apiError.value = error instanceof Error ? error.message : 'Failed to load assignment entries.';
+      }
+    }
+  },
+  { flush: 'sync' },
 );
 
 watch(
@@ -479,6 +570,7 @@ watch(
 
 async function selectOpenScope(scope: AssignmentOpenScope) {
   assignmentLoad.reset();
+  loadedAssignmentSeries.value = null;
   mutationGuard.begin();
   concurrencyToken.value = null;
   hasConcurrencyConflict.value = false;
@@ -1158,67 +1250,13 @@ function shiftSeriesDaysOverlapAssignment(series: ShiftSeriesResponse) {
 
   const shiftEntryIds = new Set(series.shiftEntryIds ?? []);
 
-  if (
-    shiftEntries.value.some((entry) => {
-      if (entry.shiftSeriesId === series.id) {
-        return shiftEntryDaysOverlapAssignment(entry);
-      }
-
-      return typeof entry.id === 'number' && shiftEntryIds.has(entry.id) && shiftEntryDaysOverlapAssignment(entry);
-    })
-  ) {
-    return true;
-  }
-
-  return shiftSeriesRecurrenceDaysOverlapAssignment(series);
-}
-
-function shiftSeriesRecurrenceDaysOverlapAssignment(series: ShiftSeriesResponse) {
-  const seriesStart = parseShiftSeriesDateTime(series.startAtUtc, series.timeZoneId);
-  if (!seriesStart) {
-    return false;
-  }
-
-  const assignmentDayRange = getAssignmentDayRange();
-  const seriesEnd = parseShiftSeriesDateTime(series.endAtUtc, series.timeZoneId) ?? seriesStart;
-  const seriesDuration = seriesEnd > seriesStart ? seriesEnd.diff(seriesStart) : null;
-
-  if (!series.recurrenceRule) {
-    const seriesDayRange = getDateTimeDayRange(seriesStart, seriesEnd);
-    return Boolean(seriesDayRange && dayRangesOverlap(assignmentDayRange, seriesDayRange));
-  }
-
-  try {
-    const parsedRule = RRule.fromString(series.recurrenceRule);
-    const rule = new RRule({
-      ...parsedRule.origOptions,
-      dtstart: parsedRule.origOptions.dtstart ?? seriesStart.toUTC().toJSDate(),
-    });
-    const searchStart = assignmentDayRange.start.minus({ days: 1 }).startOf('day').toUTC().toJSDate();
-    const searchEnd = assignmentDayRange.end.plus({ days: 1 }).endOf('day').toUTC().toJSDate();
-    const occurrences = rule.between(searchStart, searchEnd, true);
-
-    return occurrences.some((occurrence) => {
-      const occurrenceStart = DateTime.fromJSDate(occurrence, { zone: 'utc' }).setZone(
-        series.timeZoneId || timeZoneId.value,
-      );
-      const occurrenceEnd = seriesDuration ? occurrenceStart.plus(seriesDuration) : occurrenceStart;
-      const occurrenceDayRange = getDateTimeDayRange(occurrenceStart, occurrenceEnd);
-      return Boolean(occurrenceDayRange && dayRangesOverlap(assignmentDayRange, occurrenceDayRange));
-    });
-  } catch {
-    const seriesDayRange = getDateTimeDayRange(seriesStart, seriesEnd);
-    return Boolean(seriesDayRange && dayRangesOverlap(assignmentDayRange, seriesDayRange));
-  }
-}
-
-function parseShiftSeriesDateTime(value?: string | null, eventTimeZoneId?: string | null) {
-  if (!value) {
-    return null;
-  }
-
-  const dateTime = DateTime.fromISO(value, { setZone: true }).setZone(eventTimeZoneId || timeZoneId.value);
-  return dateTime.isValid ? dateTime : null;
+  return shiftEntries.value.some(
+    (entry) =>
+      typeof entry.id === 'number' &&
+      (entry.shiftSeriesId === series.id || shiftEntryIds.has(entry.id)) &&
+      isSchedulingLinkable(entry.statusTypeCode) &&
+      assignmentOccurrences.value.some((occurrence) => assignmentStartsOnShiftDay(entry, occurrence.start)),
+  );
 }
 
 function getShiftSeries(shiftSeriesId: number) {
@@ -1296,23 +1334,25 @@ function shiftEntryDaysOverlapAssignment(entry: ShiftEntryResponse) {
   return Boolean(shiftDayRange && dayRangesOverlap(getAssignmentDayRange(), shiftDayRange));
 }
 
-function assignmentStartsOnShiftDay(entry: ShiftEntryResponse) {
-  if (!entry.startAtUtc) {
-    return false;
-  }
-
-  const assignmentRange = buildLocalDateTimeRange(
+function assignmentStartsOnShiftDay(
+  entry: ShiftEntryResponse,
+  occurrenceStart: DateTime | undefined = buildLocalDateTimeRange(
     formData.value.date,
     formData.value.startTime,
     formData.value.endTime,
     timeZoneId.value,
-  );
-  if (!assignmentRange) {
+  )?.start,
+) {
+  if (!entry.startAtUtc) {
+    return false;
+  }
+
+  if (!occurrenceStart) {
     return false;
   }
 
   const zone = entry.timeZoneId || timeZoneId.value;
-  const assignmentStart = assignmentRange.start.setZone(zone);
+  const assignmentStart = occurrenceStart.setZone(zone);
   const shiftStart = DateTime.fromISO(entry.startAtUtc, { setZone: true }).setZone(zone);
   const shiftEnd = entry.endAtUtc ? DateTime.fromISO(entry.endAtUtc, { setZone: true }).setZone(zone) : null;
 
@@ -1752,6 +1792,7 @@ async function handleLifecycleAction() {
 
 async function loadInitialAssignment() {
   concurrencyToken.value = null;
+  loadedAssignmentSeries.value = null;
   if (modalMode.value === 'create') {
     assignmentLoadState.value = 'loaded';
     return;
@@ -1762,6 +1803,7 @@ async function loadInitialAssignment() {
   await assignmentLoad.load(kind, id, (assignment) => {
     concurrencyToken.value = assignment.concurrencyToken ?? null;
     if (kind === 'series') {
+      loadedAssignmentSeries.value = assignment as AssignmentSeriesResponse;
       formData.value = createFormDataFromAssignmentSeries(assignment as AssignmentSeriesResponse);
       existingShiftSeriesLinks.value = (formData.value.shiftSeriesLinks ?? []).map((link) => ({ ...link }));
     } else {
