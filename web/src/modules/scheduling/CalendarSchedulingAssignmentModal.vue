@@ -632,7 +632,6 @@ async function loadUsers() {
     return;
   }
 
-  const loadAllUsers = Boolean(props.assignmentEntryId || props.assignmentSeriesId);
   const loadLoanOutUsers = async () => {
     if (!date || !canLoadLoanOutUsers.value) return [];
     const result = useLoanOutSchedulingUsers({
@@ -648,7 +647,7 @@ async function loadUsers() {
   };
   const [locationResult, allUsersResult, loanOutResult] = await Promise.allSettled([
     usersStore.ensureUsersForLocation(locationId),
-    loadAllUsers ? usersStore.ensureAllUsers() : Promise.resolve([]),
+    usersStore.ensureAllUsers(),
     loadLoanOutUsers(),
   ]);
 
@@ -1135,12 +1134,7 @@ function formatShiftEntryUsers(entry: ShiftEntryResponse) {
     return 'Unassigned';
   }
 
-  return userIds
-    .map((userId) => {
-      const user = allUsersById.value.get(userId);
-      return user ? formatUserName(user) : userId;
-    })
-    .join(', ');
+  return userIds.map(formatUserId).join(', ');
 }
 
 function formatShiftEntryDateTimeRange(entry: ShiftEntryResponse) {

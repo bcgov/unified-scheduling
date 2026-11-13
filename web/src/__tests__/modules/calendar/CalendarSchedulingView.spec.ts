@@ -1,6 +1,8 @@
+import { useUsersStore } from '@/stores/Users';
+import { createPinia, setActivePinia } from 'pinia';
 import { defineComponent, h, type PropType } from 'vue';
 import { flushPromises, mount } from '@vue/test-utils';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import CalendarSchedulingView from '@/modules/scheduling/CalendarSchedulingView.vue';
 import CalendarSchedulingAssignmentModal from '@/modules/scheduling/CalendarSchedulingAssignmentModal.vue';
 import CalendarSchedulingAddResourceModal from '@/modules/scheduling/CalendarSchedulingAddResourceModal.vue';
@@ -52,6 +54,8 @@ const model: CalendarMatrixViewModel = {
   timeZone: 'America/Vancouver',
 };
 
+beforeEach(() => setActivePinia(createPinia()));
+
 describe('CalendarSchedulingView', () => {
   afterEach(() => {
     closeCalendarSchedulingAssignmentModal();
@@ -87,6 +91,19 @@ describe('CalendarSchedulingView', () => {
       resourceId: 'user-1',
       message: 'This event has a conflict with an event you do not have permission to view.',
     };
+    useUsersStore().allUsers = [
+      {
+        id: 'user-1',
+        idirName: 'user-1',
+        firstName: 'One',
+        lastName: 'User',
+        email: '',
+        employeeNumber: '',
+        isEnabled: true,
+        gender: 'Male',
+        homeLocationId: 12,
+      },
+    ];
     const warningModel = buildCalendarSchedulingViewModel(
       {
         contributions: {
@@ -105,7 +122,7 @@ describe('CalendarSchedulingView', () => {
           },
         },
       },
-      { startDate: '2025-01-13', endDate: '2025-01-14', filters: {} },
+      { startDate: '2025-01-13', endDate: '2025-01-14', locationId: 12, filters: {} },
       'day',
       false,
     );

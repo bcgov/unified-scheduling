@@ -1,5 +1,6 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Unified.Calendar.Conflicts;
@@ -43,13 +44,17 @@ public sealed class SchedulePublishServiceTests : IAsyncLifetime
 
     private SqliteConnection _connection = null!;
     private UnifiedDbContext _db = null!;
+    private readonly List<string> _databaseCommands = [];
 
     public async ValueTask InitializeAsync()
     {
         _connection = new SqliteConnection("Data Source=:memory:");
         await _connection.OpenAsync(TestContext.Current.CancellationToken);
 
-        var options = new DbContextOptionsBuilder<UnifiedDbContext>().UseSqlite(_connection).Options;
+        var options = new DbContextOptionsBuilder<UnifiedDbContext>()
+            .UseSqlite(_connection)
+            .LogTo(_databaseCommands.Add, [RelationalEventId.CommandExecuted])
+            .Options;
         _db = new SqliteTestUnifiedDbContext(options);
         await _db.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
         await SeedBaseDataAsync();
@@ -59,6 +64,62 @@ public sealed class SchedulePublishServiceTests : IAsyncLifetime
     {
         await _db.DisposeAsync();
         await _connection.DisposeAsync();
+    }
+
+    [Theory]
+    [InlineData(5, 6, 6, true)]
+    [InlineData(5, 7, 7, false)]
+    [InlineData(5, 6, 8, true)]
+    [InlineData(6, 6, 6, true)]
+    [InlineData(6, 7, 7, true)]
+    [InlineData(6, 6, 8, true)]
+    public async Task PreviewAsync_IncludesCurrentHomeOrMatchingLocationHistory(
+        int locationId,
+        int startDay,
+        int endDay,
+        bool expectedPresent
+    )
+    {
+        _db.Users.Add(
+            new User
+            {
+                Id = ResourceId,
+                IdirName = "moved-employee",
+                FirstName = "Moved",
+                LastName = "Employee",
+                IsEnabled = true,
+                HomeLocationId = 6,
+                UserLocations =
+                [
+                    new UserLocation
+                    {
+                        LocationId = 5,
+                        EffectiveFrom = null,
+                        EffectiveUntil = new DateTimeOffset(2026, 10, 7, 12, 0, 0, TimeSpan.Zero),
+                    },
+                ],
+            }
+        );
+        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        _db.ChangeTracker.Clear();
+        _databaseCommands.Clear();
+        var preview = await CreateService([])
+            .PreviewAsync(
+                new SchedulePublishRequest(
+                    locationId,
+                    new DateOnly(2026, 10, startDay),
+                    new DateOnly(2026, 10, endDay)
+                ),
+                TestContext.Current.CancellationToken
+            );
+
+        Assert.Equal(
+            expectedPresent,
+            preview.Warnings.IncompleteEmployees.Any(employee => employee.UserId == ResourceId)
+        );
+        Assert.Contains(_databaseCommands, command => command.Contains("\"FirstName\""));
+        Assert.DoesNotContain(_databaseCommands, command => command.Contains("\"Photo\""));
     }
 
     [Theory]

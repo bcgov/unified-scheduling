@@ -213,7 +213,7 @@ function handleEmptyCellAdd() {
       'is-drop-target': isDropTarget,
       'is-today': isToday,
     }"
-    :aria-disabled="cell.disabled || undefined"
+    :aria-disabled="(cell.disabled && !hasContent) || undefined"
     @dragenter="handleDragEnter"
     @dragleave="handleDragLeave"
     @dragover="handleDragOver"
@@ -337,6 +337,9 @@ function handleEmptyCellAdd() {
   pointer-events: auto;
   position: absolute;
   z-index: 10;
+}
+.calendar-matrix-cell.is-disabled:not(.is-empty)::after {
+  pointer-events: none;
 }
 
 .calendar-matrix-cell.is-empty {

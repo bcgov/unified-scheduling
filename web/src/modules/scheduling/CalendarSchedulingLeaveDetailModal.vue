@@ -26,7 +26,6 @@ import UaBtn from '@/shared/components/UaBtn.vue';
 import UaModal from '@/shared/components/UaModal.vue';
 import { useLocationsStore } from '@/stores/LocationsStore';
 import { useUsersStore } from '@/stores/Users';
-import type { SelectOption } from '@/types/select';
 import { formatCalendarDateOnly, formatCalendarDateTimeDate, formatCalendarEventTimeRange } from '@/utils/date';
 import { DateTime } from 'luxon';
 import { RRule } from 'rrule';
@@ -38,6 +37,7 @@ import { formatUserOptionLabel } from './calendarSchedulingShiftForm';
 import { defaultEndTime, defaultStartTime, parseFormDateTime } from './schedulingDateTime';
 import { getSchedulingLifecycleCapabilities } from './schedulingLifecycle';
 import { resolveSchedulingTimeZoneId } from './schedulingTimeZone';
+import { getSchedulingLocationUsers } from './useSchedulingEmployeeOptions';
 
 type LeaveDetailTabId = 'details' | 'edit' | 'delete';
 type LeaveOpenScope = 'event' | 'series';
@@ -161,13 +161,18 @@ const modalTitle = computed(() => {
 });
 
 const activeLocationId = computed(() => selectedRecord.value?.locationId ?? props.event.locationId ?? null);
-// Only the location's own employees can take leave here; loaned-in users belong to another home location.
-// Falls back to all loaded users when the location cannot be resolved.
-const employeeOptions = computed<SelectOption[]>(() =>
-  users.value
-    .filter((user) => activeLocationId.value == null || user.homeLocationId === activeLocationId.value)
-    .map((user) => ({ code: user.id, description: formatUserOptionLabel(user) })),
-);
+// Only location members on the selected date can take leave here.
+const employeeOptions = computed(() => {
+  const candidates = [...users.value, ...usersStore.allUsers];
+  const { homeUsers, formerHomeUsers } = getSchedulingLocationUsers(
+    DateTime.fromISO(editFormData.value.date || props.event.start, { zone: timeZoneId.value }).toJSDate(),
+    candidates,
+    activeLocationId.value!,
+    timeZoneId.value,
+  );
+  const locationUsers = [...homeUsers, ...formerHomeUsers];
+  return locationUsers.map((user) => ({ code: user.id, description: formatUserOptionLabel(user) }));
+});
 
 watch(
   () => props.event.locationId,
@@ -179,7 +184,11 @@ watch(
 
     isLoadingUsers.value = true;
     try {
-      users.value = await usersStore.ensureUsersForLocation(locationId);
+      const [locationUsers] = await Promise.all([
+        usersStore.ensureUsersForLocation(locationId),
+        usersStore.ensureAllUsers(),
+      ]);
+      users.value = locationUsers;
     } catch (error: unknown) {
       users.value = [];
       apiError.value = error instanceof Error ? error.message : 'Failed to load employees.';

@@ -124,6 +124,34 @@ afterEach(() => {
 });
 
 describe('CalendarMatrixCell', () => {
+  it('keeps existing events accessible in unavailable cells without allowing additions or drops', async () => {
+    const { wrapper } = await mountWithApp(CalendarMatrixCell, {
+      props: { cell: { ...cell, disabled: true, showResourceAdd: true }, resource },
+      global: { stubs: { 'v-icon': true } },
+    });
+
+    expect(wrapper.classes()).toContain('is-disabled');
+    expect(wrapper.classes()).not.toContain('is-empty');
+    expect(wrapper.attributes('aria-disabled')).toBeUndefined();
+    expect(wrapper.find('[aria-label="Add resource"]').exists()).toBe(false);
+    await wrapper.findComponent({ name: 'CalendarMatrixCellHeader' }).vm.$emit('click', cell.headers?.[0]);
+    await wrapper.findComponent({ name: 'CalendarMatrixEventBlock' }).vm.$emit('eventClick', event);
+    await wrapper.trigger('drop');
+    expect(wrapper.emitted('headerClick')).toHaveLength(1);
+    expect(wrapper.emitted('eventClick')?.[0]).toEqual([event]);
+    expect(wrapper.emitted('cellDrop')).toBeUndefined();
+    expect(wrapper.emitted('resourceAdd')).toBeUndefined();
+
+    wrapper.unmount();
+    const { wrapper: emptyWrapper } = await mountWithApp(CalendarMatrixCell, {
+      props: { cell: { ...cell, disabled: true, headers: [], groups: [] }, resource },
+    });
+    expect(emptyWrapper.classes()).toContain('is-empty');
+    expect(emptyWrapper.attributes('aria-disabled')).toBe('true');
+    expect(emptyWrapper.find('[aria-label="Add resource"]').exists()).toBe(false);
+    emptyWrapper.unmount();
+  });
+
   it('renders headers and events, merges group display, and emits interactions', async () => {
     const dropOnCell = vi.fn();
     const activeDragPayload = { source: 'side-panel', itemId: 'drag-1', itemType: 'user' } as CalendarMatrixDragPayload;

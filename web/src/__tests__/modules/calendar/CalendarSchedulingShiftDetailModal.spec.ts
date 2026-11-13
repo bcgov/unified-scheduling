@@ -35,6 +35,7 @@ async function mountShiftDetailModal(
   apiOverrides: Record<string, unknown> = {},
   initialTab?: 'details' | 'edit',
   initialOpenScope?: 'event' | 'series',
+  movedUser: boolean | 'borrowed' = false,
 ) {
   vi.doMock('@/modules/scheduling/calendarSchedulingShiftApi', () => ({
     loadShiftEntry: vi.fn().mockResolvedValue({
@@ -68,19 +69,27 @@ async function mountShiftDetailModal(
     ...apiOverrides,
   }));
   vi.doMock('@/api-access/generated/users/users', () => ({
-    getApiUsers: vi.fn().mockReturnValue({
+    getApiUsers: vi.fn().mockImplementation((params: { LocationId?: number }) => ({
       data: {
-        value: [
-          {
-            id: '00000000-0000-0000-0000-000000000001',
-            firstName: 'Alex',
-            lastName: 'Alpha',
-          },
-        ],
+        value:
+          movedUser && params.LocationId
+            ? []
+            : [
+                {
+                  id: '00000000-0000-0000-0000-000000000001',
+                  firstName: 'Alex',
+                  lastName: 'Alpha',
+                  homeLocationId: movedUser ? 99 : 12,
+                  userLocations:
+                    movedUser === true
+                      ? [{ locationId: 12, effectiveFrom: null, effectiveUntil: '2026-07-14T07:00:00Z' }]
+                      : [],
+                },
+              ],
       },
       error: { value: null },
       execute: vi.fn().mockResolvedValue(undefined),
-    }),
+    })),
   }));
   vi.doMock('@/modules/scheduling/calendarSchedulingAssignmentApi', () => ({
     loadAssignmentEntries: vi.fn().mockResolvedValue({
@@ -130,6 +139,18 @@ describe('CalendarSchedulingShiftDetailModal', () => {
 
   afterEach(() => {
     document.body.innerHTML = '';
+  });
+
+  it.each([true, 'borrowed'] as const)('formats linked employees from date-based options (%s)', async (userKind) => {
+    const wrapper = await mountShiftDetailModal('Draft', false, {}, undefined, undefined, userKind);
+    try {
+      const vm = wrapper.vm as unknown as { detailRows: Array<{ label: string; value: string }> };
+      const expectedName = userKind === true ? 'Alex Alpha' : '00000000-0000-0000-0000-000000000001';
+      expect(vm.detailRows.find((row) => row.label === 'Shift Employee(s)')?.value).toBe(expectedName);
+      expect(vm.detailRows.find((row) => row.label === 'Assignment(s)')?.value).toContain(expectedName);
+    } finally {
+      wrapper.unmount();
+    }
   });
 
   it('keeps draft shifts editable', async () => {

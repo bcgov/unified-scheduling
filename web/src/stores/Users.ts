@@ -129,6 +129,10 @@ export const useUsersStore = defineStore('users', () => {
     return usersById.value.get(userId);
   }
 
+  function getUserLocations(userId: string) {
+    return getUserById(userId)?.userLocations ?? [];
+  }
+
   function invalidateLocation(locationId: number) {
     const nextUsersByLocation = new Map(usersByLocation.value);
     const nextLoadedAtByLocation = new Map(loadedAtByLocation.value);
@@ -155,6 +159,7 @@ export const useUsersStore = defineStore('users', () => {
     ensureAllUsers,
     ensureUsersForLocation,
     getUserById,
+    getUserLocations,
     getUsersForLocation,
     invalidateAll,
     invalidateLocation,

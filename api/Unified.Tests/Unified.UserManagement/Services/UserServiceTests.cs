@@ -1128,6 +1128,175 @@ public class UserServiceTests : IAsyncLifetime
         Assert.Null(result);
     }
 
+    [Theory]
+    [InlineData(null, 2, 0)]
+    [InlineData(1, 1, 0)]
+    [InlineData(1, 2, 1)]
+    public async Task UpdateAsync_RecordsOnlyAnActualPreviousHome(
+        int? previousHome,
+        int nextHome,
+        int expectedHistoryCount
+    )
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var user = new User
+        {
+            Id = Guid.NewGuid(),
+            IdirName = "history-user",
+            FirstName = "History",
+            LastName = "User",
+            Email = "history@example.com",
+            EmployeeNumber = "HISTORY-1",
+            IsEnabled = true,
+            HomeLocationId = previousHome,
+        };
+        _dbContext.Users.Add(user);
+        await _dbContext.SaveChangesAsync(ct);
+        _dbContext.ChangeTracker.Clear();
+        var request = new UserRequestDto
+        {
+            IdirName = user.IdirName,
+            FirstName = user.FirstName,
+            LastName = user.LastName,
+            Email = user.Email,
+            EmployeeNumber = user.EmployeeNumber,
+            IsEnabled = true,
+            Gender = user.Gender,
+            Rank = "Deputy Sheriff",
+            HomeLocationId = nextHome,
+        };
+
+        var response = await _userService.UpdateAsync(user.Id, request, ct);
+        Assert.NotNull(response);
+        Assert.Equal(expectedHistoryCount, response.UserLocations.Count);
+        _dbContext.ChangeTracker.Clear();
+        var persisted = await _userService.GetByIdAsync(user.Id, ct);
+        Assert.NotNull(persisted);
+        Assert.Equal(nextHome, persisted.HomeLocationId);
+        Assert.Equal(expectedHistoryCount, persisted.UserLocations.Count);
+        if (expectedHistoryCount > 0)
+        {
+            var history = Assert.Single(persisted.UserLocations);
+            Assert.Equal(previousHome, history.LocationId);
+            Assert.Null(history.EffectiveFrom);
+            var signal = Assert.IsType<UserHomeLocationChangedSignal>(Assert.Single(_eventDispatcher.PublishedSignals));
+            Assert.Equal(signal.OccurredAtUtc, history.EffectiveUntil);
+        }
+        if (previousHome == nextHome)
+            Assert.Empty(_eventDispatcher.PublishedSignals);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_PreservesHistoryInResponseWhenHomeLocationDoesNotChange()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var request = new UserRequestDto
+        {
+            IdirName = "transferred-user",
+            FirstName = "Transfer",
+            LastName = "User",
+            Email = "transfer@example.com",
+            EmployeeNumber = "TRANSFER-1",
+            IsEnabled = true,
+            Gender = Gender.Male,
+            Rank = "Deputy Sheriff",
+            HomeLocationId = 1,
+        };
+        var created = await _userService.CreateAsync(request, ct);
+        var transferred = await _userService.UpdateAsync(created.Id, request with { HomeLocationId = 2 }, ct);
+        var expectedHistory = Assert.Single(Assert.IsType<UserResponse>(transferred).UserLocations);
+        _dbContext.ChangeTracker.Clear();
+        _eventDispatcher.PublishedSignals.Clear();
+
+        var response = await _userService.UpdateAsync(
+            created.Id,
+            request with
+            {
+                HomeLocationId = 2,
+                FirstName = "Updated",
+                Rank = "Chief Sheriff",
+            },
+            ct
+        );
+
+        Assert.NotNull(response);
+        Assert.Equal("Updated", response.FirstName);
+        Assert.Equal("Chief Sheriff", response.Rank);
+        Assert.Equal(2, response.HomeLocationId);
+        var history = Assert.Single(response.UserLocations);
+        Assert.Equal(expectedHistory.LocationId, history.LocationId);
+        Assert.Equal(expectedHistory.EffectiveFrom, history.EffectiveFrom);
+        Assert.Equal(expectedHistory.EffectiveUntil, history.EffectiveUntil);
+        Assert.Empty(_eventDispatcher.PublishedSignals);
+        Assert.Single(await _dbContext.UserLocations.AsNoTracking().ToListAsync(ct));
+    }
+
+    [Fact]
+    public async Task UpdateAsync_ChainsTransfersAndProjectsHistoryInTheUserList()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var request = new UserRequestDto
+        {
+            IdirName = "transfer-user",
+            FirstName = "Transfer",
+            LastName = "User",
+            Email = "transfer@example.com",
+            EmployeeNumber = "TRANSFER-1",
+            IsEnabled = true,
+            Gender = Gender.Male,
+            Rank = "Deputy Sheriff",
+            HomeLocationId = 1,
+        };
+        var created = await _userService.CreateAsync(request, ct);
+        await _userService.UpdateAsync(created.Id, request with { HomeLocationId = 2 }, ct);
+        _dbContext.ChangeTracker.Clear();
+        await _userService.UpdateAsync(created.Id, request with { HomeLocationId = 5 }, ct);
+        _dbContext.ChangeTracker.Clear();
+
+        var user = Assert.Single(await _userService.GetAllAsync(cancellationToken: ct));
+        var first = Assert.Single(user.UserLocations, location => location.LocationId == 1);
+        var second = Assert.Single(user.UserLocations, location => location.LocationId == 2);
+        Assert.Equal(5, user.HomeLocationId);
+        Assert.Null(first.EffectiveFrom);
+        Assert.Equal(first.EffectiveUntil, second.EffectiveFrom);
+        Assert.True(second.EffectiveUntil > first.EffectiveUntil);
+        Assert.DoesNotContain(user.UserLocations, location => location.LocationId == 5);
+    }
+
+    [Theory]
+    [InlineData(false, 1, true)]
+    [InlineData(true, 1, true)]
+    [InlineData(true, 0, false)]
+    [InlineData(true, -1, false)]
+    public async Task UserLocation_EnforcesTheEffectiveRange(bool hasStart, int endOffsetDays, bool valid)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await SeedTestData();
+        var user = await _dbContext.Users.FirstAsync(ct);
+        var start = new DateTimeOffset(2026, 11, 1, 0, 0, 0, TimeSpan.Zero);
+        _dbContext.UserLocations.Add(
+            new UserLocation
+            {
+                UserId = user.Id,
+                LocationId = 1,
+                EffectiveFrom = hasStart ? start : null,
+                EffectiveUntil = start.AddDays(endOffsetDays),
+            }
+        );
+
+        if (valid)
+        {
+            await _dbContext.SaveChangesAsync(ct);
+            _dbContext.ChangeTracker.Clear();
+            var history = Assert.Single(await _dbContext.UserLocations.ToListAsync(ct));
+            Assert.Equal(start.AddDays(endOffsetDays), history.EffectiveUntil);
+        }
+        else
+        {
+            await Assert.ThrowsAsync<DbUpdateException>(() => _dbContext.SaveChangesAsync(ct));
+        }
+    }
+
     private sealed class RecordingEventDispatcher : IEventDispatcher
     {
         public List<object> PublishedSignals { get; } = [];

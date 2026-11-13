@@ -992,7 +992,7 @@ describe('CalendarSchedulingAssignmentModal', () => {
     wrapper.unmount();
   });
 
-  it('loads only active-location users when creating an assignment', async () => {
+  it('resolves moved shift employees by name when creating an assignment and reuses cached users', async () => {
     const getAssignmentDefinitionsExecute = vi.fn().mockResolvedValue(undefined);
     const getShiftSeriesExecute = vi.fn().mockResolvedValue(undefined);
     const getShiftEntriesExecute = vi.fn().mockResolvedValue(undefined);
@@ -1069,6 +1069,8 @@ describe('CalendarSchedulingAssignmentModal', () => {
                   id: '00000000-0000-0000-0000-000000000099',
                   firstName: 'Chief',
                   lastName: 'Sheriff',
+                  homeLocationId: 99,
+                  userLocations: [{ locationId: 12, effectiveFrom: null, effectiveUntil: '2026-07-13T07:00:00Z' }],
                 },
               ],
       },
@@ -1105,7 +1107,7 @@ describe('CalendarSchedulingAssignmentModal', () => {
       updateShiftEntryLinkUsers: (index: number, value: string[]) => void;
     };
 
-    expect(getApiUsers).toHaveBeenCalledOnce();
+    expect(getApiUsers).toHaveBeenCalledTimes(2);
     expect(getApiUsers).toHaveBeenCalledWith(
       { IsEnabled: true, LocationId: 12 },
       {
@@ -1113,12 +1115,13 @@ describe('CalendarSchedulingAssignmentModal', () => {
         options: { immediate: false },
       },
     );
-    expect(vm.formatShiftEntryLinkDetails(42)).toContain('00000000-0000-0000-0000-000000000099');
+    expect(getApiUsers).toHaveBeenCalledWith({ IsEnabled: true }, expect.any(Object));
+    expect(vm.formatShiftEntryLinkDetails(42)).toContain('Chief Sheriff');
     const initialUserOptions = vm.getShiftEntryUserOptions(42);
     expect(initialUserOptions).toEqual([
       {
         code: '00000000-0000-0000-0000-000000000099',
-        description: '00000000-0000-0000-0000-000000000099',
+        description: 'Chief Sheriff',
       },
     ]);
 
@@ -1126,7 +1129,7 @@ describe('CalendarSchedulingAssignmentModal', () => {
     await wrapper.vm.$nextTick();
 
     expect(vm.getShiftEntryUserOptions(42)).toBe(initialUserOptions);
-    expect(getApiUsers).toHaveBeenCalledOnce();
+    expect(getApiUsers).toHaveBeenCalledTimes(2);
 
     wrapper.unmount();
   });
@@ -2556,7 +2559,7 @@ describe('CalendarSchedulingAssignmentModal', () => {
     expect(getApiSchedulingShiftsEntries).toHaveBeenCalledTimes(1);
     expect(getApiSchedulingShiftsSeries).toHaveBeenCalledTimes(1);
     expect(getApiSchedulingAssignmentDefinitions).toHaveBeenCalledTimes(1);
-    expect(getApiUsers).toHaveBeenCalledTimes(1);
+    expect(getApiUsers).toHaveBeenCalledTimes(2);
     expect(vm.assignmentDefinitionOptions.map((option) => option.code)).toEqual([7]);
     expect(vm.shiftEntryOptions.map((option) => option.code)).toEqual([42]);
     expect(vm.shiftSeriesOptions.map((option) => option.code)).toEqual([200]);
@@ -2579,7 +2582,7 @@ describe('CalendarSchedulingAssignmentModal', () => {
       { locationId: 13 },
       { options: { immediate: false } },
     );
-    expect(getApiUsers).toHaveBeenCalledTimes(2);
+    expect(getApiUsers).toHaveBeenCalledTimes(3);
     expect(getApiUsers).toHaveBeenLastCalledWith(
       { IsEnabled: true, LocationId: 13 },
       {

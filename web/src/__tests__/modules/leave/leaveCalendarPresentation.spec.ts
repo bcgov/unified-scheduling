@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { createPinia, setActivePinia } from 'pinia';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { mount, flushPromises } from '@vue/test-utils';
 import { server } from '../../mocks/server';
@@ -12,6 +13,8 @@ import UserLeaveModal from '@/modules/myteam/components/UserLeaveModal.vue';
 import LeaveForm from '@/modules/leave/components/LeaveForm.vue';
 import { calendarSchedulingActionIds } from '@/modules/scheduling/calendarSchedulingActionIds';
 import type { CalendarConflict } from '@/modules/calendar/calendarTypes';
+
+beforeEach(() => setActivePinia(createPinia()));
 
 describe('all-day leave calendar presentation', () => {
   const context = { startDate: '2026-06-01', endDate: '2026-06-08', filters: {} };

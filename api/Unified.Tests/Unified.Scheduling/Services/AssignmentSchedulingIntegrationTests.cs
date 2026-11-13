@@ -4425,7 +4425,59 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
     }
 
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task CreateBorrowedShift_ValidatesEachEmployeeAfterExcludingHistoricalMembers(bool borrowerCovered)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        foreach (var id in new[] { UserA, UserB })
+            (await _db.Users.SingleAsync(user => user.Id == id, ct)).HomeLocationId = 5;
+        _db.UserLocations.Add(
+            new UserLocation
+            {
+                UserId = UserA,
+                LocationId = 9,
+                EffectiveFrom = null,
+                EffectiveUntil = LoanOutAtDay(3, 4),
+            }
+        );
+        if (borrowerCovered)
+        {
+            var loanOut = CreateLoanOutEntry(LoanOutAtDay(2, 4));
+            loanOut.Event!.EndAtUtc = LoanOutAtDay(3, 4);
+            loanOut.Users = [new LoanOutEntryUser { UserId = UserB }];
+            _db.LoanOutEntries.Add(loanOut);
+        }
+        await _db.SaveChangesAsync(ct);
+        _db.ChangeTracker.Clear();
+
+        var request = CreateShiftEntryRequest(LoanOutAtDay(2, 13), LoanOutAtDay(2, 21)) with
+        {
+            LocationId = 9,
+            UserIds = [UserA, UserB],
+        };
+        if (borrowerCovered)
+        {
+            var shift = await _shiftService.CreateShiftEntryAsync(request, ct);
+            Assert.Equal(2, shift.UserIds.Count);
+        }
+        else
+        {
+            var error = await Assert.ThrowsAsync<ConflictValidationException>(() =>
+                _shiftService.CreateShiftEntryAsync(request, ct)
+            );
+            Assert.Contains("not loaned out to this location", Assert.Single(error.Errors["LoanOut"]));
+            Assert.Empty(await _db.ShiftEntries.ToListAsync(ct));
+        }
+    }
+
+    [Theory]
     [InlineData(false, "covered", true)]
+    [InlineData(false, "history", true)]
+    [InlineData(true, "history", true)]
+    [InlineData(false, "history-expired", false)]
+    [InlineData(false, "history-future", false)]
+    [InlineData(false, "history-overnight", false)]
     [InlineData(true, "covered", true)]
     [InlineData(false, "gap", false)]
     [InlineData(true, "gap", false)]
@@ -4462,7 +4514,26 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
         (await _db.Users.SingleAsync(user => user.Id == UserA, ct)).HomeLocationId = scenario == "home-user" ? 9 : 5;
         (await _db.Users.SingleAsync(user => user.Id == UserB, ct)).HomeLocationId =
             scenario == "mixed-local-users" ? 9 : 5;
-        foreach (var day in scenario == "overnight-covered" ? new[] { 2, 3, 5, 6 } : new[] { 2, 5 })
+        if (scenario.StartsWith("history", StringComparison.Ordinal))
+        {
+            _db.UserLocations.Add(
+                new UserLocation
+                {
+                    UserId = UserA,
+                    LocationId = 9,
+                    EffectiveFrom = scenario == "history-future" ? LoanOutAtDay(3, 7) : null,
+                    EffectiveUntil =
+                        scenario == "history-overnight"
+                            ? LoanOutAtDay(3, 4)
+                            : LoanOutAtDay(scenario == "history-expired" ? 2 : 6, 7),
+                }
+            );
+        }
+        var loanOutDays =
+            scenario.StartsWith("history", StringComparison.Ordinal) ? Array.Empty<int>()
+            : scenario == "overnight-covered" ? new[] { 2, 3, 5, 6 }
+            : new[] { 2, 5 };
+        foreach (var day in loanOutDays)
         {
             var loanOut = CreateLoanOutEntry(LoanOutAtDay(day, 7));
             loanOut.Event!.EndAtUtc = LoanOutAtDay(day + 1, 7);
@@ -4475,7 +4546,7 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
         }
         await _db.SaveChangesAsync(ct);
         _db.ChangeTracker.Clear();
-        var overnight = scenario.StartsWith("overnight", StringComparison.Ordinal);
+        var overnight = scenario.Contains("overnight", StringComparison.Ordinal);
         var start = LoanOutAtDay(!recurring && scenario == "gap" ? 3 : 2, overnight ? 22 : 9);
         var end = overnight ? LoanOutAtDay(3, 6) : start.AddHours(8);
         var userIds = scenario.StartsWith("mixed-", StringComparison.Ordinal)

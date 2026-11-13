@@ -26,6 +26,8 @@ import { parseFormDateTime } from './schedulingDateTime';
 import { resolveSchedulingTimeZoneId } from './schedulingTimeZone';
 import { formatUserOptionLabel } from './calendarSchedulingShiftForm';
 import { RRule } from 'rrule';
+import { DateTime } from 'luxon';
+import { getSchedulingLocationUsers } from './useSchedulingEmployeeOptions';
 
 const props = defineProps<{ event: CalendarEventBase }>();
 const emit = defineEmits<{ (event: 'close'): void }>();
@@ -67,13 +69,18 @@ const modalTitle = computed(() =>
 );
 const timeZone = computed(() => resolveSchedulingTimeZoneId(entity.value?.timeZoneId ?? props.event.timeZoneId));
 const activeLocationId = computed(() => entity.value?.locationId ?? props.event.locationId ?? null);
-// Only the location's own employees can be loaned out; loaned-in users belong to another home location.
-// Falls back to all users when the location cannot be resolved.
-const employeeOptions = computed(() =>
-  users.allUsers
-    .filter((user) => activeLocationId.value == null || user.homeLocationId === activeLocationId.value)
-    .map((user) => ({ code: user.id, description: formatUserOptionLabel(user) })),
-);
+// Only location members on the selected date can be loaned out.
+const employeeOptions = computed(() => {
+  const candidates = users.allUsers;
+  const { homeUsers, formerHomeUsers } = getSchedulingLocationUsers(
+    DateTime.fromISO(formData.value.date || props.event.start, { zone: timeZone.value }).toJSDate(),
+    candidates,
+    activeLocationId.value!,
+    timeZone.value,
+  );
+  const locationUsers = [...homeUsers, ...formerHomeUsers];
+  return locationUsers.map((user) => ({ code: user.id, description: formatUserOptionLabel(user) }));
+});
 const formData = ref<LoanOutFormData>({});
 
 function populateForm() {
