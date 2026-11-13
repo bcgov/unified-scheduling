@@ -191,7 +191,7 @@ internal sealed class ShiftSeriesService(
         await db.SaveChangesAsync(cancellationToken);
         await shiftAssignmentService.ReplaceShiftSeriesLinksAsync(
             entity.Id,
-            request.AssignmentSeriesLinks,
+            request.AssignmentSeriesLinks ?? [],
             cancellationToken
         );
         if (transaction is not null)
@@ -246,6 +246,22 @@ internal sealed class ShiftSeriesService(
             var oldWorkedLunchMinutes = entity.WorkedLunchMinutes;
             var oldUserIds = entity.Users.Select(user => user.UserId).Distinct().Order().ToList();
             var recurrenceChanged = calendarEventSeriesService.HasRecurrenceChanged(entity, request);
+            var linksToApply = request.AssignmentSeriesLinks;
+            if (linksToApply is null && recurrenceChanged)
+            {
+                var existingLinks = await db
+                    .ShiftAssignmentSeriesLinks.AsNoTracking()
+                    .Include(link => link.Users)
+                    .Where(link => link.ShiftSeriesId == entity.Id)
+                    .ToListAsync(cancellationToken);
+                linksToApply = existingLinks
+                    .Select(link => new AssignmentSeriesLinkRequest
+                    {
+                        AssignmentSeriesId = link.AssignmentSeriesId,
+                        AssignedUserIds = link.Users.Select(user => user.UserId).ToList(),
+                    })
+                    .ToList();
+            }
             var newUserIds = ShiftUserSync.GetDistinctUserIds(request.UserIds);
             var updated = await calendarEventSeriesService.UpdateEventAsync(
                 request,
@@ -340,11 +356,8 @@ internal sealed class ShiftSeriesService(
             }
             ValidatePropagatedShiftEntries(entity, currentEntries);
             await db.SaveChangesAsync(cancellationToken);
-            await shiftAssignmentService.ReplaceShiftSeriesLinksAsync(
-                entity.Id,
-                request.AssignmentSeriesLinks,
-                cancellationToken
-            );
+            if (linksToApply is not null)
+                await shiftAssignmentService.ReplaceShiftSeriesLinksAsync(entity.Id, linksToApply, cancellationToken);
             await InvalidateOverridesAsync(
                 originalEventIds.Concat(currentEntries.Select(entry => entry.EventId)).Distinct().ToList(),
                 null,
@@ -594,12 +607,20 @@ internal sealed class ShiftSeriesService(
     )
     {
         var entryIds = await LoadShiftSeriesEntryIdsAsync(series, cancellationToken);
+        var seriesIds = series.Select(item => item.Id).ToList();
+        var assignmentSeriesLinks = await db
+            .ShiftAssignmentSeriesLinks.AsNoTracking()
+            .Include(link => link.Users)
+            .Where(link => seriesIds.Contains(link.ShiftSeriesId))
+            .ToListAsync(cancellationToken);
+        var linksBySeriesId = assignmentSeriesLinks.ToLookup(link => link.ShiftSeriesId);
         return series
             .Select(item =>
                 ShiftResponseMapper.ToShiftSeriesResponse(
                     item,
                     item.EventSeries,
-                    entryIds.GetValueOrDefault(item.Id, [])
+                    entryIds.GetValueOrDefault(item.Id, []),
+                    linksBySeriesId[item.Id].ToList()
                 )
             )
             .ToList();
@@ -610,12 +631,7 @@ internal sealed class ShiftSeriesService(
         CancellationToken cancellationToken
     )
     {
-        var ids = await LoadShiftSeriesEntryIdsAsync([series], cancellationToken);
-        return ShiftResponseMapper.ToShiftSeriesResponse(
-            series,
-            series.EventSeries,
-            ids.GetValueOrDefault(series.Id, [])
-        );
+        return (await MapToShiftSeriesResponsesAsync([series], cancellationToken)).Single();
     }
 
     private async Task<Dictionary<int, List<ShiftSeriesEntryIds>>> LoadShiftSeriesEntryIdsAsync(

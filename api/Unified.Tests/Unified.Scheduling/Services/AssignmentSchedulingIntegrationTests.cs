@@ -1217,6 +1217,45 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task GetShiftSeriesAsync_WhenLinked_ReturnsAssignmentLinksInListAndDetail()
+    {
+        var (shiftSeries, assignmentSeries) = await CreateLinkedSeriesAsync();
+
+        var list = await _shiftService.GetShiftSeriesAsync(cancellationToken: TestContext.Current.CancellationToken);
+        var detail = await _shiftService.GetShiftSeriesByIdAsync(shiftSeries.Id, TestContext.Current.CancellationToken);
+
+        var listLink = Assert.Single(Assert.Single(list).AssignmentSeriesLinks);
+        var detailLink = Assert.Single(Assert.IsType<ShiftSeriesResponse>(detail).AssignmentSeriesLinks);
+        Assert.Equal(shiftSeries.Id, listLink.ShiftSeriesId);
+        Assert.Equal(assignmentSeries.Id, listLink.AssignmentSeriesId);
+        Assert.Equal([UserA], listLink.AssignedUserIds);
+        Assert.Equal(listLink.Id, detailLink.Id);
+        Assert.Equal(listLink.ShiftSeriesId, detailLink.ShiftSeriesId);
+        Assert.Equal(listLink.AssignmentSeriesId, detailLink.AssignmentSeriesId);
+        Assert.Equal([UserA], detailLink.AssignedUserIds);
+    }
+
+    [Fact]
+    public async Task UpdateShiftSeriesAsync_WhenLinksAreOmitted_PreservesLinksInResponse()
+    {
+        var (shiftSeries, assignmentSeries) = await CreateLinkedSeriesAsync();
+        _db.ChangeTracker.Clear();
+
+        var updated = await _shiftService.UpdateShiftSeriesAsync(
+            shiftSeries.Id,
+            CreateShiftSeriesRequest() with
+            {
+                Title = "Updated shift series",
+            },
+            TestContext.Current.CancellationToken
+        );
+
+        var link = Assert.Single(Assert.IsType<ShiftSeriesResponse>(updated).AssignmentSeriesLinks);
+        Assert.Equal(assignmentSeries.Id, link.AssignmentSeriesId);
+        Assert.Equal([UserA], link.AssignedUserIds);
+    }
+
+    [Fact]
     public async Task DeleteShiftSeriesAsync_WhenRetainedLinkIsSuppressed_RemovesSuppressionRow()
     {
         var (shiftSeries, _) = await CreateLinkedSeriesAsync();
