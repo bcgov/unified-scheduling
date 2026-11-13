@@ -5,6 +5,7 @@ import {
 } from '@/modules/scheduling/calendarSchedulingMappers';
 import { createPinia, setActivePinia } from 'pinia';
 import { useUsersStore } from '@/stores/Users';
+import type { CalendarSchedulingEvent } from '@/modules/scheduling/calendarSchedulingData';
 
 describe('isAvailableForSchedule', () => {
   it.each([
@@ -46,7 +47,7 @@ describe('isAvailableForSchedule', () => {
                 end: '2026-11-13T01:00:00Z',
                 resourceIds: ['selected-user', 'other-user'],
                 metadata: { userIds: ['selected-user', 'other-user'] },
-              },
+              } as CalendarSchedulingEvent,
             ],
           },
         },

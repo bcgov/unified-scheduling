@@ -142,11 +142,14 @@ describe('CalendarMatrixCell', () => {
     expect(wrapper.emitted('cellDrop')).toBeUndefined();
     expect(wrapper.emitted('resourceAdd')).toBeUndefined();
 
-    await wrapper.setProps({ cell: { ...cell, disabled: true, headers: [], groups: [] } });
-    expect(wrapper.classes()).toContain('is-empty');
-    expect(wrapper.attributes('aria-disabled')).toBe('true');
-    expect(wrapper.find('[aria-label="Add resource"]').exists()).toBe(false);
     wrapper.unmount();
+    const { wrapper: emptyWrapper } = await mountWithApp(CalendarMatrixCell, {
+      props: { cell: { ...cell, disabled: true, headers: [], groups: [] }, resource },
+    });
+    expect(emptyWrapper.classes()).toContain('is-empty');
+    expect(emptyWrapper.attributes('aria-disabled')).toBe('true');
+    expect(emptyWrapper.find('[aria-label="Add resource"]').exists()).toBe(false);
+    emptyWrapper.unmount();
   });
 
   it('renders headers and events, merges group display, and emits interactions', async () => {
