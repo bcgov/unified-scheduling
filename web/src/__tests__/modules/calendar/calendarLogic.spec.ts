@@ -208,7 +208,7 @@ describe('scheduling calendar view model', () => {
         locationId: 7,
         statusTypeCode: 'Draft',
         isException: true,
-        exceptionReason: 'IsAway',
+        exceptionReasonCodes: ['IsAway'],
         resourceIds: ['borrowed'],
         metadata: { eventId: 1, shiftEntryId: '1', userIds: ['borrowed'] },
       };
@@ -218,6 +218,7 @@ describe('scheduling calendar view model', () => {
         title: 'Destination draft shift',
         locationId: 8,
         isException: false,
+        exceptionReasonCodes: [],
         metadata: { eventId: 2, shiftEntryId: '2', userIds: ['borrowed'] },
       };
       const destinationPublished: CalendarSchedulingEvent = {

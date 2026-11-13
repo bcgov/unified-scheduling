@@ -1,4 +1,5 @@
 using Unified.Calendar.Mappings;
+using Unified.Calendar.Services;
 using Unified.Db.Models.Calendar;
 using Unified.Db.Models.Scheduling;
 using Unified.Scheduling.Models;
@@ -126,7 +127,7 @@ internal static class AssignmentResponseMapper
             TimeZoneId = eventEntity.TimeZoneId,
             AllDay = eventEntity.AllDay,
             IsException = eventEntity.IsException,
-            ExceptionReason = eventEntity.ExceptionReason,
+            ExceptionReasonCodes = CalendarEventExceptionHelper.GetReasonCodes(eventEntity),
             EventTypeCode = SchedulingConstants.AssignmentEventTypeCode,
             StatusTypeCode = eventEntity.StatusTypeCode,
             CancelledAt = eventEntity.CancelledAt,

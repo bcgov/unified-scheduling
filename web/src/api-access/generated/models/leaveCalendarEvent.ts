@@ -5,6 +5,7 @@
  * OpenAPI spec version: 1.0.0
  */
 
+import type { CalendarEventExceptionReasonCode } from './calendarEventExceptionReasonCode.ts';
 export interface LeaveCalendarEvent {
   id: string;
   leaveEntryId?: number;
@@ -35,6 +36,7 @@ export interface LeaveCalendarEvent {
   timeZoneId?: string | null;
   allDay?: boolean;
   isException?: boolean;
+  exceptionReasonCodes?: CalendarEventExceptionReasonCode[];
   eventTypeCode: string;
   statusTypeCode: string;
   /** @nullable */

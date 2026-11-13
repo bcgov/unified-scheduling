@@ -263,7 +263,7 @@ export const GetApiSchedulingShiftsEntriesResponseItem = zod.object({
   shiftSeriesId: zod.int().nullish(),
   eventId: zod.int().optional(),
   isException: zod.boolean().optional(),
-  exceptionReason: zod.string().nullish(),
+  exceptionReasonCodes: zod.array(zod.enum(['DateTimeChanged', 'IsAway'])).optional(),
   assignmentLinks: zod
     .array(
       zod.object({
@@ -333,7 +333,7 @@ export const PostApiSchedulingShiftsEntriesResponse = zod.object({
   shiftSeriesId: zod.int().nullish(),
   eventId: zod.int().optional(),
   isException: zod.boolean().optional(),
-  exceptionReason: zod.string().nullish(),
+  exceptionReasonCodes: zod.array(zod.enum(['DateTimeChanged', 'IsAway'])).optional(),
   assignmentLinks: zod
     .array(
       zod.object({
@@ -380,7 +380,7 @@ export const GetApiSchedulingShiftsEntriesIdResponse = zod.object({
   shiftSeriesId: zod.int().nullish(),
   eventId: zod.int().optional(),
   isException: zod.boolean().optional(),
-  exceptionReason: zod.string().nullish(),
+  exceptionReasonCodes: zod.array(zod.enum(['DateTimeChanged', 'IsAway'])).optional(),
   assignmentLinks: zod
     .array(
       zod.object({
@@ -466,7 +466,7 @@ export const PutApiSchedulingShiftsEntriesIdResponse = zod.object({
   shiftSeriesId: zod.int().nullish(),
   eventId: zod.int().optional(),
   isException: zod.boolean().optional(),
-  exceptionReason: zod.string().nullish(),
+  exceptionReasonCodes: zod.array(zod.enum(['DateTimeChanged', 'IsAway'])).optional(),
   assignmentLinks: zod
     .array(
       zod.object({
@@ -519,7 +519,7 @@ export const PostApiSchedulingShiftsEntriesIdPublishResponse = zod.object({
   shiftSeriesId: zod.int().nullish(),
   eventId: zod.int().optional(),
   isException: zod.boolean().optional(),
-  exceptionReason: zod.string().nullish(),
+  exceptionReasonCodes: zod.array(zod.enum(['DateTimeChanged', 'IsAway'])).optional(),
   assignmentLinks: zod
     .array(
       zod.object({
@@ -573,7 +573,7 @@ export const PostApiSchedulingShiftsEntriesIdExpireResponse = zod.object({
   shiftSeriesId: zod.int().nullish(),
   eventId: zod.int().optional(),
   isException: zod.boolean().optional(),
-  exceptionReason: zod.string().nullish(),
+  exceptionReasonCodes: zod.array(zod.enum(['DateTimeChanged', 'IsAway'])).optional(),
   assignmentLinks: zod
     .array(
       zod.object({

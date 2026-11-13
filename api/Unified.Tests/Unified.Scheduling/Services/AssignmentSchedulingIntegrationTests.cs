@@ -1223,8 +1223,16 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
         var link = await _db.ShiftAssignmentEntries.SingleAsync(TestContext.Current.CancellationToken);
         await _shiftService.PublishShiftEntryAsync(link.ShiftEntryId, TestContext.Current.CancellationToken);
         await _linkService.DeleteShiftEntryLinkAsync(link.Id, TestContext.Current.CancellationToken);
+        var retainedEvent = await _db
+            .ShiftEntries.Where(entry => entry.Id == link.ShiftEntryId)
+            .Select(entry => entry.Event!)
+            .SingleAsync(TestContext.Current.CancellationToken);
+        retainedEvent.ExceptionReasonCodes = ["DateTimeChanged", "IsAway"];
+        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         Assert.True(await _shiftService.DeleteShiftSeriesAsync(shiftSeries.Id, TestContext.Current.CancellationToken));
+        Assert.Null(retainedEvent.EventSeriesId);
+        Assert.Equal(new[] { "IsAway" }, retainedEvent.ExceptionReasonCodes);
 
         Assert.False(
             await _db.ShiftAssignmentEntries.AnyAsync(
@@ -1244,6 +1252,12 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             TestContext.Current.CancellationToken
         );
         await _linkService.DeleteShiftEntryLinkAsync(link.Id, TestContext.Current.CancellationToken);
+        var retainedEvent = await _db
+            .AssignmentEntries.Where(entry => entry.Id == link.AssignmentEntryId)
+            .Select(entry => entry.Event!)
+            .SingleAsync(TestContext.Current.CancellationToken);
+        retainedEvent.ExceptionReasonCodes = ["DateTimeChanged", "IsAway"];
+        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         Assert.True(
             await _assignmentService.DeleteAssignmentSeriesAsync(
@@ -1251,6 +1265,8 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
                 TestContext.Current.CancellationToken
             )
         );
+        Assert.Null(retainedEvent.EventSeriesId);
+        Assert.Equal(new[] { "IsAway" }, retainedEvent.ExceptionReasonCodes);
 
         Assert.False(
             await _db.ShiftAssignmentEntries.AnyAsync(
@@ -2478,10 +2494,10 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             .Where(entry => entry.ShiftSeriesId == shiftSeries.Id)
             .OrderBy(entry => entry.Event!.StartAtUtc)
             .ToListAsync(ct);
-        shifts[0].Event!.IsException = true;
-        shifts[0].Event!.ExceptionReason = "Other";
-        shifts[1].Event!.IsException = true;
-        shifts[1].Event!.ExceptionReason = "IsAway";
+
+        shifts[0].Event!.ExceptionReasonCodes = ["DateTimeChanged"];
+
+        shifts[1].Event!.ExceptionReasonCodes = ["IsAway"];
         var loanOut = CreateLoanOutEntry(AtDay(2, 7));
         loanOut.Event!.EndAtUtc = AtDay(3, 7);
         _db.LoanOutEntries.Add(loanOut);
@@ -2517,8 +2533,13 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
         );
         var awayResponse = Assert.Single(entries, entry => entry.Id == shifts[1].Id);
         Assert.False(awayResponse.IsException);
-        Assert.Null(awayResponse.ExceptionReason);
-        Assert.Equal("Other", Assert.Single(entries, entry => entry.Id == shifts[0].Id).ExceptionReason);
+        Assert.Empty(awayResponse.ExceptionReasonCodes);
+        Assert.Equal(
+            new[] { "DateTimeChanged" },
+            Assert
+                .Single(entries, entry => entry.Id == shifts[0].Id)
+                .ExceptionReasonCodes.Select(code => code.ToString())
+        );
         Assert.False((await shiftService.GetShiftEntryByIdAsync(shifts[1].Id, ct))!.IsException);
 
         var calendar = new SchedulingCalendarService(
@@ -2546,10 +2567,12 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
         Assert.All(response.Events, entry => Assert.Equal([UserA.ToString()], entry.ResourceIds));
         var awayEvent = Assert.Single(response.Events, entry => entry.ShiftEntryId == shifts[1].Id);
         Assert.False(awayEvent.IsException);
-        Assert.Null(awayEvent.ExceptionReason);
+        Assert.Empty(awayEvent.ExceptionReasonCodes);
         Assert.Equal(
-            "Other",
-            Assert.Single(response.Events, entry => entry.ShiftEntryId == shifts[0].Id).ExceptionReason
+            new[] { "DateTimeChanged" },
+            Assert
+                .Single(response.Events, entry => entry.ShiftEntryId == shifts[0].Id)
+                .ExceptionReasonCodes.Select(code => code.ToString())
         );
 
         if (seriesLink)
@@ -2583,7 +2606,7 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             Assert.Equal([UserA], link.UserIds);
         }
 
-        Assert.Equal("IsAway", shifts[1].Event!.ExceptionReason);
+        Assert.Equal(new[] { "IsAway" }, shifts[1].Event!.ExceptionReasonCodes.Select(code => code.ToString()));
         Assert.True(shifts[1].Event!.IsException);
         Assert.True(await _db.LoanOutEntries.AnyAsync(entry => entry.Id == loanOut.Id, ct));
     }
@@ -2656,8 +2679,8 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             .Where(entry => entry.ShiftSeriesId == series.Id)
             .OrderBy(entry => entry.Event!.StartAtUtc)
             .ToListAsync(ct);
-        shifts[1].Event!.IsException = true;
-        shifts[1].Event!.ExceptionReason = "IsAway";
+
+        shifts[1].Event!.ExceptionReasonCodes = ["IsAway"];
         var loanOut = CreateLoanOutEntry(AtDay(1, 7));
         loanOut.Event!.EndAtUtc = AtDay(3, 7);
         _db.LoanOutEntries.Add(loanOut);
@@ -2682,9 +2705,9 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
         markers.RefreshMarker(shifts[1], []);
         await markers.RestoreHomeLocationUserShiftsAsync([loanOut], ct);
         Assert.False(shifts[0].Event!.IsException);
-        Assert.Null(shifts[0].Event!.ExceptionReason);
+        Assert.Empty(shifts[0].Event!.ExceptionReasonCodes);
         Assert.True(shifts[1].Event!.IsException);
-        Assert.Equal("IsAway", shifts[1].Event!.ExceptionReason);
+        Assert.Equal(new[] { "IsAway" }, shifts[1].Event!.ExceptionReasonCodes.Select(code => code.ToString()));
         Assert.False(_db.ChangeTracker.HasChanges());
     }
 
@@ -2950,7 +2973,7 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
         Assert.Equal(isAway ? 0 : 1, (await ReadAsync([UserA])).Events.Count);
         Assert.Single((await ReadAsync([UserB])).Events);
         Assert.False(calendarEvent.IsException);
-        Assert.Null(calendarEvent.ExceptionReason);
+        Assert.Empty(calendarEvent.ExceptionReasonCodes);
         var source = await _db
             .ShiftEntries.AsNoTracking()
             .Include(entry => entry.Event)
@@ -2958,7 +2981,7 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             .SingleAsync(entry => entry.Id == shift.Id, ct);
         Assert.Equal(membershipIds, source.Users.Select(user => user.Id).Order());
         Assert.False(source.Event!.IsException);
-        Assert.Null(source.Event.ExceptionReason);
+        Assert.Empty(source.Event.ExceptionReasonCodes);
 
         if (scenario == "active")
         {
@@ -3086,7 +3109,7 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
 
     [Theory]
     [InlineData(CalendarEventStatusTypeCodes.Draft, null, true, "IsAway")]
-    [InlineData(CalendarEventStatusTypeCodes.Draft, "Other", true, "Other")]
+    [InlineData(CalendarEventStatusTypeCodes.Draft, "DateTimeChanged", true, "DateTimeChanged,IsAway")]
     [InlineData(CalendarEventStatusTypeCodes.Active, null, false, null)]
     [InlineData(CalendarEventStatusTypeCodes.Cancelled, null, false, null)]
     public async Task ApplySeriesLoanOutMarkers_UpdatesOnlyDraftMarkersAndPreservesMembership(
@@ -3106,8 +3129,8 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
         var memberships = entry.Users.Select(user => user.Id).Order().ToArray();
         var eventId = entry.EventId;
         entry.Event!.StatusTypeCode = status;
-        entry.Event.IsException = originalReason is not null;
-        entry.Event.ExceptionReason = originalReason;
+
+        entry.Event.ExceptionReasonCodes = originalReason is null ? [] : [originalReason];
         await _db.SaveChangesAsync(ct);
 
         var service = SchedulingLoanOutTestServices.CreateMarker(_db, new TimeZoneService());
@@ -3123,7 +3146,7 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
         Assert.Equal(memberships, stored.Users.Select(user => user.Id).Order());
         Assert.Equal(status, stored.Event!.StatusTypeCode);
         Assert.Equal(expectedException, stored.Event.IsException);
-        Assert.Equal(expectedReason, stored.Event.ExceptionReason);
+        Assert.Equal(expectedReason?.Split(',') ?? [], stored.Event.ExceptionReasonCodes);
         Assert.Equal(AtDay(2, 9), stored.Event.StartAtUtc);
         Assert.Equal(AtDay(2, 17), stored.Event.EndAtUtc);
         Assert.Equal(5, stored.Event.LocationId);
@@ -3367,25 +3390,25 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             entry =>
                 entry.Event!.LocationId == 5
                 && entry.Event.StartAtUtc == AtDay(2, 9)
-                && entry.Event.ExceptionReason != "IsAway"
+                && !entry.Event.ExceptionReasonCodes.Contains("IsAway")
         );
         var homeThird = Assert.Single(
             shifts,
             entry =>
                 entry.Event!.LocationId == 5
                 && entry.Event.StartAtUtc == AtDay(3, 9)
-                && entry.Event.ExceptionReason != "IsAway"
+                && !entry.Event.ExceptionReasonCodes.Contains("IsAway")
         );
         Assert.Equal(new[] { UserA, UserB, UserC }, homeSecond.Users.Select(user => user.UserId).Order());
         Assert.Equal(UserA, Assert.Single(await GetAwayUsersAsync(homeSecond)));
         Assert.Equal(new[] { UserA, UserB, UserC }, homeThird.Users.Select(user => user.UserId).Order());
         Assert.Equal(UserB, Assert.Single(await GetAwayUsersAsync(homeThird)));
-        Assert.NotEqual("IsAway", homeSecond.Event!.ExceptionReason);
-        Assert.NotEqual("IsAway", homeThird.Event!.ExceptionReason);
+        Assert.DoesNotContain("IsAway", homeSecond.Event!.ExceptionReasonCodes.Select(code => code.ToString()));
+        Assert.DoesNotContain("IsAway", homeThird.Event!.ExceptionReasonCodes.Select(code => code.ToString()));
         Assert.False(homeSecond.Event.IsException);
         Assert.False(homeThird.Event.IsException);
         var away = shifts
-            .Where(entry => entry.Event!.LocationId == 5 && entry.Event.ExceptionReason == "IsAway")
+            .Where(entry => entry.Event!.LocationId == 5 && entry.Event.ExceptionReasonCodes.Contains("IsAway"))
             .ToList();
         Assert.Empty(away);
         Assert.Equal(3, shifts.Count(entry => entry.Event!.LocationId == 5));
@@ -3449,10 +3472,10 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
         var loanedUserEvent = Assert.Single(home, entry => entry.Id == source.Id);
         Assert.Equal(UserA, Assert.Single(loanedUserEvent.Users).UserId);
         Assert.True(loanedUserEvent.Event!.IsException);
-        Assert.Equal("IsAway", loanedUserEvent.Event.ExceptionReason);
+        Assert.Equal(new[] { "IsAway" }, loanedUserEvent.Event.ExceptionReasonCodes.Select(code => code.ToString()));
         var otherUserEvent = Assert.Single(home, entry => entry.Id == other.Id);
         Assert.False(otherUserEvent.Event!.IsException);
-        Assert.Null(otherUserEvent.Event.ExceptionReason);
+        Assert.Empty(otherUserEvent.Event.ExceptionReasonCodes);
     }
 
     [Theory]
@@ -3562,12 +3585,12 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             .SingleAsync(entry => entry.Id == sourceEntryId, cancellationToken);
         Assert.Equal(users, source.Users.Select(user => user.UserId).Order());
         Assert.Equal(new[] { UserA, UserB }, (await GetAwayUsersAsync(source)).Order());
-        Assert.NotEqual("IsAway", source.Event!.ExceptionReason);
+        Assert.DoesNotContain("IsAway", source.Event!.ExceptionReasonCodes.Select(code => code.ToString()));
         Assert.False(source.Event.IsException);
         var away = await _db
             .ShiftEntries.Include(entry => entry.Event)
             .Include(entry => entry.Users)
-            .Where(entry => entry.Event!.LocationId == 5 && entry.Event.ExceptionReason == "IsAway")
+            .Where(entry => entry.Event!.LocationId == 5 && entry.Event.ExceptionReasonCodes.Contains("IsAway"))
             .ToListAsync(cancellationToken);
         Assert.Empty(away);
         var retainedLink = await _db
@@ -3613,7 +3636,9 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
         var untouched = await _db
             .ShiftEntries.Include(entry => entry.Users)
             .Where(entry =>
-                entry.Event!.LocationId == 5 && entry.Id != sourceEntryId && entry.Event.ExceptionReason != "IsAway"
+                entry.Event!.LocationId == 5
+                && entry.Id != sourceEntryId
+                && !entry.Event.ExceptionReasonCodes.Contains("IsAway")
             )
             .ToListAsync(cancellationToken);
         Assert.All(untouched, entry => Assert.Equal(users, entry.Users.Select(user => user.UserId).Order()));
@@ -3680,7 +3705,7 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             .ToListAsync(TestContext.Current.CancellationToken);
         var source = Assert.Single(sourceEvents, eventEntity => eventEntity.StartAtUtc == AtDay(2, 9));
         Assert.True(source.IsException);
-        Assert.Equal("IsAway", source.ExceptionReason);
+        Assert.Equal(new[] { "IsAway" }, source.ExceptionReasonCodes.Select(code => code.ToString()));
         Assert.All(
             sourceEvents.Where(eventEntity => eventEntity.Id != source.Id),
             eventEntity => Assert.False(eventEntity.IsException)
@@ -4160,7 +4185,10 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
         var affected = Assert.Single(entries, entry => entry.Event!.StartAtUtc == LoanOutAtDay(2, 9));
         Assert.Equal(UserA, Assert.Single(await GetAwayUsersAsync(affected)));
         Assert.Equal(!multipleUsers, affected.Event!.IsException);
-        Assert.Equal(multipleUsers ? null : "IsAway", affected.Event.ExceptionReason);
+        Assert.Equal(
+            (multipleUsers ? Array.Empty<string>() : new[] { "IsAway" }),
+            affected.Event.ExceptionReasonCodes.Select(code => code.ToString())
+        );
         foreach (var entry in entries.Except([affected]))
             Assert.Empty(await GetAwayUsersAsync(entry));
         Assert.Equal(regenerate ? LoanOutAtDay(2, 18) : LoanOutAtDay(2, 17), affected.Event.EndAtUtc);
@@ -4253,6 +4281,107 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
         );
     }
 
+    [Fact]
+    public async Task UpdateShiftEntryAsync_WhenDetached_RemovesOnlyTimeReason()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var series = await _shiftService.CreateShiftSeriesAsync(CreateShiftSeriesRequest(), ct);
+        var entry = await _db
+            .ShiftEntries.Include(item => item.Event)
+            .FirstAsync(item => item.ShiftSeriesId == series.Id, ct);
+        entry.Event!.ExceptionReasonCodes = ["DateTimeChanged", "IsAway"];
+        await _db.SaveChangesAsync(ct);
+
+        await _shiftService.UpdateShiftEntryAsync(
+            entry.Id,
+            CreateShiftEntryRequest(entry.Event.StartAtUtc, entry.Event.EndAtUtc!.Value) with
+            {
+                ShiftSeriesId = null,
+            },
+            ct
+        );
+        _db.ChangeTracker.Clear();
+        var detached = await _db.Events.SingleAsync(item => item.Id == entry.EventId, ct);
+        Assert.Null(detached.EventSeriesId);
+        Assert.Equal(new[] { "IsAway" }, detached.ExceptionReasonCodes);
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public async Task LoanOut_ModifiedOccurrence_PreservesTimeReasonAndDestinationVisibility(bool partial, bool overlap)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var series = await _shiftService.CreateShiftSeriesAsync(
+            CreateShiftSeriesRequest() with
+            {
+                StartAtUtc = LoanOutAtDay(2, 9),
+                EndAtUtc = LoanOutAtDay(2, 17),
+                RecurrenceRule = "FREQ=DAILY;COUNT=2",
+                UserIds = partial ? [UserA, UserB] : [UserA],
+            },
+            ct
+        );
+        var source = await _db
+            .ShiftEntries.Include(entry => entry.Event)
+            .SingleAsync(
+                entry => entry.ShiftSeriesId == series.Id && entry.Event!.StartAtUtc == LoanOutAtDay(2, 9),
+                ct
+            );
+        await _shiftService.UpdateShiftEntryAsync(
+            source.Id,
+            CreateShiftEntryRequest(LoanOutAtDay(2, 10), LoanOutAtDay(2, 17)) with
+            {
+                ShiftSeriesId = series.Id,
+                UserIds = partial ? [UserA, UserB] : [UserA],
+            },
+            ct
+        );
+        var loans = CreateLoanOutEntryService();
+        var loan = await loans.CreateLoanOutEntryAsync(
+            new LoanOutEntryRequest
+            {
+                Title = "Away",
+                LocationId = 5,
+                LoanOutLocationId = 9,
+                UserIds = [UserA],
+                StartAtUtc = LoanOutAtDay(2, 7),
+                EndAtUtc = LoanOutAtDay(3, 7),
+                TimeZoneId = "America/Vancouver",
+            },
+            ct
+        );
+        Assert.Equal(
+            partial ? new[] { "DateTimeChanged" } : ["DateTimeChanged", "IsAway"],
+            source.Event!.ExceptionReasonCodes
+        );
+        var destination = await _db
+            .ShiftEntries.Include(entry => entry.Event)
+            .SingleAsync(entry => entry.Event!.LocationId == 9, ct);
+        Assert.Empty(destination.Event!.ExceptionReasonCodes);
+        Assert.False(destination.Event.IsException);
+        // The existing loan-out guard requires removing destination shifts before deleting a loan-out.
+        Assert.True(await _shiftService.DeleteShiftEntryAsync(destination.Id, ct));
+        if (overlap)
+        {
+            var remaining = CreateLoanOutEntry(LoanOutAtDay(2, 7));
+            remaining.Event!.EndAtUtc = LoanOutAtDay(3, 7);
+            _db.LoanOutEntries.Add(remaining);
+            await _db.SaveChangesAsync(ct);
+        }
+
+        Assert.True(await loans.DeleteLoanOutEntryAsync(loan.Id, ct));
+        _db.ChangeTracker.Clear();
+        var restored = await _db.Events.SingleAsync(entry => entry.Id == source.EventId, ct);
+        Assert.Equal(
+            overlap ? new[] { "DateTimeChanged", "IsAway" } : ["DateTimeChanged"],
+            restored.ExceptionReasonCodes
+        );
+        Assert.True(restored.IsException);
+        Assert.Equal(overlap, restored.ExceptionReasonCodes.Contains("IsAway"));
+    }
+
     [Theory]
     [InlineData(false, "none")]
     [InlineData(true, "none")]
@@ -4296,8 +4425,10 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             .ToListAsync(ct);
         foreach (var shift in shifts)
         {
-            shift.Event!.IsException = true;
-            shift.Event.ExceptionReason = shift.Event.StartAtUtc == LoanOutAtDay(4, 9) ? "Other" : "IsAway";
+            shift.Event.ExceptionReasonCodes =
+            [
+                shift.Event.StartAtUtc == LoanOutAtDay(4, 9) ? "DateTimeChanged" : "IsAway",
+            ];
         }
         var removed = new[] { 2, 5 }
             .Take(series ? 2 : 1)
@@ -4409,17 +4540,23 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
         Assert.Equal(5, after.Count);
         var remainsAway = overlap is "same-user" or "home-fallback";
         Assert.Equal(remainsAway, after[0].Event!.IsException);
-        Assert.Equal(remainsAway ? "IsAway" : null, after[0].Event!.ExceptionReason);
-        Assert.Equal("IsAway", after[1].Event!.ExceptionReason); // Gap between Tuesday and Friday.
-        Assert.Equal("Other", after[2].Event!.ExceptionReason);
-        Assert.Equal(!series, after[3].Event!.IsException);
-        Assert.Equal(series ? null : "IsAway", after[3].Event!.ExceptionReason);
-        Assert.Equal("IsAway", after[4].Event!.ExceptionReason); // Outside the deleted occurrences.
         Assert.Equal(
-            "IsAway",
-            (await _db.ShiftEntries.Include(entry => entry.Event).SingleAsync(entry => entry.Id == otherUser.Id, ct))
-                .Event!
-                .ExceptionReason
+            (remainsAway ? new[] { "IsAway" } : Array.Empty<string>()),
+            after[0].Event!.ExceptionReasonCodes.Select(code => code.ToString())
+        );
+        Assert.Equal(new[] { "IsAway" }, after[1].Event!.ExceptionReasonCodes.Select(code => code.ToString())); // Gap between Tuesday and Friday.
+        Assert.Equal(new[] { "DateTimeChanged" }, after[2].Event!.ExceptionReasonCodes.Select(code => code.ToString()));
+        Assert.Equal(!series, after[3].Event!.IsException);
+        Assert.Equal(
+            (series ? Array.Empty<string>() : new[] { "IsAway" }),
+            after[3].Event!.ExceptionReasonCodes.Select(code => code.ToString())
+        );
+        Assert.Equal(new[] { "IsAway" }, after[4].Event!.ExceptionReasonCodes.Select(code => code.ToString())); // Outside the deleted occurrences.
+        Assert.Equal(
+            new[] { "IsAway" },
+            (
+                await _db.ShiftEntries.Include(entry => entry.Event).SingleAsync(entry => entry.Id == otherUser.Id, ct)
+            ).Event!.ExceptionReasonCodes.Select(code => code.ToString())
         );
         Assert.Equal(overlap == "none" ? 0 : 1, await _db.LoanOutEntries.CountAsync(ct));
     }
@@ -4791,7 +4928,6 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
                 );
             occurrence.Event!.StartAtUtc = LoanOutAtDay(4, 9);
             occurrence.Event.EndAtUtc = LoanOutAtDay(4, 17);
-            occurrence.Event.IsException = true;
         }
         await _db.SaveChangesAsync(ct);
         _db.ChangeTracker.Clear();
@@ -4981,8 +5117,8 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
                 )
         );
         var unrelated = Assert.Single(originals, entry => entry.Event!.StartAtUtc == LoanOutAtDay(6, 9));
-        unrelated.Event!.IsException = true;
-        unrelated.Event.ExceptionReason = "Other";
+
+        unrelated.Event.ExceptionReasonCodes = ["DateTimeChanged"];
         await _db.SaveChangesAsync(ct);
         var entryService = CreateLoanOutEntryService();
         var seriesService = CreateLoanOutSeriesService();
@@ -5019,7 +5155,7 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
                 .ToListAsync(ct)
         )
             if (oldDays.Contains(entry.Event!.StartAtUtc.Day))
-                Assert.Equal("IsAway", entry.Event.ExceptionReason);
+                Assert.Equal(new[] { "IsAway" }, entry.Event.ExceptionReasonCodes.Select(code => code.ToString()));
 
         // Editing remains subject to the existing destination-shift guard.
         foreach (
@@ -5139,10 +5275,13 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             Assert.Equal(UserA, Assert.Single(entry.Users).UserId);
             var day = entry.Event.StartAtUtc.Day;
             var reason =
-                day == 6 ? "Other"
+                day == 6 ? "DateTimeChanged"
                 : newDays.Contains(day) || overlappingLoanOut && day == 2 ? "IsAway"
                 : null;
-            Assert.Equal(reason, entry.Event.ExceptionReason);
+            Assert.Equal(
+                (reason is null ? Array.Empty<string>() : new[] { reason }),
+                entry.Event.ExceptionReasonCodes.Select(code => code.ToString())
+            );
             Assert.Equal(reason is not null, entry.Event.IsException);
         }
         var untouched = await _db
@@ -5235,7 +5374,7 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             .ShiftEntries.Include(entry => entry.Event)
             .SingleAsync(entry => entry.Id == source.Id, ct);
         Assert.True(retained.Event!.IsException);
-        Assert.Equal("IsAway", retained.Event.ExceptionReason);
+        Assert.Equal(new[] { "IsAway" }, retained.Event.ExceptionReasonCodes.Select(code => code.ToString()));
         if (recurring)
             Assert.Equal(LoanOutAtDay(2, 7), (await series.GetLoanOutSeriesByIdAsync(id, ct))!.StartAtUtc);
         else
@@ -5502,7 +5641,7 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             .ShiftEntries.Include(entry => entry.Event)
             .SingleAsync(entry => entry.Id == source.Id, ct);
         Assert.True(retained.Event!.IsException);
-        Assert.Equal("IsAway", retained.Event.ExceptionReason);
+        Assert.Equal(new[] { "IsAway" }, retained.Event.ExceptionReasonCodes.Select(code => code.ToString()));
         Assert.True(await _db.LoanOutEntries.AnyAsync(entry => entry.Id == loanOut.Id, ct));
     }
 

@@ -1,9 +1,11 @@
+using Unified.Calendar;
 using Unified.Common.Scheduling.Models;
 
 namespace Unified.LoanOut.Models.Calendar;
 
 public sealed record LoanOutCalendarEvent : SchedulingCalendarEvent
 {
+    public IReadOnlyCollection<CalendarEventExceptionReasonCode> ExceptionReasonCodes { get; init; } = [];
     public int LoanOutEntryId { get; init; }
     public int? LoanOutSeriesId { get; init; }
     public int LoanOutLocationId { get; init; }

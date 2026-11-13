@@ -549,7 +549,11 @@ internal sealed class ShiftSeriesService(
         foreach (var retainedEntry in entries.Except(draftEntries))
             retainedEntry.ShiftSeriesId = null;
         foreach (var retainedEvent in childEvents.Except(draftEvents))
+        {
             retainedEvent.EventSeriesId = null;
+            retainedEvent.EventSeries = null;
+            CalendarEventExceptionHelper.UpdateExceptionFlag(retainedEvent);
+        }
         var retainedLinks = seriesLinks
             .SelectMany(link => link.EntryLinks)
             .Where(link => !draftEntryIds.Contains(link.ShiftEntryId))

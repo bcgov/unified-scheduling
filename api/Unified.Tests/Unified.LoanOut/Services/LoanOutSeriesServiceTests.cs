@@ -573,7 +573,7 @@ public sealed class LoanOutSeriesServiceTests : IAsyncLifetime
                 .LastAsync(ct);
             moved.Event!.StartAtUtc = Start.AddDays(2);
             moved.Event.EndAtUtc = End.AddDays(2);
-            moved.Event.IsException = true;
+            moved.Event.ExceptionReasonCodes = ["DateTimeChanged"];
         }
         _db.LoanOutEntries.Add(
             new LoanOutEntry
@@ -624,7 +624,7 @@ public sealed class LoanOutSeriesServiceTests : IAsyncLifetime
             .LastAsync(ct);
         moved.Event!.StartAtUtc = Start;
         moved.Event.EndAtUtc = End;
-        moved.Event.IsException = true;
+        moved.Event.ExceptionReasonCodes = ["DateTimeChanged"];
         await _db.SaveChangesAsync(ct);
 
         await Assert.ThrowsAsync<ConflictValidationException>(() =>
@@ -660,7 +660,7 @@ public sealed class LoanOutSeriesServiceTests : IAsyncLifetime
             .LastAsync(ct);
         moved.Event!.StartAtUtc = Start.AddDays(2);
         moved.Event.EndAtUtc = End.AddDays(2);
-        moved.Event.IsException = true;
+        moved.Event.ExceptionReasonCodes = ["DateTimeChanged"];
         _db.LoanOutEntryUsers.RemoveRange(moved.Users);
         moved.Users = [new LoanOutEntryUser { UserId = userB }];
         await _db.SaveChangesAsync(ct);

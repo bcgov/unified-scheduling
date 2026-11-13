@@ -78,7 +78,7 @@ async function mountShiftOptions(entries: ShiftEntryResponse[]) {
 }
 
 describe('assignment shift link options', () => {
-  it.each([
+  it.each<{ name: string; entries: ShiftEntryResponse[]; included: boolean }>([
     { name: 'excludes a series without persisted entries', entries: [], included: false },
     {
       name: 'excludes an empty series when another series has a matching entry',
@@ -103,7 +103,17 @@ describe('assignment shift link options', () => {
     },
     {
       name: 'excludes away exceptions',
-      entries: [{ ...shiftEntry, isException: true, exceptionReason: 'IsAway' }],
+      entries: [{ ...shiftEntry, isException: true, exceptionReasonCodes: ['IsAway'] }],
+      included: false,
+    },
+    {
+      name: 'includes time exceptions',
+      entries: [{ ...shiftEntry, isException: true, exceptionReasonCodes: ['DateTimeChanged'] }],
+      included: true,
+    },
+    {
+      name: 'excludes overlapping time and away exceptions',
+      entries: [{ ...shiftEntry, exceptionReasonCodes: ['DateTimeChanged', 'IsAway'] }],
       included: false,
     },
     {

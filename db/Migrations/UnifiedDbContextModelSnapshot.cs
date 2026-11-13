@@ -226,13 +226,11 @@ namespace Unified.Db.Migrations
                         .HasColumnType("character varying(50)")
                         .HasDefaultValue("general");
 
-                    b.Property<string>("ExceptionReason")
-                        .HasColumnType("text");
-
-                    b.Property<bool>("IsException")
+                    b.PrimitiveCollection<string[]>("ExceptionReasonCodes")
+                        .IsRequired()
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false);
+                        .HasColumnType("text[]")
+                        .HasDefaultValueSql("'{}'::text[]");
 
                     b.Property<int?>("LocationId")
                         .HasColumnType("integer");

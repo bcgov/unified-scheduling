@@ -398,7 +398,7 @@ public class CalendarEventServiceTests : IAsyncLifetime
             SeriesEndAtUtc = seriesEndAtUtc,
             TimeZoneId = timeZoneId,
             AllDay = allDay,
-            IsException = isException,
+            ExceptionReasonCodes = isException ? ["DateTimeChanged"] : [],
             EventTypeCode = eventTypeCode ?? CalendarCodeMappings.ToDbCode(CalendarEventTypeCode.General),
             StatusTypeCode = statusTypeCode ?? CalendarCodeMappings.ToDbCode(CalendarEventStatusTypeCode.Draft),
             CancelledAt = cancelledAt,

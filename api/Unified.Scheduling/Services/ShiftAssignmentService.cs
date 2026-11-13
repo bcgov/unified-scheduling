@@ -284,10 +284,7 @@ public sealed class ShiftAssignmentService(
             .Where(entry => entry.ShiftSeriesId == request.ShiftSeriesId)
             .Where(entry =>
                 !loanOutAvailabilityService.IsEnabled
-                || !(
-                    entry.Event!.IsException
-                    && entry.Event.ExceptionReason == nameof(CalendarEventExceptionReasonCode.IsAway)
-                )
+                || !entry.Event!.ExceptionReasonCodes.Contains(nameof(CalendarEventExceptionReasonCode.IsAway))
             )
             .Where(entry => entry.Event != null && entry.Event.StatusTypeCode != CalendarEventStatusTypeCodes.Cancelled)
             .ToListAsync(cancellationToken);

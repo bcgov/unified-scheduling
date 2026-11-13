@@ -1,3 +1,5 @@
+using Unified.Calendar;
+
 namespace Unified.Scheduling.Models;
 
 public sealed record SchedulingCalendarEventResponse
@@ -32,7 +34,7 @@ public sealed record SchedulingCalendarEventResponse
     public string? TimeZoneId { get; init; }
     public bool AllDay { get; init; }
     public bool IsException { get; init; }
-    public string? ExceptionReason { get; init; }
+    public IReadOnlyCollection<CalendarEventExceptionReasonCode> ExceptionReasonCodes { get; init; } = [];
     public required string EventTypeCode { get; init; }
     public required string StatusTypeCode { get; init; }
     public DateTimeOffset? CancelledAt { get; init; }

@@ -1,5 +1,5 @@
-using Unified.Calendar;
 using Unified.Calendar.Mappings;
+using Unified.Calendar.Services;
 using Unified.Db.Models.Calendar;
 using Unified.Db.Models.Scheduling;
 using Unified.Scheduling.Models;
@@ -41,6 +41,7 @@ internal static class ShiftResponseMapper
     )
     {
         var userIds = shiftEntry.Users.Select(user => user.UserId).Distinct().ToList();
+        var reasonCodes = CalendarEventExceptionHelper.GetReasonCodes(shiftEntry.Event!, loanOutEnabled);
         var response = calendarEventMapper.ToEntryResponse(
             () => new ShiftEntryResponse { Title = string.Empty, StartAtUtc = default },
             shiftEntry.Event!,
@@ -54,10 +55,8 @@ internal static class ShiftResponseMapper
             WorkedLunchMinutes = shiftEntry.WorkedLunchMinutes,
             ShiftSeriesId = shiftEntry.ShiftSeriesId,
             EventId = shiftEntry.EventId,
-            IsException = shiftEntry.Event!.IsException && !IgnoreAwayMarker(shiftEntry.Event, loanOutEnabled),
-            ExceptionReason = IgnoreAwayMarker(shiftEntry.Event, loanOutEnabled)
-                ? null
-                : shiftEntry.Event.ExceptionReason,
+            IsException = reasonCodes.Length > 0,
+            ExceptionReasonCodes = reasonCodes,
             AssignmentLinks = assignmentLinks ?? [],
         };
     }
@@ -95,6 +94,7 @@ internal static class ShiftResponseMapper
     {
         var eventEntity = shiftEntry.Event!;
         var userIds = shiftEntry.Users.Select(user => user.UserId).Distinct().ToList();
+        var reasonCodes = CalendarEventExceptionHelper.GetReasonCodes(eventEntity, loanOutEnabled);
 
         return new SchedulingCalendarEventResponse
         {
@@ -115,8 +115,8 @@ internal static class ShiftResponseMapper
             SeriesEndAtUtc = eventEntity.SeriesEndAtUtc,
             TimeZoneId = eventEntity.TimeZoneId,
             AllDay = eventEntity.AllDay,
-            IsException = eventEntity.IsException && !IgnoreAwayMarker(eventEntity, loanOutEnabled),
-            ExceptionReason = IgnoreAwayMarker(eventEntity, loanOutEnabled) ? null : eventEntity.ExceptionReason,
+            IsException = reasonCodes.Length > 0,
+            ExceptionReasonCodes = reasonCodes,
             EventTypeCode = SchedulingConstants.ShiftEventTypeCode,
             StatusTypeCode = eventEntity.StatusTypeCode,
             CancelledAt = eventEntity.CancelledAt,
@@ -129,9 +129,6 @@ internal static class ShiftResponseMapper
                 .ToList(),
         };
     }
-
-    private static bool IgnoreAwayMarker(Event eventEntity, bool loanOutEnabled) =>
-        !loanOutEnabled && eventEntity.ExceptionReason == nameof(CalendarEventExceptionReasonCode.IsAway);
 }
 
 public sealed record ShiftSeriesEntryIds(int ShiftSeriesId, int ShiftEntryId, int EventId);

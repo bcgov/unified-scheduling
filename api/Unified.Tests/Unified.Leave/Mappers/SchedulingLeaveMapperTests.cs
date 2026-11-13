@@ -124,7 +124,7 @@ public sealed class SchedulingLeaveMapperTests
                 Title = "Leave",
                 StartAtUtc = Start,
                 EndAtUtc = Start.AddHours(8),
-                IsException = true,
+                ExceptionReasonCodes = ["DateTimeChanged"],
                 EventTypeCode = LeaveConstants.LeaveEventTypeCode,
                 StatusTypeCode = CalendarEventStatusTypeCodes.Cancelled,
                 CancelledByUserId = CancelledBy,

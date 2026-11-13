@@ -169,8 +169,9 @@ public sealed class EventSeriesMaterializationService(
         eventEntity.EndAtUtc = eventEntry.EndAtUtc;
         eventEntity.SeriesStartAtUtc = eventEntry.StartAtUtc;
         eventEntity.SeriesEndAtUtc = eventEntry.EndAtUtc;
-        eventEntity.IsException = false;
         eventEntity.EventSeries = eventSeries;
+        eventEntity.EventSeriesId = eventSeries.Id;
+        CalendarEventExceptionHelper.UpdateExceptionFlag(eventEntity);
         eventEntity.EventTypeCode = handler.EventTypeCode;
         eventEntity.StatusTypeCode = eventSeries.StatusTypeCode;
         eventEntity.SourceModule = handler.SourceModule;
