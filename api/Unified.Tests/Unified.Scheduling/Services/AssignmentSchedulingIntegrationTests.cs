@@ -1217,6 +1217,75 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task UpdateShiftSeriesAsync_WhenRecurrenceChangesAndLinksAreOmitted_PreservesSeriesAndOccurrenceLinks()
+    {
+        var (shiftSeries, assignmentSeries) = await CreateLinkedSeriesAsync();
+        await _assignmentService.UpdateAssignmentSeriesAsync(
+            assignmentSeries.Id,
+            CreateAssignmentSeriesRequest() with
+            {
+                RecurrenceRule = "FREQ=DAILY;COUNT=2",
+            },
+            TestContext.Current.CancellationToken
+        );
+        _db.ChangeTracker.Clear();
+
+        var updated = await _shiftService.UpdateShiftSeriesAsync(
+            shiftSeries.Id,
+            CreateShiftSeriesRequest() with
+            {
+                RecurrenceRule = "FREQ=DAILY;COUNT=2",
+            },
+            TestContext.Current.CancellationToken
+        );
+
+        var link = Assert.Single(
+            await _db
+                .ShiftAssignmentSeriesLinks.AsNoTracking()
+                .Include(item => item.Users)
+                .ToListAsync(TestContext.Current.CancellationToken)
+        );
+        Assert.Equal(shiftSeries.Id, link.ShiftSeriesId);
+        Assert.Equal(assignmentSeries.Id, link.AssignmentSeriesId);
+        Assert.Equal([UserA], link.Users.Select(user => user.UserId));
+        Assert.Equal(
+            [UserA],
+            Assert.Single(Assert.IsType<ShiftSeriesResponse>(updated).AssignmentSeriesLinks).AssignedUserIds
+        );
+
+        var occurrenceLinks = await _db
+            .ShiftAssignmentEntries.AsNoTracking()
+            .Include(item => item.Users)
+            .Where(item => item.ShiftAssignmentSeriesLinkId == link.Id)
+            .ToListAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(2, occurrenceLinks.Count);
+        Assert.Equal(updated.ShiftEntryIds.Order(), occurrenceLinks.Select(item => item.ShiftEntryId).Order());
+        Assert.All(occurrenceLinks, item => Assert.Equal([UserA], item.Users.Select(user => user.UserId)));
+    }
+
+    [Fact]
+    public async Task UpdateShiftSeriesAsync_WhenRecurrenceChangesAndLinksAreEmpty_RemovesSeriesAndOccurrenceLinks()
+    {
+        var (shiftSeries, _) = await CreateLinkedSeriesAsync();
+        _db.ChangeTracker.Clear();
+
+        var updated = await _shiftService.UpdateShiftSeriesAsync(
+            shiftSeries.Id,
+            CreateShiftSeriesRequest() with
+            {
+                RecurrenceRule = "FREQ=DAILY;COUNT=2",
+                AssignmentSeriesLinks = [],
+            },
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.Equal(2, Assert.IsType<ShiftSeriesResponse>(updated).ShiftEntryIds.Count);
+        Assert.Empty(updated.AssignmentSeriesLinks);
+        Assert.Empty(await _db.ShiftAssignmentSeriesLinks.ToListAsync(TestContext.Current.CancellationToken));
+        Assert.Empty(await _db.ShiftAssignmentEntries.ToListAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
     public async Task GetShiftSeriesAsync_WhenLinked_ReturnsAssignmentLinksInListAndDetail()
     {
         var (shiftSeries, assignmentSeries) = await CreateLinkedSeriesAsync();
