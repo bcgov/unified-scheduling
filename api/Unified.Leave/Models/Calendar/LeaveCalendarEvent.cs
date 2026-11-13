@@ -1,3 +1,5 @@
+using Unified.Calendar;
+
 namespace Unified.Leave.Models.Calendar;
 
 public sealed record LeaveCalendarEvent
@@ -23,6 +25,7 @@ public sealed record LeaveCalendarEvent
     public string? TimeZoneId { get; init; }
     public bool AllDay { get; init; }
     public bool IsException { get; init; }
+    public IReadOnlyCollection<CalendarEventExceptionReasonCode> ExceptionReasonCodes { get; init; } = [];
     public required string EventTypeCode { get; init; }
     public required string StatusTypeCode { get; init; }
     public DateTimeOffset? CancelledAt { get; init; }

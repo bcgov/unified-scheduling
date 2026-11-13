@@ -29,6 +29,7 @@ internal static class SchedulingCalendarEventMapper
             TimeZoneId = eventData.TimeZoneId,
             AllDay = eventData.AllDay,
             IsException = eventData.IsException,
+            ExceptionReasonCodes = eventData.ExceptionReasonCodes,
             EventTypeCode = eventData.EventTypeCode,
             StatusTypeCode = eventData.StatusTypeCode,
             CancelledAt = eventData.CancelledAt,

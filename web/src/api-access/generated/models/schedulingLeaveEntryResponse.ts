@@ -5,6 +5,7 @@
  * OpenAPI spec version: 1.0.0
  */
 
+import type { CalendarEventExceptionReasonCode } from './calendarEventExceptionReasonCode.ts';
 export interface SchedulingLeaveEntryResponse {
   /** @nullable */
   leaveSeriesId?: number | null;
@@ -44,4 +45,6 @@ export interface SchedulingLeaveEntryResponse {
   /** @nullable */
   locationId?: number | null;
   userIds?: string[];
+  isException?: boolean;
+  exceptionReasonCodes?: CalendarEventExceptionReasonCode[];
 }

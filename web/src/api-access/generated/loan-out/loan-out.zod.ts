@@ -15,6 +15,8 @@ export const GetApiSchedulingLoanOutUsersUserIdEntriesParams = zod.strictObject(
 });
 
 export const GetApiSchedulingLoanOutUsersUserIdEntriesResponseItem = zod.object({
+  isException: zod.boolean().optional(),
+  exceptionReasonCodes: zod.array(zod.enum(['DateTimeChanged', 'IsAway'])).optional(),
   loanOutLocationId: zod.int().optional(),
   loanOutSeriesId: zod.int().nullish(),
   id: zod.int().optional(),
@@ -217,6 +219,8 @@ export const GetApiSchedulingLoanOutEntriesIdParams = zod.strictObject({
 });
 
 export const GetApiSchedulingLoanOutEntriesIdResponse = zod.object({
+  isException: zod.boolean().optional(),
+  exceptionReasonCodes: zod.array(zod.enum(['DateTimeChanged', 'IsAway'])).optional(),
   loanOutLocationId: zod.int().optional(),
   loanOutSeriesId: zod.int().nullish(),
   id: zod.int().optional(),
@@ -266,6 +270,8 @@ export const PutApiSchedulingLoanOutEntriesIdBody = zod.strictObject({
 });
 
 export const PutApiSchedulingLoanOutEntriesIdResponse = zod.object({
+  isException: zod.boolean().optional(),
+  exceptionReasonCodes: zod.array(zod.enum(['DateTimeChanged', 'IsAway'])).optional(),
   loanOutLocationId: zod.int().optional(),
   loanOutSeriesId: zod.int().nullish(),
   id: zod.int().optional(),
@@ -321,6 +327,8 @@ export const PostApiSchedulingLoanOutEntriesBody = zod.strictObject({
 });
 
 export const PostApiSchedulingLoanOutEntriesResponse = zod.object({
+  isException: zod.boolean().optional(),
+  exceptionReasonCodes: zod.array(zod.enum(['DateTimeChanged', 'IsAway'])).optional(),
   loanOutLocationId: zod.int().optional(),
   loanOutSeriesId: zod.int().nullish(),
   id: zod.int().optional(),

@@ -49,8 +49,7 @@ public sealed class ShiftLoanOutExceptionMarkerService(
             .Include(entry => entry.Users)
             .Where(entry =>
                 entry.Event != null
-                && entry.Event.IsException
-                && entry.Event.ExceptionReason == nameof(CalendarEventExceptionReasonCode.IsAway)
+                && entry.Event.ExceptionReasonCodes.Contains(nameof(CalendarEventExceptionReasonCode.IsAway))
                 && entry.Event.StatusTypeCode != CalendarEventStatusTypeCodes.Cancelled
                 && entry.Event.StartAtUtc < end
                 && (entry.Event.EndAtUtc ?? entry.Event.StartAtUtc) >= start
@@ -142,18 +141,10 @@ public sealed class ShiftLoanOutExceptionMarkerService(
             return;
 
         var calendarEvent = entry.Event!;
-        if (entry.Users.Count > 0 && entry.Users.All(user => awayUserIds.Contains(user.UserId)))
-        {
-            if (calendarEvent.ExceptionReason is null or nameof(CalendarEventExceptionReasonCode.IsAway))
-            {
-                calendarEvent.IsException = true;
-                calendarEvent.ExceptionReason = nameof(CalendarEventExceptionReasonCode.IsAway);
-            }
-        }
-        else if (calendarEvent.ExceptionReason == nameof(CalendarEventExceptionReasonCode.IsAway))
-        {
-            calendarEvent.IsException = false;
-            calendarEvent.ExceptionReason = null;
-        }
+        CalendarEventExceptionHelper.SetReason(
+            calendarEvent,
+            CalendarEventExceptionReasonCode.IsAway,
+            entry.Users.Count > 0 && entry.Users.All(user => awayUserIds.Contains(user.UserId))
+        );
     }
 }

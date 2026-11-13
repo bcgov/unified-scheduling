@@ -4,6 +4,7 @@
  * Unified.Api | v1
  * OpenAPI spec version: 1.0.0
  */
+import type { CalendarEventExceptionReasonCode } from './calendarEventExceptionReasonCode.ts';
 import type { ShiftAssignmentEntryResponse } from './shiftAssignmentEntryResponse.ts';
 
 export interface AssignmentEntryResponse {
@@ -25,6 +26,7 @@ export interface AssignmentEntryResponse {
   startAtUtc?: string | null;
   eventId?: number;
   isException?: boolean;
+  exceptionReasonCodes?: CalendarEventExceptionReasonCode[];
   assignmentLinks?: ShiftAssignmentEntryResponse[];
   id?: number;
   /** @nullable */

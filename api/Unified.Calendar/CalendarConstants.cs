@@ -49,7 +49,7 @@ public enum CalendarEventStatusTypeCode
 [JsonConverter(typeof(JsonStringEnumConverter))]
 public enum CalendarEventExceptionReasonCode
 {
-    None,
+    DateTimeChanged,
     IsAway,
 }
 

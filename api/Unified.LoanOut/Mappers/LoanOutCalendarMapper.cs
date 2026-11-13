@@ -1,4 +1,5 @@
 using Mapster;
+using Unified.Calendar.Services;
 using Unified.Db.Models.Calendar;
 using Unified.Db.Models.LoanOut;
 using Unified.Db.Models.UserManagement;
@@ -32,6 +33,7 @@ public sealed class LoanOutCalendarMapper
             EventId = entry.EventId,
             UserIds = entry.Users.Select(user => user.UserId).Distinct().ToList(),
             Type = "scheduling.LoanOut",
+            ExceptionReasonCodes = CalendarEventExceptionHelper.GetReasonCodes(eventEntity),
         };
     }
 

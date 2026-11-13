@@ -9,6 +9,28 @@ public sealed class ShiftResponseMapperTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
+    public void Responses_WhenLoanOutDisabled_ExcludeOnlyAwayWithoutChangingPersistedReasons(bool timeChanged)
+    {
+        var shift = new ShiftEntry
+        {
+            Event = new Event { ExceptionReasonCodes = timeChanged ? ["DateTimeChanged", "IsAway"] : ["IsAway"] },
+        };
+        var entry = ShiftResponseMapper.ToShiftEntryResponse(shift, loanOutEnabled: false);
+        var calendar = ShiftResponseMapper.ToCalendarEventResponse(shift, loanOutEnabled: false);
+        Assert.Equal(timeChanged, entry.IsException);
+        Assert.Equal(timeChanged, calendar.IsException);
+        Assert.Equal(
+            timeChanged ? new[] { "DateTimeChanged" } : [],
+            entry.ExceptionReasonCodes.Select(code => code.ToString())
+        );
+        Assert.Equal(entry.ExceptionReasonCodes, calendar.ExceptionReasonCodes);
+        Assert.Contains("IsAway", shift.Event.ExceptionReasonCodes);
+        Assert.True(shift.Event.IsException);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
     public void CalendarResponseHidesOnlyAwayUsersWithoutChangingSourceExceptions(bool allAway)
     {
         var awayUser = Guid.NewGuid();
@@ -19,8 +41,7 @@ public sealed class ShiftResponseMapperTests
             {
                 Title = "Shift",
                 StartAtUtc = DateTimeOffset.UtcNow,
-                IsException = true,
-                ExceptionReason = "Other",
+                ExceptionReasonCodes = ["DateTimeChanged"],
             },
             Users = [new ShiftEntryUser { UserId = awayUser }, new ShiftEntryUser { UserId = otherUser }],
         };
@@ -30,14 +51,14 @@ public sealed class ShiftResponseMapperTests
         Assert.Equal(2, response.UserIds.Count);
         Assert.Equal(allAway ? [] : new[] { otherUser.ToString() }, response.ResourceIds);
         Assert.True(response.IsException);
-        Assert.Equal("Other", response.ExceptionReason);
-        Assert.Equal("Other", shift.Event.ExceptionReason);
+        Assert.Equal(new[] { "DateTimeChanged" }, response.ExceptionReasonCodes.Select(code => code.ToString()));
+        Assert.Equal(new[] { "DateTimeChanged" }, shift.Event.ExceptionReasonCodes.Select(code => code.ToString()));
         Assert.Equal(2, shift.Users.Count);
     }
 
     [Theory]
     [InlineData(true, "IsAway")]
-    [InlineData(true, "Other")]
+    [InlineData(true, "DateTimeChanged")]
     [InlineData(false, null)]
     public void EntryResponsePreservesExceptionFlags(bool isException, string? reason)
     {
@@ -51,8 +72,7 @@ public sealed class ShiftResponseMapperTests
                 SourceModule = "scheduling",
                 EventTypeCode = "shift",
                 StatusTypeCode = "Draft",
-                IsException = isException,
-                ExceptionReason = reason,
+                ExceptionReasonCodes = reason is null ? [] : [reason],
             },
         };
 
@@ -60,10 +80,16 @@ public sealed class ShiftResponseMapperTests
 
         Assert.Equal(42, response.Id);
         Assert.Equal(isException, response.IsException);
-        Assert.Equal(reason, response.ExceptionReason);
+        Assert.Equal(
+            (reason is null ? Array.Empty<string>() : new[] { reason }),
+            response.ExceptionReasonCodes.Select(code => code.ToString())
+        );
 
         var calendarResponse = ShiftResponseMapper.ToCalendarEventResponse(shift);
         Assert.Equal(isException, calendarResponse.IsException);
-        Assert.Equal(reason, calendarResponse.ExceptionReason);
+        Assert.Equal(
+            (reason is null ? Array.Empty<string>() : new[] { reason }),
+            calendarResponse.ExceptionReasonCodes.Select(code => code.ToString())
+        );
     }
 }

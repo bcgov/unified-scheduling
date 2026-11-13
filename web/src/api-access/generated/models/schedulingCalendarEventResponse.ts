@@ -5,6 +5,8 @@
  * OpenAPI spec version: 1.0.0
  */
 
+import type { CalendarEventExceptionReasonCode } from './calendarEventExceptionReasonCode.ts';
+
 export interface SchedulingCalendarEventResponse {
   id: string;
   /** @nullable */
@@ -57,8 +59,7 @@ export interface SchedulingCalendarEventResponse {
   timeZoneId?: string | null;
   allDay?: boolean;
   isException?: boolean;
-  /** @nullable */
-  exceptionReason?: string | null;
+  exceptionReasonCodes?: CalendarEventExceptionReasonCode[];
   eventTypeCode: string;
   statusTypeCode: string;
   /** @nullable */

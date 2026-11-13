@@ -48,9 +48,7 @@ export const buildCalendarDefaultViewModel = (
     timeZone: resolveSchedulingTimeZoneFromFilters(context.filters),
     view: display.view,
     initialDate: context.startDate,
-    events: selectCalendarEvents(response).filter(
-      (event) => !(event.isException && event.exceptionReason === 'IsAway'),
-    ),
+    events: selectCalendarEvents(response).filter((event) => !event.exceptionReasonCodes?.includes('IsAway')),
     weekends: display.weekends,
   };
 };

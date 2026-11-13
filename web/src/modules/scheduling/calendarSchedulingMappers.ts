@@ -155,7 +155,7 @@ export function buildCalendarSchedulingViewModel(
 
   const days = buildDays(context.startDate, period, timeZone);
   const schedulingEvents = selectSchedulingShiftEvents(response).filter(
-    (event) => !(event.isException && event.exceptionReason === 'IsAway'),
+    (event) => !event.exceptionReasonCodes?.includes('IsAway'),
   );
 
   const shiftEvents = schedulingEvents.filter(isShiftEvent);
@@ -400,7 +400,7 @@ export function buildCalendarAssignmentViewModel(
   const assignmentPrompt = getAssignmentSchedulingPrompt(response, context, 'click');
   const resources = buildAssignmentResourceRows(response, assignmentPrompt);
   const schedulingEvents = selectSchedulingShiftEvents(response).filter(
-    (event) => !(event.isException && event.exceptionReason === 'IsAway'),
+    (event) => !event.exceptionReasonCodes?.includes('IsAway'),
   );
   const assignmentEvents = schedulingEvents.filter(isAssignmentEvent);
   const shiftEvents = schedulingEvents.filter(isShiftEvent);

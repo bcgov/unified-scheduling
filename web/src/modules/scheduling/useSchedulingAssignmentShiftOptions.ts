@@ -19,8 +19,7 @@ export interface SchedulingAssignmentShiftOptionsOptions {
   onLoaded?(): void;
 }
 
-type AssignmentShiftEntry = ShiftEntryResponse &
-  Pick<SchedulingCalendarEventResponse, 'isException' | 'exceptionReason'>;
+type AssignmentShiftEntry = ShiftEntryResponse & Pick<SchedulingCalendarEventResponse, 'exceptionReasonCodes'>;
 export function useSchedulingAssignmentShiftOptions(options: SchedulingAssignmentShiftOptionsOptions) {
   const shiftSeries = ref<ShiftSeriesResponse[]>([]);
   const shiftEntries = ref<AssignmentShiftEntry[]>([]);
@@ -59,7 +58,7 @@ export function useSchedulingAssignmentShiftOptions(options: SchedulingAssignmen
 
       shiftSeries.value = seriesResult.data.value ?? [];
       shiftEntries.value = (entryResult.data.value ?? []).filter(
-        (entry: AssignmentShiftEntry) => !(entry.isException && entry.exceptionReason === 'IsAway'),
+        (entry: AssignmentShiftEntry) => !entry.exceptionReasonCodes?.includes('IsAway'),
       );
       options.onLoaded?.();
     } catch (error: unknown) {

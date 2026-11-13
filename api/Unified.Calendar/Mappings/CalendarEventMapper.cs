@@ -1,4 +1,5 @@
 using Mapster;
+using Unified.Calendar.Services;
 using Unified.Common.Calendar.Scheduling.Models;
 using Unified.Db.Models.Calendar;
 
@@ -34,7 +35,6 @@ public sealed class CalendarEventMapper
             new Event
             {
                 EventSeriesId = eventSeriesId,
-                IsException = false,
                 EventTypeCode = eventTypeCode,
                 StatusTypeCode = CalendarEventStatusTypeCodes.Draft,
                 SourceModule = sourceModule,
@@ -80,6 +80,8 @@ public sealed class CalendarEventMapper
         return seed() with
         {
             EventSeriesId = eventEntity.EventSeriesId,
+            IsException = eventEntity.IsException,
+            ExceptionReasonCodes = CalendarEventExceptionHelper.GetReasonCodes(eventEntity),
             EventTypeCode = eventEntity.EventTypeCode,
             StatusTypeCode = eventEntity.StatusTypeCode,
             CancelledAt = eventEntity.CancelledAt,
@@ -173,7 +175,7 @@ public sealed class CalendarEventMapper
             .NewConfig<CalendarEventBase, Event>()
             .Ignore(dest => dest.ConcurrencyToken)
             .Ignore(dest => dest.EventSeriesId)
-            .Ignore(dest => dest.IsException)
+            .Ignore(dest => dest.ExceptionReasonCodes)
             .Ignore(dest => dest.EventTypeCode)
             .Ignore(dest => dest.StatusTypeCode)
             .Ignore(dest => dest.SourceModule)

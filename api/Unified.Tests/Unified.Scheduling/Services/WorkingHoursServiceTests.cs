@@ -106,8 +106,8 @@ public sealed class WorkingHoursServiceTests : IAsyncLifetime
             if (day == 2)
                 continue;
             // A shift-wide marker must not suppress the employee who remains at home.
-            shift.Event!.IsException = true;
-            shift.Event.ExceptionReason = nameof(CalendarEventExceptionReasonCode.IsAway);
+
+            shift.Event.ExceptionReasonCodes = [nameof(CalendarEventExceptionReasonCode.IsAway)];
             loanOutSeries.LoanOutEntries.Add(
                 new LoanOutEntry
                 {

@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 using Unified.Db.Models.Abstract;
 using Unified.Db.Models.Lookup;
 using Unified.Db.Models.UserManagement;
@@ -34,9 +35,17 @@ public class Event : BaseEntity
 
     public bool AllDay { get; set; }
 
-    public bool IsException { get; set; }
+    private string[] exceptionReasonCodes = [];
 
-    public string? ExceptionReason { get; set; }
+    public string[] ExceptionReasonCodes
+    {
+        get => exceptionReasonCodes;
+        set => exceptionReasonCodes = value.Distinct(StringComparer.Ordinal).ToArray();
+    }
+
+    [NotMapped]
+    public bool IsException => ExceptionReasonCodes.Length > 0;
+
     public string EventTypeCode { get; set; } = CalendarEventTypeCodes.General;
 
     public EventType? EventType { get; set; }

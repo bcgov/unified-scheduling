@@ -217,6 +217,27 @@ public sealed class SchedulingLeaveServiceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task UpdateLeaveEntryAsync_WhenDetached_RemovesOnlyTimeReason()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var series = await _service.CreateLeaveSeriesAsync(
+            CreateSeriesRequest(recurrenceRule: "FREQ=DAILY;COUNT=2"),
+            ct
+        );
+        var entry = await _database
+            .Db.LeaveEntries.Include(item => item.Event)
+            .SingleAsync(item => item.Id == series.LeaveEntryIds.First(), ct);
+        entry.Event!.ExceptionReasonCodes = ["DateTimeChanged", "IsAway"];
+        await _database.Db.SaveChangesAsync(ct);
+
+        await _service.UpdateLeaveEntryAsync(entry.Id, CreateEntryRequest() with { LeaveSeriesId = null }, ct);
+        _database.Db.ChangeTracker.Clear();
+        var detached = await _database.Db.Events.SingleAsync(item => item.Id == entry.EventId, ct);
+        Assert.Null(detached.EventSeriesId);
+        Assert.Equal(new[] { "IsAway" }, detached.ExceptionReasonCodes);
+    }
+
+    [Fact]
     public async Task UpdateLeaveEntryAsync_WhenConflictStillOverlaps_PreservesAcknowledgement()
     {
         var request = CreateEntryRequest();

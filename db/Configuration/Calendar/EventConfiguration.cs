@@ -16,7 +16,11 @@ public class EventConfiguration : BaseEntityConfiguration<Event>
         builder.Property(b => b.Notes).HasMaxLength(4000);
         builder.Property(b => b.Color).HasMaxLength(100);
         builder.Property(b => b.TimeZoneId).HasMaxLength(100);
-        builder.Property(b => b.IsException).HasDefaultValue(false).IsRequired();
+        builder
+            .Property(b => b.ExceptionReasonCodes)
+            .HasColumnType("text[]")
+            .HasDefaultValueSql("'{}'::text[]")
+            .IsRequired();
         builder
             .Property(b => b.EventTypeCode)
             .HasMaxLength(50)

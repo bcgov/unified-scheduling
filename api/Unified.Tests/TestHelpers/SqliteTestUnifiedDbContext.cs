@@ -25,6 +25,11 @@ internal sealed class SqliteTestUnifiedDbContext(DbContextOptions<UnifiedDbConte
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyAllConfigurations(typeof(UnifiedDbContext).Assembly, this);
+        modelBuilder
+            .Entity<global::Unified.Db.Models.Calendar.Event>()
+            .Property(item => item.ExceptionReasonCodes)
+            .HasColumnType("TEXT")
+            .HasDefaultValueSql("'[]'");
 
         foreach (var entityType in modelBuilder.Model.GetEntityTypes())
         {
