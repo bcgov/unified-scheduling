@@ -33,7 +33,17 @@ describe('useSchedulingEmployeeOptions', () => {
   it('retains home employees when loading all users fails', async () => {
     setActivePinia(createPinia());
     const usersStore = useUsersStore();
-    const homeUser = { id: 'home-user', firstName: 'Home', lastName: 'Employee', homeLocationId: 12 };
+    const homeUser = {
+      id: 'home-user',
+      idirName: 'home-user',
+      firstName: 'Home',
+      lastName: 'Employee',
+      homeLocationId: 12,
+      email: 'home@example.com',
+      employeeNumber: '12345',
+      gender: 'Male' as const,
+      isEnabled: true,
+    };
     vi.spyOn(usersStore, 'ensureUsersForLocation').mockResolvedValue([homeUser]);
     vi.spyOn(usersStore, 'ensureAllUsers').mockRejectedValue(new Error('Global lookup failed'));
     const onError = vi.fn();
