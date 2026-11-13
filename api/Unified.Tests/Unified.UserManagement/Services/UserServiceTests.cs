@@ -1133,14 +1133,21 @@ public class UserServiceTests : IAsyncLifetime
     [InlineData(1, 1, 0)]
     [InlineData(1, 2, 1)]
     public async Task UpdateAsync_RecordsOnlyAnActualPreviousHome(
-        int? previousHome, int nextHome, int expectedHistoryCount
+        int? previousHome,
+        int nextHome,
+        int expectedHistoryCount
     )
     {
         var ct = TestContext.Current.CancellationToken;
         var user = new User
         {
-            Id = Guid.NewGuid(), IdirName = "history-user", FirstName = "History", LastName = "User",
-            Email = "history@example.com", EmployeeNumber = "HISTORY-1", IsEnabled = true,
+            Id = Guid.NewGuid(),
+            IdirName = "history-user",
+            FirstName = "History",
+            LastName = "User",
+            Email = "history@example.com",
+            EmployeeNumber = "HISTORY-1",
+            IsEnabled = true,
             HomeLocationId = previousHome,
         };
         _dbContext.Users.Add(user);
@@ -1148,9 +1155,15 @@ public class UserServiceTests : IAsyncLifetime
         _dbContext.ChangeTracker.Clear();
         var request = new UserRequestDto
         {
-            IdirName = user.IdirName, FirstName = user.FirstName, LastName = user.LastName,
-            Email = user.Email, EmployeeNumber = user.EmployeeNumber, IsEnabled = true,
-            Gender = user.Gender, Rank = "Deputy Sheriff", HomeLocationId = nextHome,
+            IdirName = user.IdirName,
+            FirstName = user.FirstName,
+            LastName = user.LastName,
+            Email = user.Email,
+            EmployeeNumber = user.EmployeeNumber,
+            IsEnabled = true,
+            Gender = user.Gender,
+            Rank = "Deputy Sheriff",
+            HomeLocationId = nextHome,
         };
 
         var response = await _userService.UpdateAsync(user.Id, request, ct);
@@ -1169,7 +1182,8 @@ public class UserServiceTests : IAsyncLifetime
             var signal = Assert.IsType<UserHomeLocationChangedSignal>(Assert.Single(_eventDispatcher.PublishedSignals));
             Assert.Equal(signal.OccurredAtUtc, history.EffectiveUntil);
         }
-        if (previousHome == nextHome) Assert.Empty(_eventDispatcher.PublishedSignals);
+        if (previousHome == nextHome)
+            Assert.Empty(_eventDispatcher.PublishedSignals);
     }
 
     [Fact]
@@ -1178,9 +1192,15 @@ public class UserServiceTests : IAsyncLifetime
         var ct = TestContext.Current.CancellationToken;
         var request = new UserRequestDto
         {
-            IdirName = "transfer-user", FirstName = "Transfer", LastName = "User",
-            Email = "transfer@example.com", EmployeeNumber = "TRANSFER-1", IsEnabled = true,
-            Gender = Gender.Male, Rank = "Deputy Sheriff", HomeLocationId = 1,
+            IdirName = "transfer-user",
+            FirstName = "Transfer",
+            LastName = "User",
+            Email = "transfer@example.com",
+            EmployeeNumber = "TRANSFER-1",
+            IsEnabled = true,
+            Gender = Gender.Male,
+            Rank = "Deputy Sheriff",
+            HomeLocationId = 1,
         };
         var created = await _userService.CreateAsync(request, ct);
         await _userService.UpdateAsync(created.Id, request with { HomeLocationId = 2 }, ct);
@@ -1209,12 +1229,15 @@ public class UserServiceTests : IAsyncLifetime
         await SeedTestData();
         var user = await _dbContext.Users.FirstAsync(ct);
         var start = new DateTimeOffset(2026, 11, 1, 0, 0, 0, TimeSpan.Zero);
-        _dbContext.UserLocations.Add(new UserLocation
-        {
-            UserId = user.Id, LocationId = 1,
-            EffectiveFrom = hasStart ? start : null,
-            EffectiveUntil = start.AddDays(endOffsetDays),
-        });
+        _dbContext.UserLocations.Add(
+            new UserLocation
+            {
+                UserId = user.Id,
+                LocationId = 1,
+                EffectiveFrom = hasStart ? start : null,
+                EffectiveUntil = start.AddDays(endOffsetDays),
+            }
+        );
 
         if (valid)
         {

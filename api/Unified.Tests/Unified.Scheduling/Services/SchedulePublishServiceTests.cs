@@ -69,32 +69,48 @@ public sealed class SchedulePublishServiceTests : IAsyncLifetime
     [InlineData(6, 7, 7, true)]
     [InlineData(6, 6, 8, true)]
     public async Task PreviewAsync_IncludesCurrentHomeOrMatchingLocationHistory(
-        int locationId, int startDay, int endDay, bool expectedPresent
+        int locationId,
+        int startDay,
+        int endDay,
+        bool expectedPresent
     )
     {
-        _db.Users.Add(new User
-        {
-            Id = ResourceId,
-            IdirName = "moved-employee",
-            FirstName = "Moved",
-            LastName = "Employee",
-            IsEnabled = true,
-            HomeLocationId = 6,
-            UserLocations = [new UserLocation
+        _db.Users.Add(
+            new User
             {
-                LocationId = 5,
-                EffectiveFrom = null,
-                EffectiveUntil = new DateTimeOffset(2026, 10, 7, 12, 0, 0, TimeSpan.Zero),
-            }],
-        });
+                Id = ResourceId,
+                IdirName = "moved-employee",
+                FirstName = "Moved",
+                LastName = "Employee",
+                IsEnabled = true,
+                HomeLocationId = 6,
+                UserLocations =
+                [
+                    new UserLocation
+                    {
+                        LocationId = 5,
+                        EffectiveFrom = null,
+                        EffectiveUntil = new DateTimeOffset(2026, 10, 7, 12, 0, 0, TimeSpan.Zero),
+                    },
+                ],
+            }
+        );
         await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var preview = await CreateService([]).PreviewAsync(
-            new SchedulePublishRequest(locationId, new DateOnly(2026, 10, startDay), new DateOnly(2026, 10, endDay)),
-            TestContext.Current.CancellationToken
-        );
+        var preview = await CreateService([])
+            .PreviewAsync(
+                new SchedulePublishRequest(
+                    locationId,
+                    new DateOnly(2026, 10, startDay),
+                    new DateOnly(2026, 10, endDay)
+                ),
+                TestContext.Current.CancellationToken
+            );
 
-        Assert.Equal(expectedPresent, preview.Warnings.IncompleteEmployees.Any(employee => employee.UserId == ResourceId));
+        Assert.Equal(
+            expectedPresent,
+            preview.Warnings.IncompleteEmployees.Any(employee => employee.UserId == ResourceId)
+        );
     }
 
     [Theory]

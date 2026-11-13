@@ -164,20 +164,21 @@ public sealed class UserService(
             await DB.Entry(userEntity).Collection(user => user.UserLocations).LoadAsync(cancellationToken);
             if (previousLocationId is int locationId)
             {
-                var effectiveFrom = userEntity.UserLocations
-                    .Select(location => (DateTimeOffset?)location.EffectiveUntil)
+                var effectiveFrom = userEntity
+                    .UserLocations.Select(location => (DateTimeOffset?)location.EffectiveUntil)
                     .DefaultIfEmpty(null)
                     .Max();
 
-                userEntity.UserLocations.Add(new UserLocation
-                {
-                    UserId = userEntity.Id,
-                    User = userEntity,
-                    LocationId = locationId,
-                    EffectiveFrom = effectiveFrom,
-                    EffectiveUntil = changedAt,
-                });
-
+                userEntity.UserLocations.Add(
+                    new UserLocation
+                    {
+                        UserId = userEntity.Id,
+                        User = userEntity,
+                        LocationId = locationId,
+                        EffectiveFrom = effectiveFrom,
+                        EffectiveUntil = changedAt,
+                    }
+                );
             }
             logger.LogInformation("User {UserId} home location changed", userEntity.Id);
             await eventDispatcher.PublishAsync(

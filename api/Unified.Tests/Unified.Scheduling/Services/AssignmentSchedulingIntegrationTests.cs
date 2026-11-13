@@ -4432,10 +4432,15 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
         var ct = TestContext.Current.CancellationToken;
         foreach (var id in new[] { UserA, UserB })
             (await _db.Users.SingleAsync(user => user.Id == id, ct)).HomeLocationId = 5;
-        _db.UserLocations.Add(new UserLocation
-        {
-            UserId = UserA, LocationId = 9, EffectiveFrom = null, EffectiveUntil = LoanOutAtDay(3, 4),
-        });
+        _db.UserLocations.Add(
+            new UserLocation
+            {
+                UserId = UserA,
+                LocationId = 9,
+                EffectiveFrom = null,
+                EffectiveUntil = LoanOutAtDay(3, 4),
+            }
+        );
         if (borrowerCovered)
         {
             var loanOut = CreateLoanOutEntry(LoanOutAtDay(2, 4));
@@ -4448,7 +4453,8 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
 
         var request = CreateShiftEntryRequest(LoanOutAtDay(2, 13), LoanOutAtDay(2, 21)) with
         {
-            LocationId = 9, UserIds = [UserA, UserB],
+            LocationId = 9,
+            UserIds = [UserA, UserB],
         };
         if (borrowerCovered)
         {
@@ -4457,7 +4463,9 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
         }
         else
         {
-            var error = await Assert.ThrowsAsync<ConflictValidationException>(() => _shiftService.CreateShiftEntryAsync(request, ct));
+            var error = await Assert.ThrowsAsync<ConflictValidationException>(() =>
+                _shiftService.CreateShiftEntryAsync(request, ct)
+            );
             Assert.Contains("not loaned out to this location", Assert.Single(error.Errors["LoanOut"]));
             Assert.Empty(await _db.ShiftEntries.ToListAsync(ct));
         }
@@ -4508,19 +4516,23 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             scenario == "mixed-local-users" ? 9 : 5;
         if (scenario.StartsWith("history", StringComparison.Ordinal))
         {
-            _db.UserLocations.Add(new UserLocation
-            {
-                UserId = UserA,
-                LocationId = 9,
-                EffectiveFrom = scenario == "history-future" ? LoanOutAtDay(3, 7) : null,
-                EffectiveUntil = scenario == "history-overnight"
-                    ? LoanOutAtDay(3, 4)
-                    : LoanOutAtDay(scenario == "history-expired" ? 2 : 6, 7),
-            });
+            _db.UserLocations.Add(
+                new UserLocation
+                {
+                    UserId = UserA,
+                    LocationId = 9,
+                    EffectiveFrom = scenario == "history-future" ? LoanOutAtDay(3, 7) : null,
+                    EffectiveUntil =
+                        scenario == "history-overnight"
+                            ? LoanOutAtDay(3, 4)
+                            : LoanOutAtDay(scenario == "history-expired" ? 2 : 6, 7),
+                }
+            );
         }
-        var loanOutDays = scenario.StartsWith("history", StringComparison.Ordinal)
-            ? Array.Empty<int>()
-            : scenario == "overnight-covered" ? new[] { 2, 3, 5, 6 } : new[] { 2, 5 };
+        var loanOutDays =
+            scenario.StartsWith("history", StringComparison.Ordinal) ? Array.Empty<int>()
+            : scenario == "overnight-covered" ? new[] { 2, 3, 5, 6 }
+            : new[] { 2, 5 };
         foreach (var day in loanOutDays)
         {
             var loanOut = CreateLoanOutEntry(LoanOutAtDay(day, 7));

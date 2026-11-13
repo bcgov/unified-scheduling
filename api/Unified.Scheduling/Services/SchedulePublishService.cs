@@ -465,7 +465,8 @@ public sealed class SchedulePublishService(
             .Users.AsNoTracking()
             .Include(user => user.UserLocations)
             .Where(user =>
-                user.IsEnabled && (
+                user.IsEnabled
+                && (
                     user.HomeLocationId == scope.Request.LocationId
                     || user.UserLocations.Any(location => location.LocationId == scope.Request.LocationId)
                     || loanedInUserIds.Contains(user.Id)
@@ -476,8 +477,7 @@ public sealed class SchedulePublishService(
         var timeZone = timeZoneService.ResolveRequired(scope.TimeZoneId);
         return employees
             .Where(employee =>
-                loanedInUserIds.Contains(employee.Id)
-                || IsEmployeeAtLocationForPublication(employee, scope, timeZone)
+                loanedInUserIds.Contains(employee.Id) || IsEmployeeAtLocationForPublication(employee, scope, timeZone)
             )
             .Select(employee => new SchedulePublishEmployeeWarningResponse(
                 employee.Id,
@@ -486,11 +486,7 @@ public sealed class SchedulePublishService(
             .ToList();
     }
 
-    private bool IsEmployeeAtLocationForPublication(
-        User user,
-        SchedulePublishScope scope,
-        TimeZoneInfo timeZone
-    )
+    private bool IsEmployeeAtLocationForPublication(User user, SchedulePublishScope scope, TimeZoneInfo timeZone)
     {
         DateOnly LocalDate(DateTimeOffset value) =>
             DateOnly.FromDateTime(timeZoneService.ToLocalUnspecified(value, timeZone));
@@ -498,8 +494,9 @@ public sealed class SchedulePublishService(
         return user.HomeLocationId == scope.Request.LocationId
             || user.UserLocations.Any(location =>
                 location.LocationId == scope.Request.LocationId
-                && (!location.EffectiveFrom.HasValue
-                    || LocalDate(location.EffectiveFrom.Value) <= scope.Request.EndDate)
+                && (
+                    !location.EffectiveFrom.HasValue || LocalDate(location.EffectiveFrom.Value) <= scope.Request.EndDate
+                )
                 && LocalDate(location.EffectiveUntil) > scope.Request.StartDate
             );
     }

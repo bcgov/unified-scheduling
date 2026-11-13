@@ -76,10 +76,12 @@ public static class LoanOutUserShiftGuard
             .Users.AsNoTracking()
             .Where(user => userIds.Contains(user.Id))
             .ToDictionaryAsync(user => user.Id, user => user.HomeLocationId, cancellationToken);
-        var userLocations = (await db.UserLocations.AsNoTracking()
-            .Where(location => userIds.Contains(location.UserId))
-            .ToListAsync(cancellationToken))
-            .ToLookup(location => location.UserId);
+        var userLocations = (
+            await db
+                .UserLocations.AsNoTracking()
+                .Where(location => userIds.Contains(location.UserId))
+                .ToListAsync(cancellationToken)
+        ).ToLookup(location => location.UserId);
         var locationIds = candidates.Select(item => item.LocationId!.Value).Distinct().ToList();
         var unknownHomeUsers = userIds.Where(id => !homeLocations.GetValueOrDefault(id).HasValue).ToList();
         // A previous loan-out identifies borrowed employees whose home location is unset.
@@ -140,14 +142,22 @@ public static class LoanOutUserShiftGuard
                 var timeZone = timeZoneService.ResolveRequired(locationZones[item.LocationId]);
                 return ShiftLoanOutGuard
                     .GetLocalDates(item.Range, timeZoneService, timeZone)
-                    .Select(date => (
-                        item.LocationId,
-                        UserIds: item.UserIds.Where(userId => !BelongedToLocationOnDate(
-                            userLocations[userId], item.LocationId, date,
-                            timeZone, timeZoneService
-                        )).ToList(),
-                        Date: date
-                    ));
+                    .Select(date =>
+                        (
+                            item.LocationId,
+                            UserIds: item.UserIds.Where(userId =>
+                                    !BelongedToLocationOnDate(
+                                        userLocations[userId],
+                                        item.LocationId,
+                                        date,
+                                        timeZone,
+                                        timeZoneService
+                                    )
+                                )
+                                .ToList(),
+                            Date: date
+                        )
+                    );
             })
             .Where(day => day.UserIds.Count > 0)
             .ToList();
