@@ -169,7 +169,7 @@ watch(includeExpiredTrainings, () => {
   <div v-else class="training-page">
     <div class="training-header">
       <div>
-        <h2 class="page-title">Training</h2>
+        <h2 class="page-title">Training Types</h2>
       </div>
 
       <div class="training-header__actions">

@@ -95,6 +95,7 @@ describe('Training view', () => {
 
     await flushPromises();
 
+    expect(wrapper.find('h2.page-title').text()).toBe('Training Types');
     expect(wrapper.find('[data-test="training-table"]').exists()).toBe(true);
     expect(wrapper.text()).toContain('Add Training');
 

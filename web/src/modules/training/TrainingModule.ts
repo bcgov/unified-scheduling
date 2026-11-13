@@ -15,13 +15,13 @@ const trainingRoutes: RouteRecordRaw[] = [
     name: 'Training',
     component: () => import('./Training.vue'),
     meta: {
-      title: 'Training',
+      title: 'Training Types',
       requiresAuth: true,
     },
   },
 ];
 
-const navLink: NavigationLink = { name: 'Training', path: '/training', class: 'router-link--border' };
+const navLink: NavigationLink = { name: 'Training Types', path: '/training', class: 'router-link--border' };
 
 export function registerModule(routes: RouteRecordRaw[], featureFlags: FeatureFlagsResponse) {
   if (!featureFlags.Training?.enabled) {
