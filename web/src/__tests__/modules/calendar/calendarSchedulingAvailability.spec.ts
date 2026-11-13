@@ -8,6 +8,57 @@ import { useUsersStore } from '@/stores/Users';
 
 describe('isAvailableForSchedule', () => {
   it.each([
+    [['selected-user'], ['selected-user']],
+    [undefined, ['selected-user', 'other-user']],
+    [[], ['selected-user', 'other-user']],
+    [
+      ['', ' '],
+      ['selected-user', 'other-user'],
+    ],
+  ])('respects the employee filter %j when recovering shared-shift participants', (userIds, expectedIds) => {
+    setActivePinia(createPinia());
+    useUsersStore().allUsers = ['selected-user', 'other-user'].map((id) => ({
+      id,
+      idirName: id,
+      firstName: id,
+      lastName: 'User',
+      email: '',
+      employeeNumber: '',
+      isEnabled: true,
+      gender: 'Male',
+      homeLocationId: 15,
+      userLocations: [{ locationId: 12, effectiveUntil: '2026-11-13T08:00:00Z' }],
+    }));
+    const model = buildCalendarSchedulingViewModel(
+      {
+        contributions: {
+          'scheduling.events': {
+            moduleId: 'scheduling',
+            contributionId: 'scheduling.events',
+            resources: [],
+            events: [
+              {
+                id: 'shared-shift',
+                type: 'scheduling.shift',
+                sourceModule: 'scheduling',
+                title: 'Shared shift',
+                start: '2026-11-12T17:00:00Z',
+                end: '2026-11-13T01:00:00Z',
+                resourceIds: ['selected-user', 'other-user'],
+                metadata: { userIds: ['selected-user', 'other-user'] },
+              },
+            ],
+          },
+        },
+      },
+      { startDate: '2026-11-12', endDate: '2026-11-13', locationId: 12, filters: { userIds } },
+      'day',
+    );
+    expect(model.primaryColumn.resources.map((resource) => resource.id)).toEqual(expect.arrayContaining(expectedIds));
+    expect(model.primaryColumn.resources).toHaveLength(expectedIds.length);
+  });
+
+  it.each([
     ['America/Vancouver', false],
     ['America/Toronto', true],
   ])('uses the calendar timezone for the exclusive end date (%s)', (timeZone, expected) => {

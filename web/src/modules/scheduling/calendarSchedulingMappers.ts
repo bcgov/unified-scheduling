@@ -178,7 +178,11 @@ export function buildCalendarSchedulingViewModel(
     homeLocationUserIds,
     userResourcesById,
   );
+  const selectedUserIds = Array.isArray(context.filters.userIds)
+    ? context.filters.userIds.filter((id): id is string => typeof id === 'string' && id.trim().length > 0)
+    : [];
   for (const user of usersUnavailableForSchedulingAtHomeLocation) {
+    if (selectedUserIds.length > 0 && !selectedUserIds.includes(user.id)) continue;
     userResourcesById.set(user.id, user);
   }
   const locationUserIdsByDate = new Map(

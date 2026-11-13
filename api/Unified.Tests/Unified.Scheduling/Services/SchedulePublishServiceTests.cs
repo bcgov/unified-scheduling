@@ -1,5 +1,6 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Unified.Calendar.Conflicts;
@@ -43,13 +44,17 @@ public sealed class SchedulePublishServiceTests : IAsyncLifetime
 
     private SqliteConnection _connection = null!;
     private UnifiedDbContext _db = null!;
+    private readonly List<string> _databaseCommands = [];
 
     public async ValueTask InitializeAsync()
     {
         _connection = new SqliteConnection("Data Source=:memory:");
         await _connection.OpenAsync(TestContext.Current.CancellationToken);
 
-        var options = new DbContextOptionsBuilder<UnifiedDbContext>().UseSqlite(_connection).Options;
+        var options = new DbContextOptionsBuilder<UnifiedDbContext>()
+            .UseSqlite(_connection)
+            .LogTo(_databaseCommands.Add, [RelationalEventId.CommandExecuted])
+            .Options;
         _db = new SqliteTestUnifiedDbContext(options);
         await _db.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
         await SeedBaseDataAsync();
@@ -97,6 +102,8 @@ public sealed class SchedulePublishServiceTests : IAsyncLifetime
         );
         await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
+        _db.ChangeTracker.Clear();
+        _databaseCommands.Clear();
         var preview = await CreateService([])
             .PreviewAsync(
                 new SchedulePublishRequest(
@@ -111,6 +118,8 @@ public sealed class SchedulePublishServiceTests : IAsyncLifetime
             expectedPresent,
             preview.Warnings.IncompleteEmployees.Any(employee => employee.UserId == ResourceId)
         );
+        Assert.Contains(_databaseCommands, command => command.Contains("\"FirstName\""));
+        Assert.DoesNotContain(_databaseCommands, command => command.Contains("\"Photo\""));
     }
 
     [Theory]

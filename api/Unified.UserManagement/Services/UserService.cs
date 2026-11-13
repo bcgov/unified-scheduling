@@ -158,10 +158,10 @@ public sealed class UserService(
         userEntity.TrainingProfileId = request.TrainingProfileId;
 
         await DB.SaveChangesAsync(cancellationToken);
+        await DB.Entry(userEntity).Collection(user => user.UserLocations).LoadAsync(cancellationToken);
         if (homeLocationChanged)
         {
             var changedAt = DateTimeOffset.UtcNow;
-            await DB.Entry(userEntity).Collection(user => user.UserLocations).LoadAsync(cancellationToken);
             if (previousLocationId is int locationId)
             {
                 var effectiveFrom = userEntity

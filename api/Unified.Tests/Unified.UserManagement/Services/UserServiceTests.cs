@@ -1187,6 +1187,51 @@ public class UserServiceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task UpdateAsync_PreservesHistoryInResponseWhenHomeLocationDoesNotChange()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var request = new UserRequestDto
+        {
+            IdirName = "transferred-user",
+            FirstName = "Transfer",
+            LastName = "User",
+            Email = "transfer@example.com",
+            EmployeeNumber = "TRANSFER-1",
+            IsEnabled = true,
+            Gender = Gender.Male,
+            Rank = "Deputy Sheriff",
+            HomeLocationId = 1,
+        };
+        var created = await _userService.CreateAsync(request, ct);
+        var transferred = await _userService.UpdateAsync(created.Id, request with { HomeLocationId = 2 }, ct);
+        var expectedHistory = Assert.Single(Assert.IsType<UserResponse>(transferred).UserLocations);
+        _dbContext.ChangeTracker.Clear();
+        _eventDispatcher.PublishedSignals.Clear();
+
+        var response = await _userService.UpdateAsync(
+            created.Id,
+            request with
+            {
+                HomeLocationId = 2,
+                FirstName = "Updated",
+                Rank = "Chief Sheriff",
+            },
+            ct
+        );
+
+        Assert.NotNull(response);
+        Assert.Equal("Updated", response.FirstName);
+        Assert.Equal("Chief Sheriff", response.Rank);
+        Assert.Equal(2, response.HomeLocationId);
+        var history = Assert.Single(response.UserLocations);
+        Assert.Equal(expectedHistory.LocationId, history.LocationId);
+        Assert.Equal(expectedHistory.EffectiveFrom, history.EffectiveFrom);
+        Assert.Equal(expectedHistory.EffectiveUntil, history.EffectiveUntil);
+        Assert.Empty(_eventDispatcher.PublishedSignals);
+        Assert.Single(await _dbContext.UserLocations.AsNoTracking().ToListAsync(ct));
+    }
+
+    [Fact]
     public async Task UpdateAsync_ChainsTransfersAndProjectsHistoryInTheUserList()
     {
         var ct = TestContext.Current.CancellationToken;

@@ -463,7 +463,6 @@ public sealed class SchedulePublishService(
         var loanedInUserIds = await LoadLoanedInUserIdsAsync(scope, cancellationToken);
         var employees = await db
             .Users.AsNoTracking()
-            .Include(user => user.UserLocations)
             .Where(user =>
                 user.IsEnabled
                 && (
@@ -472,6 +471,22 @@ public sealed class SchedulePublishService(
                     || loanedInUserIds.Contains(user.Id)
                 )
             )
+            .Select(user => new User
+            {
+                Id = user.Id,
+                FirstName = user.FirstName,
+                LastName = user.LastName,
+                HomeLocationId = user.HomeLocationId,
+                UserLocations = user
+                    .UserLocations.Where(location => location.LocationId == scope.Request.LocationId)
+                    .Select(location => new UserLocation
+                    {
+                        LocationId = location.LocationId,
+                        EffectiveFrom = location.EffectiveFrom,
+                        EffectiveUntil = location.EffectiveUntil,
+                    })
+                    .ToList(),
+            })
             .ToListAsync(cancellationToken);
 
         var timeZone = timeZoneService.ResolveRequired(scope.TimeZoneId);
