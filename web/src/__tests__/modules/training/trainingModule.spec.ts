@@ -30,7 +30,7 @@ describe('training module', () => {
 
     expect(navigationStore.links).toEqual([
       {
-        name: 'Training',
+        name: 'Training Types',
         path: '/training',
         class: 'router-link--border',
       },

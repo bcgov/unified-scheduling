@@ -31,7 +31,7 @@ describe('navigation store', () => {
 
     const navigationStore = useNavigationStore();
     navigationStore.registerLink({ name: 'Roles & Permissions', path: '/roles-permissions' });
-    navigationStore.registerLink({ name: 'Training', path: '/training' });
+    navigationStore.registerLink({ name: 'Training Types', path: '/training' });
     navigationStore.registerLink({ name: 'Reports', path: '/reports/user-training' });
     navigationStore.registerLink({ name: 'Audit', path: '/audit' });
 
