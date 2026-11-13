@@ -32,7 +32,11 @@ public static class InfrastructureModule
     /// </summary>
     /// <param name="services">Service collection</param>
     /// <returns>Service collection for chaining</returns>
-    public static IServiceCollection AddInfrastructureModule(this IServiceCollection services)
+    public static IServiceCollection AddInfrastructureModule(
+        this IServiceCollection services,
+        IHostEnvironment env,
+        IConfiguration configuration
+    )
     {
         services.AddScoped<IEventDispatcher, EventDispatcher>();
 
@@ -77,10 +81,6 @@ public static class InfrastructureModule
 
         services.AddHttpClient("TokenRefresh", client => client.Timeout = TimeSpan.FromSeconds(10));
         services.AddHttpContextAccessor();
-
-        var sp = services.BuildServiceProvider();
-        var env = sp.GetRequiredService<IHostEnvironment>();
-        var configuration = sp.GetRequiredService<IConfiguration>();
 
         services.AddUnifiedAuthentication(env, configuration);
 

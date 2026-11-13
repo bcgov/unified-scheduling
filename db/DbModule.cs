@@ -36,6 +36,16 @@ public static class DbModule
             }
         );
 
+        services.AddDbContext<DataProtectionKeyDbContext>(options =>
+            options.UseNpgsql(
+                connectionString,
+                npgsql =>
+                    npgsql.MigrationsHistoryTable(
+                        DataProtectionKeyDbContext.MigrationsHistoryTableName
+                    )
+            )
+        );
+
         services.AddSingleton(configuration);
 
         return services;
