@@ -1,3 +1,5 @@
+import { toOffsetDateTimeString } from '@/utils/date';
+import { defaultSchedulingTimeZoneId } from '@/modules/scheduling/schedulingTimeZone';
 import { describe, expect, it } from 'vitest';
 import {
   isAvailableForSchedule,
@@ -60,8 +62,8 @@ describe('isAvailableForSchedule', () => {
   });
 
   it.each([
-    ['America/Vancouver', false],
-    ['America/Toronto', true],
+    ['UTC-8', false],
+    ['UTC-5', true],
   ])('uses the calendar timezone for the exclusive end date (%s)', (timeZone, expected) => {
     const historicalUser = {
       homeLocationId: 15,
@@ -117,30 +119,53 @@ describe('isAvailableForSchedule', () => {
       expect(cells.filter((cell) => !cell.disabled).map((cell) => cell.date)).toEqual(['2026-10-28']);
     }
   });
+  const transferAt = toOffsetDateTimeString('2026-11-13', '00:00', defaultSchedulingTimeZoneId);
   const user = {
     homeLocationId: 15,
-    userLocations: [{ locationId: 12, effectiveFrom: null, effectiveUntil: '2026-11-13T08:00:00Z' }],
+    userLocations: [{ locationId: 12, effectiveFrom: null, effectiveUntil: transferAt }],
   };
 
   it.each([
-    ['2026-11-13T07:59:59Z', 12, true],
-    ['2026-11-13T08:00:00Z', 12, false],
-    ['2026-11-13T07:59:59Z', 15, false],
-    ['2026-11-13T08:00:00Z', 15, true],
-    ['2026-11-13T08:00:00Z', 99, false],
+    ['2026-11-12T23:59', 12, true],
+    ['2026-11-13T00:00', 12, false],
+    ['2026-11-12T23:59', 15, false],
+    ['2026-11-13T00:00', 15, true],
+    ['2026-11-13T00:00', 99, false],
   ])('checks membership at %s for location %s', (date, locationId, expected) => {
-    expect(isAvailableForSchedule(new Date(date), user, locationId)).toBe(expected);
+    expect(
+      isAvailableForSchedule(
+        new Date(toOffsetDateTimeString(date.slice(0, 10), date.slice(11), defaultSchedulingTimeZoneId)),
+        user,
+        locationId,
+      ),
+    ).toBe(expected);
   });
 
   it('includes the start boundary and excludes the required end boundary', () => {
     const assignment = {
       userLocations: [
-        { locationId: 12, effectiveFrom: '2026-11-13T08:00:00Z', effectiveUntil: '2026-11-14T08:00:00Z' },
+        {
+          locationId: 12,
+          effectiveFrom: transferAt,
+          effectiveUntil: toOffsetDateTimeString('2026-11-14', '00:00', defaultSchedulingTimeZoneId),
+        },
       ],
     };
-    expect(isAvailableForSchedule(new Date('2026-11-13T08:00:00Z'), assignment, 12)).toBe(true);
-    expect(isAvailableForSchedule(new Date('2026-11-13T07:59:59Z'), assignment, 12)).toBe(false);
-    expect(isAvailableForSchedule(new Date('2026-11-14T08:00:00Z'), assignment, 12)).toBe(false);
+    expect(isAvailableForSchedule(new Date(transferAt), assignment, 12)).toBe(true);
+    expect(
+      isAvailableForSchedule(
+        new Date(toOffsetDateTimeString('2026-11-12', '23:59', defaultSchedulingTimeZoneId)),
+        assignment,
+        12,
+      ),
+    ).toBe(false);
+    expect(
+      isAvailableForSchedule(
+        new Date(toOffsetDateTimeString('2026-11-14', '00:00', defaultSchedulingTimeZoneId)),
+        assignment,
+        12,
+      ),
+    ).toBe(false);
   });
 
   it('uses the latest transfer date even when history is not sorted', () => {
