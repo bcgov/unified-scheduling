@@ -7,6 +7,7 @@ using Unified.Common.Validation;
 using Unified.Db;
 using Unified.Db.Models.Calendar;
 using Unified.Db.Models.Scheduling;
+using Unified.Db.Models.UserManagement;
 using Unified.Scheduling.Models;
 
 namespace Unified.Scheduling.Guards;
@@ -75,6 +76,10 @@ public static class LoanOutUserShiftGuard
             .Users.AsNoTracking()
             .Where(user => userIds.Contains(user.Id))
             .ToDictionaryAsync(user => user.Id, user => user.HomeLocationId, cancellationToken);
+        var userLocations = (await db.UserLocations.AsNoTracking()
+            .Where(location => userIds.Contains(location.UserId))
+            .ToListAsync(cancellationToken))
+            .ToLookup(location => location.UserId);
         var locationIds = candidates.Select(item => item.LocationId!.Value).Distinct().ToList();
         var unknownHomeUsers = userIds.Where(id => !homeLocations.GetValueOrDefault(id).HasValue).ToList();
         // A previous loan-out identifies borrowed employees whose home location is unset.
@@ -131,15 +136,23 @@ public static class LoanOutUserShiftGuard
             .ToDictionaryAsync(location => location.Id, location => location.Timezone, cancellationToken);
         var days = required
             .SelectMany(item =>
-                ShiftLoanOutGuard
-                    .GetLocalDates(
-                        item.Range,
-                        timeZoneService,
-                        timeZoneService.ResolveRequired(locationZones[item.LocationId])
-                    )
-                    .Select(date => (item.LocationId, item.UserIds, Date: date))
-            )
+            {
+                var timeZone = timeZoneService.ResolveRequired(locationZones[item.LocationId]);
+                return ShiftLoanOutGuard
+                    .GetLocalDates(item.Range, timeZoneService, timeZone)
+                    .Select(date => (
+                        item.LocationId,
+                        UserIds: item.UserIds.Where(userId => !BelongedToLocationOnDate(
+                            userLocations[userId], item.LocationId, date,
+                            timeZone, timeZoneService
+                        )).ToList(),
+                        Date: date
+                    ));
+            })
+            .Where(day => day.UserIds.Count > 0)
             .ToList();
+        if (days.Count == 0)
+            return;
         var ranges = days.Select(item =>
                 timeZoneService.ConvertInclusiveLocalDateRangeToUtcRange(
                     item.Date,
@@ -219,5 +232,23 @@ public static class LoanOutUserShiftGuard
                         ],
                     }
                 );
+    }
+
+    private static bool BelongedToLocationOnDate(
+        IEnumerable<UserLocation> userLocations,
+        int locationId,
+        DateOnly date,
+        TimeZoneInfo timeZone,
+        ITimeZoneService timeZoneService
+    )
+    {
+        DateOnly LocalDate(DateTimeOffset value) =>
+            DateOnly.FromDateTime(timeZoneService.ToLocalUnspecified(value, timeZone));
+
+        return userLocations.Any(location =>
+            location.LocationId == locationId
+            && (!location.EffectiveFrom.HasValue || LocalDate(location.EffectiveFrom.Value) <= date)
+            && date < LocalDate(location.EffectiveUntil)
+        );
     }
 }

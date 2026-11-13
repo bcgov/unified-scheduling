@@ -13,6 +13,7 @@ using Unified.Common.Time;
 using Unified.Db;
 using Unified.Db.Models.Calendar;
 using Unified.Db.Models.Scheduling;
+using Unified.Db.Models.UserManagement;
 using Unified.Leave.Services;
 using Unified.Scheduling.Models;
 
@@ -462,23 +463,45 @@ public sealed class SchedulePublishService(
         var loanedInUserIds = await LoadLoanedInUserIdsAsync(scope, cancellationToken);
         var employees = await db
             .Users.AsNoTracking()
+            .Include(user => user.UserLocations)
             .Where(user =>
-                user.IsEnabled && (user.HomeLocationId == scope.Request.LocationId || loanedInUserIds.Contains(user.Id))
+                user.IsEnabled && (
+                    user.HomeLocationId == scope.Request.LocationId
+                    || user.UserLocations.Any(location => location.LocationId == scope.Request.LocationId)
+                    || loanedInUserIds.Contains(user.Id)
+                )
             )
-            .Select(user => new
-            {
-                user.Id,
-                user.FirstName,
-                user.LastName,
-            })
             .ToListAsync(cancellationToken);
 
+        var timeZone = timeZoneService.ResolveRequired(scope.TimeZoneId);
         return employees
+            .Where(employee =>
+                loanedInUserIds.Contains(employee.Id)
+                || IsEmployeeAtLocationForPublication(employee, scope, timeZone)
+            )
             .Select(employee => new SchedulePublishEmployeeWarningResponse(
                 employee.Id,
                 $"{employee.FirstName} {employee.LastName}".Trim()
             ))
             .ToList();
+    }
+
+    private bool IsEmployeeAtLocationForPublication(
+        User user,
+        SchedulePublishScope scope,
+        TimeZoneInfo timeZone
+    )
+    {
+        DateOnly LocalDate(DateTimeOffset value) =>
+            DateOnly.FromDateTime(timeZoneService.ToLocalUnspecified(value, timeZone));
+
+        return user.HomeLocationId == scope.Request.LocationId
+            || user.UserLocations.Any(location =>
+                location.LocationId == scope.Request.LocationId
+                && (!location.EffectiveFrom.HasValue
+                    || LocalDate(location.EffectiveFrom.Value) <= scope.Request.EndDate)
+                && LocalDate(location.EffectiveUntil) > scope.Request.StartDate
+            );
     }
 
     private bool HasEventsForAllWeekdays(

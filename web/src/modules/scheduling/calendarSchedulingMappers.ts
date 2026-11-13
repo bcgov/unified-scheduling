@@ -1,4 +1,4 @@
-import type { WorkingHoursResult } from '@/api-access/generated/models';
+import type { UserResponse, WorkingHoursResult } from '@/api-access/generated/models';
 import {
   addDays,
   CALENDAR_ALL_DAY_LABEL,
@@ -46,10 +46,12 @@ import {
   type CalendarAssignmentPartialCoverageShift,
   type CalendarSchedulingEvent,
 } from './calendarSchedulingData';
-import type {
-  CalendarSchedulingEventsData,
-  CalendarSchedulingUserResource,
+import {
+  mapUserToCalendarSchedulingResource,
+  type CalendarSchedulingEventsData,
+  type CalendarSchedulingUserResource,
 } from './contributions/calendarSchedulingEventsContribution';
+import { useUsersStore } from '@/stores/Users';
 import { schedulingLoanOutContributionId } from './contributions/calendarSchedulingLoanOutContribution';
 import { canViewLeave, canViewLoanOut } from './calendarSchedulingPermissions';
 import { useLocationsStore } from '@/stores/LocationsStore';
@@ -155,6 +157,7 @@ export function buildCalendarSchedulingViewModel(
   const schedulingEvents = selectSchedulingShiftEvents(response).filter(
     (event) => !(event.isException && event.exceptionReason === 'IsAway'),
   );
+
   const shiftEvents = schedulingEvents.filter(isShiftEvent);
   const assignmentEvents = schedulingEvents.filter(isAssignmentEvent);
   const holidayEvents = (selectContribution(response, CalendarContributionId.Events)?.events ?? []).filter(
@@ -170,18 +173,35 @@ export function buildCalendarSchedulingViewModel(
       .filter(isCalendarSchedulingUserResource)
       .map((user) => user.id),
   );
+  const usersUnavailableForSchedulingAtHomeLocation = filterUsersNotInHomeLocation(
+    schedulingEvents,
+    homeLocationUserIds,
+    userResourcesById,
+  );
+  for (const user of usersUnavailableForSchedulingAtHomeLocation) {
+    userResourcesById.set(user.id, user);
+  }
+  const locationUserIdsByDate = new Map(
+    days.map((day) => {
+      const date = DateTime.fromISO(day.date, { zone: timeZone }).toJSDate();
+      const userIds = [...userResourcesById.keys()].filter((userId) =>
+        isAvailableForSchedule(date, userId, context.locationId, timeZone, homeLocationUserIds),
+      );
+      return [day.date, new Set(userIds)];
+    }),
+  );
+
   const shiftPrompt = getShiftSetupPrompt(response, context);
   const assignmentPrompt =
     runtimeContext && canCreateAssignments(runtimeContext) && canAssignAssignments(runtimeContext)
       ? getAssignmentSchedulingPrompt(response, context)
       : undefined;
-  const resources = buildUserResourceRows(userResources, shiftPrompt);
+  const resources = buildUserResourceRows([...userResourcesById.values()], shiftPrompt);
   const workingHours = createWorkingHoursLookup(response);
   const scheduleResources = hasUnassignedScheduleEvents(shiftEvents, assignmentEvents, days, timeZone)
     ? [...resources, buildUnassignedResourceRow()]
     : resources;
   const cells: CalendarMatrixCell[] = [];
-
   for (const user of scheduleResources) {
     for (const day of days) {
       const isUnassignedRow = user.id === unassignedScheduleResourceId;
@@ -210,11 +230,11 @@ export function buildCalendarSchedulingViewModel(
                 : isEventOnMatrixDate(event, day.date, timeZone)),
           );
       const userResource = userResourcesById.get(user.id);
-      const isLoanOutUser = !isUnassignedRow && Boolean(userResource?.loanOutMetaData?.length);
       const isLoanOutDay = isLoanedOutOnDate(userResource?.loanOutMetaData, day.date, timeZone);
-      const isUnavailable = isLoanOutUser && !homeLocationUserIds.has(user.id) && !isLoanOutDay;
+      const isAtLocation = locationUserIdsByDate.get(day.date)?.has(user.id) ?? false;
+      const isUnavailable = !isUnassignedRow && !isAtLocation && !isLoanOutDay;
       const userTrainingEvents =
-        isUnassignedRow || (!homeLocationUserIds.has(user.id) && !isLoanOutDay)
+        isUnassignedRow || isUnavailable
           ? []
           : trainingEvents.filter(
               (event) => event.resourceIds?.includes(user.id) && isIntervalOnMatrixDate(event, day.date, timeZone),
@@ -718,6 +738,76 @@ function getConflictsForShift(
   }
 
   return [...conflictsById.values()];
+}
+
+export function isAvailableForSchedule(
+  date: Date,
+  user: string | (Pick<UserResponse, 'homeLocationId' | 'userLocations'> & { id?: string }) | undefined,
+  locationId: number | undefined,
+  timeZone = defaultSchedulingTimeZoneId,
+  homeLocationUserIds: ReadonlySet<string> = new Set(),
+): boolean {
+  const storedUser = typeof user === 'string' ? useUsersStore().getUserById(user) : user;
+  if (!storedUser || locationId == null) return false;
+
+  const isLocationMember =
+    homeLocationUserIds.has(typeof user === 'string' ? user : (user?.id ?? '')) ||
+    storedUser.homeLocationId === locationId ||
+    Boolean(storedUser.userLocations?.some((userLocation) => userLocation.locationId === locationId));
+
+  if (!isLocationMember) return false;
+
+  const userLocations = storedUser.userLocations ?? [];
+  if (userLocations.length === 0) return true;
+  const dateKey = getCalendarEventDateKey(date, timeZone);
+  if (!dateKey) return false;
+  if (
+    userLocations.some((location) => {
+      const startDate = getCalendarEventDateKey(location.effectiveFrom, timeZone);
+      const endDate = getCalendarEventDateKey(location.effectiveUntil, timeZone);
+      return (
+        location.locationId === locationId &&
+        (location.effectiveFrom == null || (startDate != null && startDate <= dateKey)) &&
+        endDate != null &&
+        dateKey < endDate
+      );
+    })
+  )
+    return true;
+
+  return (
+    storedUser.homeLocationId === locationId &&
+    userLocations.every((location) => {
+      const transferDate = getCalendarEventDateKey(location.effectiveUntil, timeZone);
+      return transferDate != null && transferDate <= dateKey;
+    })
+  );
+}
+
+function filterUsersNotInHomeLocation(
+  schedulingEvents: CalendarSchedulingEvent[],
+  homeLocationUserIds: ReadonlySet<string>,
+  userResourcesById: ReadonlyMap<string, CalendarSchedulingUserResource>,
+): CalendarSchedulingUserResource[] {
+  const eventUserIds = new Set(
+    schedulingEvents.flatMap((event) => [
+      ...(event.metadata.userIds ?? []),
+      ...(event.metadata.userId ? [event.metadata.userId] : []),
+      ...(event.metadata.assignedUserIds ?? []),
+      // Assignment resource IDs.
+      ...(isAssignmentEvent(event) ? [] : (event.resourceIds ?? [])),
+    ]),
+  );
+  const usersStore = useUsersStore();
+  return [...eventUserIds]
+    .filter((userId) => !homeLocationUserIds.has(userId))
+    .flatMap((userId) => {
+      const existingResource = userResourcesById.get(userId);
+      const user = usersStore.getUserById(userId);
+      const resource = existingResource ?? (user ? mapUserToCalendarSchedulingResource(user, []) : undefined);
+      if (!resource) return [];
+      return [resource];
+    });
 }
 
 function selectSchedulingUserResources(response: CalendarDataResponse): CalendarSchedulingUserResource[] {

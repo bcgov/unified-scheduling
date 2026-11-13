@@ -45,7 +45,7 @@ describe('useSchedulingShiftDetailRows', () => {
     expect(detailRows.value.find((row) => row.label === 'Worked Lunch')?.value).toBe(worked);
   });
 
-  it('displays the fields supported by the shift edit form', () => {
+  it('displays shift details using employee options', () => {
     const event = computed<CalendarEventBase>(() => ({
       id: 'scheduling.shift-entry.200',
       type: 'scheduling.shift',

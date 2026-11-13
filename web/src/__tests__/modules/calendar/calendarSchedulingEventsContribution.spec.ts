@@ -14,6 +14,48 @@ describe('calendarSchedulingEventsContribution', () => {
     );
   });
 
+  it.each(['2025-04-10T07:00:00Z', '2025-04-10T19:00:00Z'])(
+    'includes past location members only before the exclusive transfer date (%s)',
+    async (effectiveUntil) => {
+      const historicalUser = {
+        id: 'past-user',
+        firstName: 'Past',
+        lastName: 'Member',
+        idirName: 'past',
+        homeLocationId: 15,
+        userLocations: [{ locationId: 12, effectiveFrom: null, effectiveUntil }],
+      };
+      vi.doMock('@/api-access/generated/scheduling-calendar/scheduling-calendar', () => ({
+        postApiSchedulingCalendarEvents: vi.fn().mockReturnValue({
+          data: { value: { events: [] } },
+          error: { value: null },
+          execute: vi.fn().mockResolvedValue(undefined),
+        }),
+      }));
+      vi.doMock('@/api-access/generated/users/users', () => ({
+        getApiUsers: vi.fn().mockImplementation((params: { LocationId?: number }) => ({
+          data: { value: params.LocationId ? [] : [historicalUser] },
+          error: { value: null },
+          execute: vi.fn().mockResolvedValue(undefined),
+        })),
+      }));
+      const { calendarSchedulingEventsContribution } =
+        await import('@/modules/scheduling/contributions/calendarSchedulingEventsContribution');
+      const context = { startDate: '2025-04-07', endDate: '2025-04-14', locationId: 12, filters: {} };
+      const result = await calendarSchedulingEventsContribution.load(context);
+      expect(result.events).toEqual([]);
+      expect(result.resources).toEqual([expect.objectContaining({ id: historicalUser.id })]);
+      const afterTransfer = await calendarSchedulingEventsContribution.load({
+        ...context,
+        startDate: '2025-04-10',
+        endDate: '2025-04-17',
+      });
+      expect(afterTransfer.resources).toEqual([]);
+      const otherLocation = await calendarSchedulingEventsContribution.load({ ...context, locationId: 99 });
+      expect(otherLocation.resources).toEqual([]);
+    },
+  );
+
   it('loads unfiltered scheduling data without an active location', async () => {
     const postApiSchedulingCalendarEvents = vi.fn().mockReturnValue({
       data: { value: { events: [] } },

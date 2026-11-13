@@ -1,5 +1,6 @@
 import { calendarSchedulingActionIds } from '@/modules/scheduling/calendarSchedulingActionIds';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { createPinia, setActivePinia } from 'pinia';
 
 import {
   addDays,
@@ -39,6 +40,8 @@ import type {
   CalendarRuntimeContext,
 } from '@/modules/calendar/calendarTypes';
 import { mdiCalendarSync } from '@mdi/js';
+
+beforeEach(() => setActivePinia(createPinia()));
 
 describe('shared calendar date helpers', () => {
   it('builds ranges for every period and shifts anchors correctly', () => {

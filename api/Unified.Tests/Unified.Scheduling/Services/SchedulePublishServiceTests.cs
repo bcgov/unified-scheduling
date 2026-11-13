@@ -62,6 +62,42 @@ public sealed class SchedulePublishServiceTests : IAsyncLifetime
     }
 
     [Theory]
+    [InlineData(5, 6, 6, true)]
+    [InlineData(5, 7, 7, false)]
+    [InlineData(5, 6, 8, true)]
+    [InlineData(6, 6, 6, true)]
+    [InlineData(6, 7, 7, true)]
+    [InlineData(6, 6, 8, true)]
+    public async Task PreviewAsync_IncludesCurrentHomeOrMatchingLocationHistory(
+        int locationId, int startDay, int endDay, bool expectedPresent
+    )
+    {
+        _db.Users.Add(new User
+        {
+            Id = ResourceId,
+            IdirName = "moved-employee",
+            FirstName = "Moved",
+            LastName = "Employee",
+            IsEnabled = true,
+            HomeLocationId = 6,
+            UserLocations = [new UserLocation
+            {
+                LocationId = 5,
+                EffectiveFrom = null,
+                EffectiveUntil = new DateTimeOffset(2026, 10, 7, 12, 0, 0, TimeSpan.Zero),
+            }],
+        });
+        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var preview = await CreateService([]).PreviewAsync(
+            new SchedulePublishRequest(locationId, new DateOnly(2026, 10, startDay), new DateOnly(2026, 10, endDay)),
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.Equal(expectedPresent, preview.Warnings.IncompleteEmployees.Any(employee => employee.UserId == ResourceId));
+    }
+
+    [Theory]
     [InlineData(true)]
     [InlineData(false)]
     public async Task PublishAsync_WhenStandaloneShiftOverlapsCrossLocationDraftLeave_UsesCandidateDirection(

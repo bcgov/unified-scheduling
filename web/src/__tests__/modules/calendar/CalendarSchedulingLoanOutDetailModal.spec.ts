@@ -26,9 +26,26 @@ const users = [
   },
 ];
 
-async function mountEditTab(options: { eventLocationId?: number; entityLocationId: number | null; series?: boolean }) {
+async function mountEditTab(options: {
+  eventLocationId?: number;
+  entityLocationId: number | null;
+  series?: boolean;
+  moved?: boolean;
+}) {
   server.use(
-    http.get('*/api/users*', () => HttpResponse.json(users)),
+    http.get('*/api/users*', () =>
+      HttpResponse.json(
+        options.moved
+          ? [
+              users[0],
+              {
+                ...users[1],
+                userLocations: [{ locationId: 12, effectiveFrom: null, effectiveUntil: '2026-07-04T07:00:00Z' }],
+              },
+            ]
+          : users,
+      ),
+    ),
     http.get(options.series ? '*/api/scheduling/loan-out/series/7' : '*/api/scheduling/loan-out/entries/42', () =>
       HttpResponse.json({
         id: 42,
@@ -84,14 +101,18 @@ function optionCodes(wrapper: Awaited<ReturnType<typeof mountEditTab>>) {
 }
 
 describe('CalendarSchedulingLoanOutDetailModal employee options', () => {
+  it('includes moved employees at their previous location before the transfer', async () => {
+    const wrapper = await mountEditTab({ eventLocationId: 12, entityLocationId: 12, moved: true });
+    await vi.waitFor(() => expect(optionCodes(wrapper)).toEqual([homeUserId, loanedInUserId]));
+  });
   it('only offers employees whose home location matches the loan-out location on the edit tab', async () => {
     const wrapper = await mountEditTab({ eventLocationId: 12, entityLocationId: 12 });
     await vi.waitFor(() => expect(optionCodes(wrapper)).toEqual([homeUserId]));
   });
 
-  it('falls back to all users when the loan-out location cannot be resolved', async () => {
+  it('does not offer users when the loan-out location cannot be resolved', async () => {
     const wrapper = await mountEditTab({ entityLocationId: null });
-    await vi.waitFor(() => expect(optionCodes(wrapper)).toEqual([homeUserId, loanedInUserId]));
+    await vi.waitFor(() => expect(optionCodes(wrapper)).toEqual([]));
   });
 
   it('uses the loaded entry location when the event omits its location', async () => {

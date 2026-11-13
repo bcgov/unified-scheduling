@@ -298,6 +298,68 @@ describe('CalendarSchedulingAddResourceModal', () => {
     wrapper.unmount();
   });
 
+  for (const formName of ['LeaveForm', 'LoanOutForm']) {
+    it(`updates historical members when the ${formName} date changes`, async () => {
+      const movedUserId = '00000000-0000-0000-0000-000000000012';
+      server.use(http.post('*/api/loan-out/scheduling/users', () => HttpResponse.json([])));
+      vi.doMock('@/modules/scheduling/calendarSchedulingShiftApi', () => buildShiftApiMock({}));
+      vi.doMock('@/api-access/generated/users/users', () => ({
+        getApiUsers: vi.fn().mockImplementation((params: { LocationId?: number }) => ({
+          data: {
+            value: params.LocationId
+              ? []
+              : [
+                  {
+                    id: movedUserId,
+                    firstName: 'Moved',
+                    lastName: 'Employee',
+                    homeLocationId: 99,
+                    userLocations: [{ locationId: 12, effectiveFrom: null, effectiveUntil: '2026-11-13T08:00:00Z' }],
+                  },
+                ],
+          },
+          error: { value: null },
+          execute: vi.fn().mockResolvedValue(undefined),
+        })),
+      }));
+      const { default: CalendarSchedulingAddResourceModal } =
+        await import('@/modules/scheduling/CalendarSchedulingAddResourceModal.vue');
+      const app = createModalTestApp();
+      useConfigStore(app.pinia).config = {
+        defaultLunchMinutes: 30,
+        featureFlags: { Scheduling: { enabled: true }, LoanOut: { enabled: true }, Leave: { enabled: true } },
+      };
+      useLocationsStore(app.pinia).setSelectedLocationId(12);
+      const wrapper = mount(CalendarSchedulingAddResourceModal, {
+        props: { initialDate: '2026-11-12', timeZone: 'America/Vancouver' },
+        global: {
+          plugins: app.mountPlugins,
+          stubs: {
+            UaModal: { template: '<div><slot/></div>' },
+            CalendarSchedulingResourceTabs: {
+              template: '<div><slot name="schedule"/><slot name="leave"/><slot name="loanout"/></div>',
+            },
+            CalendarSchedulingShiftForm: true,
+            LeaveForm: { name: 'LeaveForm', props: ['modelValue', 'employeeOptions'], template: '<div />' },
+            LoanOutForm: { name: 'LoanOutForm', props: ['modelValue', 'employeeOptions'], template: '<div />' },
+          },
+        },
+      });
+      try {
+        await flushPromises();
+        const form = wrapper.getComponent({ name: formName });
+        expect((form.props('employeeOptions') as { code: string }[]).map((option) => option.code)).toEqual([
+          movedUserId,
+        ]);
+        form.vm.$emit('update:modelValue', { ...form.props('modelValue'), date: '2026-11-13' });
+        await flushPromises();
+        expect(form.props('employeeOptions')).toEqual([]);
+      } finally {
+        wrapper.unmount();
+      }
+    });
+  }
+
   it('offers loaned-in employees on the shift tab but not on the leave or loan-out tabs', async () => {
     const homeUserId = '3d6f0a75-0a77-4dd9-9f5a-f4d0a0bc4f62';
     const loanedInUserId = '7b1c2d3e-4f5a-4b6c-8d7e-9f0a1b2c3d4e';

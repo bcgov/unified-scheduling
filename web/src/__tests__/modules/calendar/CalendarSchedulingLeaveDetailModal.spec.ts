@@ -210,14 +210,23 @@ describe('CalendarSchedulingLeaveDetailModal', () => {
     wrapper.unmount();
   });
 
-  it('only offers employees whose home location matches the leave location on the edit tab', async () => {
+  it.each([false, true])('offers location members on the leave date (moved: %s)', async (moved) => {
     const homeUserId = '00000000-0000-0000-0000-000000000001';
     const loanedInUserId = '00000000-0000-0000-0000-000000000099';
     server.use(
       http.get('*/api/users*', () =>
         HttpResponse.json([
           { id: homeUserId, firstName: 'Alex', lastName: 'Alpha', isEnabled: true, homeLocationId: 3 },
-          { id: loanedInUserId, firstName: 'Lee', lastName: 'Loaned', isEnabled: true, homeLocationId: 99 },
+          {
+            id: loanedInUserId,
+            firstName: 'Lee',
+            lastName: 'Loaned',
+            isEnabled: true,
+            homeLocationId: 99,
+            userLocations: moved
+              ? [{ locationId: 3, effectiveFrom: null, effectiveUntil: '2099-01-01T00:00:00Z' }]
+              : [],
+          },
         ]),
       ),
     );
@@ -232,7 +241,7 @@ describe('CalendarSchedulingLeaveDetailModal', () => {
     await flushPromises();
 
     const options = wrapper.getComponent({ name: 'LeaveForm' }).props('employeeOptions') as { code: string }[];
-    expect(options.map((option) => option.code)).toEqual([homeUserId]);
+    expect(options.map((option) => option.code)).toEqual(moved ? [homeUserId, loanedInUserId] : [homeUserId]);
     wrapper.unmount();
   });
 

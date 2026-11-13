@@ -1,4 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { createPinia, setActivePinia } from 'pinia';
+import { useUsersStore } from '@/stores/Users';
 import { buildCalendarDefaultViewModel } from '@/modules/calendar/views/calendarViewModels';
 import {
   buildCalendarAssignmentViewModel,
@@ -18,7 +20,7 @@ const training = {
   isReadOnly: true,
   resourceIds: ['user-1'],
 };
-const query = { startDate: '2025-04-07', endDate: '2025-04-14', filters: {} };
+const query = { startDate: '2025-04-07', endDate: '2025-04-14', locationId: 12, filters: {} };
 const response: CalendarDataResponse = {
   contributions: {
     'training.events': { moduleId: 'training', contributionId: 'training.events', events: [training] },
@@ -33,6 +35,22 @@ const response: CalendarDataResponse = {
     },
   },
 };
+
+beforeEach(() => {
+  setActivePinia(createPinia());
+  useUsersStore().allUsers = ['user-1', 'user-2'].map((id) => ({
+    id,
+    idirName: id,
+    firstName: id,
+    lastName: 'User',
+    email: '',
+    employeeNumber: '',
+    isEnabled: true,
+    gender: 'Male',
+    homeLocationId: 12,
+    userLocations: [],
+  }));
+});
 
 describe('training calendar views', () => {
   it('includes training in the default Calendar aggregation', () => {

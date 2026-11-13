@@ -75,6 +75,40 @@ describe('useUsersStore', () => {
     expect(getApiUsers).not.toHaveBeenCalled();
   });
 
+  it.each(['all', 'location'])('retains user locations from %s user requests', async (source) => {
+    const userLocations = [
+      { id: 1, locationId: 12, effectiveFrom: null, effectiveUntil: '2026-11-30' },
+      { id: 2, locationId: 15, effectiveFrom: '2026-12-01', effectiveUntil: null },
+    ];
+    const users = [{ id: 'user-1', userLocations }, { id: 'user-2' }];
+    vi.doMock('@/api-access/generated/users/users', () => ({
+      getApiUsers: vi.fn().mockReturnValue({
+        data: { value: users },
+        error: { value: null },
+        execute: vi.fn().mockResolvedValue(undefined),
+      }),
+    }));
+    const [{ useUsersStore }, app] = await Promise.all([
+      import('@/stores/Users'),
+      createTestApp({ loadConfig: false }),
+    ]);
+    const store = useUsersStore(app.pinia);
+
+    if (source === 'all') {
+      await store.ensureAllUsers();
+      expect(store.entitiesMap['user-1']?.userLocations).toEqual(userLocations);
+    } else {
+      await store.ensureUsersForLocation(12);
+      expect(store.getUsersForLocation(12)[0]?.userLocations).toEqual(userLocations);
+    }
+
+    expect(store.getUserLocations('user-1')).toEqual(userLocations);
+    expect(store.getUserLocations('user-2')).toEqual([]);
+    expect(store.getUserLocations('unknown')).toEqual([]);
+    store.invalidateAll();
+    expect(store.getUserLocations('user-1')).toEqual([]);
+  });
+
   it('uses the newest cached record when a user exists in both location and all-user results', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-09-17T10:00:00Z'));

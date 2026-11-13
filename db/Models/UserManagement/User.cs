@@ -44,6 +44,7 @@ public class User : BaseEntity
     public DateTimeOffset? LastPhotoUpdate { get; set; }
 
     public virtual ICollection<UserRole> UserRoles { get; set; } = [];
+    public virtual ICollection<UserLocation> UserLocations { get; set; } = [];
     public virtual ICollection<UserTraining> UserTrainings { get; set; } = [];
 
     [NotMapped]

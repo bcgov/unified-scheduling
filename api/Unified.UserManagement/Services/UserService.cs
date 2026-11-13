@@ -148,7 +148,8 @@ public sealed class UserService(
         userEntity.Rank = request.Rank?.Trim();
         userEntity.BadgeNumber = request.BadgeNumber?.Trim();
         userEntity.EmployeeNumber = request.EmployeeNumber.Trim();
-        var homeLocationChanged = userEntity.HomeLocationId != request.HomeLocationId;
+        var previousLocationId = userEntity.HomeLocationId;
+        var homeLocationChanged = previousLocationId != request.HomeLocationId;
         await using var transaction =
             homeLocationChanged && DB.Database.CurrentTransaction is null
                 ? await DB.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken)
@@ -159,8 +160,28 @@ public sealed class UserService(
         await DB.SaveChangesAsync(cancellationToken);
         if (homeLocationChanged)
         {
+            var changedAt = DateTimeOffset.UtcNow;
+            await DB.Entry(userEntity).Collection(user => user.UserLocations).LoadAsync(cancellationToken);
+            if (previousLocationId is int locationId)
+            {
+                var effectiveFrom = userEntity.UserLocations
+                    .Select(location => (DateTimeOffset?)location.EffectiveUntil)
+                    .DefaultIfEmpty(null)
+                    .Max();
+
+                userEntity.UserLocations.Add(new UserLocation
+                {
+                    UserId = userEntity.Id,
+                    User = userEntity,
+                    LocationId = locationId,
+                    EffectiveFrom = effectiveFrom,
+                    EffectiveUntil = changedAt,
+                });
+
+            }
+            logger.LogInformation("User {UserId} home location changed", userEntity.Id);
             await eventDispatcher.PublishAsync(
-                new UserHomeLocationChangedSignal(userEntity.Id, DateTimeOffset.UtcNow),
+                new UserHomeLocationChangedSignal(userEntity.Id, changedAt),
                 cancellationToken
             );
             await DB.SaveChangesAsync(cancellationToken);

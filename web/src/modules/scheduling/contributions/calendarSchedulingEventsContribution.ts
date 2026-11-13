@@ -43,6 +43,7 @@ import { getLeaveCalendarEvents } from '@/modules/leave/api/leaveApi';
 import { useLocationsStore } from '@/stores/LocationsStore';
 import { DateTime } from 'luxon';
 import { addDays, toApiDateString } from '@/utils/date';
+import { getCalendarEventDateKey } from '../calendarSchedulingDate';
 
 export interface CalendarSchedulingEventsData {
   warningEvents: CalendarSchedulingEvent[];
@@ -96,7 +97,7 @@ export const calendarSchedulingEventsContribution: CalendarModuleContribution = 
         },
         options?.signal,
       ),
-      loadSchedulingResourceData(context.locationId, runtimeContext, options?.signal),
+      loadSchedulingResourceData(context, runtimeContext, options?.signal),
     ]);
 
     const events = (data.events ?? []).filter(
@@ -279,7 +280,7 @@ function filterResourceUsers(users: UserResponse[], userIds?: string[]) {
   return users.filter((user) => allowedUserIds.has(user.id));
 }
 
-function mapUserToCalendarSchedulingResource(
+export function mapUserToCalendarSchedulingResource(
   user: UserResponse,
   actingPositions: ActingPositionResponseDto[],
 ): CalendarSchedulingUserResource {
@@ -387,10 +388,11 @@ async function loadSchedulingCalendarData(request: SchedulingCalendarRequest, si
 }
 
 async function loadSchedulingResourceData(
-  locationId?: number,
+  context: CalendarQueryContext,
   runtimeContext?: CalendarRuntimeContext,
   signal?: AbortSignal,
 ): Promise<CalendarSchedulingResourceData> {
+  const { locationId } = context;
   const isUserManagementEnabled = runtimeContext?.featureFlags.UserManagement?.enabled ?? true;
   if (!locationId || !isUserManagementEnabled) {
     return {
@@ -402,12 +404,32 @@ async function loadSchedulingResourceData(
 
   const usersStore = useUsersStore();
   const lookupStore = useLookupStore();
-  const [users] = await Promise.all([
+  const [locationUsers, allUsers] = await Promise.all([
     usersStore.ensureUsersForLocation(locationId, signal),
     usersStore.ensureAllUsers(signal),
     lookupStore.load(LookupCodeTypes.PositionTypes),
   ]);
   if (signal?.aborted) throw new DOMException('Scheduling request was aborted.', 'AbortError');
+  const timeZone = resolveSchedulingTimeZoneFromFilters(context.filters);
+  const usersById = new Map(locationUsers.map((user) => [user.id, user]));
+  for (const user of allUsers) {
+    if (
+      user.userLocations?.some((location) => {
+        if (location.locationId !== locationId) return false;
+        const startDate = getCalendarEventDateKey(location.effectiveFrom, timeZone);
+        const endDate = getCalendarEventDateKey(location.effectiveUntil, timeZone);
+        return (
+          (location.effectiveFrom == null || (startDate != null && startDate < context.endDate)) &&
+          endDate != null &&
+          endDate > context.startDate &&
+          (startDate == null || startDate < endDate)
+        );
+      })
+    ) {
+      usersById.set(user.id, user);
+    }
+  }
+  const users = [...usersById.values()];
   const positions = lookupStore.entityMap[LookupCodeTypes.PositionTypes];
   if (!positions) {
     throw new Error('Position type display order is unavailable.');
