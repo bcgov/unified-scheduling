@@ -488,7 +488,7 @@ public class AuthenticationServiceCollectionExtensionTests
             .AddLogging()
             .AddSingleton<IConfiguration>(configuration)
             .AddSingleton<IHostEnvironment>(new FakeHostEnvironment());
-        services.AddInfrastructureModule();
+        services.AddInfrastructureModule(new FakeHostEnvironment(), configuration);
         return services.BuildServiceProvider();
     }
 

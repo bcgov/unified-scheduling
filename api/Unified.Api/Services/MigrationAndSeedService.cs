@@ -31,6 +31,12 @@ public class MigrationAndSeedService(
             var seederFactory = scope.ServiceProvider.GetRequiredService<SeederFactory<UnifiedDbContext>>();
 
             await ExecuteMigrations(dbContext);
+            var keyContext = scope.ServiceProvider.GetRequiredService<DataProtectionKeyDbContext>();
+            if (!keyContext.Database.GetMigrations().Any())
+                throw new InvalidOperationException(
+                    "Data Protection migrations are missing. Generate the DataProtectionKeyDbContext initial migration before deployment."
+                );
+            await ExecuteMigrations(keyContext);
             await seederFactory.SeedAsync(dbContext);
         }
         catch (Exception ex)
@@ -40,7 +46,7 @@ public class MigrationAndSeedService(
         }
     }
 
-    private async Task ExecuteMigrations(UnifiedDbContext dbContext)
+    private async Task ExecuteMigrations(DbContext dbContext)
     {
         Logger.LogInformation("Starting database migrations...");
 
