@@ -25,6 +25,16 @@ export const GetApiUsersResponseItem = zod.object({
   badgeNumber: zod.string().nullish(),
   employeeNumber: zod.string(),
   homeLocationId: zod.int().nullish(),
+  userLocations: zod
+    .array(
+      zod.object({
+        id: zod.int().optional(),
+        locationId: zod.int().optional(),
+        effectiveFrom: zod.iso.datetime({ offset: true }).nullish(),
+        effectiveUntil: zod.iso.datetime({ offset: true }).optional(),
+      }),
+    )
+    .optional(),
   trainingProfileId: zod.int().nullish(),
   lastLogin: zod.iso.datetime({ offset: true }).nullish(),
   pendingRegistration: zod.boolean().optional(),
@@ -60,6 +70,16 @@ export const PostApiUsersResponse = zod.object({
   badgeNumber: zod.string().nullish(),
   employeeNumber: zod.string(),
   homeLocationId: zod.int().nullish(),
+  userLocations: zod
+    .array(
+      zod.object({
+        id: zod.int().optional(),
+        locationId: zod.int().optional(),
+        effectiveFrom: zod.iso.datetime({ offset: true }).nullish(),
+        effectiveUntil: zod.iso.datetime({ offset: true }).optional(),
+      }),
+    )
+    .optional(),
   trainingProfileId: zod.int().nullish(),
   lastLogin: zod.iso.datetime({ offset: true }).nullish(),
   pendingRegistration: zod.boolean().optional(),
@@ -84,6 +104,16 @@ export const GetApiUsersIdResponse = zod.object({
   badgeNumber: zod.string().nullish(),
   employeeNumber: zod.string(),
   homeLocationId: zod.int().nullish(),
+  userLocations: zod
+    .array(
+      zod.object({
+        id: zod.int().optional(),
+        locationId: zod.int().optional(),
+        effectiveFrom: zod.iso.datetime({ offset: true }).nullish(),
+        effectiveUntil: zod.iso.datetime({ offset: true }).optional(),
+      }),
+    )
+    .optional(),
   trainingProfileId: zod.int().nullish(),
   lastLogin: zod.iso.datetime({ offset: true }).nullish(),
   pendingRegistration: zod.boolean().optional(),
@@ -122,6 +152,16 @@ export const PutApiUsersIdResponse = zod.object({
   badgeNumber: zod.string().nullish(),
   employeeNumber: zod.string(),
   homeLocationId: zod.int().nullish(),
+  userLocations: zod
+    .array(
+      zod.object({
+        id: zod.int().optional(),
+        locationId: zod.int().optional(),
+        effectiveFrom: zod.iso.datetime({ offset: true }).nullish(),
+        effectiveUntil: zod.iso.datetime({ offset: true }).optional(),
+      }),
+    )
+    .optional(),
   trainingProfileId: zod.int().nullish(),
   lastLogin: zod.iso.datetime({ offset: true }).nullish(),
   pendingRegistration: zod.boolean().optional(),
@@ -207,6 +247,16 @@ export const PostApiUsersIdUploadPhotoResponse = zod.object({
   badgeNumber: zod.string().nullish(),
   employeeNumber: zod.string(),
   homeLocationId: zod.int().nullish(),
+  userLocations: zod
+    .array(
+      zod.object({
+        id: zod.int().optional(),
+        locationId: zod.int().optional(),
+        effectiveFrom: zod.iso.datetime({ offset: true }).nullish(),
+        effectiveUntil: zod.iso.datetime({ offset: true }).optional(),
+      }),
+    )
+    .optional(),
   trainingProfileId: zod.int().nullish(),
   lastLogin: zod.iso.datetime({ offset: true }).nullish(),
   pendingRegistration: zod.boolean().optional(),

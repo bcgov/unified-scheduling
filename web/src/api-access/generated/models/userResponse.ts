@@ -5,6 +5,7 @@
  * OpenAPI spec version: 1.0.0
  */
 import type { Gender } from './gender.ts';
+import type { UserLocationResponseDto } from './userLocationResponseDto.ts';
 
 export interface UserResponse {
   id: string;
@@ -23,6 +24,7 @@ export interface UserResponse {
   employeeNumber: string;
   /** @nullable */
   homeLocationId?: number | null;
+  userLocations?: UserLocationResponseDto[];
   /** @nullable */
   trainingProfileId?: number | null;
   /** @nullable */
