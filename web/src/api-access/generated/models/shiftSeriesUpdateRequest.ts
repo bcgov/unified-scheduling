@@ -8,7 +8,12 @@ import type { AssignmentSeriesLinkRequest } from './assignmentSeriesLinkRequest.
 
 export interface ShiftSeriesUpdateRequest {
   concurrencyToken: number;
-  assignmentSeriesLinks?: AssignmentSeriesLinkRequest[];
+  /** @nullable */
+  lunchAvailableMinutes?: number | null;
+  /** @nullable */
+  workedLunchMinutes?: number | null;
+  /** @nullable */
+  assignmentSeriesLinks?: AssignmentSeriesLinkRequest[] | null;
   /** @nullable */
   recurrenceRule?: string | null;
   title?: string;

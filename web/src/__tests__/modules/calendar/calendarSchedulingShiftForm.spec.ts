@@ -164,6 +164,37 @@ describe('calendarSchedulingShiftForm', () => {
     expect(formData).toMatchObject({ lunchAvailableMinutes: 30, workedLunchMinutes: 15 });
   });
 
+  it('hydrates linked assignment series and their assigned users from the shift series response', () => {
+    const assignedUserId = '00000000-0000-0000-0000-000000000001';
+    const formData = createShiftFormDataFromSeries(
+      {
+        id: 21,
+        startAtUtc: '2026-06-29T16:00:00Z',
+        endAtUtc: '2026-06-30T00:00:00Z',
+        recurrenceRule: 'RRULE:FREQ=WEEKLY;COUNT=2',
+        userIds: [assignedUserId],
+        assignmentSeriesLinks: [
+          { id: 3, shiftSeriesId: 21, assignmentSeriesId: 24, assignedUserIds: [assignedUserId] },
+          { id: 4, shiftSeriesId: 21, assignmentSeriesId: 25, assignedUserIds: [assignedUserId] },
+        ],
+      },
+      {
+        id: 'shift-42',
+        type: 'scheduling.shift',
+        sourceModule: 'scheduling',
+        title: 'Registry shift',
+        start: '2026-06-29T16:00:00Z',
+        end: '2026-06-30T00:00:00Z',
+      },
+      'America/Vancouver',
+    );
+
+    expect(formData.assignmentSeriesLinks).toEqual([
+      { assignmentSeriesId: 24, assignedUserIds: [assignedUserId] },
+      { assignmentSeriesId: 25, assignedUserIds: [assignedUserId] },
+    ]);
+  });
+
   it('validates and normalizes shared shift form data', () => {
     const result = validateShiftFormData(
       {

@@ -4,10 +4,16 @@
  * Unified.Api | v1
  * OpenAPI spec version: 1.0.0
  */
+import type { ShiftAssignmentSeriesLinkSummaryResponse } from './shiftAssignmentSeriesLinkSummaryResponse.ts';
 
 export interface ShiftSeriesResponse {
   concurrencyToken?: number;
+  /** @nullable */
+  lunchAvailableMinutes?: number | null;
+  /** @nullable */
+  workedLunchMinutes?: number | null;
   shiftEntryIds?: number[];
+  assignmentSeriesLinks?: ShiftAssignmentSeriesLinkSummaryResponse[];
   id?: number;
   eventSeriesId?: number;
   /** @nullable */
@@ -38,9 +44,5 @@ export interface ShiftSeriesResponse {
   allDay?: boolean;
   /** @nullable */
   locationId?: number | null;
-  /** @nullable */
-  lunchAvailableMinutes?: number | null;
-  /** @nullable */
-  workedLunchMinutes?: number | null;
   userIds?: string[];
 }
