@@ -7,7 +7,12 @@
 import type { AssignmentSeriesLinkRequest } from './assignmentSeriesLinkRequest.ts';
 
 export interface ShiftSeriesRequest {
-  assignmentSeriesLinks?: AssignmentSeriesLinkRequest[];
+  /** @nullable */
+  lunchAvailableMinutes?: number | null;
+  /** @nullable */
+  workedLunchMinutes?: number | null;
+  /** @nullable */
+  assignmentSeriesLinks?: AssignmentSeriesLinkRequest[] | null;
   /** @nullable */
   recurrenceRule?: string | null;
   title?: string;
@@ -25,9 +30,5 @@ export interface ShiftSeriesRequest {
   allDay?: boolean;
   /** @nullable */
   locationId?: number | null;
-  /** @nullable */
-  lunchAvailableMinutes?: number | null;
-  /** @nullable */
-  workedLunchMinutes?: number | null;
   userIds?: string[];
 }

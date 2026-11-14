@@ -11,4 +11,5 @@ public sealed record ShiftSeriesResponse : CalendarEventSeriesResponse
     public int? WorkedLunchMinutes { get; init; }
 
     public IReadOnlyCollection<int> ShiftEntryIds { get; init; } = [];
+    public IReadOnlyCollection<ShiftAssignmentSeriesLinkSummaryResponse> AssignmentSeriesLinks { get; init; } = [];
 }

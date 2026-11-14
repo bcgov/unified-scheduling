@@ -13,7 +13,8 @@ internal static class ShiftResponseMapper
     public static ShiftSeriesResponse ToShiftSeriesResponse(
         ShiftSeries shiftSeries,
         EventSeries? eventSeries,
-        IReadOnlyCollection<ShiftSeriesEntryIds> entryIds
+        IReadOnlyCollection<ShiftSeriesEntryIds> entryIds,
+        IReadOnlyCollection<ShiftAssignmentSeriesLink> assignmentSeriesLinks
     )
     {
         var userIds = shiftSeries.Users.Select(user => user.UserId).Distinct().ToList();
@@ -31,6 +32,10 @@ internal static class ShiftResponseMapper
             LunchAvailableMinutes = shiftSeries.LunchAvailableMinutes,
             WorkedLunchMinutes = shiftSeries.WorkedLunchMinutes,
             ShiftEntryIds = entryIds.Select(entry => entry.ShiftEntryId).ToList(),
+            AssignmentSeriesLinks = assignmentSeriesLinks
+                .OrderBy(link => link.AssignmentSeriesId)
+                .Select(ShiftAssignmentResponseMapper.ToSeriesLinkSummaryResponse)
+                .ToList(),
         };
     }
 

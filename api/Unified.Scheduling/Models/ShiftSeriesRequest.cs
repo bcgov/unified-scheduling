@@ -10,5 +10,5 @@ public record ShiftSeriesRequest : CalendarEventSeriesRequest
 
     public int? WorkedLunchMinutes { get; set; }
 
-    public IReadOnlyCollection<AssignmentSeriesLinkRequest> AssignmentSeriesLinks { get; init; } = [];
+    public IReadOnlyCollection<AssignmentSeriesLinkRequest>? AssignmentSeriesLinks { get; init; }
 }

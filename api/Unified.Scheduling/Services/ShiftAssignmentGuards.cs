@@ -101,7 +101,7 @@ internal static class ShiftAssignmentGuards
                 .Any(userId => !proposedUserIdSet.Contains(userId))
         )
             throw new InvalidOperationException(
-                "Shift users cannot be removed while they are assigned to linked assignments."
+                "To remove a user from this shift, first remove them from any linked assignments and save. Then remove them from the shift."
             );
 
         if (

@@ -35,13 +35,7 @@ internal static class AssignmentResponseMapper
             AssignmentEntryIds = entryIds.Select(entry => entry.AssignmentEntryId).ToList(),
             ShiftSeriesLinks = assignmentSeries
                 .ShiftAssignmentSeriesLinks.OrderBy(link => link.ShiftSeriesId)
-                .Select(link => new ShiftAssignmentSeriesLinkSummaryResponse
-                {
-                    Id = link.Id,
-                    ShiftSeriesId = link.ShiftSeriesId,
-                    AssignmentSeriesId = link.AssignmentSeriesId,
-                    AssignedUserIds = link.Users.Select(user => user.UserId).Distinct().ToList(),
-                })
+                .Select(ShiftAssignmentResponseMapper.ToSeriesLinkSummaryResponse)
                 .ToList(),
         };
     }

@@ -14,6 +14,17 @@ internal static class ShiftAssignmentResponseMapper
             Capacity = capacity,
         };
 
+    public static ShiftAssignmentSeriesLinkSummaryResponse ToSeriesLinkSummaryResponse(
+        ShiftAssignmentSeriesLink link
+    ) =>
+        new()
+        {
+            Id = link.Id,
+            ShiftSeriesId = link.ShiftSeriesId,
+            AssignmentSeriesId = link.AssignmentSeriesId,
+            AssignedUserIds = link.Users.Select(user => user.UserId).Distinct().ToList(),
+        };
+
     public static ShiftAssignmentSeriesLinkResponse ToSeriesLinkResponse(
         ShiftAssignmentSeriesLink seriesLink,
         IReadOnlyCollection<ShiftAssignmentEntry> entryLinks,

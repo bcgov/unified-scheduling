@@ -284,6 +284,11 @@ export function createShiftFormDataFromSeries(
   const start = toFormDateTime(series.startAtUtc ?? fallbackEvent.start, timeZoneId);
   const end = toFormDateTime(series.endAtUtc ?? fallbackEvent.end ?? fallbackEvent.start, timeZoneId);
   const recurrenceRule = series.recurrenceRule ?? null;
+  const assignmentSeriesLinks = (series.assignmentSeriesLinks ?? []).flatMap((link) =>
+    typeof link.assignmentSeriesId === 'number'
+      ? [{ assignmentSeriesId: link.assignmentSeriesId, assignedUserIds: link.assignedUserIds ?? [] }]
+      : [],
+  );
 
   return {
     title: series.title ?? fallbackEvent.title,
@@ -306,6 +311,7 @@ export function createShiftFormDataFromSeries(
     statusTypeCode: series.statusTypeCode ?? 'Draft',
     locationId: series.locationId ?? null,
     userIds: series.userIds ?? [],
+    assignmentSeriesLinks,
   };
 }
 
