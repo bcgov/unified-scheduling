@@ -8,7 +8,9 @@ import UaBackgroundOverlay from '@/shared/components/UaBackgroundOverlay.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
 import { useBranding } from '@/composables/useBranding';
 import { useNotificationsStore } from '@/stores/notifications';
+import { useAuthStore } from '@/stores/auth';
 
+const authStore = useAuthStore();
 const route = useRoute();
 const notifications = useNotificationsStore();
 const isPrintMode = computed(() => route.path.startsWith('/calendar') && route.query.mode === 'print');
@@ -47,7 +49,7 @@ watch(
             'main-content--print': isPrintMode,
           }"
         >
-          <RouterView />
+          <RouterView v-if="!route.meta.requiresAuth || authStore.isAuthenticated" />
         </main>
         <AppFooter v-if="!isPrintMode" />
       </div>

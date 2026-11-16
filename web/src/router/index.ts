@@ -123,6 +123,20 @@ export const initializeRouter = (pinia: ReturnType<typeof createPinia>) => {
     routes,
   });
 
+  window.addEventListener('pageshow', async (event) => {
+    if (!event.persisted) return;
+
+    const to = router.currentRoute.value;
+    if (!to.meta.requiresAuth) return;
+
+    useAuthStore(pinia).clearUserInfo();
+    const result = await authGuard(to, to);
+
+    if (result !== true && result !== false) {
+      await router.replace(result);
+    }
+  });
+
   router.beforeEach(async (to, from) => {
     if (to.meta.requiresAuth) {
       const authResult = await authGuard(to, from);
