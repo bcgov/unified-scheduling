@@ -328,41 +328,52 @@ public sealed class SsSchedulingWriter(UnifiedDbContext db)
                             },
                         }
                     );
-                    // Default times are a convenience only; all entries below retain actual source instants.
-                    var times = rows["Duty"]
-                        .Where(x => members.Any(y => y.Row.Int("Id") == x.Int("AssignmentId")))
-                        .Where(x => x.Date("StartDate") is not null && x.Date("EndDate") is not null)
-                        .Select(x =>
-                            (
-                                Start: TimeOnly.FromDateTime(
-                                    TimeZoneInfo
-                                        .ConvertTime(
-                                            x.Date("StartDate")!.Value,
-                                            TimeZoneInfo.FindSystemTimeZoneById(
-                                                x.Text("Timezone") ?? throw new SsReject("InvalidTimezone")
+                    // A singleton keeps its definition's own defaults, not observed duty times.
+                    // Merged definitions use the most common duty interval instead.
+                    if (members.Count == 1)
+                    {
+                        target.DefaultStartTime = chosen.Row.Time("Start") is { } start
+                            ? TimeOnly.FromTimeSpan(start)
+                            : null;
+                        target.DefaultEndTime = chosen.Row.Time("End") is { } end ? TimeOnly.FromTimeSpan(end) : null;
+                    }
+                    else
+                    {
+                        var times = rows["Duty"]
+                            .Where(x => members.Any(y => y.Row.Int("Id") == x.Int("AssignmentId")))
+                            .Where(x => x.Date("StartDate") is not null && x.Date("EndDate") is not null)
+                            .Select(x =>
+                                (
+                                    Start: TimeOnly.FromDateTime(
+                                        TimeZoneInfo
+                                            .ConvertTime(
+                                                x.Date("StartDate")!.Value,
+                                                TimeZoneInfo.FindSystemTimeZoneById(
+                                                    x.Text("Timezone") ?? throw new SsReject("InvalidTimezone")
+                                                )
                                             )
-                                        )
-                                        .DateTime
-                                ),
-                                End: TimeOnly.FromDateTime(
-                                    TimeZoneInfo
-                                        .ConvertTime(
-                                            x.Date("EndDate")!.Value,
-                                            TimeZoneInfo.FindSystemTimeZoneById(x.Text("Timezone")!)
-                                        )
-                                        .DateTime
+                                            .DateTime
+                                    ),
+                                    End: TimeOnly.FromDateTime(
+                                        TimeZoneInfo
+                                            .ConvertTime(
+                                                x.Date("EndDate")!.Value,
+                                                TimeZoneInfo.FindSystemTimeZoneById(x.Text("Timezone")!)
+                                            )
+                                            .DateTime
+                                    )
                                 )
                             )
-                        )
-                        .GroupBy(x => x)
-                        .OrderByDescending(x => x.Count())
-                        .ThenBy(x => x.Key.Start)
-                        .ThenBy(x => x.Key.End)
-                        .FirstOrDefault();
-                    if (times is not null && times.Key.End > times.Key.Start)
-                    {
-                        target.DefaultStartTime = times.Key.Start;
-                        target.DefaultEndTime = times.Key.End;
+                            .GroupBy(x => x)
+                            .OrderByDescending(x => x.Count())
+                            .ThenBy(x => x.Key.Start)
+                            .ThenBy(x => x.Key.End)
+                            .FirstOrDefault();
+                        if (times is not null && times.Key.End > times.Key.Start)
+                        {
+                            target.DefaultStartTime = times.Key.Start;
+                            target.DefaultEndTime = times.Key.End;
+                        }
                     }
                     db.AssignmentDefinitions.Add(target);
                     await db.SaveChangesAsync(ct);

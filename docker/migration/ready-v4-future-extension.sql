@@ -15,7 +15,10 @@ COMMENT ON DATABASE ss_ready_v4 IS 'SS SYNTHETIC';
 INSERT INTO "Assignment" ("Id","CreatedOn","LookupCodeId","LocationId","Name","Timezone",
     "Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday","Start","End","Comment")
 VALUES (900010,'2020-01-01Z',900000,900000,'Ready January','Etc/UTC',
-    true,true,true,true,true,false,false,'08:00','16:00','Synthetic January definition');
+    true,true,true,true,true,false,false,'08:00','16:00','Synthetic January definition'),
+    -- Catalogue-only singleton must retain these defaults even with no observed duties.
+    (900020,'2020-01-01Z',900000,900000,'Ready Catalogue Defaults','Etc/UTC',
+    true,true,true,true,true,false,false,'09:00','17:00','Synthetic catalogue-only definition');
 INSERT INTO "Duty" ("Id","CreatedOn","AssignmentId","LocationId","StartDate","EndDate","Timezone","Comment")
 SELECT id,'2020-01-01Z'::timestamptz,900010,900000,
     (d+time '08:00') AT TIME ZONE 'Etc/UTC',(d+time '16:00') AT TIME ZONE 'Etc/UTC',
