@@ -53,6 +53,7 @@ public class UnifiedDbContext : AuditDbContext
 
     // Data migration
     public DbSet<DataMigrationRun> DataMigrationRuns { get; set; }
+    public DbSet<DataMigrationOutcome> DataMigrationOutcomes { get; set; }
     public DbSet<DataMigrationRecord> DataMigrationRecords { get; set; }
     public DbSet<DataMigrationFailure> DataMigrationFailures { get; set; }
     public DbSet<DataMigrationMutation> DataMigrationMutations { get; set; }

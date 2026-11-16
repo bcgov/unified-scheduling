@@ -4,6 +4,9 @@ public sealed class DataMigrationRun
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     public required string Source { get; set; }
+    public string Job { get; set; } = "Legacy";
+    public Guid? MyTeamRunId { get; set; }
+    public DateOnly? CutoverDate { get; set; }
     public required string Status { get; set; }
     public DateTimeOffset? StartedOn { get; set; }
     public DateTimeOffset? CompletedOn { get; set; }

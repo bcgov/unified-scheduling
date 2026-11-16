@@ -38,7 +38,17 @@ public static class DataMigrationModule
 
         services.AddScoped<DataMigrationOrchestrator>();
         services.AddScoped<DataMigrationControlService>();
+        services.AddScoped<SsSnapshotReader>();
+        services.AddScoped<SsMigrationExecutor>();
+        services.AddScoped<SsLeaveWriter>();
+        services.AddScoped<SsMyTeamWriter>();
+        services.AddScoped<SsTrainingWriter>();
+        services.AddScoped<SsSchedulingWriter>();
         services.AddScoped<IRecurringJob, SsDataMigrationRecurringJob>();
+        services.AddScoped<IRecurringJob, SsTrainingRecurringJob>();
+        services.AddScoped<IRecurringJob, SsSchedulingRecurringJob>();
+        services.AddScoped<IRecurringJob, SsReportRecurringJob>();
+        services.AddHostedService<SsLegacyScheduleCleanup>();
         services.AddScoped<ISsLegacyMigrationSource, SsLegacyMigrationSource>();
 
         return services;

@@ -4,6 +4,33 @@ using Unified.Db.Models.DataMigration;
 
 namespace Unified.Db.Configuration.DataMigration;
 
+public sealed class DataMigrationOutcomeConfiguration
+    : IEntityTypeConfiguration<DataMigrationOutcome>
+{
+    public void Configure(EntityTypeBuilder<DataMigrationOutcome> builder)
+    {
+        builder.ToTable("DataMigrationOutcomes");
+        builder.HasKey(x => x.Id);
+        builder.Property(x => x.EntityType).HasMaxLength(128).IsRequired();
+        builder.Property(x => x.LegacyId).HasMaxLength(128).IsRequired();
+        builder.Property(x => x.Outcome).HasMaxLength(32).IsRequired();
+        builder.Property(x => x.Reason).HasMaxLength(128);
+        builder
+            .HasIndex(x => new
+            {
+                x.RunId,
+                x.EntityType,
+                x.LegacyId,
+            })
+            .IsUnique();
+        builder
+            .HasOne<DataMigrationRun>()
+            .WithMany()
+            .HasForeignKey(x => x.RunId)
+            .OnDelete(DeleteBehavior.Cascade);
+    }
+}
+
 public sealed class DataMigrationRunConfiguration : IEntityTypeConfiguration<DataMigrationRun>
 {
     public void Configure(EntityTypeBuilder<DataMigrationRun> builder)
@@ -11,9 +38,10 @@ public sealed class DataMigrationRunConfiguration : IEntityTypeConfiguration<Dat
         builder.ToTable("DataMigrationRuns");
         builder.HasKey(entity => entity.Id);
         builder.Property(entity => entity.Source).HasMaxLength(16).IsRequired();
+        builder.Property(entity => entity.Job).HasMaxLength(32).IsRequired();
         builder.Property(entity => entity.Status).HasMaxLength(16).IsRequired();
         builder
-            .HasIndex(entity => new { entity.Source, entity.Status })
+            .HasIndex(entity => new { entity.Source, entity.Job })
             .IsUnique()
             .HasFilter("\"Status\" = 'Running'");
         builder
@@ -36,6 +64,7 @@ public sealed class DataMigrationRecordConfiguration : IEntityTypeConfiguration<
         builder.Property(entity => entity.TargetType).HasMaxLength(128).IsRequired();
         builder.Property(entity => entity.TargetKey).HasMaxLength(128).IsRequired();
         builder.Property(entity => entity.PayloadHash).HasMaxLength(128).IsRequired();
+        builder.Property(entity => entity.AfterHash).HasMaxLength(128);
         builder
             .HasIndex(entity => new
             {
