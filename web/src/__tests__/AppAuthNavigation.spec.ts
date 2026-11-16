@@ -47,6 +47,7 @@ describe('Protected pages after logout', () => {
       },
     });
     expect(wrapper.find('[data-testid="secured-content"]').exists()).toBe(true);
+    expect(wrapper.find('appbar-stub').exists()).toBe(true);
   }
 
   function showPage(persisted: boolean) {
@@ -84,6 +85,7 @@ describe('Protected pages after logout', () => {
 
       expect(useAuthStore(app.pinia).isAuthenticated).toBe(false);
       expect(wrapper!.find('[data-testid="secured-content"]').exists()).toBe(false);
+      expect(wrapper!.find('appbar-stub').exists()).toBe(false);
       await vi.waitFor(expectLoginRedirect);
       expect(authRequests).toBe(1);
     },
@@ -104,6 +106,16 @@ describe('Protected pages after logout', () => {
     expect(useAuthStore(app.pinia).isAuthenticated).toBe(false);
     expect(wrapper!.find('[data-testid="secured-content"]').exists()).toBe(false);
     expect(authRequests).toBe(1);
+  });
+
+  it('hides the topbar immediately when the user logs out', async () => {
+    await openProtectedPage();
+
+    useAuthStore(app.pinia).clearUserInfo();
+    await nextTick();
+
+    expect(wrapper!.find('appbar-stub').exists()).toBe(false);
+    expect(wrapper!.find('[data-testid="secured-content"]').exists()).toBe(false);
   });
 
   it('blocks direct navigation to a secured URL after local logout', async () => {
@@ -172,8 +184,10 @@ describe('Protected pages after logout', () => {
     await nextTick();
 
     expect(wrapper!.find('[data-testid="secured-content"]').exists()).toBe(false);
+    expect(wrapper!.find('appbar-stub').exists()).toBe(false);
     await vi.waitFor(() => {
       expect(wrapper!.find('[data-testid="secured-content"]').exists()).toBe(true);
+      expect(wrapper!.find('appbar-stub').exists()).toBe(true);
     });
     expect(app.router.currentRoute.value.fullPath).toBe('/protected-test?location=2#week');
     expect(authRequests).toBe(1);

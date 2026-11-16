@@ -33,7 +33,7 @@ watch(
 
 <template>
   <v-app class="application-shell" :style="brandingStyles">
-    <Appbar v-if="!route.meta.fullScreen && !isPrintMode" />
+    <Appbar v-if="authStore.isAuthenticated && !route.meta.fullScreen && !isPrintMode" />
     <UaBackgroundOverlay :image="isPrintMode ? null : backgroundImageUrl">
       <div
         class="application-layout"

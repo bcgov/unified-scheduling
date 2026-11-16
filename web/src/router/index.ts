@@ -132,7 +132,7 @@ export const initializeRouter = (pinia: ReturnType<typeof createPinia>) => {
     useAuthStore(pinia).clearUserInfo();
     const result = await authGuard(to, to);
 
-    if (result !== true && result !== false) {
+    if (typeof result !== 'boolean') {
       await router.replace(result);
     }
   });
