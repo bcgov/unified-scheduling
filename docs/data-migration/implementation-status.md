@@ -14,8 +14,13 @@ Durable recovery and mapped-update follow-up:
 Journaled inverse executions: [rollback evidence](reports/2026-11-16-rollback.md).
 Latest comment/dependency replay, chained inverse and exact-window actual guard results:
 [Duty and availability evidence](reports/2026-11-16-duty-availability.md).
-Original synthetic SH-08 census measured FAIL24/26 comparisons; SH-01..07 remain
-unmeasured: [shape failure buckets](reports/2026-11-16-sh08-fit.md).
+Original80-sheriff SH-08 census remains FAIL24/26:
+[historical shape failure buckets](reports/2026-11-16-sh08-fit.md).
+New isolated v10 source/rebuild independently fit all4631 non-suppressed SH01–08 cells
+within ±20%,1222 suppressed bounds and53 explicit noncomparables, zero failed cells:
+[complete actual shape/inventory/proof](reports/2026-11-16-shape-profile.md).
+Original external extractor SQL execution remains unverified, not waived.
+Preserved adverse-chain attempt: [actual rejects and blocked downstream cases](reports/2026-11-16-adverse-v7.md).
 Latest bounded milestone: [matched Report and actual response gaps](reports/2026-11-16-matched-report.md).
 Subsequent bounded implementation: [guarded graph replay, history/inverse proof and
 matched future availability](reports/2026-11-16-graph-replay.md).
@@ -146,7 +151,10 @@ clone-name/confirmation guard. No whole-database restore is implemented or attem
    true-Excused policy, broad compliance and UI/date display parity are unproved.
    Nineteen distribution rows have no executed equivalent target full-distribution adapter,
    not proof of nineteen lost business records. Three source harness-projection rows
-   are not executed UI evidence on either side. Full adverse target rehearsal remains pending.
+   are not executed UI evidence on either side. Full adverse target chain was attempted:
+   MyTeam Failed48 rejects with exact2233-row identity/outcome accounting,11 planted
+   expected outcomes and3377 downstream cases unexecuted under the correct parent gate.
+   Full downstream adverse acceptance remains pending, not a passed zero-row chain.
 6. **Scheduling refinements:** complete reviewed classification,
    historical FTE/conflicts, cancellation/partial-outside cases, broader series
    qualification and approved future OT differences need further implementation/validation.
@@ -157,8 +165,14 @@ clone-name/confirmation guard. No whole-database restore is implemented or attem
    Fresh ready-v4 now includes January shifts/duties and completed all primary jobs;
    Latest Report covers 74 rows and now fails the matched ready-v4 capture; three actual
    training end instants/expiry values match, but broad BL-14 date-display parity is unproved.
-8. **Synthetic validity:** SH fit ±20%, full extractor inventory, repeat-build structural
-   hashes and stable-clock generation have not passed. Ready-v3 has no January roster;
+8. **Synthetic validity:** new persistent v10/source rebuild passed independent local
+   SQL SH01–08 fit for all5906 enumerated cells (4631 comparable,1222 suppressed
+   bounds,53 noncomparables), exact22-table inventory, stable-clock independent
+   generation, equal table/sequence hashes and filled-DB refusal/footprint checks.
+   Source parent containment/location checks are zero; earlier failed fixtures remain.
+   Original external SH/EX/AG/AD/SP/OD extractor SQL is absent from supplied repo-local
+   evidence and has not run; exact extractor acceptance remains open. This source
+   fit is not target business parity or a production activation. Ready-v3 has no January roster;
    separately named ready-v4 adds it without rewriting any earlier fixture.
    Actual target availability probes measured 1,320 suppressed user-minutes outside
    each two-hour away interval. A separately named future adverse interval correctly
