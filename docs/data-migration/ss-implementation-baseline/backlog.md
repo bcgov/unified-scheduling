@@ -18,6 +18,8 @@ Approved historical differences do not become silently fixed data.
 | BL-10 | Consider validated, reviewed manual crosswalk import | Recover genuinely ambiguous identities without guessing target IDs; separate validation/apply, source/target checks, checksum, authorization and audit | Existing plan recommendation; Unified Migration |
 | BL-11 | Make training report retain any missing compliance business fields | Compare actual SS export fields and Unified report output; attach measured missing fields/affected counts, not layout differences. Primary-goal blocker only if required business data cannot be recovered | SS-V057/O-1; Unified Training |
 | BL-12 | Verify assignment comments appear in calendar/read/export paths | Duty.Comment maps to Event.Description; if UI hides it, report visibility gap without app edits | G-15; Unified Scheduling |
+| BL-13 | Review future qualification expiry for SS rolling courses mapped to annual-day values | Existing certificate expiry copies exactly. New First Aid/other renewals may use Unified year-end rather than SS rolling completion-end rules; confirm intended Unified behavior, not a migration recalculation | Training field review; Unified Training |
+| BL-14 | Verify per-record training timezone/date visibility | SS exports completion/expiry in record timezone; UserTrainings has no timezone column. Compare actual displayed/exported business dates and quantify any loss; do not silently substitute UTC or current home timezone | O-1/SS-V057; Unified Training |
 
 ## BL-6 Proposed Follow-Up Design (Not Implemented)
 

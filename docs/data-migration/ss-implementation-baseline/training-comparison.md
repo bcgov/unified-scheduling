@@ -42,6 +42,8 @@ Dates display as DD Mon YYYY in the history timezone (null falls back Vancouver)
 | Carbine profile | Only eligible in-cutoff, non-excused, non-deleted Carbine history qualifies; preserve existing non-null profile |
 | Future completions | Preserve dates; compare actual report visibility/status, do not rewrite dates to force equality |
 | Disabled/exempt users | Data still migrates where approved; report population differences must be explained, not lost histories |
+| Record timezone | SS formats dates in the history timezone; target UserTrainings has no such field. Measure business-date visibility, keep the omission explicit (BL-14) |
+| Future expiry policy | Existing expiry is exact; later Unified renewals may differ from SS rolling/year-end behavior. BL-13, no migration-side recalculation |
 
 ## SS Status Is Derived, Not Attendance Data
 
@@ -82,7 +84,12 @@ or use historical mode with explicit offsets. Map report rows through source use
 
 ## Measured Results
 
-Not yet run in this session. Populate actual source/target row and field counts, report
-windows, ignored layout differences, matched discrepancy classes and artifact/command links
-after implementation. Any missing business field becomes BL-11 with concrete affected counts.
-Unexplained discrepancies mean Fail, not PassWithKnownDifferences.
+The [actual-service oracle](../../legacy/sheriff-scheduling/test-harness/report-oracle/README.md)
+was delivered in legacy commit `beea0fbc91545cd87c754c47736047c9b07c1951` (not pushed).
+SDK5 build and 20 unit tests passed, zero skipped; missing DB configuration fails closed.
+Real source-DB execution and independent Unified exports remain pending.
+
+Populate actual source/target row and field counts, report windows, ignored layout differences,
+matched discrepancy classes and artifact/command links after execution. Any missing business
+field becomes BL-11 with concrete affected counts. Unexplained discrepancies mean Fail,
+not PassWithKnownDifferences.

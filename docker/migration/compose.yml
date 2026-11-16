@@ -1,0 +1,67 @@
+name: unified-ss-migration
+services:
+  source:
+    image: postgres:12-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ss
+      POSTGRES_HOST_AUTH_METHOD: trust
+    volumes:
+      - source-adverse:/var/lib/postgresql/data
+      - ../../docs/data-migration/ss-implementation-baseline/evidence:/fixture:ro
+      - ./source-init.sh:/docker-entrypoint-initdb.d/10-synthetic.sh:ro
+      - ./ready-fixture.sql:/fixture-ready.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ss && test -f /var/lib/postgresql/data/ss-fixture-ready"]
+      interval: 5s
+      timeout: 5s
+      retries: 120
+    networks: [migration]
+  target:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: unified_ss_rehearsal
+      POSTGRES_HOST_AUTH_METHOD: trust
+    volumes:
+      - target-isolated:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d unified_ss_rehearsal"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    networks: [migration]
+  runner:
+    image: mcr.microsoft.com/dotnet/sdk:10.0
+    profiles: [tools]
+    working_dir: /src
+    volumes:
+      - ../..:/src
+      - nuget:/root/.nuget/packages
+    environment:
+      DatabaseConnectionString: Host=target;Database=unified_ss_rehearsal;Username=postgres
+      FeatureFlags__DataMigration__Enabled: "true"
+      DataMigration__Sources__SS__Enabled: "true"
+      DataMigration__Sources__SS__ConnectionString: Host=source;Database=ss;Username=ss_migration_reader
+      DataMigration__Sources__SS__CutoverDate: "2026-12-01"
+      DataMigration__Sources__SS__HistoryStartDate: "2015-01-01"
+      DataMigration__Sources__SS__Jobs__MyTeam__Enabled: "true"
+      DataMigration__Sources__SS__Jobs__Training__Enabled: "true"
+      DataMigration__Sources__SS__Jobs__Scheduling__Enabled: "true"
+      DataMigration__Sources__SS__Jobs__Report__Enabled: "true"
+      JCInterface__ExpireRegions: "false"
+      JCInterface__ExpireLocations: "false"
+      JCInterface__ExpireCourtRooms: "false"
+      CalendarDateTime__DefaultTimeZoneId: America/Vancouver
+      WorkingHours__FullWorkingDayMinutes: "420"
+      FeatureFlags__Leave__Enabled: "true"
+      FeatureFlags__LoanOut__Enabled: "false"
+    entrypoint: ["dotnet", "run", "--project", "api/Unified.DataMigration.Runner", "--"]
+    networks: [migration]
+networks:
+  # No host ports. Trust authentication is confined to this local synthetic-only network.
+  migration:
+volumes:
+  source-adverse:
+  target-isolated:
+  nuget:
