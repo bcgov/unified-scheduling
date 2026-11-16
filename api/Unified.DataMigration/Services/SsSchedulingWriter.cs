@@ -740,7 +740,36 @@ public sealed class SsSchedulingWriter(UnifiedDbContext db)
                             dates,
                             zone,
                             location,
+                            Comment = row.Text("Comment"),
                             Expiry = row.Date("ExpiryDate"),
+                            // Link selection depends on the source shift graph as
+                            // well as the slot. A moved/reassigned source shift must
+                            // replay its affected duties even when Duty.UpdatedOn
+                            // did not change. Never derive source hashes from
+                            // independently edited mutable target shift values.
+                            ShiftDependencies = rows["Shift"]
+                                .Where(shift =>
+                                    shift.Date("EndDate") >= boundary
+                                    && live.Any(slot =>
+                                        slot.Guid("SheriffId") is { } sheriff
+                                        && shift.Guid("SheriffId") == sheriff
+                                        && shift.Int("LocationId") == row.Int("LocationId")
+                                        && shift.Date("StartDate") < slot.Date("EndDate")
+                                        && shift.Date("EndDate") > slot.Date("StartDate")
+                                    )
+                                )
+                                .OrderBy(shift => shift.Int("Id"))
+                                .Select(shift => new
+                                {
+                                    shift.Id,
+                                    Sheriff = shift.Guid("SheriffId"),
+                                    Location = shift.Int("LocationId"),
+                                    Start = shift.Date("StartDate"),
+                                    End = shift.Date("EndDate"),
+                                    Timezone = shift.Text("Timezone"),
+                                    Expiry = shift.Date("ExpiryDate"),
+                                })
+                                .ToArray(),
                             Slots = live.OrderBy(x => x.Int("Id"))
                                 .Select(x => new
                                 {
@@ -849,7 +878,8 @@ public sealed class SsSchedulingWriter(UnifiedDbContext db)
                                                 throw new SsReject("FutureAssignmentUniquenessConflict");
                                         }
                                         var shifts = await db
-                                            .ShiftEntries.Where(x =>
+                                            .ShiftEntries.Include(x => x.Event)
+                                            .Where(x =>
                                                 x.Event != null
                                                 && x.Event.LocationId == location
                                                 && x.Event.StatusTypeCode != "cancelled"

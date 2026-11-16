@@ -239,8 +239,12 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run)
             if (prior?.Version is null)
                 throw new SsReject("MissingOriginalTargetVersionProof");
             var version = await TargetVersionAsync(record.TargetType, record.TargetKey, true, ct);
+            // Mapped-value equality under row/event locks is the QX4 guard.
+            // User additionally needs exact xmin: photo bytes are deliberately
+            // excluded from hashes. Audit-only xmin changes on other targets
+            // (including a verified inverse) must not permanently block replay.
             if (
-                version != prior.Version
+                record.TargetType == "User" && version != prior.Version
                 || record.AfterHash != await TargetFingerprintAsync(record.TargetType, record.TargetKey, ct)
             )
                 throw new SsReject("OwnedTargetDrift");
@@ -428,7 +432,7 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run)
             throw new SsReject("MissingOriginalTargetVersionProof");
         var version = await TargetVersionAsync(owner.TargetType, owner.TargetKey, true, ct);
         if (
-            version != prior.Version
+            owner.TargetType == "User" && version != prior.Version
             || await TargetFingerprintAsync(owner.TargetType, owner.TargetKey, ct) != owner.AfterHash
             || records.Any(x => x.AfterHash != owner.AfterHash)
         )
@@ -498,9 +502,10 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run)
                 .DataMigrationMutations.Where(x => x.DataMigrationRecordId == record.Id)
                 .OrderByDescending(x => x.Id)
                 .FirstOrDefaultAsync(ct);
+            var version = await TargetVersionAsync(record.TargetType, record.TargetKey, true, ct);
             if (
                 prior?.Version is null
-                || await TargetVersionAsync(record.TargetType, record.TargetKey, true, ct) != prior.Version
+                || record.TargetType == "User" && version != prior.Version
                 || await TargetFingerprintAsync(record.TargetType, record.TargetKey, ct) != record.AfterHash
             )
                 throw new SsReject("OwnedTargetDrift");

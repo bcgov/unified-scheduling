@@ -10,6 +10,10 @@ for retained failures, run IDs and application-service evidence.
 Durable recovery and mapped-update follow-up:
 [2026-11-16 recovery evidence](reports/2026-11-16-recovery.md).
 Journaled inverse executions: [rollback evidence](reports/2026-11-16-rollback.md).
+Latest comment/dependency replay, chained inverse and exact-window actual guard results:
+[Duty and availability evidence](reports/2026-11-16-duty-availability.md).
+Original synthetic SH-08 census measured FAIL24/26 comparisons; SH-01..07 remain
+unmeasured: [shape failure buckets](reports/2026-11-16-sh08-fit.md).
 
 ## Implemented and exercised
 

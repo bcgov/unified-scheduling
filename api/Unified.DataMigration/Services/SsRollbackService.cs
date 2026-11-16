@@ -151,6 +151,18 @@ public sealed class SsRollbackService(UnifiedDbContext db, SsRollbackJournal cry
         // Never journal the inverse into the original run; evidence is immutable.
         await db.Database.ExecuteSqlRawAsync("SELECT set_config('unified_ss.run','',true)", ct);
         var original = plan.Undo.Where(x => x.First.Operation != "I").ToList();
+        // Replacement auxiliary rows may occupy the deleted originals' unique keys
+        // (e.g. ShiftEntryId + AssignmentEntryId). Remove confirmed created leaf
+        // rows before restoration, not after inserting those originals. A surviving
+        // original FK dependent prevents early deletion until its FK is restored.
+        // No constraints are disabled and every operation remains in this inverse TX.
+        foreach (var row in plan.Deletes)
+            if ((await ChildrenAsync(row, ct)).Count == 0)
+                await CommandAsync(
+                    $"DELETE FROM {row.Table.Sql} t WHERE to_jsonb(t) @> @key::jsonb",
+                    ct,
+                    new NpgsqlParameter("key", NpgsqlDbType.Jsonb) { Value = row.Key }
+                );
         // Free migration-created natural-key identities before restoring originals.
         // PKs/FKs never change; these rows are all removed in this same transaction.
         foreach (
@@ -237,8 +249,8 @@ public sealed class SsRollbackService(UnifiedDbContext db, SsRollbackJournal cry
         // digest is proven restored, never silently bless unrelated application edits.
         var trusted = plan
             .Undo.Where(x =>
-                x.Current.Hash == x.Last.AfterHash
-                && (x.Current.Version == x.Last.AfterVersion || !x.Current.HasPhoto && !x.First.BeforeHadPhoto)
+                !x.Current.HasPhoto && !x.First.BeforeHadPhoto
+                || x.Current.Hash == x.Last.AfterHash && x.Current.Version == x.Last.AfterVersion
             )
             .ToList();
         var targets = db

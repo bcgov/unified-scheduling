@@ -195,6 +195,10 @@ try
     {
         return await NormalizedTargetExport.ExecuteAsync(scope.ServiceProvider, configuration) ? 0 : 1;
     }
+    else if (args[0] == "availability-probe")
+    {
+        await ActualAwayAvailabilityExport.ExecuteAsync(scope.ServiceProvider, configuration);
+    }
     else if (args[0] == "recover")
     {
         var runId = Guid.Parse(configuration["DataMigrationRecovery:RunId"]!);
