@@ -1,7 +1,7 @@
 # Training Export And Code Comparison
 
-**Baseline 2026-11-16.** SS behavior traced from source; runtime comparison pending until
-the oracle and migration run. This document does **not** claim exported-data parity.
+**Baseline 2026-11-16.** Actual SS oracle and limited target runs exist; matched cross-app
+comparison remains pending. This document does **not** claim exported-data parity.
 
 ## What The SS Export Actually Represents
 
@@ -87,7 +87,30 @@ or use historical mode with explicit offsets. Map report rows through source use
 The [actual-service oracle](../../legacy/sheriff-scheduling/test-harness/report-oracle/README.md)
 was delivered in legacy commit `beea0fbc91545cd87c754c47736047c9b07c1951` (not pushed).
 SDK5 build and 20 unit tests passed, zero skipped; missing DB configuration fails closed.
-Real source-DB execution and independent Unified exports remain pending.
+Follow-up commits `e2da417` / `9a57c54` ran the actual source PostgreSQL services:
+29 tests passed, zero skipped, including two DB tests. Training capture has 6,516 normalized
+rows: in each of three windows, 1,102 API rows plus 1,070 Non-Excused projection rows.
+Fresh replay matched saved captures; source read-only/synthetic guards passed.
+Independent Unified comparison remains pending.
+
+Matched ready-v4 source evidence followed in legacy commit `e6e674c`: 33 tests passed,
+zero skipped, with fresh training/full-report/availability replays matching.
+Restricted `ready-v4-source-training-v1-80e9aae.json` has 6 rows;
+`ready-v4-source-all-v1-80e9aae.json` has 57 across report surfaces.
+Exact database `ss_ready_v4`, synthetic marker and read-only transaction were verified.
+These captures now supply the same-fixture source input for target comparison; they are
+not themselves a cross-app pass. Original adverse captures remain unchanged.
+
+The Non-Excused capture is a harness projection, **not executed SS UI/CSV evidence**.
+The [target envelope](../../legacy/sheriff-scheduling/test-harness/report-oracle/TARGET-EXPORT.md)
+retains actual API status strings, source identities and duplicate multiplicity; adaptation
+must not recreate SS selection/status logic to manufacture matching target rows.
+
+Initial ready-v2 target rehearsal persisted one qualification with AwardedOn=EndingOn
+`2026-11-01T10:00:00Z`, null certificate expiry, NoticeState Sent and Version1.
+Actual UserTrainingReportQueryHandler returned the same instant at
+`2026-11-01T03:00:00-07:00`; unchanged replay retained counts. This verifies that one fixture,
+not the full SS export/report population or all edge cases.
 
 Populate actual source/target row and field counts, report windows, ignored layout differences,
 matched discrepancy classes and artifact/command links after execution. Any missing business

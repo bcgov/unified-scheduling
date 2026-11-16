@@ -1,5 +1,6 @@
 using System.Data;
 using System.Globalization;
+using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Microsoft.EntityFrameworkCore;
@@ -46,7 +47,19 @@ internal static class NormalizedTargetExport
             || File.GetAttributes(root).HasFlag(FileAttributes.ReparsePoint)
         )
             throw new InvalidOperationException("Restricted artifact boundary failed.");
-        var source = JsonNode.Parse(await File.ReadAllTextAsync(sourcePath))!.AsObject();
+        var sourceBytes = await File.ReadAllBytesAsync(sourcePath);
+        var source = JsonNode.Parse(sourceBytes)!.AsObject();
+        var sourceDigest = Convert.ToHexString(SHA256.HashData(sourceBytes));
+        if (
+            config["DataMigrationRehearsal:ExpectedSourceArtifactSha256"] is { } expectedDigest
+            && !sourceDigest.Equals(expectedDigest, StringComparison.OrdinalIgnoreCase)
+        )
+            throw new InvalidOperationException("Independent source capture digest mismatch.");
+        var sourceDatabase = new Npgsql.NpgsqlConnectionStringBuilder(
+            config["DataMigration:Sources:SS:ConnectionString"]
+        ).Database;
+        if (source["SourceDatabase"]?.GetValue<string>() is { } capturedDatabase && capturedDatabase != sourceDatabase)
+            throw new InvalidOperationException("Independent capture selects a different source database.");
         if (
             source["Format"]?.GetValue<string>() != "ss-synthetic-report-oracle/v1"
             || source["Marker"]?.GetValue<string>() != "SS SYNTHETIC"
@@ -60,11 +73,12 @@ internal static class NormalizedTargetExport
         var gaps = new HashSet<string>(StringComparer.Ordinal)
         {
             "TrainingExcusedAndRowVariantNotExposedByTargetReport",
-            "TrainingUiProjectionIsNotAnExecutedTargetUiExport",
+            "TrainingUiProjectionIsHarnessOnlyNoUiExportCompared",
             "DistributionReadOracleNotExposedByTargetDeliveryCommand",
             "TargetSlotFlagsAndStoredOvertimeAreNotExposed",
-            "HistoricalReportInstantVersusCurrentTargetComplianceRequiresReview",
+            "TrainingStatusContractsRequireFieldLevelReview",
         };
+        var assignmentCapacities = new List<object>();
         void Emit(string window, string report, object key, object value) =>
             result.Add(new Row(window, report, JsonSerializer.Serialize(key), JsonSerializer.Serialize(value)));
         string? Instant(DateTimeOffset? value) => value?.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture);
@@ -226,6 +240,14 @@ internal static class NormalizedTargetExport
                     var sourceDuty = LegacyInt("Duty", duty.AssignmentEntryId);
                     if (sourceDuty is null)
                         continue;
+                    assignmentCapacities.Add(
+                        new
+                        {
+                            Window = windowName,
+                            SourceDutyId = sourceDuty,
+                            duty.Capacity,
+                        }
+                    );
                     var sourceSlots = links
                         .Where(x =>
                             x.EntityType == "DutySlot"
@@ -265,7 +287,10 @@ internal static class NormalizedTargetExport
                                 start = Instant(duty.Start),
                                 end = Instant(duty.End),
                                 timezone = duty.TimeZoneId,
-                                notRequired = duty.Capacity == 0,
+                                // Capacity is observable, but cannot distinguish
+                                // source Closed from NotRequired. Do not invent a
+                                // source boolean from a different target field.
+                                notRequired = (bool?)null,
                                 notAvailable = (bool?)null,
                                 overtime = (bool?)null,
                                 closed = (bool?)null,
@@ -314,6 +339,9 @@ internal static class NormalizedTargetExport
                 CurrentSourceDatabase = new Npgsql.NpgsqlConnectionStringBuilder(
                     config["DataMigration:Sources:SS:ConnectionString"]
                 ).Database,
+                SourceArtifact = sourceName,
+                SourceArtifactSha256 = sourceDigest,
+                SourceCaptureRevision = source["SourceRevision"]?.GetValue<string>(),
                 ActualServices = new[]
                 {
                     "UserTrainingReportQueryHandler",
@@ -323,6 +351,9 @@ internal static class NormalizedTargetExport
                 TargetWorkingDayMinutes = config.GetValue<int>("WorkingHours:FullWorkingDayMinutes"),
                 Gaps = gaps.OrderBy(x => x, StringComparer.Ordinal).ToArray(),
                 UiCsvPdfExecuted = false,
+                ActualAssignmentCapacities = assignmentCapacities,
+                SourcePermissionEvaluation = source["PermissionEvaluation"]?.GetValue<string>(),
+                TargetTrainingClock = "TimeProvider.System; actual target handler",
             }
         );
         var sourceRows = source["Rows"]!.Deserialize<List<Row>>()!;
@@ -358,20 +389,10 @@ internal static class NormalizedTargetExport
             MissingRows = missing,
             UnexpectedRows = unexpected,
             Gaps = gaps.OrderBy(x => x, StringComparer.Ordinal).ToArray(),
-            BySurface = sourceRows
-                .Concat(result)
-                .Select(x => (x.Window, x.Report))
-                .Distinct()
-                .OrderBy(x => x.Window)
-                .ThenBy(x => x.Report)
-                .Select(x => new
-                {
-                    x.Window,
-                    x.Report,
-                    SourceRows = sourceRows.Count(r => r.Window == x.Window && r.Report == x.Report),
-                    TargetRows = result.Count(r => r.Window == x.Window && r.Report == x.Report),
-                })
-                .ToArray(),
+            SourceArtifactSha256 = sourceDigest,
+            SourceDatabase = sourceDatabase,
+            BySurface = ActualResponseComparison.BySurface(sourceRows, result),
+            ShiftGroupCoverage = ActualResponseComparison.ShiftGroupCoverage(sourceRows, result, links),
         };
         var options = new JsonSerializerOptions { WriteIndented = true };
         async Task WriteNew(string path, string content)

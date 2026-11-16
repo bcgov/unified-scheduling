@@ -28,6 +28,9 @@ Earlier notes marked pending are history where the rules below settle them. CASS
 - Merged groups have one fingerprint covering all members and one crosswalk per source row.
   Categories/series use stable synthetic source keys. Do not select only changed members.
 - Physical absence is not a delete instruction. Apply only the explicit lifecycle rules.
+- Exclude SS Audit, JcSynchronization and DataProtectionKeys as system-owned tables;
+  reconcile exclusion counts only, never copy payloads, key rings or JC state. Unified
+  retains its own audit, synchronization and cryptographic state (D-13).
 
 ## Job And Date Contract
 
@@ -62,6 +65,8 @@ Reject inverted/equal intervals except training permits equal start/end. No inve
 
 ## References And JC (T051)
 
+### Config-Based JC Ownership (T051)
+
 Before any SS business write, verify `JCInterface:ExpireRegions`, `ExpireLocations` and
 `ExpireCourtRooms` are explicitly false. Missing/true values fail closed. No per-row ownership
 field, classification or backfill. Matching-key JC updates/reactivation remain accepted.
@@ -90,7 +95,10 @@ rejects. No JC feed or per-room approval needed.
 
 ## Lookup Types
 
-### Types 1-4: Classification, Not Definitions
+### Types 1-4 And Assignments: Approved Two-Step Plan
+
+Step 1 classifies lookups; Step 2 loads definitions, duties and staff links. Lookup
+classification never replaces the source Assignment identity.
 
 Use the reviewed exact `(Type, Code)` classification table from the
 [assignment decisions](../../../documentation/data-migration/ss-job-notes/mapping-decision-worksheet.md#types-1-4-and-assignments-open-gaps).
@@ -191,10 +199,18 @@ permission snapshot. Do not import Permission/RolePermission or resync permissio
 UserRole copies all effective/expiry/reason values, including expired/future rows; no cutoff.
 
 Acting positions copy start/end, timezone, comment, expiry/reason and resolved user/position.
-Away and leave create Event plus detail plus crosswalk atomically. Use event types
-awayLocation/leave and source modules user-management/leave. Resolve user/location/type;
+Away and leave create Event plus detail plus crosswalk atomically. **Current-model correction
+(2026-11-16):** away uses LoanOutEntry + Event + one user link, destination in
+LoanOutLocationId and source/home in Event.LocationId. The older UserAwayLocations proposal
+does not cover the current LoanOut-enabled workflow. Use actual current event/module codes
+and read paths rather than creating a dormant legacy model row.
+Do not invoke ordinary LoanOut creation: it forces all-day and transfers shifts.
+Copy source instants/cancellation without those side effects. Day-based availability may
+differ for partial-day records; measure/report affected intervals and future impacts (BL-15),
+never claim exact availability merely because the stored Event interval is exact.
+Resolve user/location/type;
 null required away location/leave type rejects. AllDay=false; preserve times/timezone/notes.
-Titles: `Away - {location name}`, `{FirstName LastName} leave` (fallback Leave).
+Titles follow the current LoanOut convention and `{FirstName LastName} leave` (fallback Leave).
 Leave is standalone with one LeaveEntryUser. Soft-deleted rows become cancelled events with
 copied cancellation instant/reason; no invented cancelled actor.
 

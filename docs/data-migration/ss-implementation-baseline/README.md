@@ -14,3 +14,10 @@ to include the parent's BL13/BL14 decisions. The `evidence/` files are authorize
 inputs, including historical approvals and the original generator; where they conflict,
 the final canonical mapping contract wins (not an older run-clock expiry instruction).
 Copied schema SQL has only trailing whitespace/final blank lines normalized for Git checks.
+
+Backlog, training comparison, significant gaps, validation evidence and canonical contract
+were refreshed again after the parent's `e6e674c` oracle milestone; all five matched the
+authorized workspace text after newline normalization. They are verbatim planning/history
+inputs: pending matched-target statements and the fixture timezone assumption can be stale.
+The [actual matched Report](../reports/2026-11-16-matched-report.md) supersedes those runtime
+statements, including the measured target timezone Etc/UTC. Parent-owned originals were not edited.

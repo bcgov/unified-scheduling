@@ -14,6 +14,9 @@ Latest comment/dependency replay, chained inverse and exact-window actual guard 
 [Duty and availability evidence](reports/2026-11-16-duty-availability.md).
 Original synthetic SH-08 census measured FAIL24/26 comparisons; SH-01..07 remain
 unmeasured: [shape failure buckets](reports/2026-11-16-sh08-fit.md).
+Latest bounded milestone: [matched Report and actual response gaps](reports/2026-11-16-matched-report.md).
+Exact ready-v4 source captures are imported and verified; fixture coordination is no
+longer the Report blocker. Final matched Report is Failed, not accepted.
 
 ## Implemented and exercised
 
@@ -104,12 +107,14 @@ clone-name/confirmation guard. No whole-database restore is implemented or attem
    Report reversal/broader adverse/concurrency cases remain; prior nonnull private-photo
    overwrite cannot restore old bytes under Users-only photo retention. Old unjournaled
    runs remain blocked. Production apply stays disabled.
-5. **Matched actual-service parity:** independent SS capture is from full adverse `ss`;
-   ready-v3/v4 are different fixtures. Their comparisons correctly fail. A matched ready
-   capture and full applied adverse rehearsal are pending. Unsupported target training
-   flags/status/UI projection, slot flags/stored OT and distribution surfaces remain
-   explicit gaps, not reconstructed SS output. SS nonExcused is a harness projection,
-   not executed browser/CSV evidence.
+5. **Matched actual-service parity:** ready-v4 matched Report
+   `a92f76fa-ff60-4c24-ab8e-7835fbcd1d2d` covers74 rows but Failed: 57 source/33 target,
+   18 exact/39 missing/15 unexpected strict response rows. All six duties match; the
+   two-to-one historical shift merge preserves its complete interval union. Training
+   flags/status, four slot flags and three shift fields differ or are unexposed.
+   Nineteen distribution rows have no executed equivalent target full-distribution adapter,
+   not proof of nineteen lost business records. Three source harness-projection rows
+   are not executed UI evidence on either side. Full adverse target rehearsal remains pending.
 6. **Scheduling refinements:** complete reviewed classification,
    historical FTE/conflicts, cancellation/partial-outside cases, broader series
    qualification and approved future OT differences need further implementation/validation.
@@ -118,14 +123,22 @@ clone-name/confirmation guard. No whole-database restore is implemented or attem
    shifted to force matching display dates. Canonical future-month window is JANUARY 2027;
    earlier December convenience results are not future-month oracle parity evidence.
    Fresh ready-v4 now includes January shifts/duties and completed all primary jobs;
-   Latest Report covers 74 rows but fails the mismatched adverse capture (33 actual target rows).
+   Latest Report covers 74 rows and now fails the matched ready-v4 capture; three actual
+   training end instants/expiry values match, but broad BL-14 date-display parity is unproved.
 8. **Synthetic validity:** SH fit ±20%, full extractor inventory, repeat-build structural
    hashes and stable-clock generation have not passed. Ready-v3 has no January roster;
    separately named ready-v4 adds it without rewriting any earlier fixture.
    Actual target availability probes measured 1,320 suppressed user-minutes outside
    each two-hour away interval. A separately named future adverse interval correctly
    holds Scheduling NeedsAction pending an actual SS comparison. Target-only
-   suppression does not prove SS workflow loss; SS may also be day-based.
+   suppression does not quantify SS workflow loss. Actual matched SS/target read calls now
+   show two destination candidate-presence differences and four conflict-response differences
+   across twelve windows. Target calendar preserves the exact two-hour home event, but its
+   proposed-shift conflict engine returns no Away conflict; source returns four instances.
+   Date-only borrowed-user discovery and day-based assignment guards are distinct response
+   planes, not executed UI/free-minute/save evidence. Future source probe still needs execution:
+   its env selects ss_ready_v4_probe, on network container:unified-ss-migration-source-1,
+   not original ss-synth-pg (which has no such database).
 9. **Independent coverage:** broader PostgreSQL concurrency, stale fencing, all mapped
    drift, retry, backfill, rollback and dry-run parity coverage remains required.
 

@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Unified.Audit;
 using Unified.Audit.Options;
 using Unified.Calendar;
+using Unified.Common.Events;
 using Unified.Common.Scheduling;
 using Unified.DataMigration;
 using Unified.DataMigration.Services;
@@ -15,6 +16,7 @@ using Unified.LoanOut.Services;
 using Unified.Scheduling;
 using Unified.Scheduling.Models;
 using Unified.Scheduling.Services;
+using Unified.UserManagement;
 
 // Repair only the existing, owner-restricted ready-v4 handoff. Use Npgsql's actual
 // CLR property setter, not PowerShell's IDictionary property adapter.
@@ -78,7 +80,7 @@ var connection = configuration["DatabaseConnectionString"];
 if (string.IsNullOrWhiteSpace(connection) || args.Length != 1)
 {
     Console.Error.WriteLine(
-        "Set configuration; use schema|bootstrap|seed-loanout-reference|MyTeam|Training|Scheduling|Report|evidence|queries|publish-preview|publish-rehearsal|export-oracle|recover."
+        "Set configuration; use schema|bootstrap|seed-loanout-reference|MyTeam|Training|Scheduling|Report|evidence|queries|publish-preview|publish-rehearsal|export-oracle|availability-probe|availability-compare|recover."
     );
     return 2;
 }
@@ -122,6 +124,11 @@ services.AddCalendarModule(configuration);
 services.AddSchedulingModule(configuration);
 services.AddLeaveModule(configuration);
 services.AddLoanOutModule(configuration);
+if (args[0] == "availability-compare")
+{
+    services.AddUserManagementModule(configuration);
+    services.AddScoped<IEventDispatcher, EventDispatcher>();
+}
 if (LoanOutModule.IsModuleEnabled(configuration))
     services.AddScoped<ISchedulingCalendarEventDataProvider<SchedulingCalendarEventResponse>>(sp =>
         sp.GetRequiredService<ILoanOutCalendarDataProvider>()
@@ -198,6 +205,10 @@ try
     else if (args[0] == "availability-probe")
     {
         await ActualAwayAvailabilityExport.ExecuteAsync(scope.ServiceProvider, configuration);
+    }
+    else if (args[0] == "availability-compare")
+    {
+        return await MatchedAvailabilityComparison.ExecuteAsync(scope.ServiceProvider, configuration);
     }
     else if (args[0] == "recover")
     {

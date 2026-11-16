@@ -1,0 +1,7 @@
+services:
+  runner:
+    environment:
+      DataMigrationRehearsal__SourceArtifactName: ready-v4-source-all-v1-80e9aae.json
+      DataMigrationRehearsal__ExpectedSourceArtifactSha256: DC28370841D1B444D3950E897EDEE2AA268ACC1EDAD7DFDCCDEECA2B1EDC62C7
+      FeatureFlags__UserManagement__Enabled: "true"
+      FeatureFlags__UserManagement__UserBadgeNumber__Enabled: "true"

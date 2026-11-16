@@ -1,6 +1,6 @@
 # Significant SS Migration Gaps
 
-**Baseline 2026-11-16; runtime result pending.** Extract counts below are supplied
+**Baseline 2026-11-16; initial runtime Fail / NeedsAction.** Extract counts below are supplied
 production evidence, not measurements from this session or hardcoded synthetic pass limits.
 
 | Area | Finding / impact | Disposition |
@@ -16,7 +16,7 @@ production evidence, not measurements from this session or hardcoded synthetic p
 | Training timezone | Source history timezone has no UserTrainings counterpart | Check actual completion/expiry business-date exports; unverified impact BL-14, not a confirmed loss yet |
 | Expired leave edit | 37 retained types expire at cutover but linked future leave remains | Verify picker/edit behavior; potential workflow impact BL-8, no silent type replacement |
 | Login | Source may supply IdirName/IdirId/KeyCloakId, not a transferable identity-provider session | Preserve available unique IDs; actual IDIR/realm login needs environment check. Never claim synthetic persistence proves login |
-| Shape validity | Default synthetic DB prior build is not proof of +/-20% production fit | Tune/measure SH buckets and report failed fit; no parity claim from row counts alone |
+| Shape validity | SH-08 currently has 24 failing buckets; SH-01..07/full fit pending | Fixture is not production-fit. Tune/measure buckets; no parity claim from row counts alone |
 | JC safety | Existing app default may permit room expiry if config missing | Migration explicit-false preflight; BL-9 for app default. Matching-key JC writes accepted |
 
 ## What Can Block Acceptance
@@ -25,7 +25,23 @@ Unrecoverable required identity/authentication material, schedule business meani
 compliance facts; unexplained coverage/differences; failed guards/transactions; or unresolved
 future actions. Secondary Stats mapping refinement alone does not block implementation.
 
-## Runtime Findings
+## Latest Runtime Findings
 
-Pending actual migration/oracle execution. Replace this section with measured results and
-links; keep accepted source baselines distinct. Failed or unavailable tests remain explicit.
+The [measured rehearsal](../../unified-scheduling/docs/data-migration/reports/2026-11-16-rehearsal.md)
+is not accepted, but initial mapper/constructor gaps have been fixed. Ready-v4 loaders
+complete 41/10/23 rows with no rejected/failed; actual LoanOut/recurrence/publication paths run.
+71 migration + 5 Hangfire tests pass. Report covers 74 rows but fails a wrong-fixture source
+capture and unsupported comparison surfaces; matched source capture is requested.
+
+Durable bounded target batches, interruption/resume, retry and earlier-cutoff backfill now
+pass PostgreSQL probes. An encrypted inverse journal, confirmed rollback digest and dependency
+guards now exist; inverse/reapplication probes pass, but full rollback coverage is unfinished.
+Multi-root repartition/changed series and dry-run parent staging also remain unfinished;
+production apply stays disabled.
+Actual source oracle passed independently, but +/-20% shape fit and matched cross-app
+business-data parity remain pending. Target day-based LoanOut probes suppress 1,320 minutes
+outside a two-hour interval. Matched ready-v4 actual SS probes now show no home conflicts
+before/after and preserve only the two-hour Away interval in a whole-day response.
+Raw SS results therefore do not support whole-day home suppression. Compare equivalent
+target queries before declaring the precise workflow impact; future source probe remains
+pending. No UI/free-minute parity is claimed. See BL-15.
