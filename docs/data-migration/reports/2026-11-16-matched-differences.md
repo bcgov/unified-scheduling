@@ -21,6 +21,19 @@ no SS status/availability formulas were reconstructed.
 All15 unexpected target rows pair to source identities: six slots, six shifts, three
 training rows. Each also accounts for one strict missing source row.
 
+Complete22 unexecuted target-surface rows by actual source capture window:
+
+| Surface | pastmonth | cutover-minus14-plus14 | futuremonth | Total |
+|---|---:|---:|---:|---:|
+| Distribution conflicts |10|3|2|15|
+| Distribution sheriffs |2|1|1|4|
+| Training harness projection |1|1|1|3|
+| **Total** |**13**|**5**|**4**|**22**|
+
+These are absent equivalent target adapters/exports, not22 proven lost business
+records. The projection is not executed source or target UI/CSV evidence. Counts
+were independently grouped from the retained matched57-row source capture.
+
 | Paired surface/field | Differing field cells | Source → actual target | Classification |
 |---|---:|---|---|
 | Slot `closed` |6|false → unexposed/null | API/model exposure, no true-flag case measured here |
