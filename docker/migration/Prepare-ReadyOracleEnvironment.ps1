@@ -9,9 +9,14 @@ $matches = @($lines | Where-Object { $_.StartsWith('SS_SYNTHETIC_DB=', [StringCo
 if ($matches.Count -ne 1) { throw 'Expected exactly one source connection setting.' }
 try {
     $connection = New-Object System.Data.Common.DbConnectionStringBuilder
-    $connection.ConnectionString = $matches[0].Substring('SS_SYNTHETIC_DB='.Length)
-    $connection['Database'] = 'ss_ready_v4'
-    $replacement = 'SS_SYNTHETIC_DB=' + $connection.ConnectionString
+    # Explicit CLR methods bypass PowerShell's IDictionary property adapter.
+    # A filename/marker/grant check does NOT prove which Database the DSN selects.
+    $connection.set_ConnectionString($matches[0].Substring('SS_SYNTHETIC_DB='.Length))
+    $connection.set_Item('Database', 'ss_ready_v4')
+    if ($connection.get_Item('Database') -cne 'ss_ready_v4') {
+        throw 'Database setter verification failed.'
+    }
+    $replacement = 'SS_SYNTHETIC_DB=' + $connection.get_ConnectionString()
     $output = @($lines | ForEach-Object {
         if ($_.StartsWith('SS_SYNTHETIC_DB=', [StringComparison]::Ordinal)) { $replacement } else { $_ }
     })
@@ -28,6 +33,15 @@ try {
     $acl.AddAccessRule($rule)
     Set-Acl -Path $target -AclObject $acl
     [IO.File]::WriteAllLines($target, $output, (New-Object Text.UTF8Encoding($false)))
+    $persisted = New-Object System.Data.Common.DbConnectionStringBuilder
+    $persistedLine = @([IO.File]::ReadAllLines($target) | Where-Object {
+        $_.StartsWith('SS_SYNTHETIC_DB=', [StringComparison]::Ordinal)
+    })
+    if ($persistedLine.Count -ne 1) { throw 'Persisted setting count invalid.' }
+    $persisted.set_ConnectionString($persistedLine[0].Substring('SS_SYNTHETIC_DB='.Length))
+    if ($persisted.get_Item('Database') -cne 'ss_ready_v4') {
+        throw 'Persisted Database verification failed.'
+    }
     Write-Output $target
 }
 catch {

@@ -89,12 +89,10 @@ internal static class AwayAvailabilityImpact
             session.Outcome(
                 "AwayAvailabilityValidation",
                 link.LegacyId,
-                futureOutsideSuppressed > 0 ? "NeedsAction"
-                    : outsideSuppressed > 0 ? "MigratedWithDifference"
-                    : "Migrated",
-                futureOutsideSuppressed > 0 ? "UnapprovedFutureAvailabilityLossOutsideSsInterval"
-                    : outsideSuppressed > 0 ? "HistoricalAvailabilityLossOutsideSsInterval"
-                    : "NoOutsideIntervalLossObserved"
+                futureOutsideSuppressed > 0 ? "NeedsAction" : "Migrated",
+                futureOutsideSuppressed > 0 ? "SsComparisonPendingFutureTargetOutsideIntervalSuppression"
+                    : outsideSuppressed > 0 ? "SsComparisonPendingHistoricalTargetOutsideIntervalSuppression"
+                    : "NoTargetOutsideIntervalSuppressionObserved"
             );
             Console.WriteLine(
                 JsonSerializer.Serialize(

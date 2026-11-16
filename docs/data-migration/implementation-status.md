@@ -115,8 +115,8 @@ clone-name/confirmation guard. No whole-database restore is implemented or attem
    separately named ready-v4 adds it without rewriting any earlier fixture.
    Actual target availability probes measured 1,320 suppressed user-minutes outside
    each two-hour away interval. A separately named future adverse interval correctly
-   holds Scheduling NeedsAction; this is not an approved availability difference or
-   an executed SS availability oracle.
+   holds Scheduling NeedsAction pending an actual SS comparison. Target-only
+   suppression does not prove SS workflow loss; SS may also be day-based.
 9. **Independent coverage:** broader PostgreSQL concurrency, stale fencing, all mapped
    drift, retry, backfill, rollback and dry-run parity coverage remains required.
 

@@ -15,6 +15,53 @@ using Unified.Scheduling;
 using Unified.Scheduling.Models;
 using Unified.Scheduling.Services;
 
+// Repair only the existing, owner-restricted ready-v4 handoff. Use Npgsql's actual
+// CLR property setter, not PowerShell's IDictionary property adapter.
+if (args is ["prepare-oracle-ready" or "verify-oracle-ready"])
+{
+    try
+    {
+        const string sourcePath = "/src/docker/migration/.env.oracle.local";
+        const string targetPath = "/src/docker/migration/.env.oracle.ready-v4.local";
+        if (
+            !File.Exists(targetPath)
+            || (File.GetAttributes(sourcePath) & FileAttributes.ReparsePoint) != 0
+            || (File.GetAttributes(targetPath) & FileAttributes.ReparsePoint) != 0
+        )
+            throw new InvalidOperationException();
+        const string prefix = "SS_SYNTHETIC_DB=";
+        if (args[0] == "prepare-oracle-ready")
+        {
+            var lines = File.ReadAllLines(sourcePath);
+            var setting = lines.Single(x => x.StartsWith(prefix, StringComparison.Ordinal));
+            var parsed = new Npgsql.NpgsqlConnectionStringBuilder(setting[prefix.Length..]);
+            parsed.Database = "ss_ready_v4";
+            var output = lines
+                .Select(x => x.StartsWith(prefix, StringComparison.Ordinal) ? prefix + parsed.ConnectionString : x)
+                .ToArray();
+            var candidate = new Npgsql.NpgsqlConnectionStringBuilder(
+                output.Single(x => x.StartsWith(prefix, StringComparison.Ordinal))[prefix.Length..]
+            );
+            if (candidate.Database != "ss_ready_v4")
+                throw new InvalidOperationException();
+            // Existing file's restricted ACL is preserved. No credential appears in output.
+            File.WriteAllLines(targetPath, output, new System.Text.UTF8Encoding(false));
+        }
+        var verified = new Npgsql.NpgsqlConnectionStringBuilder(
+            File.ReadAllLines(targetPath).Single(x => x.StartsWith(prefix, StringComparison.Ordinal))[prefix.Length..]
+        );
+        if (verified.Database != "ss_ready_v4")
+            throw new InvalidOperationException();
+        Console.WriteLine("Npgsql.Database=" + verified.Database);
+        return 0;
+    }
+    catch
+    {
+        Console.Error.WriteLine("Oracle environment repair failed; no connection details emitted.");
+        return 1;
+    }
+}
+
 // Migration-only CLI. It does not host the application, run its seeders or fire domain signals.
 // Connection strings must come from environment/configuration, never command-line arguments.
 var environment = new ConfigurationBuilder().AddEnvironmentVariables().Build();
