@@ -299,6 +299,9 @@ public sealed class SsSnapshotReader(IOptions<DataMigrationOptions> options)
 
 public sealed class SsRow(IReadOnlyDictionary<string, object?> values)
 {
+    internal SsRow ProjectNullable(params string[] fields) =>
+        new(fields.ToDictionary(x => x, x => values.TryGetValue(x, out var value) ? value : null));
+
     public string Id => Convert.ToString(values["Id"], CultureInfo.InvariantCulture)!;
 
     public string? Text(string key) => values[key] as string;

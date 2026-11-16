@@ -1,6 +1,7 @@
 # SS implementation status — 2026-11-16
 
-**Implementation is incomplete. This is NOT a production or migration acceptance pass.**
+**Full migration acceptance remains incomplete. The bounded guarded graph-replay
+implementation is verified; this is NOT a production or migration acceptance pass.**
 
 Planning mirror: [ss-implementation-baseline](ss-implementation-baseline/README.md).
 Workspace artifacts remain canonical. Prior milestones: `b589bee4`, `e16b559b`,
@@ -15,6 +16,8 @@ Latest comment/dependency replay, chained inverse and exact-window actual guard 
 Original synthetic SH-08 census measured FAIL24/26 comparisons; SH-01..07 remain
 unmeasured: [shape failure buckets](reports/2026-11-16-sh08-fit.md).
 Latest bounded milestone: [matched Report and actual response gaps](reports/2026-11-16-matched-report.md).
+Subsequent bounded implementation: [guarded graph replay, history/inverse proof and
+matched future availability](reports/2026-11-16-graph-replay.md).
 Exact ready-v4 source captures are imported and verified; fixture coordination is no
 longer the Report blocker. Final matched Report is Failed, not accepted.
 
@@ -53,7 +56,7 @@ longer the Report blocker. Final matched Report is Failed, not accepted.
   on a separate persistent clone: two shifts and two assignments. Original ready-v3
   remains unchanged by publication.
 - Owned-row updates for users, UserRole, acting, away, leave and training history,
-  single-root merged definitions/shifts and single-slot duties:
+  definitions/shifts/duties and qualified series:
   require changed mapped source hash, job ownership, unchanged target mapped hash
   and original root/event PostgreSQL row-version proof under row locks. Linked-only
   rows never update. SHA-256 covers mapped text/SSO without retaining/emitting raw values;
@@ -62,6 +65,16 @@ longer the Report blocker. Final matched Report is Failed, not accepted.
   concurrency receipts only after verifying unchanged owner-mapped fields.
   Actual text-only updates, new touching member, profile preservation and independent
   target training-note drift rejection ran on the separate probe.
+- Full source membership merge/split/repartition and multi-entry Duty replay now
+  execute atomically with original ownership/hash/version guards. Exact writer
+  proposals retain unchanged physical roots; changed dependencies rebind stable
+  primary crosswalks to generated targets. Actual PG cases cover definition/shift
+  split+merge, second Duty segment add/change/expiry, series fallback/requalification,
+  actual occurrence add/weekday removal, unchanged replay, injected40001 rollback/
+  retry and target drift rejection. No fake occurrences or app behavior changes.
+  Separate history PG proof preserves backfill under later cutoff and replays known
+  older members without admitting new older rows. Preview-bound inverse restored
+  the exact prior graph footprint (78 journaled rows, zero extra dependents).
 - Independent durable retry rows resolve dependencies below advanced cursors. Earlier
   history has separate resumable backfill progress and matching parent lineage. Actual
   PostgreSQL interruption retained 14 prior batches while rolling back the current one;
@@ -80,6 +93,8 @@ longer the Report blocker. Final matched Report is Failed, not accepted.
   were redacted without deleting business rows, run evidence or audit identities.
 - **71 migration tests and 5 dependent Hangfire tests pass, zero failures/skips.**
   These are foundation/preflight tests, not comprehensive PostgreSQL integration coverage.
+  This milestone additionally executed real PG topology/retention/failure/history/
+  confirmed-inverse assertions; they are not counted as new xUnit coverage.
 
 ## Apply safety
 
@@ -91,10 +106,10 @@ clone-name/confirmation guard. No whole-database restore is implemented or attem
 
 ## Remaining acceptance blockers
 
-1. **Complete mapped updates:** multi-root merge/split/repartition, multi-entry duties
-   and changed series membership/qualification replay remain unfinished. Missing
-   original version proofs are not retroactively blessed. These cases reject rather
-   than partially applying a group or overwriting independent target edits.
+1. **Mapped-update coverage:** required multi-root repartition, multi-entry duties
+   and changed-series replay now execute and passed actual PG cases. Broader
+   independent coverage remains; missing original version proofs are never blessed.
+   The v4/v5 independent target edits and rejected source changes remain preserved.
 2. **Source incremental optimization:** durable retry/backfill/checkpoints and bounded
    atomic target commits are implemented/exercised, but snapshots still rescan all
    source rows for group/identity/dependency reconstruction. Broader concurrency,
@@ -111,7 +126,10 @@ clone-name/confirmation guard. No whole-database restore is implemented or attem
    `a92f76fa-ff60-4c24-ab8e-7835fbcd1d2d` covers74 rows but Failed: 57 source/33 target,
    18 exact/39 missing/15 unexpected strict response rows. All six duties match; the
    two-to-one historical shift merge preserves its complete interval union. Training
-   flags/status, four slot flags and three shift fields differ or are unexposed.
+   Excused exposure, presentation/derived compliance status, four slot flags and
+   three shift fields differ or are unexposed. All15 unexpected strict rows pair to
+   source identities; not unexpected records. Stored training completion facts match;
+   true-Excused policy, broad compliance and UI/date display parity are unproved.
    Nineteen distribution rows have no executed equivalent target full-distribution adapter,
    not proof of nineteen lost business records. Three source harness-projection rows
    are not executed UI evidence on either side. Full adverse target rehearsal remains pending.
@@ -136,9 +154,11 @@ clone-name/confirmation guard. No whole-database restore is implemented or attem
    across twelve windows. Target calendar preserves the exact two-hour home event, but its
    proposed-shift conflict engine returns no Away conflict; source returns four instances.
    Date-only borrowed-user discovery and day-based assignment guards are distinct response
-   planes, not executed UI/free-minute/save evidence. Future source probe still needs execution:
-   its env selects ss_ready_v4_probe, on network container:unified-ss-migration-source-1,
-   not original ss-synth-pg (which has no such database).
+   planes, not executed UI/free-minute/save evidence. Future source capture and matched
+   actual target comparison now executed on ss_ready_v4_probe: same12 calls, two
+   destination presence differences and four missing Away conflict responses. Exact
+   future calendar10–12UTC is preserved; future scheduling acceptance remains Fail/
+   NeedsAction, requiring a Scheduling/LoanOut decision rather than automatic waiver.
 9. **Independent coverage:** broader PostgreSQL concurrency, stale fencing, all mapped
    drift, retry, backfill, rollback and dry-run parity coverage remains required.
 

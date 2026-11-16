@@ -2,6 +2,7 @@ $ErrorActionPreference = 'Stop'
 $root = Join-Path $PSScriptRoot 'artifacts'
 $source = 'C:\Dev\CSB\Unified\legacy\sheriff-scheduling\test-harness\report-oracle\artifacts'
 $files = @{
+    'probe-v4-availability-v1-e6e674c.json' = '874D6B412686D940517685C0A3D4BF73F5A3D866AE11B19E55CF70D0051EB9F6'
     'ready-v4-source-all-v1-80e9aae.json' = 'DC28370841D1B444D3950E897EDEE2AA268ACC1EDAD7DFDCCDEECA2B1EDC62C7'
     'ready-v4-source-training-v1-80e9aae.json' = '4B4FA1DA4A49319E5287006192CF3838443174CF23B338DA0376C47209AEDD9B'
     'ready-v4-availability-v1-e6e674c.json' = '002C5DB06A157EB1A79413608E66C0E437FFC362C1DB194B4D8E90DF1BB88D24'

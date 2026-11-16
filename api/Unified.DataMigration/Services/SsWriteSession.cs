@@ -50,6 +50,172 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run)
     private Dictionary<DataMigrationOutcome, (string Outcome, string? Reason)>? outcomeChanges;
     public DataMigrationRun Run => run;
     public DateTimeOffset Now => run.StartedOn!.Value;
+    private int atomicGraphDepth;
+    internal HashSet<(string Type, string Id)> Rebinding { get; } = [];
+
+    // A connected old/new dependency graph is indivisible, even when it exceeds
+    // BatchSize. Inner row failures roll back the entire graph, not half a split.
+    internal async Task AtomicGraphAsync(
+        string type,
+        SsRow source,
+        Func<Task> write,
+        CancellationToken ct,
+        IReadOnlyList<(string Type, string Id)>? members = null
+    )
+    {
+        var after = AfterUnitAsync;
+        AfterUnitAsync = null;
+        try
+        {
+            await RowAsync(
+                type,
+                source,
+                async () =>
+                {
+                    atomicGraphDepth++;
+                    try
+                    {
+                        await write();
+                    }
+                    finally
+                    {
+                        atomicGraphDepth--;
+                    }
+                },
+                ct
+            );
+        }
+        finally
+        {
+            AfterUnitAsync = after;
+            Rebinding.Clear();
+        }
+        var result = Outcomes.LastOrDefault(x => x.EntityType == type && x.LegacyId == source.Id);
+        if (result?.Outcome is "Rejected" or "Failed" && members is not null)
+            foreach (var member in members)
+                Outcome(member.Type, member.Id, result.Outcome, result.Reason);
+        if (after is not null)
+            await after(ct);
+    }
+
+    internal async Task GuardGraphAsync(IReadOnlyCollection<DataMigrationRecord> records, CancellationToken ct)
+    {
+        foreach (
+            var group in records
+                .GroupBy(x => (x.TargetType, x.TargetKey))
+                .OrderBy(x => x.Key.TargetType)
+                .ThenBy(x => x.Key.TargetKey)
+        )
+        {
+            if (!group.Any(x => x.CreatedByRunId is not null))
+                throw new SsReject("GraphRequiresOriginalOwnedTarget");
+            foreach (var record in group)
+                if (
+                    !await db.DataMigrationMutations.AnyAsync(
+                        x => x.DataMigrationRecordId == record.Id && x.Version != null,
+                        ct
+                    )
+                )
+                    throw new SsReject("MissingOriginalTargetVersionProof");
+            await TargetVersionAsync(group.Key.TargetType, group.Key.TargetKey, true, ct);
+            if (group.Key.TargetType == "ShiftEntry")
+                await db.Database.ExecuteSqlInterpolatedAsync(
+                    $"SELECT \"Id\" FROM \"ShiftEntryUsers\" WHERE \"ShiftEntryId\"={int.Parse(group.Key.TargetKey)} FOR UPDATE",
+                    ct
+                );
+            if (group.Key.TargetType == "AssignmentEntry")
+            {
+                await db.Database.ExecuteSqlInterpolatedAsync(
+                    $"SELECT l.\"Id\" FROM \"ShiftAssignmentEntries\" l WHERE l.\"AssignmentEntryId\"={int.Parse(group.Key.TargetKey)} FOR UPDATE",
+                    ct
+                );
+                await db.Database.ExecuteSqlInterpolatedAsync(
+                    $"SELECT u.\"Id\" FROM \"ShiftAssignmentEntryUsers\" u JOIN \"ShiftAssignmentEntries\" l ON l.\"Id\"=u.\"ShiftAssignmentEntryId\" WHERE l.\"AssignmentEntryId\"={int.Parse(group.Key.TargetKey)} FOR UPDATE OF u",
+                    ct
+                );
+            }
+            var actual = await TargetFingerprintAsync(group.Key.TargetType, group.Key.TargetKey, ct);
+            if (group.Any(x => x.AfterHash != actual))
+                throw new SsReject("OwnedTargetDrift");
+        }
+    }
+
+    internal async Task SealNewDutyEntriesAsync(IReadOnlyCollection<int> ids, CancellationToken ct)
+    {
+        foreach (var id in ids)
+        {
+            var key = id.ToString(CultureInfo.InvariantCulture);
+            var aliases = await db
+                .DataMigrationRecords.Where(x =>
+                    x.Source == "SS" && x.TargetType == "AssignmentEntry" && x.TargetKey == key
+                )
+                .ToListAsync(ct);
+            if (!aliases.Any(x => x.EntityType == "DutyEntry" && x.CreatedByRunId == run.Id))
+                throw new SsReject("GraphSealRequiresNewOwnedEntry");
+            var hash = await TargetFingerprintAsync("AssignmentEntry", key, ct);
+            foreach (var alias in aliases)
+            {
+                alias.AfterHash = hash;
+                db.DataMigrationMutations.Add(
+                    new DataMigrationMutation
+                    {
+                        RunId = run.Id,
+                        DataMigrationRecordId = alias.Id,
+                        Sequence =
+                            (
+                                await db
+                                    .DataMigrationMutations.Where(x => x.RunId == run.Id)
+                                    .Select(x => (long?)x.Sequence)
+                                    .MaxAsync(ct)
+                                ?? 0
+                            ) + 1,
+                        Operation = "SealNewGraph",
+                        AfterHash = hash,
+                        Version = await TargetVersionAsync("AssignmentEntry", key, false, ct),
+                    }
+                );
+                await db.SaveChangesAsync(ct);
+            }
+            await db.SaveChangesAsync(ct);
+        }
+    }
+
+    internal async Task PlanGraphAsync(Func<Task> plan, CancellationToken ct)
+    {
+        var after = AfterUnitAsync;
+        var prior = Outcomes.Select(x => (Item: x, x.Outcome, x.Reason)).ToList();
+        var inserted = insertedTargets.ToHashSet();
+        var updated = updatedTargets.ToHashSet();
+        var linked = Linked;
+        var tx = db.Database.CurrentTransaction!;
+        await tx.CreateSavepointAsync("ss_graph_plan", ct);
+        AfterUnitAsync = null;
+        try
+        {
+            await plan();
+        }
+        finally
+        {
+            await tx.RollbackToSavepointAsync("ss_graph_plan", CancellationToken.None);
+            await tx.ReleaseSavepointAsync("ss_graph_plan", CancellationToken.None);
+            db.ChangeTracker.Clear();
+            Outcomes.Clear();
+            outcomeIndex.Clear();
+            foreach (var item in prior)
+            {
+                item.Item.Outcome = item.Outcome;
+                item.Item.Reason = item.Reason;
+                Outcomes.Add(item.Item);
+                outcomeIndex[(item.Item.EntityType, item.Item.LegacyId)] = item.Item;
+            }
+            insertedTargets = inserted;
+            updatedTargets = updated;
+            Linked = linked;
+            AfterUnitAsync = after;
+        }
+    }
+
+    internal static string ProposalHash(string type, SsRow source, string hash) => MappedSourceHash(type, source, hash);
 
     public static string Hash(object safeStructuralFields) =>
         DataMigrationOrchestrator.ComputePayloadHash(JsonSerializer.Serialize(safeStructuralFields));
@@ -128,13 +294,21 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run)
         var inserted = insertedTargets.ToHashSet();
         var updated = updatedTargets.ToHashSet();
         var linked = Linked;
-        outcomeChanges = [];
+        var parentChanges = outcomeChanges;
+        var changes = new Dictionary<DataMigrationOutcome, (string Outcome, string? Reason)>();
+        outcomeChanges = changes;
         await tx.CreateSavepointAsync("ss_row", ct);
         try
         {
             await write();
             await db.SaveChangesAsync(ct);
             await tx.ReleaseSavepointAsync("ss_row", ct);
+            // A successful inner savepoint is still provisional until its
+            // enclosing graph commits. Preserve the earliest outcome image
+            // so a later sibling failure restores pre-graph counters too.
+            if (parentChanges is not null)
+                foreach (var change in changes)
+                    parentChanges.TryAdd(change.Key, change.Value);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
@@ -146,7 +320,7 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run)
             await tx.ReleaseSavepointAsync("ss_row", CancellationToken.None);
             db.ChangeTracker.Clear();
             Outcomes.RemoveRange(checkpoint, Outcomes.Count - checkpoint);
-            foreach (var change in outcomeChanges)
+            foreach (var change in changes)
             {
                 change.Key.Outcome = change.Value.Outcome;
                 change.Key.Reason = change.Value.Reason;
@@ -157,6 +331,31 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run)
             insertedTargets = inserted;
             updatedTargets = updated;
             Linked = linked;
+            if (
+                Environment.GetEnvironmentVariable("DataMigrationRehearsal__SafeStack") == "true"
+                && db.Database.GetDbConnection().Database == "unified_ss_rehearsal_repartition_v4"
+            )
+            {
+                Console.WriteLine("SafeRowFailure=" + ex.GetType().Name);
+                if (ex.InnerException is PostgresException pg)
+                    Console.WriteLine("SafeSqlState=" + pg.SqlState);
+                foreach (
+                    var frame in new System.Diagnostics.StackTrace(ex, true)
+                        .GetFrames()
+                        .Where(x =>
+                            x.GetMethod()?.DeclaringType?.Namespace?.StartsWith("Unified.DataMigration") == true
+                        )
+                        .Take(4)
+                )
+                    Console.WriteLine(
+                        $"SafeRowFrame={frame.GetMethod()?.DeclaringType?.Name}.{frame.GetMethod()?.Name}:{frame.GetFileLineNumber()}"
+                    );
+            }
+            if (atomicGraphDepth > 0)
+            {
+                outcomeChanges = parentChanges;
+                throw;
+            }
             Outcome(
                 type,
                 source.Id,
@@ -164,7 +363,7 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run)
                 ex is SsReject rejection ? rejection.Message : $"TargetWriteFailed:{ex.GetType().Name}"
             );
         }
-        outcomeChanges = null;
+        outcomeChanges = parentChanges;
         // Outside the row savepoint catch: checkpoint/commit failures must stop the
         // worker, not be misreported as a rejected business row.
         if (AfterUnitAsync is not null)
@@ -205,6 +404,8 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run)
         Func<Task>? applyOwnedUpdate = null
     )
     {
+        if (Rebinding.Contains((type, source.Id)))
+            return false;
         sourceHash = MappedSourceHash(type, source, sourceHash);
         var record = await db.DataMigrationRecords.SingleOrDefaultAsync(
             x => x.Source == "SS" && x.EntityType == type && x.LegacyId == source.Id,
@@ -341,6 +542,9 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run)
             or "AssignmentClassification"
             or "Assignment"
             or "AssignmentSeries"
+            or "DutyEntry"
+            or "SchedulingComponent"
+            or "SchedulingMember"
             or "Shift"
             or "Duty"
             or "DutySlot" => "Scheduling",
@@ -349,7 +553,14 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run)
         if (owner != run.Job)
             throw new SsReject("EntityOwnershipViolation");
         var afterHash = await TargetFingerprintAsync(targetType, targetId, ct);
-        var record = new DataMigrationRecord
+        var record = Rebinding.Contains((type, source.Id))
+            ? await db.DataMigrationRecords.SingleAsync(
+                x => x.Source == "SS" && x.EntityType == type && x.LegacyId == source.Id,
+                ct
+            )
+            : null;
+        var rebinding = record is not null;
+        record ??= new DataMigrationRecord
         {
             Source = "SS",
             EntityType = type,
@@ -362,7 +573,19 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run)
             SourceUpdatedAtUtc = source.Date("UpdatedOn") ?? source.Date("CreatedOn"),
             LastAppliedRunId = run.Id,
         };
-        db.DataMigrationRecords.Add(record);
+        if (rebinding)
+        {
+            record.TargetType = targetType;
+            record.TargetKey = Convert.ToString(targetId, CultureInfo.InvariantCulture)!;
+            record.PayloadHash = MappedSourceHash(type, source, hash);
+            record.AfterHash = afterHash;
+            record.CreatedByRunId = created ? run.Id : null;
+            record.SourceUpdatedAtUtc = source.Date("UpdatedOn") ?? source.Date("CreatedOn");
+            record.LastAppliedRunId = run.Id;
+            Rebinding.Remove((type, source.Id));
+        }
+        else
+            db.DataMigrationRecords.Add(record);
         await db.SaveChangesAsync(ct);
         db.DataMigrationMutations.Add(
             new DataMigrationMutation
@@ -376,7 +599,10 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run)
                     is { } sequence
                     ? sequence + 1
                     : 1,
-                Operation = created ? "Insert" : "Link",
+                Operation =
+                    rebinding ? "Repartition"
+                    : created ? "Insert"
+                    : "Link",
                 AfterHash = afterHash,
                 Version = await TargetVersionAsync(targetType, targetId, false, ct),
             }
@@ -397,6 +623,8 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run)
     )
     {
         var ids = members.Select(x => x.Id).ToArray();
+        if (ids.Any(id => Rebinding.Contains((type, id))))
+            return false;
         var records = await db
             .DataMigrationRecords.Where(x => x.Source == "SS" && x.EntityType == type && ids.Contains(x.LegacyId))
             .ToListAsync(ct);

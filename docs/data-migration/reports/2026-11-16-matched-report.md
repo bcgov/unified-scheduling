@@ -2,6 +2,9 @@
 
 **Result: Fail. This is measured same-fixture evidence, not migration acceptance.**
 Production apply remains disabled. No target application behavior was changed.
+Subsequent implementation/future-oracle results:
+[guarded graph replay and matched future availability](2026-11-16-graph-replay.md).
+The pending-work statements at the end describe this earlier measurement milestone.
 
 ## Input and execution provenance
 
@@ -39,7 +42,7 @@ Crosswalk normalization never expands merged target rows into fabricated SS rows
 | Shifts | 7 | 6 | 0 | One approved merge; three unexposed source fields on all six paired rows |
 | OT allocation | 7 | 6 | 6 | One missing source member identity belongs to the merged target shift |
 | OT calculated | 6 | 6 | 6 | Actual WorkingHours-derived report values match; all zero in this small fixture |
-| Training API | 3 | 3 | 0 | Observed end instant/location/region/course/user/expiry match; three presentation/status fields differ |
+| Training API | 3 | 3 | 0 | Stored completion facts match; Excused exposure, presentation and derived compliance status differ |
 | Training harness projection | 3 | 0 | 0 | No target projection/UI export executed; source projection is not executed SS UI either |
 | Distribution conflicts | 15 | 0 | 0 | No executed equivalent target full-distribution adapter; not proof of 15 lost conflicts |
 | Distribution sheriffs | 4 | 0 | 0 | Same unsupported full-distribution comparison surface |
@@ -57,6 +60,31 @@ Crosswalk normalization never expands merged target rows into fabricated SS rows
   blaming historical-vs-current clock evaluation: source metadata says current-clock too.
 - Three actual training report end instants match `2026-11-01T10:00:00Z`, with null expiry.
   This does not measure all per-record-timezone export cases (BL-14).
+
+### Classification of39 missing /15 unexpected strict rows
+
+| Classification | Missing | Unexpected | Meaning |
+|---|---:|---:|---|
+| Paired Duty slots | 6 | 6 | Four unexposed source flags per paired row; not six missing assignments/users |
+| Paired shifts | 6 | 6 | Three unexposed fields each; one representative end differs due to approved merge |
+| Paired training API | 3 | 3 | One completion repeated in three windows; values differ, identity/facts pair |
+| Merged member aliases | 2 | 0 | One shift + one OT-allocation identity; complete historical interval union preserved |
+| Unexecuted distribution surfaces | 19 | 0 |15 conflicts +4 sheriffs; no equivalent target adapter executed |
+| Unexecuted training harness projection | 3 | 0 | Source projection only, not executed UI/CSV evidence |
+| **Total** | **39** | **15** | All15 unexpected rows pair to source identities; not unexpected records |
+
+Training **stored business facts** observed equal: user/course/location/region,
+completion end `2026-11-01T10:00:00Z`, null expiry. Target `Active` is a **derived
+compliance status**, not an enrollment/lifecycle label: actual
+`UserTrainingReportQueryHandler.ResolveStatus` uses completion presence and expiry
+against the current clock (`NotTaken`/`Active`/`Expired`). Source returned blank.
+That label difference alone does not demonstrate a lost certificate or incorrect
+compliance result; it also does not establish policy parity. Source metadata uses
+current-clock evaluation too, so no historical-clock explanation is claimed.
+`rowVariant=white` versus null is presentation. **Excused=false versus unexposed null
+is a business eligibility/policy exposure gap**, not merely cosmetic; this fixture
+does not validate true-Excused behavior. Future expiry-policy and per-record date
+display gaps BL13/BL14 remain. Neither side's harness projection is executed UI/CSV.
 
 Group-aware evidence separately proves that the two historical source shifts and their one
 actual target shift have the same location/user/timezone and **identical interval union,

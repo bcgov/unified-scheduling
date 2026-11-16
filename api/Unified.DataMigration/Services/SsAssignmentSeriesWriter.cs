@@ -27,7 +27,15 @@ public sealed class SsAssignmentSeriesWriter(UnifiedDbContext db)
     ];
     private static readonly string[] DayCodes = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"];
 
-    public async Task WriteAsync(Dictionary<string, List<SsRow>> rows, SsWriteSession s, CancellationToken ct)
+    public async Task WriteAsync(Dictionary<string, List<SsRow>> rows, SsWriteSession s, CancellationToken ct) =>
+        await WriteAsync(rows, s, ct, null);
+
+    internal async Task WriteAsync(
+        Dictionary<string, List<SsRow>> rows,
+        SsWriteSession s,
+        CancellationToken ct,
+        List<SsSchedulingProposal>? proposals
+    )
     {
         foreach (var assignment in rows["Assignment"])
         {
@@ -124,10 +132,16 @@ public sealed class SsAssignmentSeriesWriter(UnifiedDbContext db)
                         }
                         expected.Add(duty);
                     }
+                    var memberTargets = new List<string>();
+                    foreach (var member in expected)
+                        memberTargets.Add(await s.ResolveAsync("Duty", member.Id, ct));
                     var hash = SsWriteSession.Hash(
                         new
                         {
                             Assignment = assignment.Id,
+                            Definition = await s.ResolveAsync("Assignment", assignment.Id, ct),
+                            TemplateComment = expected[0].Text("Comment"),
+                            ResolvedMembers = memberTargets,
                             zone,
                             startTime,
                             endTime,
@@ -142,6 +156,11 @@ public sealed class SsAssignmentSeriesWriter(UnifiedDbContext db)
                             Weekdays = Days.Select(assignment.Bool).ToArray(),
                         }
                     );
+                    if (proposals is not null)
+                    {
+                        proposals.Add(new("AssignmentSeries", [key], hash));
+                        return;
+                    }
                     if (await s.ReplayAsync("AssignmentSeries", synthetic, hash, false, ct))
                         return;
                     var entries = new List<AssignmentEntry>();

@@ -23,10 +23,27 @@ internal static class MatchedAvailabilityComparison
     internal static async Task<int> ExecuteAsync(IServiceProvider services, IConfiguration config)
     {
         var db = services.GetRequiredService<UnifiedDbContext>();
-        if (db.Database.GetDbConnection().Database != "unified_ss_rehearsal_ready_v4_rollback")
+        if (
+            db.Database.GetDbConnection().Database
+            is not ("unified_ss_rehearsal_ready_v4_rollback" or "unified_ss_rehearsal_ready_v4_probe")
+        )
             throw new InvalidOperationException("Matched availability requires the isolated ready-v4 target.");
         var root = Path.GetFullPath("docker/migration/artifacts");
-        var input = Path.Combine(root, "ready-v4-availability-v1-e6e674c.json");
+        var sourceName =
+            config["DataMigrationRehearsal:AvailabilitySourceArtifactName"] ?? "ready-v4-availability-v1-e6e674c.json";
+        var expected = sourceName switch
+        {
+            "ready-v4-availability-v1-e6e674c.json" => (
+                Database: "ss_ready_v4",
+                Digest: "002C5DB06A157EB1A79413608E66C0E437FFC362C1DB194B4D8E90DF1BB88D24"
+            ),
+            "probe-v4-availability-v1-e6e674c.json" => (
+                Database: "ss_ready_v4_probe",
+                Digest: "874D6B412686D940517685C0A3D4BF73F5A3D866AE11B19E55CF70D0051EB9F6"
+            ),
+            _ => throw new InvalidOperationException("Unsupported independent availability capture."),
+        };
+        var input = Path.Combine(root, sourceName);
         var outputName =
             config["DataMigrationRehearsal:MatchedAvailabilityArtifactName"]
             ?? "target-matched-availability-ready-v4-v2.json";
@@ -41,12 +58,12 @@ internal static class MatchedAvailabilityComparison
             throw new InvalidOperationException("Unsafe or already retained availability artifact.");
         var bytes = await File.ReadAllBytesAsync(input);
         var digest = Convert.ToHexString(SHA256.HashData(bytes));
-        if (digest != "002C5DB06A157EB1A79413608E66C0E437FFC362C1DB194B4D8E90DF1BB88D24")
+        if (digest != expected.Digest)
             throw new InvalidOperationException("Independent availability capture digest mismatch.");
         var source = JsonNode.Parse(bytes)!.AsObject();
         if (
             source["Format"]!.GetValue<string>() != "ss-synthetic-availability-oracle/v1"
-            || source["SourceDatabase"]!.GetValue<string>() != "ss_ready_v4"
+            || source["SourceDatabase"]!.GetValue<string>() != expected.Database
         )
             throw new InvalidOperationException("Wrong independent availability source.");
         await using var connection = new Npgsql.NpgsqlConnection(config["DataMigration:Sources:SS:ConnectionString"]);
@@ -59,7 +76,7 @@ internal static class MatchedAvailabilityComparison
             connection,
             sourceTx
         );
-        if (connection.Database != "ss_ready_v4" || (string?)await marker.ExecuteScalarAsync() != "SS SYNTHETIC")
+        if (connection.Database != expected.Database || (string?)await marker.ExecuteScalarAsync() != "SS SYNTHETIC")
             throw new InvalidOperationException("Actual source selection/marker mismatch.");
         await sourceTx.RollbackAsync();
         var guard = services.GetRequiredService<ShiftLoanOutAvailabilityService>();

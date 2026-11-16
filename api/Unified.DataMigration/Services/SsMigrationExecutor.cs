@@ -52,6 +52,9 @@ public sealed class SsMigrationExecutor(
                         or "unified_ss_rehearsal_ready_v4_recovery"
                         or "unified_ss_rehearsal_ready_v4_probe"
                         or "unified_ss_rehearsal_ready_v4_rollback"
+                        or "unified_ss_rehearsal_repartition_v4"
+                        or "unified_ss_rehearsal_repartition_v5"
+                        or "unified_ss_rehearsal_repartition_history_v5"
                     )
             )
         )
@@ -199,6 +202,17 @@ public sealed class SsMigrationExecutor(
         }
         catch (Exception ex)
         {
+            if (
+                db.Database.GetDbConnection().Database == "unified_ss_rehearsal_repartition_v4"
+                && configuration.GetValue<bool>("DataMigrationRehearsal:SafeStack")
+            )
+            {
+                Console.WriteLine("SafeFailureType=" + ex.GetType().Name);
+                foreach (var frame in new System.Diagnostics.StackTrace(ex, true).GetFrames().Take(8))
+                    Console.WriteLine(
+                        $"SafeFrame={frame.GetMethod()?.DeclaringType?.Name}.{frame.GetMethod()?.Name}:{frame.GetFileLineNumber()}"
+                    );
+            }
             db.ChangeTracker.Clear();
             var persisted = await db.DataMigrationRuns.SingleAsync(x => x.Id == run.Id, CancellationToken.None);
             if (persisted.Status != "Running")

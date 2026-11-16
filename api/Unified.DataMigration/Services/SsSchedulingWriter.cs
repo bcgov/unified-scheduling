@@ -32,6 +32,64 @@ public sealed class SsSchedulingWriter(UnifiedDbContext db)
     {
         await RoomsAsync(rows, session, ct);
         await ClassificationsAsync(rows, session, ct);
+        // A later cutoff must not implicitly remove a member applied by an
+        // earlier backfill. Reuse that same complete selected universe for
+        // proposals, replay and normal writes; do not admit never-applied older
+        // rows by globally lowering the boundary against the raw snapshot.
+        var retained = (
+            await db
+                .DataMigrationRecords.AsNoTracking()
+                .Where(x => x.Source == "SS" && x.EntityType == "SchedulingMember")
+                .Select(x => x.LegacyId)
+                .ToListAsync(ct)
+        ).ToHashSet();
+        var selected = rows.ToDictionary(
+            x => x.Key,
+            x =>
+                x.Key is "Duty" or "DutySlot" or "Shift"
+                    ? x.Value.Where(r => r.Date("EndDate") >= boundary || retained.Contains($"{x.Key}:{r.Id}")).ToList()
+                    : x.Value
+        );
+        foreach (var table in rows.Where(x => x.Key is "Duty" or "DutySlot" or "Shift"))
+        foreach (var row in table.Value.Where(x => !selected[table.Key].Contains(x)))
+            session.Outcome(table.Key, row.Id, "Excluded", "BeforeHistoryBoundary");
+        boundary = selected
+            .Where(x => x.Key is "Duty" or "DutySlot" or "Shift")
+            .SelectMany(x => x.Value)
+            .Select(x => x.Date("EndDate") ?? boundary)
+            .Append(boundary)
+            .Min();
+        var proposals = new List<SsSchedulingProposal>();
+        await session.PlanGraphAsync(
+            async () =>
+            {
+                await DefinitionsAsync(selected, session, boundary, ct, proposals);
+                await ShiftsAsync(selected["Shift"], session, boundary, ct, proposals);
+                await DutiesAsync(selected, session, boundary, ct, proposals);
+                await new SsAssignmentSeriesWriter(db).WriteAsync(selected, session, ct, proposals);
+            },
+            ct
+        );
+        var graphs = new SsSchedulingGraphReplay(db);
+        var remaining = await graphs.ReplayAsync(
+            selected,
+            session,
+            boundary,
+            subset => WriteGraphAsync(subset, session, boundary, ct),
+            ct,
+            proposals
+        );
+        await WriteGraphAsync(remaining, session, boundary, ct);
+        await graphs.CaptureAsync(selected, session, boundary, ct);
+    }
+
+    private async Task WriteGraphAsync(
+        Dictionary<string, List<SsRow>> rows,
+        SsWriteSession session,
+        DateTimeOffset boundary,
+        CancellationToken ct
+    )
+    {
         await DefinitionsAsync(rows, session, boundary, ct);
         await ShiftsAsync(rows["Shift"], session, boundary, ct);
         await DutiesAsync(rows, session, boundary, ct);
@@ -159,7 +217,8 @@ public sealed class SsSchedulingWriter(UnifiedDbContext db)
         Dictionary<string, List<SsRow>> rows,
         SsWriteSession s,
         DateTimeOffset boundary,
-        CancellationToken ct
+        CancellationToken ct,
+        List<SsSchedulingProposal>? proposals = null
     )
     {
         var lookup = rows["LookupCode"].ToDictionary(x => x.Id);
@@ -379,6 +438,11 @@ public sealed class SsSchedulingWriter(UnifiedDbContext db)
                             target.DefaultEndTime,
                         }
                     );
+                    if (proposals is not null)
+                    {
+                        proposals.Add(new("Assignment", members.Select(x => x.Row.Id).ToArray(), fingerprint));
+                        return;
+                    }
                     if (
                         await s.ReplayGroupAsync(
                             "Assignment",
@@ -426,7 +490,8 @@ public sealed class SsSchedulingWriter(UnifiedDbContext db)
                 },
                 ct
             );
-            CompleteGroupOutcomes(s, "Assignment", members.Select(x => x.Row));
+            if (proposals is null)
+                CompleteGroupOutcomes(s, "Assignment", members.Select(x => x.Row));
         }
     }
 
@@ -443,7 +508,13 @@ public sealed class SsSchedulingWriter(UnifiedDbContext db)
             _ => (1, 3, true),
         };
 
-    private async Task ShiftsAsync(List<SsRow> source, SsWriteSession s, DateTimeOffset boundary, CancellationToken ct)
+    private async Task ShiftsAsync(
+        List<SsRow> source,
+        SsWriteSession s,
+        DateTimeOffset boundary,
+        CancellationToken ct,
+        List<SsSchedulingProposal>? proposals = null
+    )
     {
         var candidates = new List<ShiftCandidate>();
         foreach (var row in source)
@@ -539,6 +610,11 @@ public sealed class SsSchedulingWriter(UnifiedDbContext db)
                                 })
                                 .ToArray()
                         );
+                        if (proposals is not null)
+                        {
+                            proposals.Add(new("Shift", block.Select(x => x.Row.Id).ToArray(), hash));
+                            return;
+                        }
                         if (
                             await s.ReplayGroupAsync(
                                 "Shift",
@@ -668,7 +744,8 @@ public sealed class SsSchedulingWriter(UnifiedDbContext db)
                     },
                     ct
                 );
-                CompleteGroupOutcomes(s, "Shift", block.Select(x => x.Row));
+                if (proposals is null)
+                    CompleteGroupOutcomes(s, "Shift", block.Select(x => x.Row));
             }
         }
     }
@@ -677,7 +754,8 @@ public sealed class SsSchedulingWriter(UnifiedDbContext db)
         Dictionary<string, List<SsRow>> rows,
         SsWriteSession s,
         DateTimeOffset boundary,
-        CancellationToken ct
+        CancellationToken ct,
+        List<SsSchedulingProposal>? proposals = null
     )
     {
         var assignments = rows["Assignment"].ToDictionary(x => x.Id);
@@ -729,10 +807,30 @@ public sealed class SsSchedulingWriter(UnifiedDbContext db)
                         if (slot.Guid("SheriffId") is { } sheriff)
                             await s.ResolveAsync("User", sheriff.ToString(), ct);
                     }
+                    var sourceShiftIds = rows["Shift"]
+                        .Where(shift =>
+                            shift.Date("EndDate") >= boundary
+                            && live.Any(slot =>
+                                slot.Guid("SheriffId") is { } sheriff
+                                && shift.Guid("SheriffId") == sheriff
+                                && shift.Int("LocationId") == row.Int("LocationId")
+                                && shift.Date("StartDate") < slot.Date("EndDate")
+                                && shift.Date("EndDate") > slot.Date("StartDate")
+                            )
+                        )
+                        .Select(x => x.Id)
+                        .ToArray();
+                    var resolvedShifts = await db
+                        .DataMigrationRecords.AsNoTracking()
+                        .Where(x => x.Source == "SS" && x.EntityType == "Shift" && sourceShiftIds.Contains(x.LegacyId))
+                        .OrderBy(x => x.LegacyId)
+                        .Select(x => new { x.LegacyId, x.TargetKey })
+                        .ToListAsync(ct);
                     var hash = SsWriteSession.Hash(
                         new
                         {
                             definitionId,
+                            ResolvedShifts = resolvedShifts,
                             DefinitionName = definition.Name,
                             definition.Color,
                             definition.CategoryId,
@@ -784,6 +882,11 @@ public sealed class SsSchedulingWriter(UnifiedDbContext db)
                                 .ToArray(),
                         }
                     );
+                    if (proposals is not null)
+                    {
+                        proposals.Add(new("Duty", [row.Id], SsWriteSession.ProposalHash("Duty", row, hash)));
+                        return;
+                    }
                     if (
                         await s.ReplayAsync(
                             "Duty",
@@ -950,6 +1053,7 @@ public sealed class SsSchedulingWriter(UnifiedDbContext db)
                         .ToList();
                     var groups = live.Count <= 1 || bySheriff.Count == 0 ? new List<List<SsRow>> { live } : bySheriff;
                     int? primaryEntryId = null;
+                    var entries = new List<(AssignmentEntry Entry, string Key)>();
                     foreach (var slots in groups)
                     {
                         var start =
@@ -993,6 +1097,12 @@ public sealed class SsSchedulingWriter(UnifiedDbContext db)
                         db.AssignmentEntries.Add(entry);
                         await db.SaveChangesAsync(ct);
                         primaryEntryId ??= entry.Id;
+                        entries.Add(
+                            (
+                                entry,
+                                $"duty:{row.Id}:segment:{(live.Count > 1 && bySheriff.Count > 0 ? slots[0].Guid("SheriffId")?.ToString() : "whole")}"
+                            )
+                        );
                         foreach (var slot in slots)
                         {
                             if (
@@ -1129,6 +1239,23 @@ public sealed class SsSchedulingWriter(UnifiedDbContext db)
                             ct
                         );
                     }
+                    foreach (var (entry, key) in entries)
+                        await s.LinkAsync(
+                            "DutyEntry",
+                            new SsRow(
+                                new Dictionary<string, object?>
+                                {
+                                    ["Id"] = key,
+                                    ["CreatedOn"] = null,
+                                    ["UpdatedOn"] = null,
+                                }
+                            ),
+                            "AssignmentEntry",
+                            entry.Id,
+                            hash,
+                            true,
+                            ct
+                        );
                     await s.LinkAsync(
                         "Duty",
                         row,
@@ -1140,14 +1267,19 @@ public sealed class SsSchedulingWriter(UnifiedDbContext db)
                         live.Count > 1 ? "MigratedWithDifference" : "Migrated",
                         live.Count > 1 ? "DutySplitByDistinctSheriff" : null
                     );
+                    await s.SealNewDutyEntriesAsync(entries.Select(x => x.Entry.Id).ToArray(), ct);
                 },
                 ct
             );
+            if (proposals is not null)
+                continue;
             var dutyOutcome = s.Outcomes.Last(x => x.EntityType == "Duty" && x.LegacyId == row.Id);
             if (dutyOutcome.Outcome is "Rejected" or "Failed" or "Excluded")
                 foreach (var slot in relevantSlots)
                     slotOutcomes[slot.Id] = (dutyOutcome.Outcome, "ParentDutyNotMigrated");
         }
+        if (proposals is not null)
+            return;
         var filled = rows["DutySlot"]
             .Where(x =>
                 x.Date("EndDate") >= boundary && x.Date("ExpiryDate") is null && x.Guid("SheriffId") is not null

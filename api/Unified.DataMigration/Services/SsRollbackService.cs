@@ -61,7 +61,10 @@ public sealed class SsRollbackService(UnifiedDbContext db, SsRollbackJournal cry
                 or "unified_ss_rehearsal_ready_v4"
                 or "unified_ss_rehearsal_ready_v4_recovery"
                 or "unified_ss_rehearsal_ready_v4_probe"
-                or "unified_ss_rehearsal_ready_v4_rollback";
+                or "unified_ss_rehearsal_ready_v4_rollback"
+                or "unified_ss_rehearsal_repartition_v4"
+                or "unified_ss_rehearsal_repartition_v5"
+                or "unified_ss_rehearsal_repartition_history_v5";
 
     private Dictionary<string, Table> Tables =>
         catalog
