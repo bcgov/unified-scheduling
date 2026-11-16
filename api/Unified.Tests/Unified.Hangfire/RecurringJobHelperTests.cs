@@ -10,6 +10,7 @@ using Unified.DataMigration.Options;
 using Unified.DataMigration.Services;
 using Unified.Db;
 using Unified.Hangfire;
+using Unified.Tests.TestHelpers;
 
 namespace Unified.Tests.Hangfire;
 
@@ -87,9 +88,9 @@ public class RecurringJobHelperTests : IDisposable
     }
 
     [Fact]
-    public void AddOrUpdate_SsJobWithoutApprovedMappings_RemovesOnlyStaleSsSchedule()
+    public void AddOrUpdate_DisabledSsMyTeamJob_RemovesOnlyItsSchedule()
     {
-        RecurringJobHelper.AddOrUpdate(new FakeRecurringJob("data-migration:ss", "0 * * * *"));
+        RecurringJobHelper.AddOrUpdate(new FakeRecurringJob("data-migration:ss:myteam", "0 * * * *"));
         RecurringJobHelper.AddOrUpdate(new FakeRecurringJob("data-migration:cass", "0 * * * *"));
         using var db = new UnifiedDbContext(new DbContextOptions<UnifiedDbContext>());
         var job = new SsDataMigrationRecurringJob(
@@ -103,15 +104,18 @@ public class RecurringJobHelperTests : IDisposable
                     },
                 }
             ),
-            new DataMigrationControlService(db),
-            new DataMigrationOrchestrator(db)
+            SsMigrationTestServices.Executor(
+                db,
+                Options.Create(new DataMigrationOptions()),
+                Options.Create(new DataMigrationFeatureFlags { Enabled = true })
+            )
         );
 
         RecurringJobHelper.AddOrUpdate(job);
 
         using var connection = JobStorage.Current.GetConnection();
         var recurringJobIds = connection.GetAllItemsFromSet("recurring-jobs");
-        Assert.DoesNotContain("data-migration:ss", recurringJobIds);
+        Assert.DoesNotContain("data-migration:ss:myteam", recurringJobIds);
         Assert.Contains("data-migration:cass", recurringJobIds);
     }
 }

@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using Unified.DataMigration.Sources;
 using Unified.Db;
 using Unified.Db.Models.Abstract;
@@ -14,6 +15,31 @@ public sealed class SsReject(string code) : Exception(code);
 public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run)
 {
     public List<DataMigrationOutcome> Outcomes { get; } = [];
+    private static readonly HashSet<string> PrimaryTypes =
+    [
+        "Region",
+        "Location",
+        "Role",
+        "User",
+        "UserRole",
+        "PositionType",
+        "LeaveType",
+        "SheriffActingRank",
+        "SheriffAwayLocation",
+        "SheriffLeave",
+        "LookupSortOrder",
+        "Training",
+        "SheriffTraining",
+        "SheriffStandardTraining",
+        "CourtRoom",
+        "AssignmentClassification",
+        "Assignment",
+        "Duty",
+        "DutySlot",
+        "Shift",
+        "LookupCode",
+    ];
+    public IEnumerable<DataMigrationOutcome> SourceOutcomes => Outcomes.Where(x => PrimaryTypes.Contains(x.EntityType));
     private HashSet<string> insertedTargets = [];
     public int Inserted => insertedTargets.Count;
     public int Linked { get; private set; }
@@ -63,6 +89,7 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run)
         catch (Exception ex)
         {
             await tx.RollbackToSavepointAsync("ss_row", CancellationToken.None);
+            await tx.ReleaseSavepointAsync("ss_row", CancellationToken.None);
             db.ChangeTracker.Clear();
             Outcomes.RemoveRange(checkpoint, Outcomes.Count - checkpoint);
             insertedTargets = inserted;
@@ -106,7 +133,8 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run)
         SsRow source,
         string sourceHash,
         bool reference,
-        CancellationToken ct
+        CancellationToken ct,
+        Func<Task>? applyOwnedUpdate = null
     )
     {
         var record = await db.DataMigrationRecords.SingleOrDefaultAsync(
@@ -123,7 +151,52 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run)
                 || record.SourceUpdatedAtUtc != (source.Date("UpdatedOn") ?? source.Date("CreatedOn"))
             )
         )
-            throw new SsReject("OwnedUpdateRequiresReview");
+        {
+            if (record.CreatedByRunId is null)
+                throw new SsReject("LinkedOnlyTargetCannotUpdate");
+            if (record.PayloadHash == sourceHash)
+                throw new SsReject("SourceChangedOutsideStructuralDigestRequiresReview");
+            if (applyOwnedUpdate is null)
+                throw new SsReject("OwnedUpdateRequiresReview");
+            var prior = await db
+                .DataMigrationMutations.Where(x => x.DataMigrationRecordId == record.Id)
+                .OrderByDescending(x => x.Id)
+                .FirstOrDefaultAsync(ct);
+            if (prior?.Version is null)
+                throw new SsReject("MissingOriginalTargetVersionProof");
+            var version = await TargetVersionAsync(record.TargetType, record.TargetKey, true, ct);
+            if (
+                version != prior.Version
+                || record.AfterHash != await TargetFingerprintAsync(record.TargetType, record.TargetKey, ct)
+            )
+                throw new SsReject("OwnedTargetDrift");
+            await applyOwnedUpdate();
+            await db.SaveChangesAsync(ct);
+            record.PayloadHash = sourceHash;
+            record.AfterHash = await TargetFingerprintAsync(record.TargetType, record.TargetKey, ct);
+            record.SourceUpdatedAtUtc = source.Date("UpdatedOn") ?? source.Date("CreatedOn");
+            record.LastAppliedRunId = run.Id;
+            db.DataMigrationMutations.Add(
+                new DataMigrationMutation
+                {
+                    RunId = run.Id,
+                    DataMigrationRecordId = record.Id,
+                    Sequence =
+                        (
+                            await db
+                                .DataMigrationMutations.Where(x => x.RunId == run.Id)
+                                .Select(x => (long?)x.Sequence)
+                                .MaxAsync(ct)
+                            ?? 0
+                        ) + 1,
+                    Operation = "Update",
+                    AfterHash = record.AfterHash,
+                    Version = await TargetVersionAsync(record.TargetType, record.TargetKey, false, ct),
+                }
+            );
+            Outcome(type, source.Id, "Migrated", "OwnedMappedUpdate");
+            return true;
+        }
         Outcome(type, source.Id, "Migrated", "ExistingCrosswalk");
         return true;
     }
@@ -153,8 +226,13 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run)
             or "SheriffLeave"
             or "SheriffAwayLocation" => "MyTeam",
             "Training" or "SheriffTraining" => "Training",
-            "CourtRoom" or "AssignmentClassification" or "Assignment" or "Shift" or "Duty" or "DutySlot" =>
-                "Scheduling",
+            "CourtRoom"
+            or "AssignmentClassification"
+            or "Assignment"
+            or "AssignmentSeries"
+            or "Shift"
+            or "Duty"
+            or "DutySlot" => "Scheduling",
             _ => throw new SsReject("UnknownEntityOwnership"),
         };
         if (owner != run.Job)
@@ -189,6 +267,7 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run)
                     : 1,
                 Operation = created ? "Insert" : "Link",
                 AfterHash = afterHash,
+                Version = await TargetVersionAsync(targetType, targetId, false, ct),
             }
         );
         if (created)
@@ -239,6 +318,7 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run)
         "LeaveTypeId",
         "EventId",
         "LocationId",
+        "LoanOutLocationId",
         "CategoryId",
         "SubCategoryId",
         "EffectiveDateUtc",
@@ -249,27 +329,89 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run)
         "LunchAvailableMinutes",
         "WorkedLunchMinutes",
         "AssignmentDefinitionId",
+        "AssignmentSeriesId",
+        "EventSeriesId",
         "Capacity",
         "TimeZoneId",
         "StatusTypeCode",
         "EventTypeCode",
         "CancelledAt",
+        "RecurrenceRule",
     ];
+
+    // PostgreSQL row versions protect free text and photos without hashing or copying them
+    // into migration evidence. Graph event edits are fenced too. Conservatively treats edits
+    // to other owners' columns as drift rather than overwriting them.
+    private async Task<string> TargetVersionAsync(string targetType, object targetId, bool locked, CancellationToken ct)
+    {
+        var metadata =
+            db.Model.GetEntityTypes().SingleOrDefault(x => x.ClrType.Name == targetType)
+            ?? throw new SsReject("UnknownTargetType");
+        var pk = metadata.FindPrimaryKey()!.Properties.Single();
+        var key =
+            pk.ClrType == typeof(Guid)
+                ? (object)Guid.Parse(Convert.ToString(targetId, CultureInfo.InvariantCulture)!)
+                : Convert.ChangeType(targetId, pk.ClrType, CultureInfo.InvariantCulture);
+        var table = $"\"{metadata.GetSchema() ?? "public"}\".\"{metadata.GetTableName()}\"";
+        var sql =
+            $"SELECT xmin::text AS \"Value\" FROM {table} WHERE \"{pk.Name}\" = @key{(locked ? " FOR UPDATE" : "")}";
+        var version =
+            await db.Database.SqlQueryRaw<string>(sql, new NpgsqlParameter("key", key)).SingleOrDefaultAsync(ct)
+            ?? throw new SsReject("MissingCrosswalkTarget");
+        var target = await db.FindAsync(metadata.ClrType, [key], ct) ?? throw new SsReject("MissingCrosswalkTarget");
+        if (locked)
+            await db.Entry(target).ReloadAsync(ct);
+        var eventReference = db.Entry(target).References.SingleOrDefault(x => x.Metadata.Name == "Event");
+        if (eventReference is not null)
+        {
+            await eventReference.LoadAsync(ct);
+            if (eventReference.CurrentValue is { } targetEvent)
+            {
+                var eventId = db.Entry(targetEvent).Property("Id").CurrentValue!;
+                var eventSql = locked
+                    ? "SELECT xmin::text AS \"Value\" FROM \"Events\" WHERE \"Id\" = @key FOR UPDATE"
+                    : "SELECT xmin::text AS \"Value\" FROM \"Events\" WHERE \"Id\" = @key";
+                version +=
+                    ":"
+                    + await db
+                        .Database.SqlQueryRaw<string>(eventSql, new NpgsqlParameter("key", eventId))
+                        .SingleAsync(ct);
+                if (locked)
+                    await db.Entry(targetEvent).ReloadAsync(ct);
+            }
+        }
+        return version;
+    }
 
     // Structural target digest is deliberately independent of source IDs/field shapes.
     // No names, comments, notes, SSO identities or photos may enter a migration fingerprint.
-    // It is not a full text-drift detector: changed non-reference sources still reject for review.
+    // Text is protected by the separate original PostgreSQL row-version proof, not this digest.
     private async Task<string> TargetFingerprintAsync(string targetType, object targetId, CancellationToken ct)
     {
         var metadata =
             db.Model.GetEntityTypes().SingleOrDefault(x => x.ClrType.Name == targetType)
             ?? throw new SsReject("UnknownTargetType");
-        var target =
-            await db.FindAsync(metadata.ClrType, [targetId], ct) ?? throw new SsReject("MissingCrosswalkTarget");
+        var pkType = metadata.FindPrimaryKey()!.Properties.Single().ClrType;
+        var key =
+            pkType == typeof(Guid)
+                ? (object)Guid.Parse(Convert.ToString(targetId, CultureInfo.InvariantCulture)!)
+                : Convert.ChangeType(targetId, pkType, CultureInfo.InvariantCulture);
+        var target = await db.FindAsync(metadata.ClrType, [key], ct) ?? throw new SsReject("MissingCrosswalkTarget");
         var entry = db.Entry(target);
         var fields = new SortedDictionary<string, object?>(StringComparer.Ordinal);
         foreach (var property in entry.Properties.Where(x => SafeTargetFields.Contains(x.Metadata.Name)))
             fields[property.Metadata.Name] = property.CurrentValue;
+        foreach (var collection in entry.Collections.Where(x => x.Metadata.Name == "Users"))
+        {
+            await collection.LoadAsync(ct);
+            fields["Users"] = collection
+                .CurrentValue!.Cast<object>()
+                .Select(x =>
+                    Convert.ToString(db.Entry(x).Property("UserId").CurrentValue, CultureInfo.InvariantCulture)
+                )
+                .OrderBy(x => x, StringComparer.Ordinal)
+                .ToArray();
+        }
         var eventReference = entry.References.SingleOrDefault(x => x.Metadata.Name == "Event");
         if (eventReference is not null)
         {

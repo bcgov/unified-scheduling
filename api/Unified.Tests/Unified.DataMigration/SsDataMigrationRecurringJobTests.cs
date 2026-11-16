@@ -10,7 +10,6 @@ using Unified.DataMigration;
 using Unified.DataMigration.FeatureFlags;
 using Unified.DataMigration.Jobs;
 using Unified.DataMigration.Options;
-using Unified.DataMigration.Services;
 using Unified.DataMigration.Sources;
 using Unified.Db;
 using Unified.Db.Models.DataMigration;
@@ -18,20 +17,19 @@ using Unified.Tests.TestHelpers;
 
 namespace Unified.Tests.DataMigration;
 
+// The old blocked-shell assertions are deliberately replaced, not retained through a
+// compatibility constructor. PostgreSQL execution is exercised separately in the rehearsal.
 public sealed class SsDataMigrationRecurringJobTests : IAsyncDisposable
 {
     private readonly SqliteConnection _connection = new("DataSource=:memory:;Foreign Keys=True");
     private readonly UnifiedDbContext _db;
-    private readonly FakeSaveInterceptor _saveInterceptor = new();
+    private readonly SaveCounter _saves = new();
 
     public SsDataMigrationRecurringJobTests()
     {
         _connection.Open();
         _db = new SqliteTestUnifiedDbContext(
-            new DbContextOptionsBuilder<UnifiedDbContext>()
-                .UseSqlite(_connection)
-                .AddInterceptors(_saveInterceptor)
-                .Options
+            new DbContextOptionsBuilder<UnifiedDbContext>().UseSqlite(_connection).AddInterceptors(_saves).Options
         );
         _db.Database.EnsureCreated();
     }
@@ -41,15 +39,11 @@ public sealed class SsDataMigrationRecurringJobTests : IAsyncDisposable
     [InlineData(false, true)]
     [InlineData(true, false)]
     [InlineData(true, true)]
-    public void Identity_IsStableAndScheduleRemainsDisabledWithoutApprovedMappings(
-        bool featureEnabled,
-        bool sourceEnabled
-    )
+    public void Identity_UsesPerJobGatesWithoutSerializingIndependentJobs(bool featureEnabled, bool sourceEnabled)
     {
         var job = CreateJob(featureEnabled, sourceEnabled);
-
-        Assert.Equal("data-migration:ss", job.JobName);
-        Assert.Equal(string.Empty, job.CronSchedule);
+        Assert.Equal("data-migration:ss:myteam", job.JobName);
+        Assert.Equal(featureEnabled && sourceEnabled ? "*/15 * * * *" : "", job.CronSchedule);
         var method = typeof(SsDataMigrationRecurringJob).GetMethod(nameof(SsDataMigrationRecurringJob.Execute))!;
         Assert.Equal(
             0,
@@ -59,7 +53,7 @@ public sealed class SsDataMigrationRecurringJobTests : IAsyncDisposable
                 )
                 .Attempts
         );
-        Assert.Single(method.GetCustomAttributes(typeof(DisableConcurrentExecutionAttribute), false));
+        Assert.Empty(method.GetCustomAttributes(typeof(DisableConcurrentExecutionAttribute), false));
     }
 
     [Theory]
@@ -71,12 +65,11 @@ public sealed class SsDataMigrationRecurringJobTests : IAsyncDisposable
         bool sourceEnabled
     )
     {
-        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             CreateJob(featureEnabled, sourceEnabled).Execute(null, TestContext.Current.CancellationToken)
         );
-
-        Assert.Equal("SS migration is disabled.", exception.Message);
-        Assert.Equal(0, _saveInterceptor.SaveCount);
+        Assert.Equal("SS migration job is disabled.", error.Message);
+        Assert.Equal(0, _saves.Count);
         Assert.Empty(_db.DataMigrationRuns);
         Assert.Empty(_db.DataMigrationFailures);
     }
@@ -84,88 +77,81 @@ public sealed class SsDataMigrationRecurringJobTests : IAsyncDisposable
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task Execute_UnapprovedMappings_PersistsFailedSsRunAndLeavesCassUntouched(bool dryRun)
+    public async Task Execute_MissingJcConsent_LeavesCassAndSsStateUntouched(bool dryRun)
     {
-        var cassRun = new DataMigrationRun
+        var cass = new DataMigrationRun
         {
             Source = "CASS",
             Status = "Running",
             DryRun = !dryRun,
         };
-        var cassWatermark = new DataMigrationWatermark
-        {
-            Source = "CASS",
-            EntityType = "Region",
-            LegacyId = "42",
-            SourceChangedAtUtc = DateTimeOffset.UtcNow,
-        };
-        _db.DataMigrationRuns.Add(cassRun);
-        _db.DataMigrationWatermarks.Add(cassWatermark);
+        _db.DataMigrationRuns.Add(cass);
+        _db.DataMigrationWatermarks.Add(
+            new DataMigrationWatermark
+            {
+                Source = "CASS",
+                EntityType = "Region",
+                LegacyId = "42",
+                SourceChangedAtUtc = DateTimeOffset.UtcNow,
+            }
+        );
         await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
-
-        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+        var before = _saves.Count;
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             CreateJob(dryRun: dryRun).Execute(null, TestContext.Current.CancellationToken)
         );
-
-        Assert.Equal("SS migration requires human approval of mapping contracts.", exception.Message);
-        _db.ChangeTracker.Clear();
-        var ssRun = Assert.Single(_db.DataMigrationRuns.Where(run => run.Source == "SS"));
-        Assert.Equal("Failed", ssRun.Status);
-        Assert.Equal(dryRun, ssRun.DryRun);
-        Assert.NotNull(ssRun.CompletedOn);
-        var failure = Assert.Single(_db.DataMigrationFailures);
-        Assert.Equal(ssRun.Id, failure.RunId);
-        Assert.Equal("SS", failure.Source);
-        Assert.Equal("MappingApprovalRequired", failure.ErrorType);
-        Assert.Null(exception.InnerException);
-        Assert.Equal("Running", _db.DataMigrationRuns.Single(run => run.Id == cassRun.Id).Status);
-        Assert.Equal("42", _db.DataMigrationWatermarks.Single().LegacyId);
+        Assert.Equal("SS migration requires explicit false JC expiry flags.", error.Message);
+        Assert.Equal(before, _saves.Count);
+        Assert.Equal("Running", Assert.Single(_db.DataMigrationRuns).Status);
+        Assert.Equal(cass.Id, Assert.Single(_db.DataMigrationRuns).Id);
+        Assert.Equal("42", Assert.Single(_db.DataMigrationWatermarks).LegacyId);
+        Assert.Empty(_db.DataMigrationFailures);
         Assert.Empty(_db.DataMigrationRecords);
-        Assert.DoesNotContain(_db.DataMigrationRuns, run => run.Status == "Completed");
     }
 
     [Fact]
-    public async Task Execute_ExistingSsRun_RefusesDurableGuardWithoutFailureOrCompletion()
+    public async Task Execute_PreflightFailure_DoesNotAlterExistingSsRun()
     {
-        var active = new DataMigrationRun { Source = "SS", Status = "Running" };
+        var active = new DataMigrationRun
+        {
+            Source = "SS",
+            Job = "MyTeam",
+            Status = "Running",
+        };
         _db.DataMigrationRuns.Add(active);
         await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
-
-        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
             CreateJob().Execute(null, TestContext.Current.CancellationToken)
         );
-
-        Assert.Contains("durable run guard", exception.Message, StringComparison.Ordinal);
-        _db.ChangeTracker.Clear();
         Assert.Equal(active.Id, Assert.Single(_db.DataMigrationRuns).Id);
-        Assert.Equal("Running", _db.DataMigrationRuns.Single().Status);
+        Assert.Equal("Running", Assert.Single(_db.DataMigrationRuns).Status);
         Assert.Empty(_db.DataMigrationFailures);
     }
 
     [Theory]
-    [InlineData(1)]
-    [InlineData(2)]
-    [InlineData(3)]
-    public async Task Execute_StorageError_DoesNotLeakExceptionOrReportCompleted(int failingSave)
+    [InlineData(null)]
+    [InlineData("true")]
+    [InlineData("not-a-bool Password=secret")]
+    public async Task Execute_InvalidJcConsent_FailsBeforeStorageWithoutEchoingInput(string? consent)
     {
-        _saveInterceptor.FailOnSave = failingSave;
-        _saveInterceptor.Exception = new InvalidOperationException(
-            "Password=secret; Host=private-host; source row PII"
+        var config = new ConfigurationBuilder()
+            .AddInMemoryCollection(
+                new Dictionary<string, string?>
+                {
+                    ["JCInterface:ExpireRegions"] = consent,
+                    ["JCInterface:ExpireLocations"] = "false",
+                    ["JCInterface:ExpireCourtRooms"] = "false",
+                }
+            )
+            .Build();
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            CreateJob(configuration: config).Execute(null, TestContext.Current.CancellationToken)
         );
-
-        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            CreateJob().Execute(null, TestContext.Current.CancellationToken)
-        );
-
-        Assert.Equal("SS migration failed. Verify migration state storage.", exception.Message);
-        Assert.Null(exception.InnerException);
-        Assert.DoesNotContain("secret", exception.ToString(), StringComparison.Ordinal);
-        _db.ChangeTracker.Clear();
-        Assert.DoesNotContain(_db.DataMigrationRuns, run => run.Status == "Completed");
-        Assert.All(
-            _db.DataMigrationFailures,
-            failure => Assert.DoesNotContain("secret", failure.ErrorMessage, StringComparison.Ordinal)
-        );
+        Assert.Equal("SS migration requires explicit false JC expiry flags.", error.Message);
+        Assert.Null(error.InnerException);
+        Assert.DoesNotContain("secret", error.ToString(), StringComparison.Ordinal);
+        Assert.Equal(0, _saves.Count);
+        Assert.Empty(_db.DataMigrationRuns);
     }
 
     [Fact]
@@ -173,62 +159,52 @@ public sealed class SsDataMigrationRecurringJobTests : IAsyncDisposable
     {
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
-
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => CreateJob().Execute(null, cancellation.Token));
-
-        _db.ChangeTracker.Clear();
+        var error = await Assert.ThrowsAsync<OperationCanceledException>(() =>
+            CreateJob().Execute(null, cancellation.Token)
+        );
+        Assert.Equal(cancellation.Token, error.CancellationToken);
+        Assert.Equal(0, _saves.Count);
         Assert.Empty(_db.DataMigrationRuns);
     }
 
     [Fact]
-    public async Task Execute_CancelledAfterGuard_StillPersistsMappingFailureAndFailedRun()
+    public async Task Execute_DisabledJob_DoesNotSave()
     {
-        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
-        _saveInterceptor.CancelOnSecondSave = cancellation;
-
-        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            CreateJob().Execute(null, cancellation.Token)
+        var options = CreateOptions();
+        options.Sources.SS.Jobs.MyTeam.Enabled = false;
+        var job = CreateJob(options: options);
+        Assert.Empty(job.CronSchedule);
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            job.Execute(null, TestContext.Current.CancellationToken)
         );
-
-        Assert.True(cancellation.IsCancellationRequested);
-        Assert.Equal("SS migration requires human approval of mapping contracts.", exception.Message);
-        _db.ChangeTracker.Clear();
-        Assert.Equal("Failed", Assert.Single(_db.DataMigrationRuns).Status);
-        Assert.Equal("MappingApprovalRequired", Assert.Single(_db.DataMigrationFailures).ErrorType);
+        Assert.Equal("SS migration job is disabled.", error.Message);
+        Assert.Equal(0, _saves.Count);
     }
 
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task Execute_ProviderCancellation_DoesNotExposeProviderText(bool callerCancelled)
+    public async Task Execute_PreflightCancellationOrConfigurationFailure_IsSanitized(bool callerCancelled)
     {
-        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        using var cancellation = new CancellationTokenSource();
         if (callerCancelled)
             cancellation.Cancel();
-        _saveInterceptor.FailOnSave = 1;
-        _saveInterceptor.Exception = new OperationCanceledException(
-            "Password=secret; source row PII",
-            cancellation.Token
-        );
-
         if (callerCancelled)
         {
-            var exception = await Assert.ThrowsAsync<OperationCanceledException>(() =>
+            var error = await Assert.ThrowsAsync<OperationCanceledException>(() =>
                 CreateJob().Execute(null, cancellation.Token)
             );
-            Assert.Equal("SS migration was canceled.", exception.Message);
-            Assert.Equal(cancellation.Token, exception.CancellationToken);
-            Assert.Null(exception.InnerException);
+            Assert.Equal("SS migration was canceled.", error.Message);
+            Assert.Null(error.InnerException);
         }
         else
         {
-            var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            var error = await Assert.ThrowsAsync<InvalidOperationException>(() =>
                 CreateJob().Execute(null, cancellation.Token)
             );
-            Assert.Equal("SS migration failed. Verify migration state storage.", exception.Message);
-            Assert.Null(exception.InnerException);
+            Assert.Equal("SS migration requires explicit false JC expiry flags.", error.Message);
         }
-        _db.ChangeTracker.Clear();
+        Assert.Equal(0, _saves.Count);
         Assert.Empty(_db.DataMigrationRuns);
     }
 
@@ -242,7 +218,6 @@ public sealed class SsDataMigrationRecurringJobTests : IAsyncDisposable
         options.Sources.SS.CronSchedule = schedule;
         options.Sources.SS.ConnectionString = null;
         options.Sources.SS.BatchSize = 0;
-
         Assert.True(new DataMigrationOptionsValidator().Validate(null, options).Succeeded);
     }
 
@@ -254,13 +229,12 @@ public sealed class SsDataMigrationRecurringJobTests : IAsyncDisposable
     [InlineData("DISABLED")]
     [InlineData("0 * * * *")]
     [InlineData("*/15 9-17 * * MON-FRI")]
-    public void Validate_SsSchedule_AcceptsDisabledOrParsedFiveFieldCron(string? schedule)
+    public void Validate_LegacySourceCron_DoesNotOverridePerJobSchedule(string? schedule)
     {
         var options = CreateOptions();
         options.Sources.SS.CronSchedule = schedule;
-
         Assert.True(new DataMigrationOptionsValidator().Validate(null, options).Succeeded);
-        Assert.Empty(CreateJob(options: options).CronSchedule);
+        Assert.Equal("*/15 * * * *", CreateJob(options: options).CronSchedule);
     }
 
     [Theory]
@@ -272,9 +246,7 @@ public sealed class SsDataMigrationRecurringJobTests : IAsyncDisposable
     {
         var options = CreateOptions();
         options.Sources.SS.CronSchedule = schedule;
-
         var result = new DataMigrationOptionsValidator().Validate(null, options);
-
         Assert.True(result.Failed);
         Assert.Equal(
             "DataMigration:Sources:SS:CronSchedule must be a valid five-field cron expression.",
@@ -283,9 +255,9 @@ public sealed class SsDataMigrationRecurringJobTests : IAsyncDisposable
     }
 
     [Fact]
-    public void Module_ResolvesScopedSsJobAndSourceWithDisabledDefaults()
+    public void Module_ResolvesFourScopedJobsAndDisabledSources()
     {
-        var configuration = new ConfigurationBuilder().AddInMemoryCollection().Build();
+        var configuration = new ConfigurationBuilder().Build();
         var services = new ServiceCollection();
         services.AddSingleton<IConfiguration>(configuration);
         services.AddScoped<UnifiedDbContext>(_ => _db);
@@ -294,12 +266,18 @@ public sealed class SsDataMigrationRecurringJobTests : IAsyncDisposable
             new ServiceProviderOptions { ValidateOnBuild = true, ValidateScopes = true }
         );
         using var scope = provider.CreateScope();
-
-        var job = Assert.IsType<SsDataMigrationRecurringJob>(
-            Assert.Single(scope.ServiceProvider.GetServices<IRecurringJob>())
+        var jobs = scope.ServiceProvider.GetServices<IRecurringJob>().ToList();
+        Assert.Equal(
+            new[]
+            {
+                "data-migration:ss:myteam",
+                "data-migration:ss:report",
+                "data-migration:ss:scheduling",
+                "data-migration:ss:training",
+            },
+            jobs.Select(x => x.JobName).OrderBy(x => x)
         );
-        Assert.Equal("data-migration:ss", job.JobName);
-        Assert.Empty(job.CronSchedule);
+        Assert.All(jobs, job => Assert.Empty(job.CronSchedule));
         var source = scope.ServiceProvider.GetRequiredService<ISsLegacyMigrationSource>();
         Assert.IsType<SsLegacyMigrationSource>(source);
         Assert.Equal("SS", source.Source);
@@ -309,23 +287,28 @@ public sealed class SsDataMigrationRecurringJobTests : IAsyncDisposable
         var options = scope.ServiceProvider.GetRequiredService<IOptions<DataMigrationOptions>>().Value;
         Assert.False(options.Sources.SS.Enabled);
         Assert.False(options.Sources.CASS.Enabled);
+        Assert.True(options.Sources.SS.Jobs.MyTeam.DryRun);
     }
 
     private SsDataMigrationRecurringJob CreateJob(
         bool featureEnabled = true,
         bool sourceEnabled = true,
         bool dryRun = false,
-        DataMigrationOptions? options = null
+        DataMigrationOptions? options = null,
+        IConfiguration? configuration = null
     )
     {
         options ??= CreateOptions();
         options.Sources.SS.Enabled = sourceEnabled;
-        options.Sources.SS.DryRun = dryRun;
+        options.Sources.SS.Jobs.MyTeam.DryRun = dryRun;
+        var wrapped = Microsoft.Extensions.Options.Options.Create(options);
+        var flags = Microsoft.Extensions.Options.Options.Create(
+            new DataMigrationFeatureFlags { Enabled = featureEnabled }
+        );
         return new SsDataMigrationRecurringJob(
-            Microsoft.Extensions.Options.Options.Create(new DataMigrationFeatureFlags { Enabled = featureEnabled }),
-            Microsoft.Extensions.Options.Options.Create(options),
-            new DataMigrationControlService(_db),
-            new DataMigrationOrchestrator(_db)
+            flags,
+            wrapped,
+            SsMigrationTestServices.Executor(_db, wrapped, flags, configuration)
         );
     }
 
@@ -338,23 +321,18 @@ public sealed class SsDataMigrationRecurringJobTests : IAsyncDisposable
                 {
                     Enabled = true,
                     ConnectionString = "Host=ss-only;Password=secret",
-                    CronSchedule = "0 * * * *",
-                },
-                CASS = new DataMigrationSourceOptions
-                {
-                    Enabled = false,
-                    ConnectionString = "Host=cass-only",
-                    CronSchedule = "invalid",
+                    CutoverDate = new DateOnly(2026, 12, 1),
+                    Jobs = new SsJobOptions
+                    {
+                        MyTeam = new MigrationJobOptions { Enabled = true, CronSchedule = "*/15 * * * *" },
+                    },
                 },
             },
         };
 
-    private sealed class FakeSaveInterceptor : SaveChangesInterceptor
+    private sealed class SaveCounter : SaveChangesInterceptor
     {
-        public int SaveCount { get; private set; }
-        public int FailOnSave { get; set; }
-        public Exception? Exception { get; set; }
-        public CancellationTokenSource? CancelOnSecondSave { get; set; }
+        public int Count { get; private set; }
 
         public override ValueTask<InterceptionResult<int>> SavingChangesAsync(
             DbContextEventData eventData,
@@ -362,13 +340,7 @@ public sealed class SsDataMigrationRecurringJobTests : IAsyncDisposable
             CancellationToken cancellationToken = default
         )
         {
-            SaveCount++;
-            if (SaveCount == 2)
-                CancelOnSecondSave?.Cancel();
-            if (SaveCount == FailOnSave)
-            {
-                throw Exception!;
-            }
+            Count++;
             return ValueTask.FromResult(result);
         }
     }

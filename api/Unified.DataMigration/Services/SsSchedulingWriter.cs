@@ -35,13 +35,7 @@ public sealed class SsSchedulingWriter(UnifiedDbContext db)
         await DefinitionsAsync(rows, session, boundary, ct);
         await ShiftsAsync(rows["Shift"], session, boundary, ct);
         await DutiesAsync(rows, session, boundary, ct);
-        // No production constant can stand in for the actual deployed WorkingHoursService.
-        session.Outcome(
-            "SchedulingValidation",
-            session.Run.Id.ToString(),
-            "NeedsAction",
-            "WorkingHoursAndRecurrenceAcceptancePending"
-        );
+        await new SsAssignmentSeriesWriter(db).WriteAsync(rows, session, ct);
     }
 
     private async Task ClassificationsAsync(

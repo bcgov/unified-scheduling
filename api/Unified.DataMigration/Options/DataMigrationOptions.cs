@@ -26,6 +26,7 @@ public sealed class DataMigrationSourceOptions
     public DateOnly? CutoverDate { get; set; }
     public DateOnly HistoryStartDate { get; set; } = new(2015, 1, 1);
     public SsJobOptions Jobs { get; set; } = new();
+    public bool AllowUnrecoverableSyntheticApply { get; set; }
 }
 
 public sealed class SsJobOptions

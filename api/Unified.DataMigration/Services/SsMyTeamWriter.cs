@@ -2,6 +2,8 @@ using Microsoft.EntityFrameworkCore;
 using Unified.DataMigration.Sources;
 using Unified.Db;
 using Unified.Db.Models;
+using Unified.Db.Models.Calendar;
+using Unified.Db.Models.LoanOut;
 using Unified.Db.Models.Lookup;
 using Unified.Db.Models.UserManagement;
 
@@ -233,7 +235,7 @@ public sealed class SsMyTeamWriter(UnifiedDbContext db, SsLeaveWriter leaveWrite
                     var created = target is null;
                     if (target is null)
                     {
-                        if (sourceName is "SuperAdmin" or "Super Admin" or "Administrator" or "Manager" or "Sheriff")
+                        if (sourceName is "SuperAdmin" or "Super Admin" or "Manager" or "Sheriff")
                             throw new SsReject("MissingStandardRole");
                         var staff = (
                             await db
@@ -396,7 +398,31 @@ public sealed class SsMyTeamWriter(UnifiedDbContext db, SsLeaveWriter leaveWrite
                             Expiry = row.Date("ExpiryDate"),
                         }
                     );
-                    if (await session.ReplayAsync("UserRole", row, hash, false, ct))
+                    if (
+                        await session.ReplayAsync(
+                            "UserRole",
+                            row,
+                            hash,
+                            false,
+                            ct,
+                            async () =>
+                            {
+                                var id = int.Parse(await session.ResolveAsync("UserRole", row.Id, ct));
+                                var owned = await db.UserRoles.SingleAsync(x => x.Id == id, ct);
+                                owned.UserId = Guid.Parse(
+                                    await session.ResolveAsync("User", row.Guid("UserId")?.ToString(), ct)
+                                );
+                                owned.RoleId =
+                                    await session.ResolveIntAsync("Role", row.Int("RoleId"), ct)
+                                    ?? throw new SsReject("MissingRole");
+                                owned.EffectiveDate =
+                                    row.Date("EffectiveDate") ?? throw new SsReject("MissingEffectiveDate");
+                                owned.ExpiryDate = row.Date("ExpiryDate");
+                                owned.ExpiryReason = row.Text("ExpiryReason");
+                                owned.UpdatedOn = session.Now;
+                            }
+                        )
+                    )
                         return;
                     var target = session.Stamp(
                         new UserRole
@@ -440,7 +466,34 @@ public sealed class SsMyTeamWriter(UnifiedDbContext db, SsLeaveWriter leaveWrite
                             Expiry = row.Date("ExpiryDate"),
                         }
                     );
-                    if (await session.ReplayAsync("SheriffActingRank", row, hash, false, ct))
+                    if (
+                        await session.ReplayAsync(
+                            "SheriffActingRank",
+                            row,
+                            hash,
+                            false,
+                            ct,
+                            async () =>
+                            {
+                                var id = int.Parse(await session.ResolveAsync("SheriffActingRank", row.Id, ct));
+                                var owned = await db.UserActingPositions.SingleAsync(x => x.Id == id, ct);
+                                var position =
+                                    await ResolveRankAsync(row.Text("Rank"), rows, session, ct)
+                                    ?? throw new SsReject("MissingRank");
+                                owned.UserId = Guid.Parse(
+                                    await session.ResolveAsync("User", row.Guid("SheriffId")?.ToString(), ct)
+                                );
+                                owned.PositionTypeId = position.Id;
+                                owned.StartAtUtc = dates.Start;
+                                owned.EndAtUtc = dates.End;
+                                owned.Timezone = timezone;
+                                owned.Comment = row.Text("Comment");
+                                owned.ExpiryAtUtc = row.Date("ExpiryDate");
+                                owned.ExpiryReason = row.Text("ExpiryReason");
+                                owned.UpdatedOn = session.Now;
+                            }
+                        )
+                    )
                         return;
                     var rank =
                         await ResolveRankAsync(row.Text("Rank"), rows, session, ct)
@@ -469,13 +522,124 @@ public sealed class SsMyTeamWriter(UnifiedDbContext db, SsLeaveWriter leaveWrite
         foreach (var row in rows["LookupSortOrder"])
             session.Outcome("LookupSortOrder", row.Id, "Excluded", "ApprovedOrderOmission");
         await leaveWriter.EntriesAsync(rows["SheriffLeave"], session, boundary, ct);
-        // Current target removed UserAwayLocations on 2026-11-11. No invented user/event relationship.
         foreach (var row in rows["SheriffAwayLocation"])
-            session.Outcome(
+            await session.RowAsync(
                 "SheriffAwayLocation",
-                row.Id,
-                row.Date("EndDate") < boundary ? "Excluded" : "NeedsAction",
-                row.Date("EndDate") < boundary ? "BeforeHistoryBoundary" : "TargetAwayLocationModelRemoved"
+                row,
+                async () =>
+                {
+                    if (row.Date("EndDate") < boundary)
+                    {
+                        session.Outcome("SheriffAwayLocation", row.Id, "Excluded", "BeforeHistoryBoundary");
+                        return;
+                    }
+                    var dates = SsWriteSession.Dates(row);
+                    if (dates.Start == dates.End)
+                        throw new SsReject("EmptyInterval");
+                    var zone = SsWriteSession.Timezone(row, false);
+                    var userId = Guid.Parse(await session.ResolveAsync("User", row.Guid("SheriffId")?.ToString(), ct));
+                    var destination =
+                        await session.ResolveIntAsync("Location", row.Int("LocationId"), ct)
+                        ?? throw new SsReject("MissingAwayLocation");
+                    var user = await db.Users.SingleAsync(x => x.Id == userId, ct);
+                    var location = await db.Locations.SingleAsync(x => x.Id == destination, ct);
+                    var fallback = zone;
+                    if (fallback is null && user.HomeLocationId is { } home)
+                        fallback = await db.Locations.Where(x => x.Id == home).Select(x => x.Timezone).SingleAsync(ct);
+                    var hash = SsWriteSession.Hash(
+                        new
+                        {
+                            userId,
+                            destination,
+                            Home = user.HomeLocationId,
+                            dates,
+                            zone,
+                            Expiry = row.Date("ExpiryDate"),
+                        }
+                    );
+                    if (
+                        await session.ReplayAsync(
+                            "SheriffAwayLocation",
+                            row,
+                            hash,
+                            false,
+                            ct,
+                            async () =>
+                            {
+                                var id = int.Parse(await session.ResolveAsync("SheriffAwayLocation", row.Id, ct));
+                                var owned = await db
+                                    .LoanOutEntries.Include(x => x.Event)
+                                    .Include(x => x.Users)
+                                    .SingleAsync(x => x.Id == id, ct);
+                                if (owned.Users.Count != 1 || owned.Users.Single().UserId != userId)
+                                    throw new SsReject("AwayUserIdentityChangedRequiresReview");
+                                owned.LoanOutLocationId = destination;
+                                owned.UpdatedOn = session.Now;
+                                var e = owned.Event!;
+                                e.Title = $"Away - {location.Name}";
+                                e.Description = row.Text("Comment");
+                                e.StartAtUtc = dates.Start;
+                                e.EndAtUtc = dates.End;
+                                e.TimeZoneId = zone;
+                                e.LocationId = user.HomeLocationId;
+                                e.StatusTypeCode = SsLeaveWriter.EventStatus(
+                                    dates.Start,
+                                    fallback,
+                                    row.Date("ExpiryDate")
+                                );
+                                e.CancelledAt = row.Date("ExpiryDate");
+                                e.CancellationReason = row.Text("ExpiryReason");
+                                e.UpdatedOn = session.Now;
+                            }
+                        )
+                    )
+                        return;
+                    // Current Unified consumes away intervals through LoanOutEntry, not the removed
+                    // UserAwayLocations table. Do not call CreateLoanOutEntryAsync: it forces all-day
+                    // and transfers/regenerates shifts which must instead come from SS unchanged.
+                    var entry = session.Stamp(
+                        new LoanOutEntry
+                        {
+                            LoanOutLocationId = destination,
+                            Event = session.Stamp(
+                                new Event
+                                {
+                                    Title = $"Away - {location.Name}",
+                                    Description = row.Text("Comment"),
+                                    StartAtUtc = dates.Start,
+                                    EndAtUtc = dates.End,
+                                    TimeZoneId = zone,
+                                    AllDay = false,
+                                    EventTypeCode = "loanOut",
+                                    SourceModule = "loanOut",
+                                    LocationId = user.HomeLocationId,
+                                    StatusTypeCode = SsLeaveWriter.EventStatus(
+                                        dates.Start,
+                                        fallback,
+                                        row.Date("ExpiryDate")
+                                    ),
+                                    CancelledAt = row.Date("ExpiryDate"),
+                                    CancellationReason = row.Text("ExpiryReason"),
+                                }
+                            ),
+                        }
+                    );
+                    entry.Users.Add(session.Stamp(new LoanOutEntryUser { UserId = userId }));
+                    db.LoanOutEntries.Add(entry);
+                    await db.SaveChangesAsync(ct);
+                    await session.LinkAsync(
+                        "SheriffAwayLocation",
+                        row,
+                        "LoanOutEntry",
+                        entry.Id,
+                        hash,
+                        true,
+                        ct,
+                        "MigratedWithDifference",
+                        "AwayToLoanOutDayAvailability"
+                    );
+                },
+                ct
             );
     }
 

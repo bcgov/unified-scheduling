@@ -51,6 +51,7 @@ public sealed class SsSnapshotReader(IOptions<DataMigrationOptions> options)
         ["Role"] = ["Name"],
         ["User"] =
         [
+            "Discriminator",
             "IdirName",
             "IdirId",
             "KeyCloakId",
@@ -164,6 +165,38 @@ public sealed class SsSnapshotReader(IOptions<DataMigrationOptions> options)
         ],
     };
 
+    public async Task<IReadOnlyDictionary<string, long>> ReadExcludedCountsAsync(CancellationToken ct)
+    {
+        var counts = new Dictionary<string, long>(StringComparer.Ordinal);
+        await using var connection = new NpgsqlConnection(
+            new NpgsqlConnectionStringBuilder(options.Value.Sources.SS.ConnectionString)
+            {
+                IncludeErrorDetail = false,
+            }.ConnectionString
+        );
+        await connection.OpenAsync(ct);
+        await using var tx = await connection.BeginTransactionAsync(IsolationLevel.RepeatableRead, ct);
+        await using (var readOnly = new NpgsqlCommand("SET TRANSACTION READ ONLY", connection, tx))
+            await readOnly.ExecuteNonQueryAsync(ct);
+        // Fixed identifiers and COUNT only. Never fetch key rings, source audits or permission payloads.
+        foreach (
+            var table in new[] { "Audit", "JcSynchronization", "DataProtectionKeys", "Permission", "RolePermission" }
+        )
+        {
+            await using var exists = new NpgsqlCommand("SELECT to_regclass(@name) IS NOT NULL", connection, tx);
+            exists.Parameters.AddWithValue("name", $"public.\"{table}\"");
+            if (await exists.ExecuteScalarAsync(ct) is not true)
+            {
+                counts[table] = 0;
+                continue;
+            }
+            await using var count = new NpgsqlCommand($"SELECT COUNT(*) FROM public.\"{table}\"", connection, tx);
+            counts[table] = (long)(await count.ExecuteScalarAsync(ct))!;
+        }
+        await tx.RollbackAsync(ct);
+        return counts;
+    }
+
     public async Task<Dictionary<string, List<SsRow>>> ReadAsync(
         IEnumerable<string> tables,
         int batchSize,
@@ -187,7 +220,26 @@ public sealed class SsSnapshotReader(IOptions<DataMigrationOptions> options)
             if (!Tables.Contains(table))
                 throw new ArgumentOutOfRangeException(nameof(tables));
             result[table] = [];
-            DateTime? lastChanged = null;
+            string upperChanged;
+            object upperId;
+            await using (
+                var upperCommand = new NpgsqlCommand(
+                    $"""
+                    SELECT COALESCE("UpdatedOn", "CreatedOn")::text, "Id" FROM public."{table}"
+                    ORDER BY COALESCE("UpdatedOn", "CreatedOn") DESC, "Id" DESC LIMIT 1
+                    """,
+                    connection,
+                    tx
+                )
+            )
+            {
+                await using var upperReader = await upperCommand.ExecuteReaderAsync(ct);
+                if (!await upperReader.ReadAsync(ct))
+                    continue;
+                upperChanged = upperReader.GetString(0);
+                upperId = upperReader.GetValue(1);
+            }
+            string? lastChanged = null;
             object? lastId = null;
             // Typed PostgreSQL ID comparison (integer or uuid), never lexicographic ID ordering.
             while (true)
@@ -196,21 +248,26 @@ public sealed class SsSnapshotReader(IOptions<DataMigrationOptions> options)
                     ", ",
                     new[] { "Id", "CreatedOn", "UpdatedOn" }.Concat(Fields[table]).Select(x => $"\"{x}\"")
                 );
-                var condition = lastId is null
-                    ? ""
-                    : "WHERE (COALESCE(\"UpdatedOn\", \"CreatedOn\"), \"Id\") > (@changed, @id)";
+                var condition =
+                    "WHERE (COALESCE(\"UpdatedOn\", \"CreatedOn\"), \"Id\") <= (CAST(@upperChanged AS timestamptz), @upperId)";
+                if (lastId is not null)
+                    condition +=
+                        " AND (COALESCE(\"UpdatedOn\", \"CreatedOn\"), \"Id\") > (CAST(@changed AS timestamptz), @id)";
                 await using var command = new NpgsqlCommand(
                     $"""
-                    SELECT {projection} FROM public."{table}" {condition}
+                    SELECT {projection}, COALESCE("UpdatedOn", "CreatedOn")::text AS "__MigrationChanged"
+                    FROM public."{table}" {condition}
                     ORDER BY COALESCE("UpdatedOn", "CreatedOn"), "Id" LIMIT @batch
                     """,
                     connection,
                     tx
                 );
                 command.Parameters.AddWithValue("batch", batchSize);
+                command.Parameters.AddWithValue("upperChanged", upperChanged);
+                command.Parameters.AddWithValue("upperId", upperId);
                 if (lastId is not null)
                 {
-                    command.Parameters.AddWithValue("changed", lastChanged!.Value);
+                    command.Parameters.AddWithValue("changed", lastChanged!);
                     command.Parameters.AddWithValue("id", lastId);
                 }
                 var count = 0;
@@ -219,11 +276,14 @@ public sealed class SsSnapshotReader(IOptions<DataMigrationOptions> options)
                     while (await reader.ReadAsync(ct))
                     {
                         var values = new Dictionary<string, object?>(StringComparer.Ordinal);
-                        for (var i = 0; i < reader.FieldCount; i++)
+                        for (var i = 0; i < reader.FieldCount - 1; i++)
                             values[reader.GetName(i)] = reader.IsDBNull(i) ? null : reader.GetValue(i);
                         var row = new SsRow(values);
                         result[table].Add(row);
-                        lastChanged = (DateTime?)(values["UpdatedOn"] ?? values["CreatedOn"]);
+                        // Keep server timestamp text only for bound parameterization. Npgsql's
+                        // DateTime.MinValue -> -infinity conversion would otherwise omit finite
+                        // 0001-01-01 seed rows. Comparisons remain typed PostgreSQL timestamptz.
+                        lastChanged = reader.GetString(reader.FieldCount - 1);
                         lastId = values["Id"];
                         count++;
                     }
@@ -253,4 +313,12 @@ public sealed class SsRow(IReadOnlyDictionary<string, object?> values)
         values[key] is DateTime d ? new DateTimeOffset(d.ToUniversalTime()) : null;
 
     public byte[]? Bytes(string key) => values[key] as byte[];
+
+    public TimeSpan? Time(string key) =>
+        values[key] switch
+        {
+            TimeSpan time => time,
+            TimeOnly time => time.ToTimeSpan(),
+            _ => null,
+        };
 }

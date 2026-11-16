@@ -16,6 +16,21 @@ public sealed class SsTrainingWriter(UnifiedDbContext db)
         "Carbine Annual Recertification",
     ];
 
+    private static string? MappedNotes(SsRow row, Training course)
+    {
+        var comment = row.Text("Comment");
+        var note = row.Text("Note");
+        if (course.Code != "Other")
+        {
+            if (!string.IsNullOrEmpty(comment))
+                throw new SsReject("UnexpectedNonOtherComment");
+            return note;
+        }
+        return string.IsNullOrEmpty(comment)
+            ? note
+            : $"Other training: {comment}" + (string.IsNullOrEmpty(note) || note == comment ? "" : "\n" + note);
+    }
+
     public async Task WriteAsync(
         Dictionary<string, List<SsRow>> rows,
         SsWriteSession session,
@@ -189,25 +204,44 @@ public sealed class SsTrainingWriter(UnifiedDbContext db)
                             Notice = row.Bool("FirstNotice"),
                         }
                     );
-                    if (await session.ReplayAsync("SheriffTraining", row, hash, false, ct))
+                    if (
+                        await session.ReplayAsync(
+                            "SheriffTraining",
+                            row,
+                            hash,
+                            false,
+                            ct,
+                            async () =>
+                            {
+                                var id = int.Parse(await session.ResolveAsync("SheriffTraining", row.Id, ct));
+                                var owned = await db
+                                    .UserTrainings.Include(x => x.Training)
+                                    .SingleAsync(x => x.Id == id, ct);
+                                var resolvedUser = Guid.Parse(await session.ResolveAsync("User", sourceUser, ct));
+                                var resolvedCourse =
+                                    await session.ResolveIntAsync("Training", row.Int("TrainingTypeId"), ct)
+                                    ?? throw new SsReject("MissingTraining");
+                                if (owned.UserId != resolvedUser || owned.TrainingId != resolvedCourse)
+                                    throw new SsReject("TrainingHistoryIdentityChangedRequiresReview");
+                                owned.AwardedOn = dates.Start;
+                                owned.EndingOn = dates.End;
+                                owned.ExpiryDate = row.Date("TrainingCertificationExpiry");
+                                owned.Notes = MappedNotes(row, owned.Training);
+                                owned.NoticeState = row.Bool("FirstNotice")
+                                    ? UserTrainingNoticeStates.Sent
+                                    : UserTrainingNoticeStates.None;
+                                owned.UpdatedOn = session.Now;
+                                // Keep the existing version; never invoke renewal or mail services.
+                            }
+                        )
+                    )
                         return;
                     var userId = Guid.Parse(await session.ResolveAsync("User", sourceUser, ct));
                     var courseId =
                         await session.ResolveIntAsync("Training", row.Int("TrainingTypeId"), ct)
                         ?? throw new SsReject("MissingTraining");
                     var course = await db.Trainings.SingleAsync(x => x.Id == courseId, ct);
-                    var comment = row.Text("Comment");
-                    var note = row.Text("Note");
-                    string? notes = note;
-                    if (course.Code == "Other")
-                    {
-                        if (comment is not null && comment.Length > 0)
-                            notes =
-                                $"Other training: {comment}"
-                                + (string.IsNullOrEmpty(note) || note == comment ? "" : "\n" + note);
-                    }
-                    else if (!string.IsNullOrEmpty(comment))
-                        throw new SsReject("UnexpectedNonOtherComment");
+                    var notes = MappedNotes(row, course);
                     await db.Database.ExecuteSqlRawAsync(
                         "LOCK TABLE \"UserTrainings\" IN SHARE ROW EXCLUSIVE MODE",
                         ct
