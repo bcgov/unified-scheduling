@@ -45,6 +45,7 @@ internal static class RehearsalBootstrap
                     or "unified_ss_rehearsal_repartition_v4"
                     or "unified_ss_rehearsal_repartition_v5"
                     or "unified_ss_rehearsal_repartition_history_v5"
+                    or "unified_ss_rehearsal_simulation_v6"
                 )
             || await db.Users.AnyAsync()
             || await db.DataMigrationRecords.AnyAsync()

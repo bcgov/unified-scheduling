@@ -62,6 +62,8 @@ public class UnifiedDbContext : AuditDbContext
     public DbSet<DataMigrationWorkItem> DataMigrationWorkItems { get; set; }
     public DbSet<DataMigrationCheckpoint> DataMigrationCheckpoints { get; set; }
     public DbSet<DataMigrationJournal> DataMigrationJournals { get; set; }
+    public DbSet<DataMigrationSimulation> DataMigrationSimulations { get; set; }
+    public DbSet<DataMigrationSimulationCandidate> DataMigrationSimulationCandidates { get; set; }
 
     // Scheduling
     public DbSet<ShiftSeries> ShiftSeries { get; set; }

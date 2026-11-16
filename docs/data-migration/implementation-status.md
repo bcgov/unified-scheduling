@@ -1,7 +1,8 @@
 # SS implementation status — 2026-11-16
 
-**Full migration acceptance remains incomplete. The bounded guarded graph-replay
-implementation is verified; this is NOT a production or migration acceptance pass.**
+**Full migration acceptance remains incomplete. Guarded graph replay and durable
+dry-run parent simulation are verified; this is NOT a production or migration
+acceptance pass.**
 
 Planning mirror: [ss-implementation-baseline](ss-implementation-baseline/README.md).
 Workspace artifacts remain canonical. Prior milestones: `b589bee4`, `e16b559b`,
@@ -18,6 +19,8 @@ unmeasured: [shape failure buckets](reports/2026-11-16-sh08-fit.md).
 Latest bounded milestone: [matched Report and actual response gaps](reports/2026-11-16-matched-report.md).
 Subsequent bounded implementation: [guarded graph replay, history/inverse proof and
 matched future availability](reports/2026-11-16-graph-replay.md).
+Current bounded implementation: [real-DML dry-run parent candidates and PG proof](reports/2026-11-16-dry-run-candidates.md).
+Complete parent-document table: [matched surface/field differences and BL15 decision](reports/2026-11-16-matched-differences.md).
 Exact ready-v4 source captures are imported and verified; fixture coordination is no
 longer the Report blocker. Final matched Report is Failed, not accepted.
 
@@ -43,8 +46,9 @@ longer the Report blocker. Final matched Report is Failed, not accepted.
 - **Away implemented using the current model:** exact source intervals/cancellation
   become LoanOutEntry + Event + one user link, destination in LoanOutLocationId and
   source/home in Event.LocationId. Actual LoanOut-enabled calendar and availability
-  services executed successfully. Target availability is day-based; this remains an
-  explicit `MigratedWithDifference`, not an assertion of hour-for-hour availability.
+  services executed successfully. Target availability is day-based; matched future
+  calls now prove a primary scheduling API parity gap (BL15), not an approved
+  `MigratedWithDifference` or assertion of hour-for-hour availability.
   Ordinary create service is intentionally not called: it forces all-day and transfers shifts.
 - Qualified G10 draft series use the actual recurrence expander and link existing
   migrated duties only. Every expanded occurrence must match a live source duty;
@@ -87,14 +91,21 @@ longer the Report blocker. Final matched Report is Failed, not accepted.
   normalized exports. Identity normalization uses crosswalks, not equal source/target IDs.
   Full multiset comparison preserves duplicate multiplicity. Missing fields/surfaces,
   fixture mismatch and primary failures prevent PASS.
-- MyTeam dry run performs real DML then rolls back; adverse rollback footprint checked.
+- All four dry jobs execute real DML/reconciliation in a transaction-private cloned
+  baseline, then roll back every business row/audit/sequence. MyTeam publishes only
+  separate durable simulation candidate identities/hashes; dependent simulations
+  rehydrate/verify them using actual writers without applied crosswalk substitution.
+  PG cases prove stable repeats, wrong/stale lineage rejection, untouched applied
+  sentinel/crosswalk/progress and no schema/business-audit leak. Dry Report explicitly
+  remains simulation-only NeedsAction, never applied lineage or publication.
 - Dedicated runner audit configuration excludes private source strings/SSO/photo values
   while retaining Unified audit identity/action. Earlier isolated synthetic audit copies
   were redacted without deleting business rows, run evidence or audit identities.
 - **71 migration tests and 5 dependent Hangfire tests pass, zero failures/skips.**
   These are foundation/preflight tests, not comprehensive PostgreSQL integration coverage.
-  This milestone additionally executed real PG topology/retention/failure/history/
-  confirmed-inverse assertions; they are not counted as new xUnit coverage.
+  Milestones additionally executed real PG topology/retention/failure/history/
+  confirmed-inverse and dry-parent lineage/footprint assertions; these are not counted
+  as new xUnit coverage.
 
 ## Apply safety
 
@@ -114,8 +125,11 @@ clone-name/confirmation guard. No whole-database restore is implemented or attem
    atomic target commits are implemented/exercised, but snapshots still rescan all
    source rows for group/identity/dependency reconstruction. Broader concurrency,
    checkpoint and recovery integration coverage remains required.
-3. **Dry-run lineage:** no isolated parent candidate staging/rehydration. Dependent
-   dry runs honestly reject MissingIsolatedParentCandidates; live links are not borrowed.
+3. **Dry-run scope:** T065 isolated durable parent candidate staging/rehydration is
+   implemented and exercised on PostgreSQL. Real writers operate against a private
+   baseline with independent crosswalks; applied records remain untouched. Broader
+   overlapping applied-ownership/update preview parity is not established by this
+   fresh-namespace simulation. Code/input/baseline changes require fresh MyTeam staging.
 4. **Rollback acceptance:** encrypted immutable journal, restricted impact export,
    run-bound digest, dependency guards, atomic inverse/reset and footprint proof now
    execute on PostgreSQL, including later dependents and injected inverse failure.
@@ -148,7 +162,7 @@ clone-name/confirmation guard. No whole-database restore is implemented or attem
    separately named ready-v4 adds it without rewriting any earlier fixture.
    Actual target availability probes measured 1,320 suppressed user-minutes outside
    each two-hour away interval. A separately named future adverse interval correctly
-   holds Scheduling NeedsAction pending an actual SS comparison. Target-only
+   holds Scheduling NeedsAction. Subsequent actual SS comparison is complete. Target-only
    suppression does not quantify SS workflow loss. Actual matched SS/target read calls now
    show two destination candidate-presence differences and four conflict-response differences
    across twelve windows. Target calendar preserves the exact two-hour home event, but its
@@ -158,7 +172,10 @@ clone-name/confirmation guard. No whole-database restore is implemented or attem
    actual target comparison now executed on ss_ready_v4_probe: same12 calls, two
    destination presence differences and four missing Away conflict responses. Exact
    future calendar10–12UTC is preserved; future scheduling acceptance remains Fail/
-   NeedsAction, requiring a Scheduling/LoanOut decision rather than automatic waiver.
+   NeedsAction: a primary blocker requiring a Scheduling/LoanOut decision rather than
+   automatic waiver. Proposed application work is interval-sensitive discovery,
+   LoanOut conflict participation and assignment-guard alignment; no migration workaround
+   or out-of-scope application fix is implemented.
 9. **Independent coverage:** broader PostgreSQL concurrency, stale fencing, all mapped
    drift, retry, backfill, rollback and dry-run parity coverage remains required.
 

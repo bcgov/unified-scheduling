@@ -903,6 +903,95 @@ namespace Unified.Db.Migrations
                     b.ToTable("DataMigrationRuns", (string)null);
                 });
 
+            modelBuilder.Entity("Unified.Db.Models.DataMigration.DataMigrationSimulation", b =>
+                {
+                    b.Property<Guid>("RunId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("BaselineHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<int>("CandidateCount")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("CandidateHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("ConfigurationHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<int>("FormatVersion")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("MyTeamRunId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("NamespaceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("SourceHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.HasKey("RunId");
+
+                    b.HasIndex("MyTeamRunId");
+
+                    b.HasIndex("NamespaceId", "MyTeamRunId");
+
+                    b.ToTable("DataMigrationSimulations", (string)null);
+                });
+
+            modelBuilder.Entity("Unified.Db.Models.DataMigration.DataMigrationSimulationCandidate", b =>
+                {
+                    b.Property<Guid>("RunId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("EntityType")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("LegacyId")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<Guid>("NamespaceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("PayloadHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<string>("TargetKey")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("TargetType")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.HasKey("RunId", "EntityType", "LegacyId");
+
+                    b.HasIndex("NamespaceId", "EntityType", "LegacyId");
+
+                    b.ToTable("DataMigrationSimulationCandidates", (string)null);
+                });
+
             modelBuilder.Entity("Unified.Db.Models.DataMigration.DataMigrationWatermark", b =>
                 {
                     b.Property<long>("Id")
@@ -4170,6 +4259,30 @@ namespace Unified.Db.Migrations
                         .OnDelete(DeleteBehavior.Restrict);
                 });
 
+            modelBuilder.Entity("Unified.Db.Models.DataMigration.DataMigrationSimulation", b =>
+                {
+                    b.HasOne("Unified.Db.Models.DataMigration.DataMigrationRun", null)
+                        .WithMany()
+                        .HasForeignKey("MyTeamRunId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Unified.Db.Models.DataMigration.DataMigrationRun", null)
+                        .WithMany()
+                        .HasForeignKey("RunId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Unified.Db.Models.DataMigration.DataMigrationSimulationCandidate", b =>
+                {
+                    b.HasOne("Unified.Db.Models.DataMigration.DataMigrationSimulation", null)
+                        .WithMany("Candidates")
+                        .HasForeignKey("RunId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Unified.Db.Models.DataMigration.DataMigrationWatermark", b =>
                 {
                     b.HasOne("Unified.Db.Models.DataMigration.DataMigrationRun", "LastCompletedRun")
@@ -5658,6 +5771,11 @@ namespace Unified.Db.Migrations
                     b.Navigation("Failures");
 
                     b.Navigation("Mutations");
+                });
+
+            modelBuilder.Entity("Unified.Db.Models.DataMigration.DataMigrationSimulation", b =>
+                {
+                    b.Navigation("Candidates");
                 });
 
             modelBuilder.Entity("Unified.Db.Models.Leave.LeaveEntry", b =>

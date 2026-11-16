@@ -299,6 +299,17 @@ public sealed class SsSnapshotReader(IOptions<DataMigrationOptions> options)
 
 public sealed class SsRow(IReadOnlyDictionary<string, object?> values)
 {
+    // Hash only: private mapped text stays in memory; photo bytes and Region.Code never enter manifests.
+    internal object SimulationInput(string table) =>
+        new
+        {
+            Values = values
+                .Where(x => x.Key != "Photo" && !(table == "Region" && x.Key == "Code"))
+                .OrderBy(x => x.Key, StringComparer.Ordinal)
+                .ToDictionary(x => x.Key, x => x.Value),
+            HasPhoto = values.TryGetValue("Photo", out var photo) && photo is byte[],
+        };
+
     internal SsRow ProjectNullable(params string[] fields) =>
         new(fields.ToDictionary(x => x, x => values.TryGetValue(x, out var value) ? value : null));
 

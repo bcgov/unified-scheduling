@@ -4,6 +4,60 @@ using Unified.Db.Models.DataMigration;
 
 namespace Unified.Db.Configuration.DataMigration;
 
+public sealed class DataMigrationSimulationCandidateConfiguration
+    : IEntityTypeConfiguration<DataMigrationSimulationCandidate>
+{
+    public void Configure(EntityTypeBuilder<DataMigrationSimulationCandidate> b)
+    {
+        b.ToTable("DataMigrationSimulationCandidates");
+        b.HasKey(x => new
+        {
+            x.RunId,
+            x.EntityType,
+            x.LegacyId,
+        });
+        b.Property(x => x.Source).HasMaxLength(16).IsRequired();
+        b.Property(x => x.EntityType).HasMaxLength(128).IsRequired();
+        b.Property(x => x.LegacyId).HasMaxLength(128).IsRequired();
+        b.Property(x => x.TargetType).HasMaxLength(128).IsRequired();
+        b.Property(x => x.TargetKey).HasMaxLength(128).IsRequired();
+        b.Property(x => x.PayloadHash).HasMaxLength(64).IsRequired();
+        b.HasIndex(x => new
+        {
+            x.NamespaceId,
+            x.EntityType,
+            x.LegacyId,
+        });
+        b.HasOne<DataMigrationSimulation>()
+            .WithMany(x => x.Candidates)
+            .HasForeignKey(x => x.RunId)
+            .OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
+public sealed class DataMigrationSimulationConfiguration
+    : IEntityTypeConfiguration<DataMigrationSimulation>
+{
+    public void Configure(EntityTypeBuilder<DataMigrationSimulation> b)
+    {
+        b.ToTable("DataMigrationSimulations");
+        b.HasKey(x => x.RunId);
+        b.Property(x => x.SourceHash).HasMaxLength(64).IsRequired();
+        b.Property(x => x.BaselineHash).HasMaxLength(64).IsRequired();
+        b.Property(x => x.ConfigurationHash).HasMaxLength(64).IsRequired();
+        b.Property(x => x.CandidateHash).HasMaxLength(64).IsRequired();
+        b.HasIndex(x => new { x.NamespaceId, x.MyTeamRunId });
+        b.HasOne<DataMigrationRun>()
+            .WithMany()
+            .HasForeignKey(x => x.RunId)
+            .OnDelete(DeleteBehavior.Restrict);
+        b.HasOne<DataMigrationRun>()
+            .WithMany()
+            .HasForeignKey(x => x.MyTeamRunId)
+            .OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
 public sealed class DataMigrationJournalConfiguration
     : IEntityTypeConfiguration<DataMigrationJournal>
 {

@@ -87,6 +87,30 @@ public sealed class SsMigrationExecutor(
         var session = new SsWriteSession(db, run);
         try
         {
+            if (settings.DryRun)
+            {
+                var result = await new SsDryRunSimulation(
+                    db,
+                    configuration,
+                    reader,
+                    myTeam,
+                    training,
+                    scheduling,
+                    businessValidators ?? []
+                ).ExecuteAsync(run, source, settings.BatchSize, token => FenceAsync(run, token), ct);
+                session = result.Session;
+                await using var simulationReceiptTx = await db.Database.BeginTransactionAsync(ct);
+                await FenceAsync(run, ct);
+                await PersistAsync(run, session, ct);
+                var completed = await db.DataMigrationRuns.SingleAsync(x => x.Id == run.Id, ct);
+                if (completed.Status == "Completed" && result.Manifest is not null)
+                {
+                    db.DataMigrationSimulations.Add(result.Manifest);
+                    await db.SaveChangesAsync(ct);
+                }
+                await simulationReceiptTx.CommitAsync(ct);
+                return;
+            }
             if (job == "Report")
             {
                 var reportRows = await reader.ReadAsync(
@@ -135,24 +159,6 @@ public sealed class SsMigrationExecutor(
                 await reportTx.CommitAsync(ct);
                 return;
             }
-            if (settings.DryRun && job != "MyTeam")
-            {
-                // A dry-run parent rolled back its real targets; never borrow live crosswalks as fake candidates.
-                session.Outcome("DryRunLineage", run.Id.ToString(), "Rejected", "MissingIsolatedParentCandidates");
-                await PersistAsync(run, session, ct);
-                return;
-            }
-            if (settings.DryRun && await db.DataMigrationRecords.AnyAsync(x => x.Source == "SS", ct))
-            {
-                session.Outcome(
-                    "DryRunLineage",
-                    run.Id.ToString(),
-                    "Rejected",
-                    "DryRunRequiresIsolatedTargetCandidates"
-                );
-                await PersistAsync(run, session, ct);
-                return;
-            }
             var tables = job switch
             {
                 "MyTeam" => SsMyTeamWriter.Tables,
@@ -167,48 +173,47 @@ public sealed class SsMigrationExecutor(
                     TimeZoneInfo.FindSystemTimeZoneById("America/Vancouver")
                 )
             );
-            if (!settings.DryRun)
-            {
-                await using var batches = new SsBatchProgress(
-                    db,
-                    session,
-                    rows,
-                    source.HistoryStartDate,
-                    settings.BatchSize,
-                    token => FenceAsync(run, token)
-                );
-                await batches.BeginAsync(ct);
-                await WriteJobAsync(job, rows, session, boundary, ct);
-                await batches.CommitAsync(true, ct);
-                return;
-            }
-            await using var tx = await db.Database.BeginTransactionAsync(ct);
-            await FenceAsync(run, ct);
+            await using var batches = new SsBatchProgress(
+                db,
+                session,
+                rows,
+                source.HistoryStartDate,
+                settings.BatchSize,
+                token => FenceAsync(run, token)
+            );
+            await batches.BeginAsync(ct);
             await WriteJobAsync(job, rows, session, boundary, ct);
-            if (settings.DryRun)
-            {
-                // Exactly the same EF DML and PostgreSQL constraints, not a bypassed writer.
-                await db.SaveChangesAsync(ct);
-                await tx.RollbackAsync(ct);
-                db.ChangeTracker.Clear();
-            }
-            else
-            {
-                await PersistAsync(run, session, ct);
-                await tx.CommitAsync(ct);
-                return;
-            }
-            await PersistAsync(run, session, ct);
+            await batches.CommitAsync(true, ct);
+            return;
         }
         catch (Exception ex)
         {
             if (
-                db.Database.GetDbConnection().Database == "unified_ss_rehearsal_repartition_v4"
+                db.Database.GetDbConnection().Database
+                    is "unified_ss_rehearsal_repartition_v4"
+                        or "unified_ss_rehearsal_simulation_v6"
                 && configuration.GetValue<bool>("DataMigrationRehearsal:SafeStack")
             )
             {
                 Console.WriteLine("SafeFailureType=" + ex.GetType().Name);
-                foreach (var frame in new System.Diagnostics.StackTrace(ex, true).GetFrames().Take(8))
+                if (ex is Npgsql.PostgresException pg)
+                    Console.WriteLine(
+                        "SafeSqlState="
+                            + pg.SqlState
+                            + ";Position="
+                            + pg.Position
+                            + ";Table="
+                            + pg.TableName
+                            + (pg.MessageText == "Simulation schema clone failed" ? ";Phase=" + pg.Hint : "")
+                    );
+                foreach (
+                    var frame in new System.Diagnostics.StackTrace(ex, true)
+                        .GetFrames()
+                        .Where(x =>
+                            x.GetMethod()?.DeclaringType?.Namespace?.StartsWith("Unified.DataMigration") == true
+                        )
+                        .Take(8)
+                )
                     Console.WriteLine(
                         $"SafeFrame={frame.GetMethod()?.DeclaringType?.Name}.{frame.GetMethod()?.Name}:{frame.GetFileLineNumber()}"
                     );

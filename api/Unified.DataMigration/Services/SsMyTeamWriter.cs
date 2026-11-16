@@ -387,7 +387,7 @@ public sealed class SsMyTeamWriter(UnifiedDbContext db, SsLeaveWriter leaveWrite
                         target = session.Stamp(
                             new User
                             {
-                                Id = Guid.NewGuid(),
+                                Id = session.NewUserId(row.Id),
                                 IdirName = idir,
                                 IdirId = idirId,
                                 KeyCloakId = keycloak,

@@ -49,6 +49,18 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run)
     private readonly Dictionary<(string Type, string Id), DataMigrationOutcome> outcomeIndex = [];
     private Dictionary<DataMigrationOutcome, (string Outcome, string? Reason)>? outcomeChanges;
     public DataMigrationRun Run => run;
+    internal Guid? SimulationNamespace { get; set; }
+    internal string? SimulationSchema { get; set; }
+
+    internal Guid NewUserId(string legacyId) =>
+        SimulationNamespace is { } ns
+            ? new Guid(
+                System.Security.Cryptography.SHA256.HashData(
+                    System.Text.Encoding.UTF8.GetBytes($"{ns:D}:User:{legacyId}")
+                )[..16]
+            )
+            : Guid.NewGuid();
+
     public DateTimeOffset Now => run.StartedOn!.Value;
     private int atomicGraphDepth;
     internal HashSet<(string Type, string Id)> Rebinding { get; } = [];
@@ -905,7 +917,7 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run)
             pk.ClrType == typeof(Guid)
                 ? (object)Guid.Parse(Convert.ToString(targetId, CultureInfo.InvariantCulture)!)
                 : Convert.ChangeType(targetId, pk.ClrType, CultureInfo.InvariantCulture);
-        var table = $"\"{metadata.GetSchema() ?? "public"}\".\"{metadata.GetTableName()}\"";
+        var table = $"\"{SimulationSchema ?? metadata.GetSchema() ?? "public"}\".\"{metadata.GetTableName()}\"";
         var sql =
             $"SELECT xmin::text AS \"Value\" FROM {table} WHERE \"{pk.Name}\" = @key{(locked ? " FOR UPDATE" : "")}";
         var version =

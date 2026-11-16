@@ -219,3 +219,12 @@ coverage remains. SH-08 still fails24/26 comparisons and SH-01..07 remain unmeas
 the synthetic source is **not production-shape-fit**. Full adverse target rehearsal and
 future actual-source availability remain pending. No new app behavior, shared DB reset,
 GitOps change, attribution or push. Original contract-file deletion remains unstaged.
+
+## Subsequent implementation and complete field-level follow-up
+
+The [dry-run candidate milestone](2026-11-16-dry-run-candidates.md) supersedes the
+historical incomplete implementation list above; full migration acceptance remains open.
+
+The [surface/field count table and BL15 application decision](2026-11-16-matched-differences.md)
+classify all39 strict missing and15 unexpected rows, including52 differing paired
+field cells. These are response differences, not counts of lost business records.
