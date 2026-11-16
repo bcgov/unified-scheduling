@@ -6,9 +6,13 @@ using Microsoft.Extensions.Options;
 using Unified.Calendar.Options;
 using Unified.Calendar.Services;
 using Unified.Common.Reporting;
+using Unified.Common.Scheduling.Models;
 using Unified.Common.Time;
 using Unified.Db;
+using Unified.Db.Models.LoanOut;
 using Unified.Leave.FeatureFlags;
+using Unified.LoanOut.Mappers;
+using Unified.LoanOut.Services;
 using Unified.Scheduling.Models;
 using Unified.Scheduling.Options;
 using Unified.Scheduling.Services;
@@ -23,8 +27,6 @@ internal static class BusinessQueryExport
         var defaultZone = config["CalendarDateTime:DefaultTimeZoneId"];
         if (string.IsNullOrWhiteSpace(defaultZone))
             throw new InvalidOperationException("Explicit calendar timezone required.");
-        if (config.GetValue<bool>("FeatureFlags:LoanOut:Enabled"))
-            throw new InvalidOperationException("Loan-out enabled export requires the full scheduling query host.");
         var timeService = new TimeZoneService();
         var resolver = new CalendarTimeZoneResolver(
             Options.Create(new CalendarDateTimeOptions { DefaultTimeZoneId = defaultZone }),
@@ -37,8 +39,8 @@ internal static class BusinessQueryExport
             db,
             resolver,
             timeService,
-            () => throw new InvalidOperationException("Disabled loan-out path must not invoke shift writes."),
-            false
+            () => throw new InvalidOperationException("Read-only export must not invoke shift writes."),
+            config.GetValue<bool>("FeatureFlags:LoanOut:Enabled")
         );
         var workingHours = new WorkingHoursService(
             NullLogger<WorkingHoursService>.Instance,
@@ -58,15 +60,89 @@ internal static class BusinessQueryExport
             .Where(x => x.Source == "SS" && x.EntityType == "Training")
             .ToDictionaryAsync(x => int.Parse(x.TargetKey), x => x.LegacyId);
         var report = new UserTrainingReportQueryHandler(db, TimeProvider.System);
-        foreach (
-            var (name, start, end) in new[]
-            {
-                ("past-month", new DateOnly(2026, 11, 1), new DateOnly(2026, 11, 30)),
-                ("cutover-14", new DateOnly(2026, 11, 17), new DateOnly(2026, 12, 15)),
-                ("first-future-month", new DateOnly(2026, 12, 1), new DateOnly(2026, 12, 31)),
-            }
-        )
+        var loanOut = new LoanOutCalendarDataProvider(db, new LoanOutCalendarMapper(), timeService);
+        if (availability.IsEnabled)
         {
+            var awayLinks = await db
+                .DataMigrationRecords.AsNoTracking()
+                .Where(x => x.Source == "SS" && x.EntityType == "SheriffAwayLocation")
+                .ToListAsync();
+            foreach (var link in awayLinks)
+            {
+                var entry = await db
+                    .LoanOutEntries.AsNoTracking()
+                    .Include(x => x.Event)
+                    .Include(x => x.Users)
+                    .SingleAsync(x => x.Id == int.Parse(link.TargetKey));
+                if (entry.Event!.StatusTypeCode == "cancelled")
+                    continue;
+                var ids = entry.Users.Select(x => x.UserId).ToList();
+                var occurrences = new[]
+                {
+                    new ShiftAssignmentLoanOutContext(entry.Event.StartAtUtc, entry.Event.EndAtUtc),
+                };
+                var atDestination = await availability.GetAssignableUserIdsByOccurrenceAsync(
+                    ids,
+                    occurrences,
+                    entry.LoanOutLocationId,
+                    entry.Event.TimeZoneId
+                );
+                var atHome = await availability.GetAssignableUserIdsByOccurrenceAsync(
+                    ids,
+                    occurrences,
+                    entry.Event.LocationId,
+                    entry.Event.TimeZoneId
+                );
+                if (
+                    atDestination.Single().Count != ids.Count
+                    || (entry.Event.LocationId != entry.LoanOutLocationId && atHome.Single().Count != 0)
+                )
+                    throw new InvalidOperationException(
+                        "Actual LoanOut availability did not consume the migrated away graph."
+                    );
+                Console.WriteLine(
+                    JsonSerializer.Serialize(
+                        new
+                        {
+                            Query = "ShiftLoanOutAvailabilityService",
+                            SourceAwayId = link.LegacyId,
+                            DestinationAssignable = atDestination.Single().Count,
+                            HomeAssignable = atHome.Single().Count,
+                        }
+                    )
+                );
+            }
+        }
+        foreach (var (name, start, end) in ActualRehearsalValidation.Windows)
+        {
+            if (availability.IsEnabled)
+            {
+                var range = timeService.ConvertInclusiveLocalDateRangeToUtcRange(
+                    start,
+                    end,
+                    timeService.ResolveOrUtc(defaultZone)
+                );
+                var context = new SchedulingCalendarEventQueryContext
+                {
+                    StartAtUtc = range.StartAtUtc,
+                    EndAtUtc = range.EndAtUtc,
+                };
+                var awayEvents = await loanOut.GetDataAsync(context);
+                foreach (var item in awayEvents)
+                    Console.WriteLine(
+                        JsonSerializer.Serialize(
+                            new
+                            {
+                                Query = "LoanOutCalendarDataProvider",
+                                Window = name,
+                                item.Id,
+                                item.Start,
+                                item.End,
+                                item.UserIds,
+                            }
+                        )
+                    );
+            }
             foreach (var user in users)
             {
                 var response = (UserTrainingReportResponse)

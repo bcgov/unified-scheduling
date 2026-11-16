@@ -1,0 +1,11 @@
+{
+  "CalendarConflicts": {
+    "Rules": {
+      "shift": ["holiday", "leave"],
+      "assignment": ["assignment", "holiday", "leave", "training"],
+      "training": ["holiday", "training"],
+      "leave": [],
+      "holiday": []
+    }
+  }
+}

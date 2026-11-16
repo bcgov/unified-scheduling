@@ -10,6 +10,7 @@
     <ProjectReference Include="../Unified.Audit/Unified.Audit.csproj" />
     <ProjectReference Include="../Unified.UserManagement/Unified.UserManagement.csproj" />
     <ProjectReference Include="../Unified.Leave/Unified.Leave.csproj" />
+    <ProjectReference Include="../Unified.LoanOut/Unified.LoanOut.csproj" />
     <ProjectReference Include="../Unified.Training/Unified.Training.csproj" />
     <ProjectReference Include="../Unified.Scheduling/Unified.Scheduling.csproj" />
     <ProjectReference Include="../Unified.Stats/Unified.Stats.csproj" />

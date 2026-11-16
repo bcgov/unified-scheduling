@@ -11,6 +11,7 @@ services:
       - ../../docs/data-migration/ss-implementation-baseline/evidence:/fixture:ro
       - ./source-init.sh:/docker-entrypoint-initdb.d/10-synthetic.sh:ro
       - ./ready-fixture.sql:/fixture-ready.sql:ro
+      - ./ready-v3-fixture.sql:/fixture-ready-v3.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d ss && test -f /var/lib/postgresql/data/ss-fixture-ready"]
       interval: 5s
@@ -40,6 +41,7 @@ services:
       - nuget:/root/.nuget/packages
     environment:
       DatabaseConnectionString: Host=target;Database=unified_ss_rehearsal;Username=postgres
+      DataMigrationRehearsal__BusinessConfigurationPath: /src/docker/migration/calendar-validation.json
       FeatureFlags__DataMigration__Enabled: "true"
       DataMigration__Sources__SS__Enabled: "true"
       DataMigration__Sources__SS__ConnectionString: Host=source;Database=ss;Username=ss_migration_reader
@@ -56,6 +58,9 @@ services:
       WorkingHours__FullWorkingDayMinutes: "420"
       FeatureFlags__Leave__Enabled: "true"
       FeatureFlags__LoanOut__Enabled: "false"
+      FeatureFlags__Calendar__Enabled: "true"
+      FeatureFlags__Scheduling__Enabled: "true"
+      FeatureFlags__Stats__Enabled: "true"
     entrypoint: ["dotnet", "run", "--project", "api/Unified.DataMigration.Runner", "--"]
     networks: [migration]
 networks:
