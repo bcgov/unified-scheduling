@@ -184,8 +184,9 @@ public sealed class SsLeaveWriter(UnifiedDbContext db)
                                     .LeaveEntries.Include(x => x.Event)
                                     .Include(x => x.Users)
                                     .SingleAsync(x => x.Id == id, ct);
-                                if (owned.Users.Count != 1 || owned.Users.Single().UserId != userId)
-                                    throw new SsReject("LeaveUserIdentityChangedRequiresReview");
+                                if (owned.Users.Count != 1)
+                                    throw new SsReject("AmbiguousOwnedLeaveUsers");
+                                owned.Users.Single().UserId = userId;
                                 var currentUser = await db.Users.SingleAsync(x => x.Id == userId, ct);
                                 var fallback = zone;
                                 if (fallback is null && currentUser.HomeLocationId is { } home)

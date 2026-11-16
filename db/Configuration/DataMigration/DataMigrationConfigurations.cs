@@ -4,6 +4,64 @@ using Unified.Db.Models.DataMigration;
 
 namespace Unified.Db.Configuration.DataMigration;
 
+public sealed class DataMigrationWorkItemConfiguration
+    : IEntityTypeConfiguration<DataMigrationWorkItem>
+{
+    public void Configure(EntityTypeBuilder<DataMigrationWorkItem> b)
+    {
+        b.ToTable("DataMigrationWorkItems");
+        b.HasKey(x => x.Id);
+        b.Property(x => x.Source).HasMaxLength(16);
+        b.Property(x => x.Job).HasMaxLength(32);
+        b.Property(x => x.Stream).HasMaxLength(64);
+        b.Property(x => x.EntityType).HasMaxLength(128);
+        b.Property(x => x.LegacyId).HasMaxLength(128);
+        b.Property(x => x.Outcome).HasMaxLength(32);
+        b.Property(x => x.Reason).HasMaxLength(128);
+        b.HasIndex(x => new
+            {
+                x.Source,
+                x.Job,
+                x.Stream,
+                x.EntityType,
+                x.LegacyId,
+            })
+            .IsUnique();
+        b.HasIndex(x => new
+        {
+            x.Source,
+            x.Job,
+            x.Stream,
+            x.PendingRetry,
+        });
+    }
+}
+
+public sealed class DataMigrationCheckpointConfiguration
+    : IEntityTypeConfiguration<DataMigrationCheckpoint>
+{
+    public void Configure(EntityTypeBuilder<DataMigrationCheckpoint> b)
+    {
+        b.ToTable("DataMigrationCheckpoints");
+        b.HasKey(x => x.Id);
+        b.Property(x => x.Source).HasMaxLength(16);
+        b.Property(x => x.Job).HasMaxLength(32);
+        b.Property(x => x.Stream).HasMaxLength(64);
+        b.Property(x => x.EntityType).HasMaxLength(128);
+        b.Property(x => x.LegacyId).HasMaxLength(128);
+        b.Property(x => x.UpperLegacyId).HasMaxLength(128);
+        b.Property(x => x.IdKind).HasMaxLength(16);
+        b.HasIndex(x => new
+            {
+                x.Source,
+                x.Job,
+                x.Stream,
+                x.EntityType,
+            })
+            .IsUnique();
+    }
+}
+
 public sealed class DataMigrationOutcomeConfiguration
     : IEntityTypeConfiguration<DataMigrationOutcome>
 {

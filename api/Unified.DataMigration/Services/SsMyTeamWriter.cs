@@ -291,8 +291,6 @@ public sealed class SsMyTeamWriter(UnifiedDbContext db, SsLeaveWriter leaveWrite
                             LastLogin = row.Date("LastLogin"),
                         }
                     );
-                    if (await session.ReplayAsync("User", row, hash, false, ct))
-                        return;
                     var idirId = row.Guid("IdirId");
                     var keycloak = row.Guid("KeyCloakId");
                     if (
@@ -300,6 +298,63 @@ public sealed class SsMyTeamWriter(UnifiedDbContext db, SsLeaveWriter leaveWrite
                         || keycloak is not null && rows["User"].Count(x => x.Guid("KeyCloakId") == keycloak) > 1
                     )
                         throw new SsReject("DuplicateSsoIdentity");
+                    if (
+                        await session.ReplayAsync(
+                            "User",
+                            row,
+                            hash,
+                            false,
+                            ct,
+                            async () =>
+                            {
+                                var id = Guid.Parse(await session.ResolveAsync("User", row.Id, ct));
+                                if (
+                                    await db.Users.AnyAsync(
+                                        x =>
+                                            x.Id != id
+                                            && (
+                                                x.IdirName == idir
+                                                || idirId != null && x.IdirId == idirId
+                                                || keycloak != null && x.KeyCloakId == keycloak
+                                            ),
+                                        ct
+                                    )
+                                )
+                                    throw new SsReject("UserIdentityCollision");
+                                if (row.Int("Gender") is { } invalid && !Enum.IsDefined(typeof(Gender), invalid))
+                                    throw new SsReject("InvalidGender");
+                                var owned = await db.Users.SingleAsync(x => x.Id == id, ct);
+                                var rank = await ResolveRankAsync(row.Text("Rank"), rows, session, ct);
+                                owned.IdirName = idir;
+                                owned.IdirId = idirId;
+                                owned.KeyCloakId = keycloak;
+                                owned.IsEnabled = row.Bool("IsEnabled");
+                                owned.FirstName = row.Text("FirstName") ?? "";
+                                owned.LastName = row.Text("LastName") ?? "";
+                                owned.Email = row.Text("Email") ?? "";
+                                owned.Gender = row.Int("Gender") is { } gender ? (Gender)gender : Gender.Other;
+                                owned.BadgeNumber = row.Text("BadgeNumber");
+                                owned.LastLogin = row.Date("LastLogin");
+                                owned.HomeLocationId = await session.ResolveIntAsync(
+                                    "Location",
+                                    row.Int("HomeLocationId"),
+                                    ct
+                                );
+                                owned.Rank = rank?.Code;
+                                owned.EmployeeNumber = null;
+                                owned.PendingRegistration = false;
+                                owned.Photo = row.Bytes("Photo");
+                                var photoDate = row.Date("LastPhotoUpdate");
+                                owned.LastPhotoUpdate =
+                                    owned.Photo is null ? null
+                                    : photoDate is null || photoDate <= DateTimeOffset.MinValue ? session.Now
+                                    : photoDate;
+                                owned.UpdatedOn = session.Now;
+                                // TrainingProfileId belongs exclusively to Training, never MyTeam.
+                            }
+                        )
+                    )
+                        return;
                     var targets = await db.Users.Where(x => x.IdirName == idir).ToListAsync(ct);
                     if (targets.Count > 1)
                         throw new SsReject("AmbiguousUser");
@@ -552,6 +607,7 @@ public sealed class SsMyTeamWriter(UnifiedDbContext db, SsLeaveWriter leaveWrite
                             userId,
                             destination,
                             Home = user.HomeLocationId,
+                            Title = $"Away - {location.Name}",
                             dates,
                             zone,
                             Expiry = row.Date("ExpiryDate"),
@@ -571,8 +627,9 @@ public sealed class SsMyTeamWriter(UnifiedDbContext db, SsLeaveWriter leaveWrite
                                     .LoanOutEntries.Include(x => x.Event)
                                     .Include(x => x.Users)
                                     .SingleAsync(x => x.Id == id, ct);
-                                if (owned.Users.Count != 1 || owned.Users.Single().UserId != userId)
-                                    throw new SsReject("AwayUserIdentityChangedRequiresReview");
+                                if (owned.Users.Count != 1)
+                                    throw new SsReject("AmbiguousOwnedAwayUsers");
+                                owned.Users.Single().UserId = userId;
                                 owned.LoanOutLocationId = destination;
                                 owned.UpdatedOn = session.Now;
                                 var e = owned.Event!;

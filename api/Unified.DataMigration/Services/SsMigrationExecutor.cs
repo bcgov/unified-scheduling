@@ -48,6 +48,8 @@ public sealed class SsMigrationExecutor(
                         or "unified_ss_rehearsal_ready_v3"
                         or "unified_ss_rehearsal_ready_v3_drift"
                         or "unified_ss_rehearsal_ready_v4"
+                        or "unified_ss_rehearsal_ready_v4_recovery"
+                        or "unified_ss_rehearsal_ready_v4_probe"
                     )
             )
         )
@@ -57,7 +59,13 @@ public sealed class SsMigrationExecutor(
         DataMigrationRun? acquired;
         try
         {
-            acquired = await controls.TryStartJobAsync(job, settings.DryRun, source.CutoverDate.Value, ct);
+            acquired = await controls.TryStartJobAsync(
+                job,
+                settings.DryRun,
+                source.CutoverDate.Value,
+                ct,
+                source.HistoryStartDate
+            );
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
@@ -88,6 +96,18 @@ public sealed class SsMigrationExecutor(
                 await using var reportTx = await db.Database.BeginTransactionAsync(ct);
                 await FenceAsync(run, ct);
                 await new SsReconciliationWriter(db).WriteAsync(reportRows, session, ct);
+                var stream = SsBatchProgress.Stream(source.HistoryStartDate);
+                var pendingRetries = await db.DataMigrationWorkItems.CountAsync(
+                    x => x.Source == "SS" && x.Stream == stream && x.PendingRetry,
+                    ct
+                );
+                if (pendingRetries > 0)
+                    session.Outcome(
+                        "RetryQueueValidation",
+                        run.Id.ToString(),
+                        "NeedsAction",
+                        "UnresolvedPrimaryRetryItems"
+                    );
                 foreach (var exclusion in await reader.ReadExcludedCountsAsync(ct))
                     session.Outcome(
                         "ExcludedTableMetric",
@@ -142,26 +162,24 @@ public sealed class SsMigrationExecutor(
                     TimeZoneInfo.FindSystemTimeZoneById("America/Vancouver")
                 )
             );
+            if (!settings.DryRun)
+            {
+                await using var batches = new SsBatchProgress(
+                    db,
+                    session,
+                    rows,
+                    source.HistoryStartDate,
+                    settings.BatchSize,
+                    token => FenceAsync(run, token)
+                );
+                await batches.BeginAsync(ct);
+                await WriteJobAsync(job, rows, session, boundary, ct);
+                await batches.CommitAsync(true, ct);
+                return;
+            }
             await using var tx = await db.Database.BeginTransactionAsync(ct);
             await FenceAsync(run, ct);
-            if (job == "MyTeam")
-                await myTeam.WriteAsync(rows, session, boundary, ct);
-            if (job == "Training")
-                await training.WriteAsync(rows, session, boundary, ct);
-            if (job == "Scheduling")
-            {
-                await scheduling.WriteAsync(rows, session, boundary, ct);
-                var validators = (businessValidators ?? []).ToList();
-                if (validators.Count == 0)
-                    session.Outcome(
-                        "SchedulingValidation",
-                        run.Id.ToString(),
-                        "NeedsAction",
-                        "ActualSchedulingReadValidatorUnavailable"
-                    );
-                foreach (var validator in validators)
-                    await validator.ValidateAsync(job, rows, session, ct);
-            }
+            await WriteJobAsync(job, rows, session, boundary, ct);
             if (settings.DryRun)
             {
                 // Exactly the same EF DML and PostgreSQL constraints, not a bypassed writer.
@@ -193,12 +211,40 @@ public sealed class SsMigrationExecutor(
                     Source = "SS",
                     ErrorType = ex is OperationCanceledException ? "Canceled" : "ExecutionFailed",
                     ErrorMessage =
-                        "SS job failed; business transaction rolled back. Inspect safe source outcomes and configuration.",
+                        "SS job failed; current batch rolled back. Earlier committed batches and retry/progress evidence are retained.",
                     OccurredOn = DateTimeOffset.UtcNow,
                 }
             );
             await db.SaveChangesAsync(CancellationToken.None);
             throw new InvalidOperationException("SS migration failed; inspect migration-only run evidence.");
+        }
+    }
+
+    private async Task WriteJobAsync(
+        string job,
+        Dictionary<string, List<SsRow>> rows,
+        SsWriteSession session,
+        DateTimeOffset boundary,
+        CancellationToken ct
+    )
+    {
+        if (job == "MyTeam")
+            await myTeam.WriteAsync(rows, session, boundary, ct);
+        if (job == "Training")
+            await training.WriteAsync(rows, session, boundary, ct);
+        if (job == "Scheduling")
+        {
+            await scheduling.WriteAsync(rows, session, boundary, ct);
+            var validators = (businessValidators ?? []).ToList();
+            if (validators.Count == 0)
+                session.Outcome(
+                    "SchedulingValidation",
+                    session.Run.Id.ToString(),
+                    "NeedsAction",
+                    "ActualSchedulingReadValidatorUnavailable"
+                );
+            foreach (var validator in validators)
+                await validator.ValidateAsync(job, rows, session, ct);
         }
     }
 
@@ -226,7 +272,8 @@ public sealed class SsMigrationExecutor(
     private async Task PersistAsync(DataMigrationRun run, SsWriteSession session, CancellationToken ct)
     {
         var persisted = await db.DataMigrationRuns.SingleAsync(x => x.Id == run.Id, ct);
-        db.DataMigrationOutcomes.AddRange(session.Outcomes);
+        foreach (var outcome in session.Outcomes)
+            await SsBatchProgress.UpsertOutcomeAsync(db, outcome, ct);
         persisted.ScannedCount = session.SourceOutcomes.Count();
         persisted.InsertedCount = session.Inserted;
         persisted.UpdatedCount = session.Updated;

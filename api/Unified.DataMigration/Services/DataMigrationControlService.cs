@@ -20,7 +20,7 @@ public sealed class DataMigrationControlService(UnifiedDbContext dbContext)
             ct
         );
         var run = await dbContext.DataMigrationRuns.SingleOrDefaultAsync(x => x.Id == runId && x.Source == "SS", ct);
-        if (run?.Status != "Running" || run.StartedOn is null || run.StartedOn >= staleBefore)
+        if (run?.Status != "Running" || run.StartedOn is null || (run.HeartbeatOn ?? run.StartedOn) >= staleBefore)
             return false;
         run.Status = "Abandoned";
         run.CompletedOn = DateTimeOffset.UtcNow;
@@ -33,7 +33,8 @@ public sealed class DataMigrationControlService(UnifiedDbContext dbContext)
         string job,
         bool dryRun,
         DateOnly cutover,
-        CancellationToken cancellationToken
+        CancellationToken cancellationToken,
+        DateOnly? historyStartDate = null
     )
     {
         if (job is not ("MyTeam" or "Training" or "Scheduling" or "Report"))
@@ -61,7 +62,10 @@ public sealed class DataMigrationControlService(UnifiedDbContext dbContext)
         var runs = await dbContext.DataMigrationRuns.Where(x => x.Source == "SS").ToListAsync(cancellationToken);
         if (runs.Any(x => x.Status == "Running" && (x.Job == job || x.Job == "Legacy")))
             return null;
-        var parent = runs.Where(x => x.Job == "MyTeam" && x.DryRun == dryRun)
+        var history = historyStartDate ?? new DateOnly(2015, 1, 1);
+        var parent = runs.Where(x =>
+                x.Job == "MyTeam" && x.DryRun == dryRun && (x.HistoryStartDate ?? new DateOnly(2015, 1, 1)) == history
+            )
             .OrderByDescending(x => x.StartedOn)
             .FirstOrDefault();
         if (parent?.Status != "Completed")
@@ -81,7 +85,11 @@ public sealed class DataMigrationControlService(UnifiedDbContext dbContext)
                     return null;
                 foreach (var dependency in new[] { "Training", "Scheduling" })
                 {
-                    var latest = runs.Where(x => x.Job == dependency && x.DryRun == dryRun)
+                    var latest = runs.Where(x =>
+                            x.Job == dependency
+                            && x.DryRun == dryRun
+                            && (x.HistoryStartDate ?? new DateOnly(2015, 1, 1)) == history
+                        )
                         .OrderByDescending(x => x.StartedOn)
                         .FirstOrDefault();
                     if (latest?.Status != "Completed" || latest.MyTeamRunId != parent.Id)
@@ -98,6 +106,8 @@ public sealed class DataMigrationControlService(UnifiedDbContext dbContext)
             StartedOn = DateTimeOffset.UtcNow,
             CutoverDate = cutover,
             MyTeamRunId = parent?.Id,
+            HistoryStartDate = history,
+            HeartbeatOn = DateTimeOffset.UtcNow,
         };
         dbContext.DataMigrationRuns.Add(run);
         await dbContext.SaveChangesAsync(cancellationToken);

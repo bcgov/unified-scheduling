@@ -7,6 +7,8 @@ Workspace artifacts remain canonical. Prior milestones: `b589bee4`, `e16b559b`,
 `7287236`, `21ae1f3`; primary follow-ups `67982bc2`, `5bd55720`, runner validation
 `edb9c393`, singleton defaults `e29fdd87`. See the [rehearsal record](reports/2026-11-16-rehearsal.md)
 for retained failures, run IDs and application-service evidence.
+Durable recovery and mapped-update follow-up:
+[2026-11-16 recovery evidence](reports/2026-11-16-recovery.md).
 
 ## Implemented and exercised
 
@@ -18,7 +20,9 @@ for retained failures, run IDs and application-service evidence.
 - Read-only/repeatable-read source snapshots, typed timestamp/ID paging and explicit
   per-table upper bounds. Server timestamp text is bound back as `timestamptz`, preserving
   finite year-1 seed timestamps instead of converting them to PostgreSQL `-infinity`.
-  This is bounded fetching, NOT durable incremental progress.
+  Complete source snapshots still rehydrate groups; committed work items/checkpoints,
+  bounded target batches, heartbeat fencing and replay now persist restart progress.
+  Source fetching is not yet optimized to skip pages using those checkpoints.
 - Real tracked EF inserts/crosswalks for references, all users, roles/UserRole, acting,
   leave, training catalogue/categories/profile links/history, rooms, definitions,
   merged shifts, duties, slots and qualified assignment series.
@@ -40,11 +44,20 @@ for retained failures, run IDs and application-service evidence.
 - Actual SchedulePublishService preview succeeded, then actual publication succeeded
   on a separate persistent clone: two shifts and two assignments. Original ready-v3
   remains unchanged by publication.
-- Selected owned-row updates for UserRole, acting, away, leave and training history:
-  require changed structural source hash, job ownership, unchanged target mapped hash
+- Owned-row updates for users, UserRole, acting, away, leave and training history,
+  single-root merged definitions/shifts and single-slot duties:
+  require changed mapped source hash, job ownership, unchanged target mapped hash
   and original root/event PostgreSQL row-version proof under row locks. Linked-only
-  rows never update. Version proof protects unhashed private text/photo from overwrite.
-  Real UserRole insert/update/external-text-drift rejection ran on separate clones.
+  rows never update. SHA-256 covers mapped text/SSO without retaining/emitting raw values;
+  photo bytes are excluded and additionally guarded by source stamps/target versions.
+  Training profile and initial assignment-series composition refresh original owner
+  concurrency receipts only after verifying unchanged owner-mapped fields.
+  Actual text-only updates, new touching member, profile preservation and independent
+  target training-note drift rejection ran on the separate probe.
+- Independent durable retry rows resolve dependencies below advanced cursors. Earlier
+  history has separate resumable backfill progress and matching parent lineage. Actual
+  PostgreSQL interruption retained 14 prior batches while rolling back the current one;
+  subsequent restart, below-cursor retry and 2014 backfill succeeded.
 - Report reconciles one outcome per selected source business row, crosswalk target
   existence and same MyTeam lineage. Group/validation/excluded-table metrics are not
   counted as business coverage. Audit/JcSynchronization/DataProtectionKeys and
@@ -69,15 +82,14 @@ clone-name/confirmation guard. No whole-database restore is implemented or attem
 
 ## Remaining acceptance blockers
 
-1. **Complete mapped updates:** users, merged definitions/shifts/duties/series and other
-   non-reference targets still reject changed sources. Text-only timestamp changes are
-   held for review; missing original version proofs are not retroactively blessed.
-   Cross-owner edits conservatively count as drift. Series membership changes need
-   complete ownership/fingerprint refresh rules before update/rollback support.
-2. **Progress/retry/backfill:** snapshots are fully rescanned. No independent durable
-   rejected/dependency retry queue, resumable earlier-history backfill, durable cursors
-   or bounded target commits. One target transaction per job and row/group savepoints
-   are not production-fit at full scale.
+1. **Complete mapped updates:** multi-root merge/split/repartition, multi-entry duties
+   and changed series membership/qualification replay remain unfinished. Missing
+   original version proofs are not retroactively blessed. These cases reject rather
+   than partially applying a group or overwriting independent target edits.
+2. **Source incremental optimization:** durable retry/backfill/checkpoints and bounded
+   atomic target commits are implemented/exercised, but snapshots still rescan all
+   source rows for group/identity/dependency reconstruction. Broader concurrency,
+   checkpoint and recovery integration coverage remains required.
 3. **Dry-run lineage:** no isolated parent candidate staging/rehydration. Dependent
    dry runs honestly reject MissingIsolatedParentCandidates; live links are not borrowed.
 4. **Safe rollback:** impact preview, restricted later-edit/dependent-row export,
@@ -101,6 +113,10 @@ clone-name/confirmation guard. No whole-database restore is implemented or attem
 8. **Synthetic validity:** SH fit ±20%, full extractor inventory, repeat-build structural
    hashes and stable-clock generation have not passed. Ready-v3 has no January roster;
    separately named ready-v4 adds it without rewriting any earlier fixture.
+   Actual target availability probes measured 1,320 suppressed user-minutes outside
+   each two-hour away interval. A separately named future adverse interval correctly
+   holds Scheduling NeedsAction; this is not an approved availability difference or
+   an executed SS availability oracle.
 9. **Independent coverage:** broader PostgreSQL concurrency, stale fencing, all mapped
    drift, retry, backfill, rollback and dry-run parity coverage remains required.
 

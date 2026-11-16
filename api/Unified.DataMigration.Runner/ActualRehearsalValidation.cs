@@ -79,6 +79,7 @@ internal sealed class ActualRehearsalValidation(
                 )
             );
         }
+        await AwayAvailabilityImpact.ValidateAsync(services, session, ct);
         if (job == "Report")
         {
             var matches = await NormalizedTargetExport.ExecuteAsync(

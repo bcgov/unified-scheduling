@@ -466,6 +466,72 @@ namespace Unified.Db.Migrations
                     b.ToTable("CourtRooms");
                 });
 
+            modelBuilder.Entity("Unified.Db.Models.DataMigration.DataMigrationCheckpoint", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("CommittedBatches")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("EntityType")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<DateOnly>("HistoryStartDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("IdKind")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<string>("Job")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<Guid>("LastRunId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("LegacyId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<DateTimeOffset>("SourceChangedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Stream")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTimeOffset>("UpperChangedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpperLegacyId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Source", "Job", "Stream", "EntityType")
+                        .IsUnique();
+
+                    b.ToTable("DataMigrationCheckpoints", (string)null);
+                });
+
             modelBuilder.Entity("Unified.Db.Models.DataMigration.DataMigrationControl", b =>
                 {
                     b.Property<string>("Source")
@@ -691,6 +757,9 @@ namespace Unified.Db.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<int>("CommittedBatchCount")
+                        .HasColumnType("integer");
+
                     b.Property<DateTimeOffset?>("CompletedOn")
                         .HasColumnType("timestamp with time zone");
 
@@ -702,6 +771,12 @@ namespace Unified.Db.Migrations
 
                     b.Property<int>("FailedCount")
                         .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset?>("HeartbeatOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateOnly?>("HistoryStartDate")
+                        .HasColumnType("date");
 
                     b.Property<int>("InsertedCount")
                         .HasColumnType("integer");
@@ -799,6 +874,70 @@ namespace Unified.Db.Migrations
                         .IsUnique();
 
                     b.ToTable("DataMigrationWatermarks", (string)null);
+                });
+
+            modelBuilder.Entity("Unified.Db.Models.DataMigration.DataMigrationWorkItem", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<int>("Attempts")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("EntityType")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("Job")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<Guid>("LastRunId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("LegacyId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("Outcome")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<bool>("PendingRetry")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<DateTimeOffset?>("SourceChangedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Stream")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Source", "Job", "Stream", "PendingRetry");
+
+                    b.HasIndex("Source", "Job", "Stream", "EntityType", "LegacyId")
+                        .IsUnique();
+
+                    b.ToTable("DataMigrationWorkItems", (string)null);
                 });
 
             modelBuilder.Entity("Unified.Db.Models.Leave.LeaveEntry", b =>

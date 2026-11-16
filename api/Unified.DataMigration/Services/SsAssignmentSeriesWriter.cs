@@ -216,23 +216,31 @@ public sealed class SsAssignmentSeriesWriter(UnifiedDbContext db)
                             SubCategoryId = template.SubCategoryId,
                         }
                     );
-                    foreach (var entry in entries)
-                    {
-                        if (
-                            entry.AssignmentDefinitionId != series.AssignmentDefinitionId
-                            || entry.Capacity != series.Capacity
-                            || entry.CategoryId != series.CategoryId
-                            || entry.SubCategoryId != series.SubCategoryId
-                            || entry.Event!.LocationId != targetSeries.LocationId
-                        )
-                            throw new SsReject("InconsistentSeriesMember");
-                        entry.AssignmentSeries = series;
-                        entry.Event!.EventSeries = targetSeries;
-                        entry.Event.SeriesStartAtUtc = entry.Event.StartAtUtc;
-                        entry.Event.SeriesEndAtUtc = entry.Event.EndAtUtc;
-                    }
-                    db.AssignmentSeries.Add(series);
-                    await db.SaveChangesAsync(ct);
+                    await s.ComposeAsync(
+                        "Duty",
+                        expected.Select(x => x.Id).ToArray(),
+                        async () =>
+                        {
+                            foreach (var entry in entries)
+                            {
+                                if (
+                                    entry.AssignmentDefinitionId != series.AssignmentDefinitionId
+                                    || entry.Capacity != series.Capacity
+                                    || entry.CategoryId != series.CategoryId
+                                    || entry.SubCategoryId != series.SubCategoryId
+                                    || entry.Event!.LocationId != targetSeries.LocationId
+                                )
+                                    throw new SsReject("InconsistentSeriesMember");
+                                entry.AssignmentSeries = series;
+                                entry.Event!.EventSeries = targetSeries;
+                                entry.Event.SeriesStartAtUtc = entry.Event.StartAtUtc;
+                                entry.Event.SeriesEndAtUtc = entry.Event.EndAtUtc;
+                            }
+                            db.AssignmentSeries.Add(series);
+                            await db.SaveChangesAsync(ct);
+                        },
+                        ct
+                    );
                     await s.LinkAsync(
                         "AssignmentSeries",
                         synthetic,

@@ -235,11 +235,15 @@ public sealed class SsSchedulingWriter(UnifiedDbContext db)
                             .Select(x => new
                             {
                                 x.Row.Id,
+                                ProposedName = x.Name,
                                 Type = x.Code.Int("Type"),
                                 Code = x.Code.Text("Code"),
                                 x.Location,
                                 Expiry = x.Row.Date("ExpiryDate"),
                                 AdhocEnd = x.Row.Date("AdhocEndDate"),
+                                DefaultStart = x.Row.Time("Start"),
+                                DefaultEnd = x.Row.Time("End"),
+                                Comment = x.Row.Text("Comment"),
                                 Changed = x.Row.Date("UpdatedOn") ?? x.Row.Date("CreatedOn"),
                             })
                             .ToArray()
@@ -251,18 +255,6 @@ public sealed class SsSchedulingWriter(UnifiedDbContext db)
                             && members.Select(y => y.Row.Id).Contains(x.LegacyId)
                         )
                         .ToListAsync(ct);
-                    if (existing.Count > 0)
-                    {
-                        if (
-                            existing.Count != members.Count
-                            || existing.Any(x => x.PayloadHash != fingerprint)
-                            || existing.Select(x => x.TargetKey).Distinct().Count() != 1
-                        )
-                            throw new SsReject("MergedDefinitionChangedRequiresReview");
-                        foreach (var member in members)
-                            s.Outcome("Assignment", member.Row.Id, "Merged", "ExistingGroupCrosswalk");
-                        return;
-                    }
                     var (category, subcategory, assumed) = Classification(chosen.Code);
                     if (
                         !await db.SubCategories.AnyAsync(
@@ -275,9 +267,13 @@ public sealed class SsSchedulingWriter(UnifiedDbContext db)
                         )
                     )
                         throw new SsReject("MissingStatsClassification");
+                    var existingIds = existing.Select(x => int.Parse(x.TargetKey)).ToArray();
                     if (
                         await db.AssignmentDefinitions.AnyAsync(
-                            x => x.LocationId == group.Key.Location && x.NormalizedName == name.ToUpperInvariant(),
+                            x =>
+                                x.LocationId == group.Key.Location
+                                && x.NormalizedName == name.ToUpperInvariant()
+                                && !existingIds.Contains(x.Id),
                             ct
                         )
                     )
@@ -375,6 +371,40 @@ public sealed class SsSchedulingWriter(UnifiedDbContext db)
                             target.DefaultEndTime = times.Key.End;
                         }
                     }
+                    fingerprint = SsWriteSession.Hash(
+                        new
+                        {
+                            Members = fingerprint,
+                            target.DefaultStartTime,
+                            target.DefaultEndTime,
+                        }
+                    );
+                    if (
+                        await s.ReplayGroupAsync(
+                            "Assignment",
+                            members.Select(x => x.Row).ToList(),
+                            fingerprint,
+                            async key =>
+                            {
+                                var owned = await db.AssignmentDefinitions.SingleAsync(x => x.Id == int.Parse(key), ct);
+                                owned.LocationId = target.LocationId;
+                                owned.Name = target.Name;
+                                owned.NormalizedName = target.NormalizedName;
+                                owned.Description = target.Description;
+                                owned.CategoryId = target.CategoryId;
+                                owned.SubCategoryId = target.SubCategoryId;
+                                owned.EffectiveDateUtc = target.EffectiveDateUtc;
+                                owned.ExpiryDateUtc = target.ExpiryDateUtc;
+                                owned.DefaultCapacity = target.DefaultCapacity;
+                                owned.DefaultStartTime = target.DefaultStartTime;
+                                owned.DefaultEndTime = target.DefaultEndTime;
+                                owned.Color = target.Color;
+                                owned.UpdatedOn = s.Now;
+                            },
+                            ct
+                        )
+                    )
+                        return;
                     db.AssignmentDefinitions.Add(target);
                     await db.SaveChangesAsync(ct);
                     foreach (var member in members)
@@ -479,6 +509,17 @@ public sealed class SsSchedulingWriter(UnifiedDbContext db)
                     {
                         if (block.Select(x => x.Zone).Distinct().Count() != 1)
                             throw new SsReject("MixedShiftTimezones");
+                        var user = await db.Users.SingleAsync(x => x.Id == first.User, ct);
+                        var name = $"{user.FirstName} {user.LastName}".Trim();
+                        var start = block.Min(x => x.Start);
+                        var end = block.Max(x => x.End);
+                        var description = string.Join(
+                            "\n",
+                            block
+                                .Select(x => x.Row.Text("Comment"))
+                                .Where(x => x is not null)
+                                .Distinct(StringComparer.Ordinal)
+                        );
                         var hash = SsWriteSession.Hash(
                             block
                                 .OrderBy(x => x.Row.Int("Id"))
@@ -491,32 +532,67 @@ public sealed class SsSchedulingWriter(UnifiedDbContext db)
                                     x.End,
                                     x.Zone,
                                     x.Cancelled,
+                                    Expiry = x.Row.Date("ExpiryDate"),
+                                    Title = name,
+                                    Comment = x.Row.Text("Comment"),
                                     Changed = x.Row.Date("UpdatedOn") ?? x.Row.Date("CreatedOn"),
                                 })
                                 .ToArray()
                         );
-                        var ids = block.Select(x => x.Row.Id).ToArray();
-                        var records = await db
-                            .DataMigrationRecords.Where(x =>
-                                x.Source == "SS" && x.EntityType == "Shift" && ids.Contains(x.LegacyId)
+                        if (
+                            await s.ReplayGroupAsync(
+                                "Shift",
+                                block.Select(x => x.Row).ToList(),
+                                hash,
+                                async key =>
+                                {
+                                    var id = int.Parse(key);
+                                    var owned = await db
+                                        .ShiftEntries.Include(x => x.Event)
+                                        .Include(x => x.Users)
+                                        .SingleAsync(x => x.Id == id, ct);
+                                    if (owned.Users.Count != 1)
+                                        throw new SsReject("AmbiguousOwnedShiftUsers");
+                                    if (
+                                        !first.Cancelled
+                                        && first.Day > new DateOnly(2026, 12, 1)
+                                        && await db.ShiftEntries.AnyAsync(
+                                            x =>
+                                                x.Id != id
+                                                && x.Event != null
+                                                && x.Event.LocationId == first.Location
+                                                && x.Event.StatusTypeCode != "cancelled"
+                                                && x.Event.StartAtUtc < end
+                                                && x.Event.EndAtUtc > start
+                                                && x.Users.Any(y => y.UserId == first.User),
+                                            ct
+                                        )
+                                    )
+                                        throw new SsReject("FutureShiftConflict");
+                                    owned.Users.Single().UserId = first.User;
+                                    owned.LunchAvailableMinutes = 60;
+                                    owned.WorkedLunchMinutes = 0;
+                                    owned.UpdatedOn = s.Now;
+                                    var e = owned.Event!;
+                                    e.Title = name.Length == 0 ? "Shift" : $"{name} shift";
+                                    e.Description = description;
+                                    e.StartAtUtc = start;
+                                    e.EndAtUtc = end;
+                                    e.TimeZoneId = first.Zone;
+                                    e.LocationId = first.Location;
+                                    e.AllDay = false;
+                                    e.StatusTypeCode = SsLeaveWriter.EventStatus(
+                                        start,
+                                        first.Zone,
+                                        first.Row.Date("ExpiryDate")
+                                    );
+                                    e.CancelledAt = first.Row.Date("ExpiryDate");
+                                    e.UpdatedOn = s.Now;
+                                },
+                                ct
                             )
-                            .ToListAsync(ct);
-                        if (records.Count > 0)
-                        {
-                            if (
-                                records.Count != block.Count
-                                || records.Any(x => x.PayloadHash != hash)
-                                || records.Select(x => x.TargetKey).Distinct().Count() != 1
-                            )
-                                throw new SsReject("MergedShiftChangedRequiresReview");
-                            foreach (var item in block)
-                                s.Outcome("Shift", item.Row.Id, "Merged", "ExistingGroupCrosswalk");
+                        )
                             return;
-                        }
-                        var user = await db.Users.SingleAsync(x => x.Id == first.User, ct);
-                        var start = block.Min(x => x.Start);
-                        var end = block.Max(x => x.End);
-                        var name = $"{user.FirstName} {user.LastName}".Trim();
                         if (!first.Cancelled && first.Day > new DateOnly(2026, 12, 1))
                         {
                             var tz = TimeZoneInfo.FindSystemTimeZoneById(first.Zone);
@@ -544,13 +620,7 @@ public sealed class SsSchedulingWriter(UnifiedDbContext db)
                             new Event
                             {
                                 Title = name.Length == 0 ? "Shift" : $"{name} shift",
-                                Description = string.Join(
-                                    "\n",
-                                    block
-                                        .Select(x => x.Row.Text("Comment"))
-                                        .Where(x => x is not null)
-                                        .Distinct(StringComparer.Ordinal)
-                                ),
+                                Description = description,
                                 StartAtUtc = start,
                                 EndAtUtc = end,
                                 AllDay = false,
@@ -663,6 +733,10 @@ public sealed class SsSchedulingWriter(UnifiedDbContext db)
                         new
                         {
                             definitionId,
+                            DefinitionName = definition.Name,
+                            definition.Color,
+                            definition.CategoryId,
+                            definition.SubCategoryId,
                             dates,
                             zone,
                             location,
@@ -681,7 +755,159 @@ public sealed class SsSchedulingWriter(UnifiedDbContext db)
                                 .ToArray(),
                         }
                     );
-                    if (await s.ReplayAsync("Duty", row, hash, false, ct))
+                    if (
+                        await s.ReplayAsync(
+                            "Duty",
+                            row,
+                            hash,
+                            false,
+                            ct,
+                            async () =>
+                            {
+                                if (live.Count > 1)
+                                    throw new SsReject("DutyMultiEntryRequiresGraphRepartition");
+                                var id = int.Parse(await s.ResolveAsync("Duty", row.Id, ct));
+                                var owned = await db
+                                    .AssignmentEntries.Include(x => x.Event)
+                                    .SingleAsync(x => x.Id == id, ct);
+                                var priorLinks = await db
+                                    .ShiftAssignmentEntries.Include(x => x.Users)
+                                    .Where(x => x.AssignmentEntryId == id)
+                                    .ToListAsync(ct);
+                                foreach (var old in priorLinks)
+                                    db.ShiftAssignmentEntries.Remove(old);
+                                await db.SaveChangesAsync(ct);
+                                owned.AssignmentDefinitionId = definitionId;
+                                owned.Capacity =
+                                    live.Count == 1 && (live[0].Bool("IsClosed") || live[0].Bool("IsNotRequired"))
+                                        ? 0
+                                        : 1;
+                                owned.CategoryId = definition.CategoryId;
+                                owned.SubCategoryId = definition.SubCategoryId;
+                                owned.UpdatedOn = s.Now;
+                                var e = owned.Event!;
+                                e.Title = definition.Name;
+                                e.Description = row.Text("Comment");
+                                e.StartAtUtc = dates.Start;
+                                e.EndAtUtc = dates.End;
+                                e.TimeZoneId = zone;
+                                e.LocationId = location;
+                                e.Color = definition.Color;
+                                e.AllDay = false;
+                                e.StatusTypeCode = SsLeaveWriter.EventStatus(dates.Start, zone, row.Date("ExpiryDate"));
+                                e.CancelledAt = row.Date("ExpiryDate");
+                                e.UpdatedOn = s.Now;
+                                await db.SaveChangesAsync(ct);
+                                foreach (var slot in live)
+                                {
+                                    var result = ("MigratedWithDifference", (string?)"SlotFlagsRepresentedOnEntry");
+                                    if (
+                                        slot.Guid("SheriffId") is { } sheriff
+                                        && !slot.Bool("IsClosed")
+                                        && !slot.Bool("IsNotRequired")
+                                        && !slot.Bool("IsNotAvailable")
+                                    )
+                                    {
+                                        var user = Guid.Parse(await s.ResolveAsync("User", sheriff.ToString(), ct));
+                                        var slotDates = SsWriteSession.Dates(slot);
+                                        var localDay = DateOnly.FromDateTime(
+                                            TimeZoneInfo
+                                                .ConvertTime(dates.Start, TimeZoneInfo.FindSystemTimeZoneById(zone))
+                                                .DateTime
+                                        );
+                                        if (row.Date("ExpiryDate") is null && localDay > new DateOnly(2026, 12, 1))
+                                        {
+                                            var tz = TimeZoneInfo.FindSystemTimeZoneById(zone);
+                                            var from = new DateTimeOffset(
+                                                TimeZoneInfo.ConvertTimeToUtc(
+                                                    localDay.ToDateTime(TimeOnly.MinValue),
+                                                    tz
+                                                )
+                                            );
+                                            var to = new DateTimeOffset(
+                                                TimeZoneInfo.ConvertTimeToUtc(
+                                                    localDay.AddDays(1).ToDateTime(TimeOnly.MinValue),
+                                                    tz
+                                                )
+                                            );
+                                            if (
+                                                await db.ShiftAssignmentEntryUsers.AnyAsync(
+                                                    x =>
+                                                        x.UserId == user
+                                                        && x.ShiftAssignmentEntry!.AssignmentEntryId != id
+                                                        && x.ShiftAssignmentEntry
+                                                            .AssignmentEntry!
+                                                            .AssignmentDefinitionId == definitionId
+                                                        && x.ShiftAssignmentEntry.AssignmentEntry.Event!.StatusTypeCode
+                                                            != "cancelled"
+                                                        && x.ShiftAssignmentEntry.AssignmentEntry.Event.StartAtUtc
+                                                            >= from
+                                                        && x.ShiftAssignmentEntry.AssignmentEntry.Event.StartAtUtc < to,
+                                                    ct
+                                                )
+                                            )
+                                                throw new SsReject("FutureAssignmentUniquenessConflict");
+                                        }
+                                        var shifts = await db
+                                            .ShiftEntries.Where(x =>
+                                                x.Event != null
+                                                && x.Event.LocationId == location
+                                                && x.Event.StatusTypeCode != "cancelled"
+                                                && x.Event.StartAtUtc < slotDates.End
+                                                && x.Event.EndAtUtc > slotDates.Start
+                                                && x.Users.Any(y => y.UserId == user)
+                                            )
+                                            .ToListAsync(ct);
+                                        foreach (var shift in shifts)
+                                        {
+                                            var link = s.Stamp(
+                                                new ShiftAssignmentEntry
+                                                {
+                                                    AssignmentEntryId = id,
+                                                    ShiftEntryId = shift.Id,
+                                                }
+                                            );
+                                            link.Users.Add(s.Stamp(new ShiftAssignmentEntryUser { UserId = user }));
+                                            db.ShiftAssignmentEntries.Add(link);
+                                        }
+                                        result =
+                                            shifts.Count == 0
+                                                ? ("DroppedBadData", "NoOverlappingShiftUserLinkDropped")
+                                                : ("Migrated", null);
+                                        if (
+                                            shifts.Count > 0
+                                            && !shifts.Any(x =>
+                                                x.Event!.StartAtUtc <= slotDates.Start
+                                                && x.Event.EndAtUtc >= slotDates.End
+                                            )
+                                        )
+                                            result = ("MigratedWithDifference", "SlotPartlyOutsideShift");
+                                    }
+                                    slotOutcomes[slot.Id] = result;
+                                    await db.SaveChangesAsync(ct);
+                                    var crosswalk = await db.DataMigrationRecords.SingleOrDefaultAsync(
+                                        x => x.Source == "SS" && x.EntityType == "DutySlot" && x.LegacyId == slot.Id,
+                                        ct
+                                    );
+                                    if (crosswalk is null)
+                                        await s.LinkAsync(
+                                            "DutySlot",
+                                            slot,
+                                            "AssignmentEntry",
+                                            id,
+                                            SsWriteSession.Hash(new { DutyId = row.Id, SlotId = slot.Id }),
+                                            false,
+                                            ct
+                                        );
+                                    else
+                                    {
+                                        crosswalk.SourceUpdatedAtUtc = slot.Date("UpdatedOn") ?? slot.Date("CreatedOn");
+                                        crosswalk.LastAppliedRunId = s.Run.Id;
+                                    }
+                                }
+                            }
+                        )
+                    )
                         return;
                     var bySheriff = live.Where(x =>
                             x.Guid("SheriffId") is not null
@@ -850,7 +1076,6 @@ public sealed class SsSchedulingWriter(UnifiedDbContext db)
                                 slotOutcomes[slot.Id].Reason
                             );
                             // Final source coverage is emitted once, after all duty savepoints complete.
-                            s.Outcomes.RemoveAt(s.Outcomes.Count - 1);
                         }
                     }
                     foreach (var slot in live.Where(x => !groups.Any(g => g.Contains(x))))
@@ -873,7 +1098,6 @@ public sealed class SsSchedulingWriter(UnifiedDbContext db)
                             false,
                             ct
                         );
-                        s.Outcomes.RemoveAt(s.Outcomes.Count - 1);
                     }
                     await s.LinkAsync(
                         "Duty",

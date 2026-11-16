@@ -10,6 +10,9 @@ public sealed class DataMigrationRun
     public required string Status { get; set; }
     public DateTimeOffset? StartedOn { get; set; }
     public DateTimeOffset? CompletedOn { get; set; }
+    public DateTimeOffset? HeartbeatOn { get; set; }
+    public DateOnly? HistoryStartDate { get; set; }
+    public int CommittedBatchCount { get; set; }
     public DateTimeOffset? WatermarkStartedAt { get; set; }
     public DateTimeOffset? WatermarkCompletedAt { get; set; }
     public bool DryRun { get; set; }

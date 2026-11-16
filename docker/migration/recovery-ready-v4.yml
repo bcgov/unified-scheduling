@@ -1,0 +1,7 @@
+services:
+  runner:
+    environment:
+      DatabaseConnectionString: Host=target;Database=unified_ss_rehearsal_ready_v4_recovery;Username=postgres
+      DataMigration__Sources__SS__Jobs__MyTeam__BatchSize: "2"
+      DataMigration__Sources__SS__Jobs__Training__BatchSize: "2"
+      DataMigration__Sources__SS__Jobs__Scheduling__BatchSize: "2"

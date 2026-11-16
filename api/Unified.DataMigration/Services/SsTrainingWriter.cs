@@ -222,7 +222,28 @@ public sealed class SsTrainingWriter(UnifiedDbContext db)
                                     await session.ResolveIntAsync("Training", row.Int("TrainingTypeId"), ct)
                                     ?? throw new SsReject("MissingTraining");
                                 if (owned.UserId != resolvedUser || owned.TrainingId != resolvedCourse)
-                                    throw new SsReject("TrainingHistoryIdentityChangedRequiresReview");
+                                {
+                                    await db.Database.ExecuteSqlRawAsync(
+                                        "LOCK TABLE \"UserTrainings\" IN SHARE ROW EXCLUSIVE MODE",
+                                        ct
+                                    );
+                                    var version =
+                                        await db
+                                            .UserTrainings.Where(x =>
+                                                x.UserId == resolvedUser
+                                                && x.TrainingId == resolvedCourse
+                                                && x.Id != owned.Id
+                                            )
+                                            .Select(x => (int?)x.Version)
+                                            .MaxAsync(ct)
+                                        ?? 0;
+                                    if (version == int.MaxValue)
+                                        throw new SsReject("VersionOverflow");
+                                    owned.Version = version + 1;
+                                    owned.UserId = resolvedUser;
+                                    owned.TrainingId = resolvedCourse;
+                                    owned.Training = await db.Trainings.SingleAsync(x => x.Id == resolvedCourse, ct);
+                                }
                                 owned.AwardedOn = dates.Start;
                                 owned.EndingOn = dates.End;
                                 owned.ExpiryDate = row.Date("TrainingCertificationExpiry");
@@ -275,8 +296,18 @@ public sealed class SsTrainingWriter(UnifiedDbContext db)
                         var user = await db.Users.SingleAsync(x => x.Id == userId, ct);
                         if (user.TrainingProfileId is null)
                         {
-                            user.TrainingProfileId = (await CarbineProfileAsync(session.Now, ct)).Id;
-                            user.UpdatedOn = session.Now;
+                            var profile = (await CarbineProfileAsync(session.Now, ct)).Id;
+                            await session.ComposeAsync(
+                                "User",
+                                [sourceUser],
+                                () =>
+                                {
+                                    user.TrainingProfileId = profile;
+                                    user.UpdatedOn = session.Now;
+                                    return Task.CompletedTask;
+                                },
+                                ct
+                            );
                         }
                     }
                     await db.SaveChangesAsync(ct);
