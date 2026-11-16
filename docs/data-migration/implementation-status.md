@@ -1,88 +1,109 @@
 # SS implementation status — 2026-11-16
 
-**Partial implementation, NOT production-ready and NOT a migration acceptance pass.**
+**Implementation is incomplete. This is NOT a production or migration acceptance pass.**
 
-Planning snapshot: [ss-implementation-baseline](ss-implementation-baseline/README.md).
-Workspace planning artifacts remain canonical. Initial planning commit: `b589bee4`.
-Writer/lineage implementation commit: `e16b559b`.
-Final supplied-gender/IANA validation guard commit: `7287236`.
+Planning mirror: [ss-implementation-baseline](ss-implementation-baseline/README.md).
+Workspace artifacts remain canonical. Prior milestones: `b589bee4`, `e16b559b`,
+`7287236`, `21ae1f3`; primary follow-ups `67982bc2`, `5bd55720`, runner validation
+`edb9c393`, singleton defaults `e29fdd87`. See the [rehearsal record](reports/2026-11-16-rehearsal.md)
+for retained failures, run IDs and application-service evidence.
 
 ## Implemented and exercised
 
-- Four job identities, feature/source/per-job enable and cron gates; old shell schedule cleanup.
-- Required fixed 2026-12-01 cutover, explicit-false JC expiry preflight, source-wide and
-  per-job migration controls, transaction-scoped PostgreSQL dependency gate and run-row fence.
-- Training and Scheduling can execute concurrently after the same applied MyTeam run.
-  Running Report blocks new dependent jobs. Failed/latest MyTeam cannot unlock dependants.
-- Migration-only EF state: Job, MyTeam lineage, cutover, ownership/structural after hashes,
-  unique Running `(Source, Job)`, and one outcome per run/entity/source ID.
-- Source explicit projections, typed numeric/UUID paging, repeatable-read/read-only snapshot.
-  A dedicated read-only source role is used in the Docker rehearsal.
-- Real tracked EF inserts and actual FK resolution for regions, locations, positions,
-  Type-5 allowlist, roles, users, UserRole, acting, standalone leave, training catalogue,
-  categories/profile links/history, rooms, definitions, merged shifts, duties and slot/user links.
-- References are add/link-only. Source audit fields and SS permissions are not imported.
-  Users use generated GUIDs and normalized IdirName; no user-created/renewal/email signals.
-- Training certificate expiry and completion instants are not recalculated.
-  Person null timezones stay null where the target has a corresponding field.
-- Gap-free shifts merge; historical gap blocks stay separate; future gap blocks are held.
-  Future existing-shift/assignment conflicts reject, and material missing-shift links fail.
-- Real-DML MyTeam dry run rolls back business targets and crosswalks, then persists safe outcomes.
-- CLI exports call the actual `UserTrainingReportQueryHandler` and `WorkingHoursService`,
-  not copied report/overtime formulas. Output omits names, notes, descriptions, photos and SSO fields.
-- Explicit stale-run recovery has a NOWAIT run-row lock and fence. **Not yet independently tested.**
+- Four job identities; per-job configuration, source-wide controls, dependency/lineage
+  gates, PostgreSQL advisory acquisition lock, Running uniqueness and run-row fencing.
+  Report now rechecks its fence and pause/abort controls after reading source snapshots.
+- Fixed 2026-12-01 cutover, Vancouver history boundary, explicit-false JC expiry guard.
+  CASS remains disabled. No source audit, keyring or permission payload is imported.
+- Read-only/repeatable-read source snapshots, typed timestamp/ID paging and explicit
+  per-table upper bounds. Server timestamp text is bound back as `timestamptz`, preserving
+  finite year-1 seed timestamps instead of converting them to PostgreSQL `-infinity`.
+  This is bounded fetching, NOT durable incremental progress.
+- Real tracked EF inserts/crosswalks for references, all users, roles/UserRole, acting,
+  leave, training catalogue/categories/profile links/history, rooms, definitions,
+  merged shifts, duties, slots and qualified assignment series.
+- **Administrator mapping fixed:** create/link Sheriff Administrator; newly created
+  roles snapshot current Staff permissions once. Missing Sheriff Administrator was a
+  mapper bug, not an expected adverse rejection.
+- **Away implemented using the current model:** exact source intervals/cancellation
+  become LoanOutEntry + Event + one user link, destination in LoanOutLocationId and
+  source/home in Event.LocationId. Actual LoanOut-enabled calendar and availability
+  services executed successfully. Target availability is day-based; this remains an
+  explicit `MigratedWithDifference`, not an assertion of hour-for-hour availability.
+  Ordinary create service is intentionally not called: it forces all-day and transfers shifts.
+- Qualified G10 draft series use the actual recurrence expander and link existing
+  migrated duties only. Every expanded occurrence must match a live source duty;
+  no duties are generated. Unsupported patterns remain standalone.
+- Singleton definition defaults copy Assignment Start/End even without duties; merged
+  definitions retain the most-common observed-duty rule. Real catalogue-only fixture
+  transferred 09:00/17:00 exactly.
+- Actual SchedulePublishService preview succeeded, then actual publication succeeded
+  on a separate persistent clone: two shifts and two assignments. Original ready-v3
+  remains unchanged by publication.
+- Selected owned-row updates for UserRole, acting, away, leave and training history:
+  require changed structural source hash, job ownership, unchanged target mapped hash
+  and original root/event PostgreSQL row-version proof under row locks. Linked-only
+  rows never update. Version proof protects unhashed private text/photo from overwrite.
+  Real UserRole insert/update/external-text-drift rejection ran on separate clones.
+- Report reconciles one outcome per selected source business row, crosswalk target
+  existence and same MyTeam lineage. Group/validation/excluded-table metrics are not
+  counted as business coverage. Audit/JcSynchronization/DataProtectionKeys and
+  Permission/RolePermission are COUNT-only system/permission exclusions.
+- Actual training, scheduling calendar and WorkingHours services feed restricted
+  normalized exports. Identity normalization uses crosswalks, not equal source/target IDs.
+  Full multiset comparison preserves duplicate multiplicity. Missing fields/surfaces,
+  fixture mismatch and primary failures prevent PASS.
+- MyTeam dry run performs real DML then rolls back; adverse rollback footprint checked.
+- Dedicated runner audit configuration excludes private source strings/SSO/photo values
+  while retaining Unified audit identity/action. Earlier isolated synthetic audit copies
+  were redacted without deleting business rows, run evidence or audit identities.
+- **71 migration tests and 5 dependent Hangfire tests pass, zero failures/skips.**
+  These are foundation/preflight tests, not comprehensive PostgreSQL integration coverage.
 
-See [measured rehearsal](reports/2026-11-16-rehearsal.md) for run IDs and counts.
+## Apply safety
 
-## Acceptance blockers / exact remaining work
+**Non-dry-run execution is fail-closed outside exact isolated synthetic database names
+and an explicit `AllowUnrecoverableSyntheticApply=true` acknowledgment.** Rollback is
+unfinished; do not enable real-environment apply. Publication has a separate exact
+clone-name/confirmation guard. No whole-database restore is implemented or attempted.
 
-1. **Away locations:** target migration `20261111005725_RemoveUserAwayLocations` removed
-   the required user/detail model. The adverse fixture has 183 selected away rows, all
-   NeedsAction. No feature was restored and no away fact was relabelled as a loan-out.
-   Resolve the contract with the application owner; do not silently discard these facts.
-2. **Full Q-X4 updates:** changed non-reference sources currently reject
-   `OwnedUpdateRequiresReview`. Structural source and target digests are distinct, but
-   there is no complete mapped-field, text-drift-aware compare-and-update implementation.
-   Linked-only rows never update. This is safe preservation, not completed incremental migration.
-3. **Progress/backfill:** full source snapshots are rescanned. There is no durable per-table
-   bounded incremental cursor, independent rejected-row queue or resumable earlier-cutoff backfill.
-   BatchSize bounds source fetches, **not target commit size**. Target writes currently use one
-   job transaction and row/group savepoints; memory/runtime/table-lock duration are not production-fit.
-4. **Dry-run lineage:** MyTeam supports an isolated target with no live SS crosswalks.
-   Training/Scheduling dry runs explicitly reject missing isolated parent candidates.
-   Candidate staging/rehydration and cross-job dry-run parity are not implemented.
-5. **Scheduling recurrence:** G10 qualification and EventSeries/assignment/shift series inserts
-   are not implemented. Imported entries are standalone. A scheduling validation NeedsAction
-   remains even when all selected primary rows transfer.
-6. **Scheduling refinements:** singleton definition defaults currently derive from observed duties,
-   not always the Assignment Start/End interval. Exact reviewed Type1–4 classification coverage is
-   incomplete; a frozen exact subset plus documented C1/3 logical fallback is used, with findings.
-   Sergeant fallback is C37/135 with a finding. Full historical FTE/conflict reporting and all
-   cancellation/partial-outside edge cases still need independent validation.
-7. **Rollback:** restricted impact preview, run-bound confirmation digest, reverse dependency guards,
-   merged-target membership proof, later-edit/dependent-row export, inverse execution and atomic
-   footprint/progress reset are **not implemented**. Multi-entry duties also need a complete
-   root-target ownership ledger before rollback can be safe. There is no automatic DB restore.
-8. **Report:** the report job is intentionally non-passing until actual-query comparison,
-   complete source coverage, classification approval boundaries and thresholds are integrated.
-   It does not emit a fabricated reconciliation success. Current CLI metrics are operational
-   evidence, not the final acceptance report.
-9. **Actual source/target parity:** target training and WorkingHours queries ran on the small ready
-   fixture. The legacy oracle is owned by the separate legacy harness. Full matched exports,
-   O2–O4 target queries/distribution capture, production-approved OT bounds and all business-date
-   comparisons are still pending. No production 84-day constant is used to claim synthetic parity.
-10. **Training application gaps:** UserTraining has no per-record timezone (BL14), and future
-    expiry-policy differences (BL13) must be measured, not fixed by shifting historical instants.
-    No app schema or training behavior was changed.
-11. **Synthetic validity:** adverse source generation succeeded and the manifest is retained.
-    SH ±20% fit, all EX/LX/AG/AD/SP/OD/SH extractors, repeat-build structural hashes and a full
-    applied adverse-fixture rehearsal have not passed. The copied generator uses run-clock values
-    for some fields; reproducibility needs a defined stable anchor/field policy.
-12. **UnitTests:** existing tests still construct/assert the obsolete blocked-shell contract.
-    The attempted Unified test run failed compilation (two CS1729 errors); **zero tests executed**.
-    UnitTests must update those tests and add PostgreSQL concurrency, adverse, rollback, replay,
-    drift, paging, timezone, versioning and coverage tests. No tests were skipped or fake-passed.
+## Remaining acceptance blockers
 
-The existing pre-request deletion `docs/data-migration/ss-mapping-contracts.md` remains
-unstaged. No tenant GitOps, web generated client, application auth/scheduling/training behavior,
-JC code default or shared app database was changed. No push was performed.
+1. **Complete mapped updates:** users, merged definitions/shifts/duties/series and other
+   non-reference targets still reject changed sources. Text-only timestamp changes are
+   held for review; missing original version proofs are not retroactively blessed.
+   Cross-owner edits conservatively count as drift. Series membership changes need
+   complete ownership/fingerprint refresh rules before update/rollback support.
+2. **Progress/retry/backfill:** snapshots are fully rescanned. No independent durable
+   rejected/dependency retry queue, resumable earlier-history backfill, durable cursors
+   or bounded target commits. One target transaction per job and row/group savepoints
+   are not production-fit at full scale.
+3. **Dry-run lineage:** no isolated parent candidate staging/rehydration. Dependent
+   dry runs honestly reject MissingIsolatedParentCandidates; live links are not borrowed.
+4. **Safe rollback:** impact preview, restricted later-edit/dependent-row export,
+   confirmation digest, reverse dependency guards, full ownership ledger, atomic
+   inverse/reset and footprint proof remain absent. Production apply stays disabled.
+5. **Matched actual-service parity:** independent SS capture is from full adverse `ss`;
+   ready-v3/v4 are different fixtures. Their comparisons correctly fail. A matched ready
+   capture and full applied adverse rehearsal are pending. Unsupported target training
+   flags/status/UI projection, slot flags/stored OT and distribution surfaces remain
+   explicit gaps, not reconstructed SS output. SS nonExcused is a harness projection,
+   not executed browser/CSV evidence.
+6. **Scheduling refinements:** complete reviewed classification,
+   historical FTE/conflicts, cancellation/partial-outside cases, broader series
+   qualification and approved future OT differences need further implementation/validation.
+7. **Business dates/policies:** BL13 future expiry-policy and BL14 missing per-record
+   training timezone remain measured/reported gaps. Historical UTC instants are not
+   shifted to force matching display dates. Canonical future-month window is JANUARY 2027;
+   earlier December convenience results are not future-month oracle parity evidence.
+   Fresh ready-v4 now includes January shifts/duties and completed all primary jobs;
+   Latest Report covers 74 rows but fails the mismatched adverse capture (33 actual target rows).
+8. **Synthetic validity:** SH fit ±20%, full extractor inventory, repeat-build structural
+   hashes and stable-clock generation have not passed. Ready-v3 has no January roster;
+   separately named ready-v4 adds it without rewriting any earlier fixture.
+9. **Independent coverage:** broader PostgreSQL concurrency, stale fencing, all mapped
+   drift, retry, backfill, rollback and dry-run parity coverage remains required.
+
+The original deleted `docs/data-migration/ss-mapping-contracts.md` stays deleted and
+unstaged. No application scheduling/training/auth behavior, JC defaults, generated web
+client, tenant GitOps or shared app database was changed. No push was performed.
