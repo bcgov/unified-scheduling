@@ -324,6 +324,8 @@ public sealed class SsMyTeamWriter(UnifiedDbContext db, SsLeaveWriter leaveWrite
                     {
                         var photo = row.Bytes("Photo");
                         var photoDate = row.Date("LastPhotoUpdate");
+                        if (row.Int("Gender") is { } suppliedGender && !Enum.IsDefined(typeof(Gender), suppliedGender))
+                            throw new SsReject("InvalidGender");
                         var rank = await ResolveRankAsync(row.Text("Rank"), rows, session, ct);
                         target = session.Stamp(
                             new User

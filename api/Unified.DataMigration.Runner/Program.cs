@@ -13,7 +13,7 @@ var connection = configuration["DatabaseConnectionString"];
 if (string.IsNullOrWhiteSpace(connection) || args.Length != 1)
 {
     Console.Error.WriteLine(
-        "Set DatabaseConnectionString and migration configuration; use schema|bootstrap|MyTeam|Training|Scheduling|Report|evidence."
+        "Set DatabaseConnectionString and migration configuration; use schema|bootstrap|MyTeam|Training|Scheduling|Report|evidence|queries|recover."
     );
     return 2;
 }

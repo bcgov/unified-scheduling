@@ -286,11 +286,12 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run)
         var zone = source.Text("Timezone");
         if (zone is null && !required)
             return null;
-        if (string.IsNullOrWhiteSpace(zone) || !zone.Contains('/') && zone is not ("UTC" or "Etc/UTC"))
+        if (string.IsNullOrWhiteSpace(zone))
             throw new SsReject("InvalidTimezone");
         try
         {
-            TimeZoneInfo.FindSystemTimeZoneById(zone);
+            if (!TimeZoneInfo.FindSystemTimeZoneById(zone).HasIanaId)
+                throw new SsReject("InvalidTimezone");
         }
         catch (TimeZoneNotFoundException)
         {
