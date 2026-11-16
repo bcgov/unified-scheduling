@@ -125,7 +125,10 @@ internal static class NormalizedTargetExport
         var calendar = services.GetRequiredService<ISchedulingCalendarService>();
         var workingHours = services.GetRequiredService<IWorkingHoursService>();
         var training = new UserTrainingReportQueryHandler(db, TimeProvider.System);
-        var latest = await db.DataMigrationRuns.AsNoTracking().Where(x => x.Source == "SS" && !x.DryRun).ToListAsync();
+        var latest = await db
+            .DataMigrationRuns.AsNoTracking()
+            .Where(x => x.Source == "SS" && !x.DryRun && x.Status != "RolledBack")
+            .ToListAsync();
         foreach (var job in new[] { "MyTeam", "Training", "Scheduling" })
             if (
                 latest.Where(x => x.Job == job).OrderByDescending(x => x.StartedOn).FirstOrDefault()?.Status
@@ -308,6 +311,9 @@ internal static class NormalizedTargetExport
             new
             {
                 Database = db.Database.GetDbConnection().Database,
+                CurrentSourceDatabase = new Npgsql.NpgsqlConnectionStringBuilder(
+                    config["DataMigration:Sources:SS:ConnectionString"]
+                ).Database,
                 ActualServices = new[]
                 {
                     "UserTrainingReportQueryHandler",

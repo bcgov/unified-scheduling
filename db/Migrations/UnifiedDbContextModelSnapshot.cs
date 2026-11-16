@@ -605,6 +605,69 @@ namespace Unified.Db.Migrations
                     b.ToTable("DataMigrationFailures", (string)null);
                 });
 
+            modelBuilder.Entity("Unified.Db.Models.DataMigration.DataMigrationJournal", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("AfterHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("AfterVersion")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<bool>("BeforeHadPhoto")
+                        .HasColumnType("boolean");
+
+                    b.Property<byte[]>("BeforeImage")
+                        .HasColumnType("bytea");
+
+                    b.PrimitiveCollection<string[]>("ChangedColumns")
+                        .IsRequired()
+                        .HasColumnType("text[]");
+
+                    b.Property<Guid>("KeyId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Operation")
+                        .IsRequired()
+                        .HasMaxLength(1)
+                        .HasColumnType("character varying(1)");
+
+                    b.Property<bool>("PhotoChanged")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("RowKey")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<Guid>("RunId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("SchemaName")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("TableName")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RunId", "Id");
+
+                    b.ToTable("DataMigrationJournals", (string)null);
+                });
+
             modelBuilder.Entity("Unified.Db.Models.DataMigration.DataMigrationMutation", b =>
                 {
                     b.Property<long>("Id")
@@ -791,6 +854,9 @@ namespace Unified.Db.Migrations
 
                     b.Property<int>("RejectedCount")
                         .HasColumnType("integer");
+
+                    b.Property<Guid?>("RollbackJournalKeyId")
+                        .HasColumnType("uuid");
 
                     b.Property<Guid?>("RollbackOfRunId")
                         .HasColumnType("uuid");
@@ -4047,6 +4113,15 @@ namespace Unified.Db.Migrations
                         .IsRequired();
 
                     b.Navigation("Run");
+                });
+
+            modelBuilder.Entity("Unified.Db.Models.DataMigration.DataMigrationJournal", b =>
+                {
+                    b.HasOne("Unified.Db.Models.DataMigration.DataMigrationRun", null)
+                        .WithMany()
+                        .HasForeignKey("RunId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Unified.Db.Models.DataMigration.DataMigrationMutation", b =>

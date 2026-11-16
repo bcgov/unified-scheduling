@@ -40,6 +40,8 @@ public static class DataMigrationModule
         services.AddScoped<DataMigrationControlService>();
         services.AddScoped<SsSnapshotReader>();
         services.AddScoped<SsMigrationExecutor>();
+        services.AddScoped<SsRollbackJournal>();
+        services.AddScoped<SsRollbackService>();
         services.AddScoped<SsLeaveWriter>();
         services.AddScoped<SsMyTeamWriter>();
         services.AddScoped<SsTrainingWriter>();

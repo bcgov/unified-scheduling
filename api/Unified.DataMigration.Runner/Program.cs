@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -17,12 +18,16 @@ using Unified.Scheduling.Services;
 
 // Repair only the existing, owner-restricted ready-v4 handoff. Use Npgsql's actual
 // CLR property setter, not PowerShell's IDictionary property adapter.
-if (args is ["prepare-oracle-ready" or "verify-oracle-ready"])
+if (args is ["prepare-oracle-ready" or "verify-oracle-ready" or "verify-oracle-probe"])
 {
     try
     {
         const string sourcePath = "/src/docker/migration/.env.oracle.local";
-        const string targetPath = "/src/docker/migration/.env.oracle.ready-v4.local";
+        var targetPath =
+            args[0] == "verify-oracle-probe"
+                ? "/src/docker/migration/.env.oracle.probe-v4.local"
+                : "/src/docker/migration/.env.oracle.ready-v4.local";
+        var expectedDatabase = args[0] == "verify-oracle-probe" ? "ss_ready_v4_probe" : "ss_ready_v4";
         if (
             !File.Exists(targetPath)
             || (File.GetAttributes(sourcePath) & FileAttributes.ReparsePoint) != 0
@@ -50,7 +55,7 @@ if (args is ["prepare-oracle-ready" or "verify-oracle-ready"])
         var verified = new Npgsql.NpgsqlConnectionStringBuilder(
             File.ReadAllLines(targetPath).Single(x => x.StartsWith(prefix, StringComparison.Ordinal))[prefix.Length..]
         );
-        if (verified.Database != "ss_ready_v4")
+        if (verified.Database != expectedDatabase)
             throw new InvalidOperationException();
         Console.WriteLine("Npgsql.Database=" + verified.Database);
         return 0;
@@ -133,6 +138,36 @@ try
         // Explicit command only. Never automatically migrate or reset a shared database.
         await db.Database.MigrateAsync();
         Console.WriteLine("Schema applied.");
+    }
+    else if (args[0] == "rollback-preview")
+    {
+        var result = await scope
+            .ServiceProvider.GetRequiredService<SsRollbackService>()
+            .PreviewAsync(Guid.Parse(configuration["DataMigrationRollback:RunId"]!), CancellationToken.None);
+        Console.WriteLine(
+            JsonSerializer.Serialize(
+                new
+                {
+                    result.Digest,
+                    result.Export,
+                    result.Rows,
+                    result.Dependents,
+                    result.Blockers,
+                }
+            )
+        );
+        return result.Blockers.Length == 0 ? 0 : 1;
+    }
+    else if (args[0] == "rollback-apply")
+    {
+        var receipt = await scope
+            .ServiceProvider.GetRequiredService<SsRollbackService>()
+            .ApplyAsync(
+                Guid.Parse(configuration["DataMigrationRollback:RunId"]!),
+                configuration["DataMigrationRollback:ConfirmDataLoss"] ?? "",
+                CancellationToken.None
+            );
+        Console.WriteLine("VerifiedRollbackReceipt=" + receipt);
     }
     else if (args[0] == "bootstrap")
     {
@@ -230,6 +265,8 @@ catch (Exception error)
 {
     // Never print exception.ToString(): source/database diagnostics may contain private values.
     Console.Error.WriteLine("Migration command failed. Inspect migration-only outcomes and configuration.");
+    if (error is Npgsql.PostgresException pgError)
+        Console.Error.WriteLine("SqlState=" + pgError.SqlState);
     Console.Error.WriteLine($"FailureType={error.GetType().Name}");
     if (error is Microsoft.Extensions.Options.OptionsValidationException optionError)
         Console.Error.WriteLine($"InvalidOptionsType={optionError.OptionsType.FullName}");

@@ -1,6 +1,9 @@
+param([ValidateSet('ss_ready_v4','ss_ready_v4_probe')][string]$Database = 'ss_ready_v4')
 $ErrorActionPreference = 'Stop'
 $source = Join-Path $PSScriptRoot '.env.oracle.local'
-$target = Join-Path $PSScriptRoot '.env.oracle.ready-v4.local'
+$fileName = '.env.oracle.ready-v4.local'
+if ($Database -eq 'ss_ready_v4_probe') { $fileName = '.env.oracle.probe-v4.local' }
+$target = Join-Path $PSScriptRoot $fileName
 if ((Test-Path $target) -or ((Get-Item $source).Attributes -band [IO.FileAttributes]::ReparsePoint)) {
     throw 'Refusing existing target or linked source.'
 }
@@ -12,8 +15,8 @@ try {
     # Explicit CLR methods bypass PowerShell's IDictionary property adapter.
     # A filename/marker/grant check does NOT prove which Database the DSN selects.
     $connection.set_ConnectionString($matches[0].Substring('SS_SYNTHETIC_DB='.Length))
-    $connection.set_Item('Database', 'ss_ready_v4')
-    if ($connection.get_Item('Database') -cne 'ss_ready_v4') {
+    $connection.set_Item('Database', $Database)
+    if ($connection.get_Item('Database') -cne $Database) {
         throw 'Database setter verification failed.'
     }
     $replacement = 'SS_SYNTHETIC_DB=' + $connection.get_ConnectionString()
@@ -39,7 +42,7 @@ try {
     })
     if ($persistedLine.Count -ne 1) { throw 'Persisted setting count invalid.' }
     $persisted.set_ConnectionString($persistedLine[0].Substring('SS_SYNTHETIC_DB='.Length))
-    if ($persisted.get_Item('Database') -cne 'ss_ready_v4') {
+    if ($persisted.get_Item('Database') -cne $Database) {
         throw 'Persisted Database verification failed.'
     }
     Write-Output $target

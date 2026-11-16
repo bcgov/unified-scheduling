@@ -64,7 +64,10 @@ public sealed class DataMigrationControlService(UnifiedDbContext dbContext)
             return null;
         var history = historyStartDate ?? new DateOnly(2015, 1, 1);
         var parent = runs.Where(x =>
-                x.Job == "MyTeam" && x.DryRun == dryRun && (x.HistoryStartDate ?? new DateOnly(2015, 1, 1)) == history
+                x.Status != "RolledBack"
+                && x.Job == "MyTeam"
+                && x.DryRun == dryRun
+                && (x.HistoryStartDate ?? new DateOnly(2015, 1, 1)) == history
             )
             .OrderByDescending(x => x.StartedOn)
             .FirstOrDefault();
@@ -86,7 +89,8 @@ public sealed class DataMigrationControlService(UnifiedDbContext dbContext)
                 foreach (var dependency in new[] { "Training", "Scheduling" })
                 {
                     var latest = runs.Where(x =>
-                            x.Job == dependency
+                            x.Status != "RolledBack"
+                            && x.Job == dependency
                             && x.DryRun == dryRun
                             && (x.HistoryStartDate ?? new DateOnly(2015, 1, 1)) == history
                         )

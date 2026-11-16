@@ -9,6 +9,7 @@ Workspace artifacts remain canonical. Prior milestones: `b589bee4`, `e16b559b`,
 for retained failures, run IDs and application-service evidence.
 Durable recovery and mapped-update follow-up:
 [2026-11-16 recovery evidence](reports/2026-11-16-recovery.md).
+Journaled inverse executions: [rollback evidence](reports/2026-11-16-rollback.md).
 
 ## Implemented and exercised
 
@@ -76,8 +77,9 @@ Durable recovery and mapped-update follow-up:
 ## Apply safety
 
 **Non-dry-run execution is fail-closed outside exact isolated synthetic database names
-and an explicit `AllowUnrecoverableSyntheticApply=true` acknowledgment.** Rollback is
-unfinished; do not enable real-environment apply. Publication has a separate exact
+and an explicit `AllowUnrecoverableSyntheticApply=true` acknowledgment.** Journaled
+preview/confirmed atomic inverse is now exercised on a new isolated target; production
+coverage/activation is not accepted. Do not enable real-environment apply. Publication has a separate exact
 clone-name/confirmation guard. No whole-database restore is implemented or attempted.
 
 ## Remaining acceptance blockers
@@ -92,9 +94,12 @@ clone-name/confirmation guard. No whole-database restore is implemented or attem
    checkpoint and recovery integration coverage remains required.
 3. **Dry-run lineage:** no isolated parent candidate staging/rehydration. Dependent
    dry runs honestly reject MissingIsolatedParentCandidates; live links are not borrowed.
-4. **Safe rollback:** impact preview, restricted later-edit/dependent-row export,
-   confirmation digest, reverse dependency guards, full ownership ledger, atomic
-   inverse/reset and footprint proof remain absent. Production apply stays disabled.
+4. **Rollback acceptance:** encrypted immutable journal, restricted impact export,
+   run-bound digest, dependency guards, atomic inverse/reset and footprint proof now
+   execute on PostgreSQL, including later dependents and injected inverse failure.
+   Report reversal/broader adverse/concurrency cases remain; prior nonnull private-photo
+   overwrite cannot restore old bytes under Users-only photo retention. Old unjournaled
+   runs remain blocked. Production apply stays disabled.
 5. **Matched actual-service parity:** independent SS capture is from full adverse `ss`;
    ready-v3/v4 are different fixtures. Their comparisons correctly fail. A matched ready
    capture and full applied adverse rehearsal are pending. Unsupported target training

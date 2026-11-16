@@ -4,6 +4,27 @@ using Unified.Db.Models.DataMigration;
 
 namespace Unified.Db.Configuration.DataMigration;
 
+public sealed class DataMigrationJournalConfiguration
+    : IEntityTypeConfiguration<DataMigrationJournal>
+{
+    public void Configure(EntityTypeBuilder<DataMigrationJournal> b)
+    {
+        b.ToTable("DataMigrationJournals");
+        b.HasKey(x => x.Id);
+        b.Property(x => x.RowKey).HasColumnType("jsonb");
+        b.Property(x => x.SchemaName).HasMaxLength(128);
+        b.Property(x => x.TableName).HasMaxLength(128);
+        b.Property(x => x.Operation).HasMaxLength(1);
+        b.Property(x => x.AfterHash).HasMaxLength(64);
+        b.Property(x => x.AfterVersion).HasMaxLength(32);
+        b.HasIndex(x => new { x.RunId, x.Id });
+        b.HasOne<DataMigrationRun>()
+            .WithMany()
+            .HasForeignKey(x => x.RunId)
+            .OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
 public sealed class DataMigrationWorkItemConfiguration
     : IEntityTypeConfiguration<DataMigrationWorkItem>
 {

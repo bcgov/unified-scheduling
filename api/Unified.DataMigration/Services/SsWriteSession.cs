@@ -505,6 +505,7 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run)
             )
                 throw new SsReject("OwnedTargetDrift");
         }
+
         await compose();
         await db.SaveChangesAsync(ct);
         foreach (var record in records)
@@ -541,6 +542,39 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run)
                 );
                 await db.SaveChangesAsync(ct);
             }
+        }
+    }
+
+    internal async Task RefreshRestoredReceiptsAsync(
+        IReadOnlyCollection<(string Type, string Key)> targets,
+        CancellationToken ct
+    )
+    {
+        var records = await db.DataMigrationRecords.Where(x => x.Source == "SS").ToListAsync(ct);
+        foreach (var record in records.Where(x => targets.Contains((x.TargetType, x.TargetKey))))
+        {
+            // Preserve independent drift rather than blessing another owner's edit.
+            if (await TargetFingerprintAsync(record.TargetType, record.TargetKey, ct) != record.AfterHash)
+                continue;
+            db.DataMigrationMutations.Add(
+                new DataMigrationMutation
+                {
+                    RunId = run.Id,
+                    DataMigrationRecordId = record.Id,
+                    Sequence =
+                        (
+                            await db
+                                .DataMigrationMutations.Where(x => x.RunId == run.Id)
+                                .Select(x => (long?)x.Sequence)
+                                .MaxAsync(ct)
+                            ?? 0
+                        ) + 1,
+                    Operation = "RollbackRefresh",
+                    AfterHash = record.AfterHash!,
+                    Version = await TargetVersionAsync(record.TargetType, record.TargetKey, false, ct),
+                }
+            );
+            await db.SaveChangesAsync(ct);
         }
     }
 

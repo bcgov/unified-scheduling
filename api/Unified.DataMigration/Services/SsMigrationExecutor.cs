@@ -19,7 +19,8 @@ public sealed class SsMigrationExecutor(
     SsMyTeamWriter myTeam,
     SsTrainingWriter training,
     SsSchedulingWriter scheduling,
-    IEnumerable<ISsMigrationBusinessValidator>? businessValidators = null
+    IEnumerable<ISsMigrationBusinessValidator>? businessValidators = null,
+    SsRollbackJournal? rollbackJournal = null
 )
 {
     public async Task ExecuteAsync(string job, CancellationToken ct)
@@ -50,6 +51,7 @@ public sealed class SsMigrationExecutor(
                         or "unified_ss_rehearsal_ready_v4"
                         or "unified_ss_rehearsal_ready_v4_recovery"
                         or "unified_ss_rehearsal_ready_v4_probe"
+                        or "unified_ss_rehearsal_ready_v4_rollback"
                     )
             )
         )
@@ -267,6 +269,8 @@ public sealed class SsMigrationExecutor(
             )
         )
             throw new InvalidOperationException("SS job was stopped before business writes.");
+        if (rollbackJournal is not null)
+            await rollbackJournal.CaptureAsync(run, ct);
     }
 
     private async Task PersistAsync(DataMigrationRun run, SsWriteSession session, CancellationToken ct)

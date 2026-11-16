@@ -13,6 +13,7 @@ public sealed class DataMigrationRun
     public DateTimeOffset? HeartbeatOn { get; set; }
     public DateOnly? HistoryStartDate { get; set; }
     public int CommittedBatchCount { get; set; }
+    public Guid? RollbackJournalKeyId { get; set; }
     public DateTimeOffset? WatermarkStartedAt { get; set; }
     public DateTimeOffset? WatermarkCompletedAt { get; set; }
     public bool DryRun { get; set; }
