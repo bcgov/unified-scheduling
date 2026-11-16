@@ -80,7 +80,7 @@ var connection = configuration["DatabaseConnectionString"];
 if (string.IsNullOrWhiteSpace(connection) || args.Length != 1)
 {
     Console.Error.WriteLine(
-        "Set configuration; use schema|bootstrap|seed-loanout-reference|MyTeam|Training|Scheduling|Report|evidence|queries|publish-preview|publish-rehearsal|export-oracle|availability-probe|availability-compare|recover."
+        "Set configuration; use schema|bootstrap|seed-loanout-reference|MyTeam|Training|Scheduling|Report|evidence|queries|publish-preview|publish-rehearsal|export-oracle|report-surfaces|availability-probe|availability-compare|recover."
     );
     return 2;
 }
@@ -124,7 +124,7 @@ services.AddCalendarModule(configuration);
 services.AddSchedulingModule(configuration);
 services.AddLeaveModule(configuration);
 services.AddLoanOutModule(configuration);
-if (args[0] == "availability-compare")
+if (args[0] is "availability-compare" or "report-surfaces")
 {
     services.AddUserManagementModule(configuration);
     services.AddScoped<IEventDispatcher, EventDispatcher>();
@@ -201,6 +201,10 @@ try
     else if (args[0] == "export-oracle")
     {
         return await NormalizedTargetExport.ExecuteAsync(scope.ServiceProvider, configuration) ? 0 : 1;
+    }
+    else if (args[0] == "report-surfaces")
+    {
+        return await ActualReportSurfaces.ExecuteAsync(scope.ServiceProvider, configuration) ? 0 : 1;
     }
     else if (args[0] == "availability-probe")
     {
@@ -283,6 +287,20 @@ catch (Exception error)
     if (error is Npgsql.PostgresException pgError)
         Console.Error.WriteLine("SqlState=" + pgError.SqlState);
     Console.Error.WriteLine($"FailureType={error.GetType().Name}");
+    if (args[0] == "report-surfaces")
+    {
+        Console.Error.WriteLine("ReportSurfaceStep=" + ActualReportSurfaces.Step);
+        Console.Error.WriteLine(
+            "ReportSurfaceMethods="
+                + string.Join(
+                    ";",
+                    new System.Diagnostics.StackTrace(error)
+                        .GetFrames()
+                        .Take(10)
+                        .Select(x => x.GetMethod()?.DeclaringType?.FullName + "." + x.GetMethod()?.Name)
+                )
+        );
+    }
     if (error is Microsoft.Extensions.Options.OptionsValidationException optionError)
         Console.Error.WriteLine($"InvalidOptionsType={optionError.OptionsType.FullName}");
     return 1;
