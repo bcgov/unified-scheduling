@@ -41,7 +41,9 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run)
     ];
     public IEnumerable<DataMigrationOutcome> SourceOutcomes => Outcomes.Where(x => PrimaryTypes.Contains(x.EntityType));
     private HashSet<string> insertedTargets = [];
+    private HashSet<string> updatedTargets = [];
     public int Inserted => insertedTargets.Count;
+    public int Updated => updatedTargets.Count;
     public int Linked { get; private set; }
     public DataMigrationRun Run => run;
     public DateTimeOffset Now => run.StartedOn!.Value;
@@ -74,6 +76,7 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run)
         var tx = db.Database.CurrentTransaction ?? throw new InvalidOperationException("Job transaction required.");
         var checkpoint = Outcomes.Count;
         var inserted = insertedTargets.ToHashSet();
+        var updated = updatedTargets.ToHashSet();
         var linked = Linked;
         await tx.CreateSavepointAsync("ss_row", ct);
         try
@@ -93,6 +96,7 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run)
             db.ChangeTracker.Clear();
             Outcomes.RemoveRange(checkpoint, Outcomes.Count - checkpoint);
             insertedTargets = inserted;
+            updatedTargets = updated;
             Linked = linked;
             Outcome(
                 type,
@@ -194,6 +198,7 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run)
                     Version = await TargetVersionAsync(record.TargetType, record.TargetKey, false, ct),
                 }
             );
+            updatedTargets.Add($"{record.TargetType}:{record.TargetKey}");
             Outcome(type, source.Id, "Migrated", "OwnedMappedUpdate");
             return true;
         }

@@ -110,6 +110,25 @@ public sealed class SsReconciliationWriter(UnifiedDbContext db)
                 s.Outcomes[^1].Reason = "MissingPrimaryCrosswalk";
                 continue;
             }
+            if (
+                type
+                    is "User"
+                        or "UserRole"
+                        or "SheriffActingRank"
+                        or "SheriffAwayLocation"
+                        or "SheriffLeave"
+                        or "SheriffTraining"
+                        or "Assignment"
+                        or "Shift"
+                        or "Duty"
+                        or "DutySlot"
+                && link.SourceUpdatedAtUtc != (row.Date("UpdatedOn") ?? row.Date("CreatedOn"))
+            )
+            {
+                s.Outcomes[^1].Outcome = "NeedsAction";
+                s.Outcomes[^1].Reason = "SourceChangedSinceApplied";
+                continue;
+            }
             var metadata = db.Model.GetEntityTypes().SingleOrDefault(x => x.ClrType.Name == link.TargetType);
             var keyType = metadata?.FindPrimaryKey()?.Properties.Single().ClrType;
             object? key =

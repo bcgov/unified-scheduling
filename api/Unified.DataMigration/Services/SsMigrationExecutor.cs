@@ -229,6 +229,7 @@ public sealed class SsMigrationExecutor(
         db.DataMigrationOutcomes.AddRange(session.Outcomes);
         persisted.ScannedCount = session.SourceOutcomes.Count();
         persisted.InsertedCount = session.Inserted;
+        persisted.UpdatedCount = session.Updated;
         persisted.UnchangedCount = session.Outcomes.Count(x =>
             x.Reason is "ExistingCrosswalk" or "ExistingGroupCrosswalk"
         );
