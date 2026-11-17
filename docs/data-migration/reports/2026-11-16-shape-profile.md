@@ -1,7 +1,8 @@
 # T060: actual deterministic SH01–08 fitted source
 
-**Local independent SQL fit/proof passed. Original external extractor execution is
-unverified; full migration/business acceptance remains incomplete. Production disabled.**
+**Local independent SQL fit/proof passed. Exact original SH execution now also
+verified on2026-11-17; full migration/business acceptance remains incomplete.
+Production disabled.** [Original-file execution/hashes and all5,906 cells](2026-11-17-original-sh-execution.md).
 
 ## Retained source and provenance
 
@@ -51,13 +52,14 @@ Full per-cell references, actual values, exact ranges and verdicts are retained:
 `ss_shape_v10_rebuild-fit.json`. These ignored artifacts contain comparisons, not
 reconstructed target-service results.
 
-**External-input boundary:** the original `ss-shape-extractor.sql` and EX/AG/AD/SP/OD
-extractor SQL are absent from the repo-local supplied evidence. Parent was asked to
-supply them. `original_external_extractors_executed=false` remains explicit in JSON.
-The local definitions cover all supplied SH rows, but original duration-band edge
-(510minutes) and last12months upper-bound definitions need original SQL verification.
-EX/AG/AD/SP/OD were **not executed**, not inferred from SH. Do not mark full T060
-external-extractor acceptance or complete migration acceptance from this table.
+**Historical local-only boundary:** the original local fit JSON retains
+`original_external_extractors_executed=false`; it is not retroactively rewritten.
+On2026-11-17, unchanged workspace SH SQL/Markdown were copied directly and the exact
+file executed successfully on both retained shape databases and the v20 adverse
+source. Original510-minute edge and rolling last12months bounds are verified without
+substitution. New execution manifests independently confirm this complete fit table.
+Other EX/AG/AD/SP/OD/LX were **not executed**, not inferred from SH. Do not equate
+this shape gate with complete migration acceptance.
 
 ## Exact actual public inventory (including schema seeds)
 
@@ -146,9 +148,10 @@ Required `rtk git diff --check` returned2 on the existing CRLF Markdown conventi
 the explicit-path staged check with command-local `core.whitespace=cr-at-eol`
 passed. No global/repo Git whitespace setting was changed.
 
-Required: original extractors and exact inventory execution; independent UnitTests
-coverage and valid-parent downstream adverse fixtures; final parent canonical/mirror
-refresh after documentation settles. No bc-design-agent or deployment change needed.
+Subsequent evidence now includes exact original SH execution and full valid-parent
+adverse execution; their separate reports retain the failures and limits. Other
+extractor families, broader independent coverage and final parent canonical/mirror
+refresh remain. No bc-design-agent or deployment change needed.
 **BL15 future scheduling remains a measured primary blocker** (2 presence +4 conflict
 response differences); no app behavior fix, migration workaround or loss waiver.
 No publish/push, no production activation, no private artifacts staged.

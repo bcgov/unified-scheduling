@@ -12,6 +12,10 @@ Final [full v20 results](reports/2026-11-17-adverse-v20-final.md): all101,426 se
 identities accounted, zero rejections/two retained Scheduling failures; all33 prior
 series rejects now preserve20,224 actual standalone roots. Capture reads1 full index
 plus12,189 fresh component sets. Full business acceptance remains NO-GO.
+Exact original [SH01–08 file verification](reports/2026-11-17-original-sh-execution.md)
+now completed on v10/rebuild/v20 source. All5,906 cells accounted:4,631 within
+±20%,1,222 suppressed bounds,53 explicitly withheld; zero shape failures on both
+shape databases. The adverse v20 source correctly fails shape fit and is preserved.
 
 **Full migration acceptance remains incomplete. Guarded graph replay and durable
 dry-run parent simulation are verified; this is NOT a production or migration
@@ -32,7 +36,8 @@ Original80-sheriff SH-08 census remains FAIL24/26:
 New isolated v10 source/rebuild independently fit all4631 non-suppressed SH01–08 cells
 within ±20%,1222 suppressed bounds and53 explicit noncomparables, zero failed cells:
 [complete actual shape/inventory/proof](reports/2026-11-16-shape-profile.md).
-Original external extractor SQL execution remains unverified, not waived.
+Exact original SH SQL execution is now verified; other extractor families remain
+unexecuted, not inferred or waived.
 Preserved adverse-chain attempt: [actual rejects and blocked downstream cases](reports/2026-11-16-adverse-v7.md).
 Full valid-parent follow-up: [all selected identities and every manifest outcome](reports/2026-11-16-adverse-valid-parent.md).
 MyTeam2,233/Training568 completed; Scheduling98,625 executed with33synthetic-series

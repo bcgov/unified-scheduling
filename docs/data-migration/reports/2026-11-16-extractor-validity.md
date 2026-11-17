@@ -1,22 +1,21 @@
 # Original extractor boundary and all 53 noncomparable cells
 
-**Original production SQL is located; exact execution is pending, not passed.**
-The supplied `ss-shape-extracts.md` says its producer was
-`ss-shape-extractor.sql`. That SQL file and the original EX/AG/AD/SP/OD extractors
-were not present in the supplied repo-local inputs. Parent has now located the
-unchanged workspace files in `documentation/data-migration/ss-job-notes/`, including
-`ss-shape-extractor.sql`. A restricted ignored repo-local handoff directory
-`docker/migration/inputs/original-extractors/` is ready; delivery is pending.
-No original query was executed
-against v10 in this validity pass. No substitute query is described as original.
-Provide the original files, preserve their SHA256, then execute them read-only
-against `ss_shape_v10`, documenting every clock/parameter/environment substitution.
-Band boundaries and last-12-month upper-bound semantics remain unverified.
+**2026-11-17 correction: exact original SH execution completed.**
+The implementation copied unchanged workspace SQL and production Markdown itself;
+there is no pending parent handoff gate. Exact `psql -X -f` executions on v10,
+its independent rebuild and the preserved v20 adverse source all exited0,
+read-only, with empty stderr. Both shape databases match all4,631 numeric and
+1,222 suppressed bounds, retaining all53 noncomparables and zero unexpected buckets.
+See [original-file hashes, complete inventory, commands and actual adverse fit
+failure](2026-11-17-original-sh-execution.md). Band boundaries and rolling
+last-12-month upper-bound semantics are now verified without substitutions.
+Other EX/AG/AD/SP/OD/LX originals were not executed; no inference is made for them.
 
 The [actual local measurement](2026-11-16-shape-profile.md) remains:
 1,565 reference rows / 5,906 cells = **4,631 non-suppressed comparable** within
 the unchanged ±20% bounds + **1,222 suppressed count bounds** in 1..4 +
-**53 noncomparable cells**, zero local failures. This is not a full T060 pass.
+**53 noncomparable cells**, zero local failures. The new exact original-query
+execution independently confirms this complete table; neither is full SS acceptance.
 The exact 22-table inventory, source integrity, independently generated rebuild
 digest and filled-database refusal are measured separately in that report.
 

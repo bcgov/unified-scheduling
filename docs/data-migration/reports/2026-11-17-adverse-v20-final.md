@@ -124,11 +124,12 @@ Remaining independent release/security/concurrency/inverse/photo/OT/SS-V001..057
 coverage is not complete. Strict ready-v4 Report remains18 exact/39missing/
 15unexpected response rows, not39 lost records; UI/CSV/PDF parity is not executed.
 
-Original extractor SQL is now located in the workspace; the unchanged repo-local
-handoff directory remains empty. **Exact original SH01–08 execution has not run.**
-Local4631 comparable +1222 suppressed bounds +53 explicitly withheld noncomparables
-must not be called an original-query pass. Parent-owned canonical refresh/mirror
-also remains pending supplied current inputs.
+Subsequent [exact original SH01–08 execution](2026-11-17-original-sh-execution.md)
+now confirms the v10/rebuild4631 numeric +1222 suppressed bounds +53 explicitly
+withheld inventory with zero shape failures. The preserved v20 adverse source also
+executes the original read-only but correctly fails shape fit; it is not relabelled.
+Other extractor families and parent-owned final canonical refresh/mirror remain
+separate pending work.
 
 No shared app DB reset, original fixture deletion, app workflow/JC-default edit,
 tenant GitOps change, generated web-client edit, attribution trailer or push.

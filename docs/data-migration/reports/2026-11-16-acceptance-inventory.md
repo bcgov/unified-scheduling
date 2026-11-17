@@ -10,8 +10,8 @@ checkboxes are not evidence and have not been bulk-checked.
 | Gate | State | Evidence / precise limit |
 |---|---|---|
 | Persistent isolated source, original fixture preservation | Exercised | Named Docker volumes, original `ss-synth-pg` retained, no shared DB reset or host DB ports |
-| SH01–08 local production-aggregate fit | Local checks pass, original-query gate blocked | 4,631 comparable +1,222 suppressed bounds +53 explicitly noncomparable =5,906 cells; exact inventory/rebuild/refusal in [shape report](2026-11-16-shape-profile.md) |
-| Original production extractor SQL | **Located; exact execution pending** | Workspace originals located by parent; awaiting unchanged repo-local handoff within implementation scope. No substitute-query claim. [All 53 reasons](2026-11-16-extractor-validity.md) |
+| SH01–08 production-aggregate fit | Exact original-query comparable/bounds gate passes | v10 and rebuild:4,631 numeric within ±20% +1,222 suppressed bounds +53 noncomparables =5,906; zero unexpected buckets. Prior inventory/rebuild/refusal retained |
+| Original production SH extractor SQL | **Executed unchanged, psql0 on all three sources** | [Input/output/execution hashes and complete counts](2026-11-17-original-sh-execution.md). Preserved v20 adverse source correctly fails shape fit; other extractor families not executed. [All53 reasons](2026-11-16-extractor-validity.md) |
 | Ready-v4 source/target Report | **FAIL** | Actual matched source; 57/33 strict rows, 18 exact, 39 missing, 15 unexpected response rows. Not lost-record totals |
 | Formerly unexecuted 22 rows | Actual common reads executed where possible; full contract still unexposed | 4 resource presences exact; 15 event rows: 8 exact/7 missing/1 unexpected; 3 harness projections are not UI evidence. [Methods/fields/windows](2026-11-16-actual-distribution-reads.md) |
 | BL15 future scheduling | **Primary app-owned blocker** | 12 actual matched calls: 2 destination candidate-presence differences +4 missing Away conflict responses. No loss waiver or app change |
@@ -38,7 +38,7 @@ checkboxes are not evidence and have not been bulk-checked.
 | T058 | Typed paging, group hashes, retries/checkpoints/backfill, indexed capture and reverse target lookup implemented | Actual v20:1 full root read/12,189 fresh component reads;4h30m50s. Full-source/group/row-DML performance remains work, not production sizing acceptance |
 | T015 | Focused adapter/recovery cases exist | Exhaustive PostgreSQL tie/paging/cutoff/backfill matrix incomplete |
 | T059 | Persistent isolated mock/target Docker resources implemented and exercised | Original sources/failures/volume retained; full untrimmed valid-parent clone executed all selected physical identities |
-| T060 | Deterministic production-aggregate generation/local measurement/rebuild/refusal implemented | Original SH/EX/AG/AD/SP/OD files now located in workspace; exact execution pending repo-local handoff; full task not accepted |
+| T060 | Deterministic generation/local measurement/rebuild/refusal and exact original SH01–08 execution completed | Both v10 sources:4,631 numeric +1,222 suppressed bounds +53 withheld, zero failed/unexpected. Adverse source shape FAIL retained. Other extractor families unexecuted; full migration not accepted |
 | T018, T051 | Actual source projections/read-only snapshot/preflight and explicit-false JC guard implemented | No app JC-default edit, no production preflight acceptance |
 | T019, T020 | Primary MyTeam references/users/roles/UserRole/acting/leave/current LoanOut writers implemented | Real SSO login, all retained-reference/identity/drift variants not independently certified |
 | T023 | Selected actual PG insert/replay/drift/retry/atomicity cases exercised | Comprehensive independently maintained integration suite incomplete |
@@ -71,9 +71,9 @@ checkboxes are not evidence and have not been bulk-checked.
 2. **Training/business owner:** decide future expiry-policy/date/Excused and presentation
    requirements using actual model/API evidence. Do not equate stored completion facts
    with all compliance/UI behavior.
-3. **Input/canonical owner:** unchanged repo-local handoff of the located original
-   extractors and final workspace mirrors remains pending. No exact-original-query
-   or current-mirror claim until executed/refreshed.
+3. **Canonical owner:** exact original SH verification is now completed without a
+   handoff gate. Other extractor families remain unexecuted, not inferred. Final
+   workspace refresh/mirror remains pending; no current-mirror claim until refreshed.
 4. **Migration engineering still needed:** independent release/security/concurrency/
    inverse/OT/SS-V coverage. Operations API/permission integration and complete
    findings exports are now implemented and focused-tested; unfinished coverage is
