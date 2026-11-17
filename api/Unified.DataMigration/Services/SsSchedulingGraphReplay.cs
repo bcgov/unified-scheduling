@@ -48,10 +48,13 @@ internal sealed class SsSchedulingGraphReplay(UnifiedDbContext db)
         var duties = rows["Duty"]
             .Where(x => x.Date("EndDate") >= boundary || retained.Contains($"Duty:{x.Id}"))
             .ToList();
+        var dutyIds = duties.Select(x => x.Int("Id")).ToHashSet();
+        var referencedAssignments = duties.Select(x => x.Int("AssignmentId")).ToHashSet();
+        var dutyById = duties.ToDictionary(x => x.Int("Id")!.Value);
         var nodes = rows["Assignment"]
             .Where(x =>
                 x.Date("ExpiryDate") is null
-                || duties.Any(d => d.Int("AssignmentId") == x.Int("Id"))
+                || referencedAssignments.Contains(x.Int("Id"))
                 || retained.Contains($"Assignment:{x.Id}")
             )
             .Select(x => new Node("Assignment", x))
@@ -65,7 +68,7 @@ internal sealed class SsSchedulingGraphReplay(UnifiedDbContext db)
                 rows["DutySlot"]
                     .Where(x =>
                         (x.Date("EndDate") >= boundary || retained.Contains($"DutySlot:{x.Id}"))
-                        && duties.Any(d => d.Int("Id") == x.Int("DutyId"))
+                        && dutyIds.Contains(x.Int("DutyId"))
                     )
                     .Select(x => new Node("DutySlot", x))
             )
@@ -142,21 +145,22 @@ internal sealed class SsSchedulingGraphReplay(UnifiedDbContext db)
         }
         foreach (var duty in nodes.Where(x => x.Type == "Duty"))
             Join(duty.Key, $"Assignment:{duty.Row.Int("AssignmentId")}");
+        var shiftsBySheriffLocation = nodes
+            .Where(x => x.Type == "Shift")
+            .ToLookup(x => (x.Row.Guid("SheriffId"), x.Row.Int("LocationId")));
         foreach (var slot in nodes.Where(x => x.Type == "DutySlot"))
         {
             Join(slot.Key, $"Duty:{slot.Row.Int("DutyId")}");
             if (slot.Row.Date("ExpiryDate") is not null)
                 continue;
-            var duty = duties.Single(x => x.Int("Id") == slot.Row.Int("DutyId"));
+            var duty = dutyById[slot.Row.Int("DutyId")!.Value];
             foreach (
-                var shift in nodes.Where(x =>
-                    x.Type == "Shift"
-                    && x.Row.Guid("SheriffId") == slot.Row.Guid("SheriffId")
-                    && slot.Row.Guid("SheriffId") is not null
-                    && x.Row.Int("LocationId") == duty.Int("LocationId")
-                    && x.Row.Date("StartDate") < slot.Row.Date("EndDate")
-                    && x.Row.Date("EndDate") > slot.Row.Date("StartDate")
-                )
+                var shift in shiftsBySheriffLocation[(slot.Row.Guid("SheriffId"), duty.Int("LocationId"))]
+                    .Where(x =>
+                        slot.Row.Guid("SheriffId") is not null
+                        && x.Row.Date("StartDate") < slot.Row.Date("EndDate")
+                        && x.Row.Date("EndDate") > slot.Row.Date("StartDate")
+                    )
             )
                 Join(slot.Key, shift.Key);
         }
@@ -409,10 +413,10 @@ internal sealed class SsSchedulingGraphReplay(UnifiedDbContext db)
             .ToListAsync(ct);
         foreach (var component in Plan(rows, boundary, retained.ToHashSet()))
         {
+            var keys = component.Nodes.Select(x => (x.Type, x.Row.Id)).ToHashSet();
             if (
                 s.SourceOutcomes.Any(o =>
-                    component.Nodes.Any(n => n.Type == o.EntityType && n.Row.Id == o.LegacyId)
-                    && o.Outcome is "Rejected" or "Failed" or "NeedsAction"
+                    o.Outcome is "Rejected" or "Failed" or "NeedsAction" && keys.Contains((o.EntityType, o.LegacyId))
                 )
             )
                 continue;
@@ -463,6 +467,9 @@ internal sealed class SsSchedulingGraphReplay(UnifiedDbContext db)
         await s.GuardGraphAsync(records, ct);
         await CheckDependentsAsync(records, ct);
         var root = records.First(x => x.CreatedByRunId is not null);
+        // Guards hold database row locks, not EF tracking leases. All these
+        // records are read-only here; detaching does not release a lock/savepoint.
+        db.ChangeTracker.Clear();
         await s.LinkAsync(
             "SchedulingComponent",
             Synthetic(component.Nodes[0].Key),
@@ -472,7 +479,9 @@ internal sealed class SsSchedulingGraphReplay(UnifiedDbContext db)
             false,
             ct
         );
+        var captured = 0;
         foreach (var node in component.Nodes)
+        {
             await s.LinkAsync(
                 "SchedulingMember",
                 Synthetic(node.Key),
@@ -482,6 +491,14 @@ internal sealed class SsSchedulingGraphReplay(UnifiedDbContext db)
                 false,
                 ct
             );
+            if (++captured % 100 == 0)
+            {
+                // LinkAsync leaves its final mutation pending. Flush it BEFORE
+                // detaching; the entire component still shares the outer savepoint.
+                await db.SaveChangesAsync(ct);
+                db.ChangeTracker.Clear();
+            }
+        }
     }
 
     private async Task CheckDependentsAsync(List<DataMigrationRecord> records, CancellationToken ct)

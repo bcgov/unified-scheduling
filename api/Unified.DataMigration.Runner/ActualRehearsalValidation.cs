@@ -30,6 +30,8 @@ internal sealed class ActualRehearsalValidation(
         CancellationToken ct
     )
     {
+        if (job == "Scheduling")
+            await AdverseGraphProof.CaptureAsync(db, config, session, ct);
         await BusinessQueryExport.ExecuteAsync(db, config);
         var locations = await db
             .DataMigrationRecords.AsNoTracking()

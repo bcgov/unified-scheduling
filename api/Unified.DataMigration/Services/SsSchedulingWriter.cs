@@ -761,10 +761,12 @@ public sealed class SsSchedulingWriter(UnifiedDbContext db)
         var assignments = rows["Assignment"].ToDictionary(x => x.Id);
         var lookup = rows["LookupCode"].ToDictionary(x => x.Id);
         var selectedDuties = rows["Duty"].ToDictionary(x => x.Id);
+        var slotsByDuty = rows["DutySlot"].ToLookup(x => x.Int("DutyId"));
+        var shiftsBySheriffLocation = rows["Shift"].ToLookup(x => (x.Guid("SheriffId"), x.Int("LocationId")));
         var slotOutcomes = new Dictionary<string, (string Outcome, string? Reason)>();
         foreach (var row in rows["Duty"])
         {
-            var relevantSlots = rows["DutySlot"].Where(x => x.Int("DutyId") == row.Int("Id")).ToList();
+            var relevantSlots = slotsByDuty[row.Int("Id")].ToList();
             await s.RowAsync(
                 "Duty",
                 row,
@@ -807,7 +809,10 @@ public sealed class SsSchedulingWriter(UnifiedDbContext db)
                         if (slot.Guid("SheriffId") is { } sheriff)
                             await s.ResolveAsync("User", sheriff.ToString(), ct);
                     }
-                    var sourceShiftIds = rows["Shift"]
+                    var overlappingSourceShifts = live.Select(slot => slot.Guid("SheriffId"))
+                        .Where(id => id is not null)
+                        .Distinct()
+                        .SelectMany(id => shiftsBySheriffLocation[(id, row.Int("LocationId"))])
                         .Where(shift =>
                             shift.Date("EndDate") >= boundary
                             && live.Any(slot =>
@@ -818,8 +823,8 @@ public sealed class SsSchedulingWriter(UnifiedDbContext db)
                                 && shift.Date("EndDate") > slot.Date("StartDate")
                             )
                         )
-                        .Select(x => x.Id)
                         .ToArray();
+                    var sourceShiftIds = overlappingSourceShifts.Select(x => x.Id).ToArray();
                     var resolvedShifts = await db
                         .DataMigrationRecords.AsNoTracking()
                         .Where(x => x.Source == "SS" && x.EntityType == "Shift" && sourceShiftIds.Contains(x.LegacyId))
@@ -845,17 +850,7 @@ public sealed class SsSchedulingWriter(UnifiedDbContext db)
                             // replay its affected duties even when Duty.UpdatedOn
                             // did not change. Never derive source hashes from
                             // independently edited mutable target shift values.
-                            ShiftDependencies = rows["Shift"]
-                                .Where(shift =>
-                                    shift.Date("EndDate") >= boundary
-                                    && live.Any(slot =>
-                                        slot.Guid("SheriffId") is { } sheriff
-                                        && shift.Guid("SheriffId") == sheriff
-                                        && shift.Int("LocationId") == row.Int("LocationId")
-                                        && shift.Date("StartDate") < slot.Date("EndDate")
-                                        && shift.Date("EndDate") > slot.Date("StartDate")
-                                    )
-                                )
+                            ShiftDependencies = overlappingSourceShifts
                                 .OrderBy(shift => shift.Int("Id"))
                                 .Select(shift => new
                                 {
