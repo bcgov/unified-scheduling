@@ -3226,7 +3226,7 @@ public class ShiftServiceTests : IAsyncLifetime
             EventTypeCode = eventTypeCode,
             StatusTypeCode = statusTypeCode,
             SourceModule = sourceModule,
-            IsException = isException,
+            ExceptionReasonCodes = isException ? ["DateTimeChanged"] : [],
             SeriesStartAtUtc = eventSeriesId.HasValue ? start : null,
             SeriesEndAtUtc = eventSeriesId.HasValue && !openEnded ? endAtUtc ?? start.AddHours(8) : null,
             LocationId = locationId,

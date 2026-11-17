@@ -194,7 +194,7 @@ export function mapSchedulingCalendarEvent(
     seriesEndAtUtc: event.seriesEndAtUtc ?? undefined,
     allDay: event.allDay ?? false,
     isException: event.isException ?? false,
-    exceptionReason: event.exceptionReason ?? undefined,
+    exceptionReasonCodes: event.exceptionReasonCodes,
     eventTypeCode: event.eventTypeCode,
     statusTypeCode: event.statusTypeCode,
     cancelledAt: event.cancelledAt ?? undefined,

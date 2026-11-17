@@ -1,5 +1,6 @@
 using Mapster;
 using Unified.Calendar.Mappings;
+using Unified.Calendar.Services;
 using Unified.Common.Time;
 using Unified.Db.Models.Calendar;
 using Unified.Db.Models.Leave;
@@ -47,6 +48,7 @@ public sealed class SchedulingLeaveEventMapper(
             EventId = entry.EventId,
             UserIds = entry.Users.Select(user => user.UserId).Distinct().ToList(),
             Type = "scheduling.leave",
+            ExceptionReasonCodes = CalendarEventExceptionHelper.GetReasonCodes(eventEntity),
         };
     }
 

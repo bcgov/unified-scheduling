@@ -40,6 +40,7 @@ export * from './calendarEventStatus.ts';
 export * from './calendarEventStatusTypeCode.ts';
 export * from './calendarEventType.ts';
 export * from './calendarEventTypeCode.ts';
+export * from './calendarEventExceptionReasonCode.ts';
 export * from './calendarFeatureFlags.ts';
 export * from './calendarRestrictedConflictWarningResponse.ts';
 export * from './configResponse.ts';

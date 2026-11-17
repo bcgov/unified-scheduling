@@ -34,6 +34,7 @@ export const PostApiLeaveCalendarEventsResponseItem = zod.object({
   timeZoneId: zod.string().nullish(),
   allDay: zod.boolean().optional(),
   isException: zod.boolean().optional(),
+  exceptionReasonCodes: zod.array(zod.enum(['DateTimeChanged', 'IsAway'])).optional(),
   eventTypeCode: zod.string(),
   statusTypeCode: zod.string(),
   cancelledAt: zod.iso.datetime({ offset: true }).nullish(),

@@ -5,6 +5,7 @@
  * OpenAPI spec version: 1.0.0
  */
 
+import type { CalendarEventExceptionReasonCode } from './calendarEventExceptionReasonCode.ts';
 export interface LoanOutEntryResponse {
   loanOutLocationId?: number;
   /** @nullable */
@@ -42,4 +43,6 @@ export interface LoanOutEntryResponse {
   /** @nullable */
   locationId?: number | null;
   userIds?: string[];
+  isException?: boolean;
+  exceptionReasonCodes?: CalendarEventExceptionReasonCode[];
 }

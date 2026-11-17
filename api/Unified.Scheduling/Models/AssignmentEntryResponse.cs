@@ -31,7 +31,5 @@ public sealed record AssignmentEntryResponse : CalendarEventEntryResponse
 
     public int EventId { get; init; }
 
-    public bool IsException { get; init; }
-
     public IReadOnlyCollection<ShiftAssignmentEntryResponse> AssignmentLinks { get; init; } = [];
 }

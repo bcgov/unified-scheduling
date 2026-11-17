@@ -151,9 +151,7 @@ public sealed class LoanOutShiftTransferService(
             {
                 var eventEntity = shift.Event!;
                 var copiedUsers = destinationUsers.GetValueOrDefault((eventEntity.StartAtUtc, eventEntity.EndAtUtc));
-                var isAway =
-                    eventEntity.IsException
-                    && eventEntity.ExceptionReason == nameof(CalendarEventExceptionReasonCode.IsAway);
+                var isAway = eventEntity.ExceptionReasonCodes.Contains(nameof(CalendarEventExceptionReasonCode.IsAway));
                 var shiftUserIds = shift
                     .Users.Where(user => copiedUsers?.Contains(user.UserId) != true)
                     .Select(user => user.UserId)

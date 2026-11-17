@@ -142,8 +142,7 @@ public sealed class SchedulePublishService(
             .Where(entry => entry.Event.LocationId == scope.Request.LocationId)
             .Where(entry =>
                 !loanOutAvailability.IsEnabled
-                || !entry.Event.IsException
-                || entry.Event.ExceptionReason != nameof(CalendarEventExceptionReasonCode.IsAway)
+                || !entry.Event.ExceptionReasonCodes.Contains(nameof(CalendarEventExceptionReasonCode.IsAway))
             )
             .ToListAsync(cancellationToken);
         var assignments = await db
@@ -159,8 +158,7 @@ public sealed class SchedulePublishService(
             .Where(entry => entry.Event.LocationId == scope.Request.LocationId)
             .Where(entry =>
                 !loanOutAvailability.IsEnabled
-                || !entry.Event.IsException
-                || entry.Event.ExceptionReason != nameof(CalendarEventExceptionReasonCode.IsAway)
+                || !entry.Event.ExceptionReasonCodes.Contains(nameof(CalendarEventExceptionReasonCode.IsAway))
             )
             .ToListAsync(cancellationToken);
 

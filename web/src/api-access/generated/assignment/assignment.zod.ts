@@ -361,6 +361,7 @@ export const GetApiSchedulingAssignmentsEntriesResponseItem = zod.object({
   startAtUtc: zod.iso.datetime({ offset: true }).nullish(),
   eventId: zod.int().optional(),
   isException: zod.boolean().optional(),
+  exceptionReasonCodes: zod.array(zod.enum(['DateTimeChanged', 'IsAway'])).optional(),
   assignmentLinks: zod
     .array(
       zod.object({
@@ -439,6 +440,7 @@ export const PostApiSchedulingAssignmentsEntriesResponse = zod.object({
   startAtUtc: zod.iso.datetime({ offset: true }).nullish(),
   eventId: zod.int().optional(),
   isException: zod.boolean().optional(),
+  exceptionReasonCodes: zod.array(zod.enum(['DateTimeChanged', 'IsAway'])).optional(),
   assignmentLinks: zod
     .array(
       zod.object({
@@ -492,6 +494,7 @@ export const GetApiSchedulingAssignmentsEntriesIdResponse = zod.object({
   startAtUtc: zod.iso.datetime({ offset: true }).nullish(),
   eventId: zod.int().optional(),
   isException: zod.boolean().optional(),
+  exceptionReasonCodes: zod.array(zod.enum(['DateTimeChanged', 'IsAway'])).optional(),
   assignmentLinks: zod
     .array(
       zod.object({
@@ -586,6 +589,7 @@ export const PutApiSchedulingAssignmentsEntriesIdResponse = zod.object({
   startAtUtc: zod.iso.datetime({ offset: true }).nullish(),
   eventId: zod.int().optional(),
   isException: zod.boolean().optional(),
+  exceptionReasonCodes: zod.array(zod.enum(['DateTimeChanged', 'IsAway'])).optional(),
   assignmentLinks: zod
     .array(
       zod.object({
@@ -645,6 +649,7 @@ export const PostApiSchedulingAssignmentsEntriesIdPublishResponse = zod.object({
   startAtUtc: zod.iso.datetime({ offset: true }).nullish(),
   eventId: zod.int().optional(),
   isException: zod.boolean().optional(),
+  exceptionReasonCodes: zod.array(zod.enum(['DateTimeChanged', 'IsAway'])).optional(),
   assignmentLinks: zod
     .array(
       zod.object({
@@ -705,6 +710,7 @@ export const PostApiSchedulingAssignmentsEntriesIdExpireResponse = zod.object({
   startAtUtc: zod.iso.datetime({ offset: true }).nullish(),
   eventId: zod.int().optional(),
   isException: zod.boolean().optional(),
+  exceptionReasonCodes: zod.array(zod.enum(['DateTimeChanged', 'IsAway'])).optional(),
   assignmentLinks: zod
     .array(
       zod.object({

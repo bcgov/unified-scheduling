@@ -1,4 +1,5 @@
 import type {
+  CalendarEventExceptionReasonCode,
   CalendarConflictEventResponse,
   CalendarConflictResponse,
   CalendarRestrictedConflictWarningResponse,
@@ -28,7 +29,7 @@ export interface CalendarEventBase {
   allDay?: boolean;
   isReadOnly?: boolean;
   isException?: boolean;
-  exceptionReason?: string;
+  exceptionReasonCodes?: CalendarEventExceptionReasonCode[];
   holidayType?: string;
   eventTypeCode?: string;
   statusTypeCode?: string;

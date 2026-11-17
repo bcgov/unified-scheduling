@@ -1,3 +1,5 @@
+using Unified.Calendar;
+
 namespace Unified.Common.Calendar.Scheduling.Models;
 
 public record CalendarEventEntryResponse : CalendarEventEntryRequest
@@ -5,6 +7,10 @@ public record CalendarEventEntryResponse : CalendarEventEntryRequest
     public int Id { get; init; }
 
     public int? EventSeriesId { get; init; }
+
+    public bool IsException { get; init; }
+
+    public IReadOnlyCollection<CalendarEventExceptionReasonCode> ExceptionReasonCodes { get; init; } = [];
 
     public string? EventTypeCode { get; init; }
 

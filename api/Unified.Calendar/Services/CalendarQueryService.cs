@@ -131,6 +131,7 @@ public sealed class CalendarQueryService(
             TimeZoneId = eventEntity.TimeZoneId,
             AllDay = eventEntity.AllDay,
             IsException = eventEntity.IsException,
+            ExceptionReasonCodes = CalendarEventExceptionHelper.GetReasonCodes(eventEntity),
             Type = CalendarEventType.CalendarEvent,
             Status = CalendarCodeMappings.ToEventStatus(eventEntity.StatusTypeCode),
             EventTypeCode = CalendarCodeMappings.ToEventTypeCode(eventEntity.EventTypeCode),
