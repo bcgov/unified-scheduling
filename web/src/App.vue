@@ -12,9 +12,10 @@ import { useAuthStore } from '@/stores/auth';
 
 const authStore = useAuthStore();
 const route = useRoute();
+const isLoggedOut = computed(() => route.name === 'LoggedOut');
 const notifications = useNotificationsStore();
 const isPrintMode = computed(() => route.path.startsWith('/calendar') && route.query.mode === 'print');
-const { brandingStyles, backgroundImageUrl, primaryColor, backgroundColor, activeColor } = useBranding();
+const { brandingStyles, backgroundImageUrl, primaryColor, backgroundColor, activeColor } = useBranding(isLoggedOut);
 const theme = useTheme();
 
 watch(
@@ -32,8 +33,11 @@ watch(
 </script>
 
 <template>
-  <v-app class="application-shell" :style="brandingStyles">
-    <Appbar v-if="authStore.isAuthenticated && !route.meta.fullScreen && !isPrintMode" />
+  <v-app class="application-shell" :class="{ 'application-shell--logged-out': isLoggedOut }" :style="brandingStyles">
+    <Appbar
+      v-if="(authStore.isAuthenticated || isLoggedOut) && !route.meta.fullScreen && !isPrintMode"
+      :public-view="isLoggedOut"
+    />
     <UaBackgroundOverlay :image="isPrintMode ? null : backgroundImageUrl">
       <div
         class="application-layout"
@@ -47,6 +51,7 @@ watch(
           :class="{
             'main-content--full-screen': route.meta.fullScreen,
             'main-content--print': isPrintMode,
+            'main-content--logged-out': isLoggedOut,
           }"
         >
           <RouterView v-if="!route.meta.requiresAuth || authStore.isAuthenticated" />
@@ -71,6 +76,9 @@ watch(
 <style scoped>
 .application-shell {
   font-family: var(--ua-brand-font);
+}
+.application-shell--logged-out {
+  --ua-appbar-height: 84px;
 }
 .application-layout {
   display: flex;
@@ -107,6 +115,18 @@ watch(
   min-height: 0;
   overflow: visible;
   padding: 0;
+}
+
+.main-content--logged-out {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: var(--ua-spacing-md);
+}
+
+@media (max-width: 700px) {
+  .application-shell--logged-out {
+    --ua-appbar-height: 60px;
+  }
 }
 
 @media print {

@@ -18,6 +18,7 @@ import ApplicationUnavailable from '@/views/ApplicationUnavailable.vue';
 
 const UNREGISTERED_ROUTE_PATH = '/unregistered';
 const APPLICATION_UNAVAILABLE_ROUTE_PATH = '/application-unavailable';
+export const LOGGED_OUT_ROUTE_PATH = '/logged-out';
 
 declare module 'vue-router' {
   interface RouteMeta {
@@ -76,6 +77,14 @@ async function authGuard(to: RouteLocationNormalized, _from: RouteLocationNormal
 }
 
 const baseRoutes: RouteRecordRaw[] = [
+  {
+    path: LOGGED_OUT_ROUTE_PATH,
+    name: 'LoggedOut',
+    component: () => import('@/views/LoggedOut.vue'),
+    meta: {
+      title: 'Logged out',
+    },
+  },
   {
     path: UNREGISTERED_ROUTE_PATH,
     name: 'UnregisteredUser',

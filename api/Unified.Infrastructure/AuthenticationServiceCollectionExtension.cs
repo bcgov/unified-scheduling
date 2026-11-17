@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -273,6 +274,7 @@ public static class AuthenticationServiceCollectionExtension
                 options.UsePkce = true;
                 options.SaveTokens = true;
                 options.CallbackPath = "/api/auth/signin-oidc";
+                options.SignedOutCallbackPath = "/api/auth/signout-callback-oidc";
 
                 // Set explicit cookie paths so nginx's proxy_cookie_path directive
                 options.CorrelationCookie.Path = "/";
@@ -332,7 +334,9 @@ public static class AuthenticationServiceCollectionExtension
                         var request = context.HttpContext.Request;
                         var baseHref = XForwardedForHelper.ResolveBaseHref(request);
 
-                        context.ProtocolMessage.PostLogoutRedirectUri = XForwardedForHelper.BuildUrlString(
+                        // Keep the final landing URL in protected OIDC state. Keycloak must
+                        // return through the middleware callback before this redirect is used.
+                        var applicationUrl = XForwardedForHelper.BuildUrlString(
                             forwardedProto: request.Headers["X-Forwarded-Proto"].FirstOrDefault() ?? request.Scheme,
                             forwardedHost: request.Headers["X-Forwarded-Host"].FirstOrDefault()
                                 ?? request.Host.ToString(),
@@ -340,8 +344,63 @@ public static class AuthenticationServiceCollectionExtension
                             baseUrl: baseHref,
                             remainingPath: "/"
                         );
+                        context.Properties.RedirectUri = applicationUrl + "logged-out";
+                        context.ProtocolMessage.PostLogoutRedirectUri =
+                            applicationUrl + context.Options.SignedOutCallbackPath.Value!.TrimStart('/');
 
                         return Task.CompletedTask;
+                    },
+                    OnSignedOutCallbackRedirect = async context =>
+                    {
+                        var logger = context
+                            .HttpContext.RequestServices.GetRequiredService<ILoggerFactory>()
+                            .CreateLogger(nameof(AuthenticationServiceCollectionExtension));
+                        context.HandleResponse();
+                        if (
+                            context.Properties is null
+                            || string.IsNullOrWhiteSpace(context.Properties.RedirectUri)
+                            || !string.IsNullOrEmpty(context.ProtocolMessage?.Error)
+                        )
+                        {
+                            logger.LogWarning("OIDC logout callback was invalid or reported a provider error.");
+                            await Results
+                                .Problem(
+                                    statusCode: StatusCodes.Status502BadGateway,
+                                    title: "Sign-out could not be completed.",
+                                    detail: "The identity-provider session may still be active."
+                                )
+                                .ExecuteAsync(context.HttpContext);
+                            return;
+                        }
+
+                        if (
+                            !Uri.TryCreate(keycloakOptions.SiteMinderLogoutUrl, UriKind.Absolute, out var logoutUri)
+                            || logoutUri.Scheme != Uri.UriSchemeHttps
+                        )
+                        {
+                            logger.LogError("The upstream SiteMinder logout URL is missing or invalid.");
+                            await Results
+                                .Problem(
+                                    statusCode: StatusCodes.Status503ServiceUnavailable,
+                                    title: "Sign-out could not be completed.",
+                                    detail: "Upstream logout is not configured. The identity-provider session may still be active."
+                                )
+                                .ExecuteAsync(context.HttpContext);
+                            return;
+                        }
+
+                        // Keycloak has completed logout. Clear the upstream browser session
+                        // before SiteMinder returns to the public logged-out page.
+                        context.Response.Redirect(
+                            QueryHelpers.AddQueryString(
+                                logoutUri.AbsoluteUri,
+                                new Dictionary<string, string?>
+                                {
+                                    ["returl"] = context.Properties.RedirectUri,
+                                    ["retnow"] = "1",
+                                }
+                            )
+                        );
                     },
                 };
             });

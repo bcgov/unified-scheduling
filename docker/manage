@@ -148,6 +148,7 @@ configureEnvironment () {
   export KeycloakClient=${KeycloakClient}
   export KeycloakSecret=${KeycloakSecret}
   export KeycloakAudience=${KeycloakAudience}
+  export SiteMinderLogoutUrl="${SiteMinderLogoutUrl}"
   
 
   # Default API startup parameters

@@ -7,9 +7,9 @@ import { createApp } from 'vue';
 import { setupMockServiceWorker } from '@/mocks';
 import { createAppVuetify } from '@/plugins/vuetify';
 import { resolveBrandingConfig } from '@/branding/brandingConfig';
-import { initializeRouter } from '@/router';
+import { initializeRouter, LOGGED_OUT_ROUTE_PATH } from '@/router';
 import { useConfigStore } from '@/stores/config';
-import { redirectToLogin } from '@/utils/authNavigation';
+import { redirectToLogin, toApplicationReturnPath } from '@/utils/authNavigation';
 import ApplicationUnavailable from '@/views/ApplicationUnavailable.vue';
 
 import '@/assets/styles/variables.css';
@@ -29,22 +29,28 @@ const bootstrap = async () => {
   const configStore = useConfigStore(pinia);
   await configStore.loadConfig();
 
-  // @NOTE: Load user info to ensure permissions are available for route guards
-  const { error, data: userInfo, response } = await getApiAuthUser();
-  if (error.value) {
-    if (response.value?.status === 401) {
-      redirectToLogin();
+  const authStore = useAuthStore(pinia);
+  const isLoggedOutPage =
+    window.location.pathname.replace(/\/$/, '') === toApplicationReturnPath(LOGGED_OUT_ROUTE_PATH);
+
+  // The logout landing page loads public configuration and the shell without starting authentication.
+  if (!isLoggedOutPage) {
+    // @NOTE: Load user info to ensure permissions are available for route guards
+    const { error, data: userInfo, response } = await getApiAuthUser();
+    if (error.value) {
+      if (response.value?.status === 401) {
+        redirectToLogin();
+        return;
+      }
+
+      const unavailableApp = createApp(ApplicationUnavailable);
+      unavailableApp.mount('#app');
       return;
     }
 
-    const unavailableApp = createApp(ApplicationUnavailable);
-    unavailableApp.mount('#app');
-    return;
-  }
-
-  const authStore = useAuthStore(pinia);
-  if (userInfo.value) {
-    authStore.setUserInfo(userInfo.value);
+    if (userInfo.value) {
+      authStore.setUserInfo(userInfo.value);
+    }
   }
 
   const app = createApp(App);

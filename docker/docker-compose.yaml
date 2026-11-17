@@ -35,6 +35,7 @@ services:
       - Keycloak__Client=${KeycloakClient}
       - Keycloak__Secret=${KeycloakSecret}
       - Keycloak__Audience=${KeycloakAudience}
+      - Keycloak__SiteMinderLogoutUrl=${SiteMinderLogoutUrl}
       - JCInterface__Username=${LocationServicesClientUsername}
       - JCInterface__Password=${LocationServicesClientPassword}
       - JCInterface__Url=${LocationServicesClientUrl}
