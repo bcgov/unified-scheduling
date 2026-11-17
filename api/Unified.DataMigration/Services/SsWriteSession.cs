@@ -40,8 +40,35 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run)
         "LookupCode",
     ];
     public IEnumerable<DataMigrationOutcome> SourceOutcomes => Outcomes.Where(x => PrimaryTypes.Contains(x.EntityType));
-    private HashSet<string> insertedTargets = [];
-    private HashSet<string> updatedTargets = [];
+
+    // Append-only between savepoints: nested rollback removes only new members.
+    // Copying the full growing sets for every row makes large simulations quadratic.
+    private sealed class TargetCounter
+    {
+        private readonly HashSet<string> members = [];
+        private readonly List<string> journal = [];
+        public int Count => journal.Count;
+
+        public void Add(string key)
+        {
+            if (members.Add(key))
+                journal.Add(key);
+        }
+
+        public void Rollback(int checkpoint)
+        {
+            if (checkpoint < 0 || checkpoint > journal.Count)
+                throw new InvalidOperationException("Invalid target counter checkpoint.");
+            while (journal.Count > checkpoint)
+            {
+                members.Remove(journal[^1]);
+                journal.RemoveAt(journal.Count - 1);
+            }
+        }
+    }
+
+    private readonly TargetCounter insertedTargets = new();
+    private readonly TargetCounter updatedTargets = new();
     public int Inserted => insertedTargets.Count;
     public int Updated => updatedTargets.Count;
     public int Linked { get; private set; }
@@ -196,8 +223,8 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run)
     {
         var after = AfterUnitAsync;
         var prior = Outcomes.Select(x => (Item: x, x.Outcome, x.Reason)).ToList();
-        var inserted = insertedTargets.ToHashSet();
-        var updated = updatedTargets.ToHashSet();
+        var inserted = insertedTargets.Count;
+        var updated = updatedTargets.Count;
         var linked = Linked;
         var tx = db.Database.CurrentTransaction!;
         await tx.CreateSavepointAsync("ss_graph_plan", ct);
@@ -220,8 +247,8 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run)
                 Outcomes.Add(item.Item);
                 outcomeIndex[(item.Item.EntityType, item.Item.LegacyId)] = item.Item;
             }
-            insertedTargets = inserted;
-            updatedTargets = updated;
+            insertedTargets.Rollback(inserted);
+            updatedTargets.Rollback(updated);
             Linked = linked;
             AfterUnitAsync = after;
         }
@@ -303,8 +330,8 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run)
     {
         var tx = db.Database.CurrentTransaction ?? throw new InvalidOperationException("Job transaction required.");
         var checkpoint = Outcomes.Count;
-        var inserted = insertedTargets.ToHashSet();
-        var updated = updatedTargets.ToHashSet();
+        var inserted = insertedTargets.Count;
+        var updated = updatedTargets.Count;
         var linked = Linked;
         var parentChanges = outcomeChanges;
         var changes = new Dictionary<DataMigrationOutcome, (string Outcome, string? Reason)>();
@@ -340,8 +367,8 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run)
             outcomeIndex.Clear();
             foreach (var outcome in Outcomes)
                 outcomeIndex[(outcome.EntityType, outcome.LegacyId)] = outcome;
-            insertedTargets = inserted;
-            updatedTargets = updated;
+            insertedTargets.Rollback(inserted);
+            updatedTargets.Rollback(updated);
             Linked = linked;
             if (
                 Environment.GetEnvironmentVariable("DataMigrationRehearsal__SafeStack") == "true"

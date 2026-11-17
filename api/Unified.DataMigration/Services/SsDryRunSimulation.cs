@@ -152,6 +152,7 @@ internal sealed class SsDryRunSimulation(
             if (parents.Any(x => x.Manifest.NamespaceId != ns))
                 throw new SsReject("WrongSimulationNamespace");
             session.SimulationNamespace = ns;
+            BoundTracking(session, batchSize);
             var schema = "ss_sim_" + run.Id.ToString("N");
             session.SimulationSchema = schema;
             await CloneAsync(schema, tables, ct);
@@ -170,7 +171,9 @@ internal sealed class SsDryRunSimulation(
                     SimulationNamespace = ns,
                     SimulationSchema = schema,
                 };
+                BoundTracking(hydrated, batchSize);
                 await WriteAsync(parent.Run.Job, rows, hydrated, boundary, ct);
+                db.ChangeTracker.Clear();
                 if (
                     hydrated.Outcomes.Any(x => x.Outcome is "Rejected" or "Failed" or "NeedsAction" or "DroppedBadData")
                 )
@@ -262,6 +265,24 @@ internal sealed class SsDryRunSimulation(
         )
             throw new SsReject("WrongOrMissingSimulationCandidateNamespace");
         return (prior, manifest);
+    }
+
+    private void BoundTracking(SsWriteSession session, int batchSize)
+    {
+        var units = 0;
+        session.AfterUnitAsync = token =>
+        {
+            token.ThrowIfCancellationRequested();
+            if (++units >= batchSize)
+            {
+                // RowAsync/AtomicGraphAsync have saved the entire unit before this
+                // callback. Detaching is not a commit: the outer transaction still
+                // owns every simulated row, identity sequence and audit mutation.
+                db.ChangeTracker.Clear();
+                units = 0;
+            }
+            return Task.CompletedTask;
+        };
     }
 
     private async Task WriteAsync(
