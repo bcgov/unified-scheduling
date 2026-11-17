@@ -5,6 +5,7 @@ are read, with connection-default read-only enforcement. Per-case identities sta
 in ignored restricted artifacts; stdout contains counts/enumerated finding codes.
 """
 import collections
+import argparse
 import json
 import pathlib
 import subprocess
@@ -12,11 +13,12 @@ import subprocess
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 ARTIFACTS = ROOT / "docker/migration/artifacts"
 OUTPUT = ARTIFACTS / "adverse-valid-v13-evidence.json"
+TARGET = "unified_ss_rehearsal_adverse_valid_v13"
 
 
 def read(side, sql):
-    database = ("ss_adverse_valid_v11" if side == "source"
-                else "unified_ss_rehearsal_adverse_valid_v13")
+    database = (("ss_adverse_valid_v18" if TARGET.endswith("_v18") else "ss_adverse_valid_v11") if side == "source"
+                else TARGET)
     command = ["rtk", "proxy", "docker", "exec", "-i", "-e",
                "PGOPTIONS=-c default_transaction_read_only=on",
                f"unified-ss-migration-{side}-1", "psql", "-X", "-qAt",
@@ -158,4 +160,9 @@ def main():
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--version", choices=("13", "16", "18"), default="13")
+    version = parser.parse_args().version
+    TARGET = "unified_ss_rehearsal_adverse_valid_v" + version
+    OUTPUT = ARTIFACTS / ("adverse-valid-v" + version + "-evidence.json")
     main()

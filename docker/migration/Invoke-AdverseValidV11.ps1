@@ -1,6 +1,6 @@
 param(
  [ValidateSet('All','Initialize','Training','Scheduling','Report','ReportWhileRunning','Verify')][string]$Step='All',
- [ValidateSet('11','12','13')][string]$Version='11'
+ [ValidateSet('11','12','13','16','18')][string]$Version='11'
 )
 $ErrorActionPreference = 'Stop'
 Set-Location (Resolve-Path (Join-Path $PSScriptRoot '../..'))
@@ -12,7 +12,7 @@ function Target([string]$sql) {
 }
 if ($Step -in @('All','Initialize')) { Target @'
 DO $$ BEGIN
- IF current_database() NOT IN ('unified_ss_rehearsal_adverse_valid_v11','unified_ss_rehearsal_adverse_valid_v12','unified_ss_rehearsal_adverse_valid_v13')
+ IF current_database() NOT IN ('unified_ss_rehearsal_adverse_valid_v11','unified_ss_rehearsal_adverse_valid_v12','unified_ss_rehearsal_adverse_valid_v13','unified_ss_rehearsal_adverse_valid_v16','unified_ss_rehearsal_adverse_valid_v18')
  OR NOT EXISTS(SELECT 1 FROM "DataMigrationRuns" WHERE "Job"='MyTeam' AND "Status"='Completed')
  OR NOT EXISTS(SELECT 1 FROM "DataMigrationSimulations")
  THEN RAISE EXCEPTION 'Real completed candidate parent is required'; END IF;
@@ -55,7 +55,7 @@ END $$;
 foreach ($job in @('Training','Scheduling','Report') | Where-Object { $Step -eq 'All' -or $Step -eq $_ -or ($Step -eq 'ReportWhileRunning' -and $_ -eq 'Report') }) {
     $output=rtk docker @compose run --rm --entrypoint dotnet runner api/Unified.DataMigration.Runner/bin/Debug/net10.0/Unified.DataMigration.Runner.dll $job
     Write-Output "AttemptedJob=$job; ExitCode=$LASTEXITCODE"
-    $output | Select-String '^Run=|ActualPrivateSchedulingGraph|FailureType|SqlState'
+    $output | Select-String '^Run=|ActualPrivateSchedulingGraph|ActualCaptureQueryShapes|FailureType|SqlState'
     Target @'
 DO $$ BEGIN
  IF (SELECT "Digest" FROM "DataMigrationValidityV11Proof") IS DISTINCT FROM public.ss_validity_v11_hash()

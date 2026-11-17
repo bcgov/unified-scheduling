@@ -411,6 +411,13 @@ internal sealed class SsSchedulingGraphReplay(UnifiedDbContext db)
             .DataMigrationRecords.Where(x => x.Source == "SS" && x.EntityType == "SchedulingMember")
             .Select(x => x.LegacyId)
             .ToListAsync(ct);
+        var rootIndex = new SsSchedulingRecordIndex(
+            await db
+                .DataMigrationRecords.TagWith("SS migration initial capture root index")
+                .AsNoTracking()
+                .Where(x => x.Source == "SS" && RootTypes.Contains(x.EntityType))
+                .ToListAsync(ct)
+        );
         foreach (var component in Plan(rows, boundary, retained.ToHashSet()))
         {
             var keys = component.Nodes.Select(x => (x.Type, x.Row.Id)).ToHashSet();
@@ -433,7 +440,7 @@ internal sealed class SsSchedulingGraphReplay(UnifiedDbContext db)
             await s.AtomicGraphAsync(
                 component.Nodes[0].Type,
                 component.Nodes[0].Row,
-                () => CaptureOneAsync(component, s, ct),
+                () => CaptureOneAsync(component, s, ct, rootIndex),
                 ct,
                 component.Nodes.Select(x => (x.Type, x.Row.Id)).ToList()
             );
@@ -459,9 +466,25 @@ internal sealed class SsSchedulingGraphReplay(UnifiedDbContext db)
             .ToList();
     }
 
-    private async Task CaptureOneAsync(Component component, SsWriteSession s, CancellationToken ct)
+    private async Task CaptureOneAsync(
+        Component component,
+        SsWriteSession s,
+        CancellationToken ct,
+        SsSchedulingRecordIndex? rootIndex = null
+    )
     {
-        var records = await SelectRecordsAsync(component.Nodes, ct);
+        var ids = rootIndex?.SelectIds(component.Nodes.Select(x => (x.Type, x.Row.Id)));
+        // Do not cache ownership/hash receipts: re-read exact IDs in this component
+        // transaction before the existing live target/version/dependent guards.
+        var records = ids is null
+            ? await SelectRecordsAsync(component.Nodes, ct)
+            : await db
+                .DataMigrationRecords.TagWith("SS migration capture selected roots")
+                .Where(x => x.Source == "SS" && ids.Contains(x.Id))
+                .OrderBy(x => x.Id)
+                .ToListAsync(ct);
+        if (ids is not null && records.Count != ids.Length)
+            throw new SsReject("GraphMissingFullSourceMembership");
         if (records.Count == 0)
             return;
         await s.GuardGraphAsync(records, ct);

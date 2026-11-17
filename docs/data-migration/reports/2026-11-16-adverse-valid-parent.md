@@ -203,7 +203,9 @@ manifest outcome, future conflict, unverified overtime case or validator
 failure remains explicit. BL15 independently remains an app-owned primary
 scheduling blocker; migration events are not widened or cloned to hide it.
 
-See the [delivery inventory](2026-11-16-acceptance-inventory.md) for missing
-operations API/permission integration, findings exports and independent release
+Subsequent [operations API/permissions/exports](2026-11-17-operations-api.md) and
+[series/capture fixes](2026-11-17-series-capture.md) are implemented; they do not
+rewrite this retained failed rehearsal. See the
+[delivery inventory](2026-11-16-acceptance-inventory.md) for independent release
 coverage. See [actual distribution reads](2026-11-16-actual-distribution-reads.md)
 for the completed common-service projections and their narrower evidence scope.

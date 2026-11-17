@@ -164,6 +164,7 @@ public sealed class SsAssignmentSeriesWriter(UnifiedDbContext db)
                     if (await s.ReplayAsync("AssignmentSeries", synthetic, hash, false, ct))
                         return;
                     var entries = new List<AssignmentEntry>();
+                    var owners = new List<Unified.Db.Models.DataMigration.DataMigrationRecord>();
                     foreach (var duty in expected)
                     {
                         var targetId = int.Parse(
@@ -176,6 +177,7 @@ public sealed class SsAssignmentSeriesWriter(UnifiedDbContext db)
                         );
                         if (owner.CreatedByRunId is null)
                             throw new SsReject("SeriesCannotChangeLinkedOnlyEntry");
+                        owners.Add(owner);
                         var entry = await db
                             .AssignmentEntries.Include(x => x.Event)
                             .SingleAsync(x => x.Id == targetId, ct);
@@ -190,6 +192,24 @@ public sealed class SsAssignmentSeriesWriter(UnifiedDbContext db)
                         entries.Add(entry);
                     }
                     var template = entries[0];
+                    // A valid source pattern need not be representable by one
+                    // constant-capacity/classification series. Preserve its real
+                    // standalone entries, BEFORE composing or adding any series.
+                    // Never downgrade external target edits into this fallback.
+                    if (
+                        entries.Any(entry =>
+                            entry.AssignmentDefinitionId != template.AssignmentDefinitionId
+                            || entry.Capacity != template.Capacity
+                            || entry.CategoryId != template.CategoryId
+                            || entry.SubCategoryId != template.SubCategoryId
+                            || entry.Event!.LocationId != template.Event!.LocationId
+                        )
+                    )
+                    {
+                        await s.GuardGraphAsync(owners, ct);
+                        s.Outcome("AssignmentSeries", key, "Excluded", "StandaloneInconsistentMember");
+                        return;
+                    }
                     var targetSeries = s.Stamp(
                         new EventSeries
                         {

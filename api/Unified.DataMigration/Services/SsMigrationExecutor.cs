@@ -140,6 +140,7 @@ public sealed class SsMigrationExecutor(
                         or "unified_ss_rehearsal_repartition_v4"
                         or "unified_ss_rehearsal_repartition_v5"
                         or "unified_ss_rehearsal_repartition_history_v5"
+                        or "unified_ss_rehearsal_series_v17"
                     )
             )
         )

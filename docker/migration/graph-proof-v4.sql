@@ -1,5 +1,5 @@
 \set ON_ERROR_STOP on
-DO $$ BEGIN IF current_database() NOT IN ('unified_ss_rehearsal_repartition_v4','unified_ss_rehearsal_repartition_v5','unified_ss_rehearsal_repartition_history_v5') THEN RAISE EXCEPTION 'Isolated target required'; END IF; END $$;
+DO $$ BEGIN IF current_database() NOT IN ('unified_ss_rehearsal_repartition_v4','unified_ss_rehearsal_repartition_v5','unified_ss_rehearsal_repartition_history_v5','unified_ss_rehearsal_series_v17') THEN RAISE EXCEPTION 'Isolated target required'; END IF; END $$;
 CREATE TABLE IF NOT EXISTS "SsGraphProbeProof" ("Key" text PRIMARY KEY, "Digest" text NOT NULL);
 CREATE OR REPLACE FUNCTION public.ss_probe_scheduling_hash() RETURNS text LANGUAGE sql STABLE AS $$
  SELECT encode(sha256(convert_to(jsonb_build_object(

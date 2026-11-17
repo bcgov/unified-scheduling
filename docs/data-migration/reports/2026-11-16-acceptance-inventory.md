@@ -35,7 +35,7 @@ checkboxes are not evidence and have not been bulk-checked.
 | T055, T046, T068 | Repo-local runbooks/evidence/logical commits and preserved resources exist | Final workspace mirror synchronization pending supplied canonical inputs; no push |
 | T056, T017, T022 | Four jobs/per-job options/ownership, old shell retirement, disabled defaults implemented | CASS unchanged/disabled; no production activation |
 | T057 | Job/lineage/cutover/fencing/controls/advisory acquisition and Running guard implemented | Complete independent race/stale-worker matrix not executed |
-| T058 | Typed bounded source paging, full-group hashes, durable retries/checkpoints and separate backfill implemented | Full-source rescans/group planning and repeated initial crosswalk capture reads remain performance work; full adverse Scheduling took5h24m, not production sizing acceptance |
+| T058 | Typed bounded source paging, full-group hashes, retries/checkpoints, backfill and indexed initial graph capture implemented | Full-source rescans/group planning and changed-component selection remain performance work; old adverse5h24m is not production sizing acceptance |
 | T015 | Focused adapter/recovery cases exist | Exhaustive PostgreSQL tie/paging/cutoff/backfill matrix incomplete |
 | T059 | Persistent isolated mock/target Docker resources implemented and exercised | Original sources/failures/volume retained; full untrimmed valid-parent clone executed all selected physical identities |
 | T060 | Deterministic production-aggregate generation/local measurement/rebuild/refusal implemented | Original SH/EX/AG/AD/SP/OD files now located in workspace; exact execution pending repo-local handoff; full task not accepted |
@@ -44,7 +44,7 @@ checkboxes are not evidence and have not been bulk-checked.
 | T023 | Selected actual PG insert/replay/drift/retry/atomicity cases exercised | Comprehensive independently maintained integration suite incomplete |
 | T061 | Categories/courses/profiles/history/requirements/exclusions implemented | BL13/BL14/true-Excused/broad compliance/date-display acceptance unresolved |
 | T021 | Scheduling definitions/shift merges/duties/slots/links/qualified series implemented | No synthetic occurrences; unsupported patterns remain standalone |
-| T062 | Required repartition/multi-entry/changed-series behavior implemented and exercised | Full adverse graph/cancellation/counter/rollback proofs passed, but33syntheticseries rejected inconsistent members; qualification/fallback suitability and2fixturemerge expectations unresolved |
+| T062 | Required repartition/multi-entry/changed-series behavior and safe inconsistent-capacity fallback implemented and exercised | New actual PG baseline/requalification/reversion/drift proof passes; retained old33rejects and pre-fix closed-slot failure remain historical evidence; two fixture merge expectations remain unwaived |
 | T063 | Actual WorkingHours/publish/calendar services run; differences retained | All 43 planted logical SheriffDay overtime expectations lack independent matched actual-service proof; no source formula substitute |
 | T034 | Control/recovery/rollback machinery exists; selected failures exercised | Actual valid-parent Running/Failed child Report acquisition guards passed; exhaustive pause/abort/dependency races remain unimplemented test coverage |
 | T035 | Source/job controls, authorized HTTP operations and CLI/state reads implemented | Focused HTTP and actual PG public-control/simulation fence proofs pass; exhaustive races not claimed |
@@ -81,9 +81,11 @@ checkboxes are not evidence and have not been bulk-checked.
 5. **Adverse suitability/performance:** all selected physical rows now executed, not
    3,377 pending downstream rows. Retain the actual mismatches:30 differing outcome
    labels,2 fixture merge mismatches,43 logical OT expectations without independent
-   proof, and10 cases superseded only in the repaired clone. Resolve synthetic-series
-   fallback, the material missing link/future publish blocker, and source/target
-   full-capture query scaling; do not turn complete accounting into business acceptance.
+   proof, and10 cases superseded only in the repaired clone. Synthetic-series
+   fallback and closed-slot rebind are now fixed with real PG proof. The material
+   missing link depends on two held future-gap source shifts; it cannot be invented.
+   Full capture profiling and remaining future publication/source repairs stay
+   separate; do not turn complete accounting into business acceptance.
 
 No bc-design-agent/design-system question arose. No deployment/environment/port change
 was made for real tenants. Existing deleted draft mapping contract stays unstaged.

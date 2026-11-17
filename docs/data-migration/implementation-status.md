@@ -2,8 +2,10 @@
 
 2026-11-17 operator implementation: [authorized API, complete exports and actual
 PG public-control proof](reports/2026-11-17-operations-api.md). SDK10 API build and
-99 migration +5 Hangfire tests pass, zero failures/skips. Existing permission
+101 migration +5 Hangfire tests pass, zero failures/skips. Existing permission
 framework only; production remains disabled.
+Latest migration fixes and actual PG regression:
+[mixed-capacity fallback, closed-slot rebind and capture index](reports/2026-11-17-series-capture.md).
 
 **Full migration acceptance remains incomplete. Guarded graph replay and durable
 dry-run parent simulation are verified; this is NOT a production or migration
@@ -122,8 +124,9 @@ Explicit implemented/blocked/unimplemented task inventory:
 - Dedicated runner audit configuration excludes private source strings/SSO/photo values
   while retaining Unified audit identity/action. Earlier isolated synthetic audit copies
   were redacted without deleting business rows, run evidence or audit identities.
-- **71 migration tests and 5 dependent Hangfire tests pass, zero failures/skips.**
-  These are foundation/preflight tests, not comprehensive PostgreSQL integration coverage.
+- **101 migration tests and 5 dependent Hangfire tests pass, zero failures/skips.**
+  These include the prior 71, 28 operator HTTP/adapter/export tests and two index
+  regressions; not comprehensive PostgreSQL integration coverage.
   Milestones additionally executed real PG topology/retention/failure/history/
   confirmed-inverse and dry-parent lineage/footprint assertions; these are not counted
   as new xUnit coverage.
@@ -151,9 +154,10 @@ clone-name/confirmation guard. No whole-database restore is implemented or attem
 2. **Source incremental optimization:** durable retry/backfill/checkpoints and bounded
    atomic target commits are implemented/exercised, but snapshots still rescan all
    source rows for group/identity/dependency reconstruction. Broader concurrency,
-   checkpoint and recovery integration coverage remains required. Initial graph capture
-   also repeatedly reads the full crosswalk per disconnected component; the full adverse
-   run took5h24m. Production query-scaling/performance acceptance is not established.
+   checkpoint and recovery integration coverage remains required. Initial capture now
+   uses one membership index and fresh per-component receipt loads, replacing repeated
+   full crosswalk transfers. The retained old adverse run took5h24m; a new full profile
+   is separate. Production query-scaling/performance acceptance is not established.
 3. **Dry-run scope:** T065 isolated durable parent candidate staging/rehydration is
    implemented and exercised on PostgreSQL. Real writers operate against a private
    baseline with independent crosswalks; applied records remain untouched. Broader
@@ -180,10 +184,14 @@ clone-name/confirmation guard. No whole-database restore is implemented or attem
    on either side. The original adverse target chain was attempted:
    MyTeam Failed48 rejects with exact2233-row identity/outcome accounting,11 planted
    expected outcomes and3377 downstream cases unexecuted under the correct parent gate.
-   Full downstream adverse acceptance remains pending, not a passed zero-row chain.
+   That original failed-parent fixture remains unchanged. The separate valid-parent
+   v13 follow-up executed all101,426 identities and classified all3,388 manifest
+   rows; its actual exceptions remain unwaived, not3,377 pending downstream rows.
 6. **Scheduling refinements:** complete reviewed classification,
    historical FTE/conflicts, cancellation/partial-outside cases, broader series
-   qualification and approved future OT differences need further implementation/validation.
+   qualification and approved future OT differences need further validation. The
+   33 mixed-capacity groups now have safe standalone fallback; actual PG changed
+   capacity/requalification/reversion and independent target drift assertions pass.
 7. **Business dates/policies:** BL13 future expiry-policy and BL14 missing per-record
    training timezone remain measured/reported gaps. Historical UTC instants are not
    shifted to force matching display dates. Canonical future-month window is JANUARY 2027;
@@ -196,8 +204,8 @@ clone-name/confirmation guard. No whole-database restore is implemented or attem
    bounds,53 noncomparables), exact22-table inventory, stable-clock independent
    generation, equal table/sequence hashes and filled-DB refusal/footprint checks.
    Source parent containment/location checks are zero; earlier failed fixtures remain.
-   Original external SH/EX/AG/AD/SP/OD extractor SQL is absent from supplied repo-local
-   evidence and has not run; exact extractor acceptance remains open. This source
+   Original SH/EX/AG/AD/SP/OD files are now located in the workspace; unchanged
+   repo-local handoff and exact execution remain pending. This source
    fit is not target business parity or a production activation. Ready-v3 has no January roster;
    separately named ready-v4 adds it without rewriting any earlier fixture.
    Actual target availability probes measured 1,320 suppressed user-minutes outside
@@ -218,14 +226,14 @@ clone-name/confirmation guard. No whole-database restore is implemented or attem
    or out-of-scope application fix is implemented.
 9. **Independent coverage:** broader PostgreSQL concurrency, stale fencing, all mapped
    drift, retry, backfill, rollback and dry-run parity coverage remains required.
-10. **Unfinished migration operations:** T038 HTTP endpoints/migration permission
-    integration, T037 public operations DTO/API integration and complete T064
-    operator findings CSV/Markdown exports remain unimplemented/incomplete.
-    Service/CLI machinery and authored Markdown evidence are not that operations API.
-    T039/T050 endpoint authorization acceptance and the complete authoritative
-    per-SS-V register therefore cannot be marked complete. These are engineering
-    work, not app-model or missing-input blockers. Final parent canonical mirror
-    refresh also requires the parent-owned updated inputs.
+10. **Operations/release acceptance:** T037/038 HTTP DTOs/endpoints and existing-framework
+    permission integration, T034/035 controls/recovery and T064 complete snapshot
+    findings CSV/Markdown exports are now implemented and focused-tested. Separate
+    rollback permission, run-bound preview/impact/ConfirmDataLoss and dependency
+    guards are enforced. Full independent release security/concurrency/inverse/OT
+    coverage and the authoritative per-SS-V register are still unfinished coverage,
+    not app-model blockers. Final parent canonical mirror refresh requires the
+    parent-owned updated inputs.
 
 The original deleted `docs/data-migration/ss-mapping-contracts.md` stays deleted and
 unstaged. No application scheduling/training/auth behavior, JC defaults, generated web

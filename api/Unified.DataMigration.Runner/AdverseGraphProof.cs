@@ -22,11 +22,20 @@ internal static class AdverseGraphProof
                 "unified_ss_rehearsal_adverse_valid_v11"
                 or "unified_ss_rehearsal_adverse_valid_v12"
                 or "unified_ss_rehearsal_adverse_valid_v13"
+                or "unified_ss_rehearsal_adverse_valid_v16"
+                or "unified_ss_rehearsal_adverse_valid_v18"
             )
         )
             return;
         var connectionString = config["DataMigration:Sources:SS:ConnectionString"];
-        if (new Npgsql.NpgsqlConnectionStringBuilder(connectionString).Database != "ss_adverse_valid_v11")
+        var sourceDatabase = new Npgsql.NpgsqlConnectionStringBuilder(connectionString).Database;
+        if (
+            sourceDatabase is not ("ss_adverse_valid_v11" or "ss_adverse_valid_v18")
+            || (
+                sourceDatabase == "ss_adverse_valid_v18"
+                && db.Database.GetDbConnection().Database != "unified_ss_rehearsal_adverse_valid_v18"
+            )
+        )
             throw new InvalidOperationException("Adverse graph requires the exact source clone.");
         await using var source = new Npgsql.NpgsqlConnection(connectionString);
         await source.OpenAsync(ct);
@@ -76,7 +85,16 @@ internal static class AdverseGraphProof
                 End = x.Event.EndAtUtc,
             })
             .ToListAsync(ct);
-        var duties = await db.AssignmentEntries.AsNoTracking().Select(x => new { x.Id, x.EventId }).ToListAsync(ct);
+        var duties = await db
+            .AssignmentEntries.AsNoTracking()
+            .Select(x => new
+            {
+                x.Id,
+                x.EventId,
+                x.AssignmentSeriesId,
+                EventSeriesId = x.Event!.EventSeriesId,
+            })
+            .ToListAsync(ct);
         var shiftIds = shifts.Select(x => x.Id.ToString()).ToHashSet();
         var dutyIds = duties.Select(x => x.Id.ToString()).ToHashSet();
         var dangling =

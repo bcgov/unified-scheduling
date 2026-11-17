@@ -1218,7 +1218,8 @@ public sealed class SsSchedulingWriter(UnifiedDbContext db)
                     foreach (var slot in live)
                     {
                         if (
-                            await db.DataMigrationRecords.AnyAsync(
+                            !s.Rebinding.Contains(("DutySlot", slot.Id))
+                            && await db.DataMigrationRecords.AnyAsync(
                                 x => x.Source == "SS" && x.EntityType == "DutySlot" && x.LegacyId == slot.Id,
                                 ct
                             )

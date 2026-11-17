@@ -87,11 +87,20 @@ if (string.IsNullOrWhiteSpace(connection) || args.Length != 1)
 var services = new ServiceCollection();
 services.AddSingleton<IConfiguration>(configuration);
 var operationsProof = args[0] == "operations-proof" ? new OperationsPgProof() : null;
+var captureProof =
+    args[0] == "Scheduling"
+    && new Npgsql.NpgsqlConnectionStringBuilder(connection).Database
+        is "unified_ss_rehearsal_adverse_valid_v16"
+            or "unified_ss_rehearsal_adverse_valid_v18"
+        ? new CaptureQueryProof()
+        : null;
 services.AddDbContext<UnifiedDbContext>(o =>
 {
     o.UseNpgsql(connection);
     if (operationsProof is not null)
         o.AddInterceptors(operationsProof);
+    if (captureProof is not null)
+        o.AddInterceptors(captureProof);
 });
 services.AddLogging();
 services.AddAuditModule(configuration);
@@ -156,6 +165,19 @@ try
     if (args[0] == "operations-proof")
     {
         await operationsProof!.RunAsync();
+    }
+    else if (args[0] == "stop-adverse-v16")
+    {
+        if (
+            db.Database.GetDbConnection().Database != "unified_ss_rehearsal_adverse_valid_v16"
+            || !await db.DataMigrationRuns.AnyAsync(x => x.Job == "Scheduling" && x.Status == "Running" && x.DryRun)
+        )
+            throw new InvalidOperationException("Only the active isolated profiling attempt may be stopped.");
+        var actor = await db.Users.Select(x => x.Id).SingleAsync();
+        await scope
+            .ServiceProvider.GetRequiredService<DataMigrationOperations>()
+            .ControlAsync("SS", "Scheduling", "abort", actor, CancellationToken.None);
+        Console.WriteLine("Isolated profiling run abort requested through audited operations control.");
     }
     else if (args[0] == "schema")
     {
@@ -285,6 +307,7 @@ try
         await scope
             .ServiceProvider.GetRequiredService<SsMigrationExecutor>()
             .ExecuteAsync(args[0], CancellationToken.None);
+        captureProof?.Print();
         var latest = await db
             .DataMigrationRuns.AsNoTracking()
             .Where(x => x.Source == "SS" && x.Job == args[0])
