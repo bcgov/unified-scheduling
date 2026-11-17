@@ -5,6 +5,16 @@ Strict response rows, **not lost business records**. Three windows repeat some f
 Independent source/actual target services and crosswalk normalization were used;
 no SS status/availability formulas were reconstructed.
 
+**Supplemental execution now available:** the “22 unexecuted” classification
+below describes the retained strict Report at capture time, not the current
+execution inventory. [Actual common-service reads](2026-11-16-actual-distribution-reads.md)
+subsequently executed all 19 distribution observations: resource presence is
+4/4 exact; 15 source events versus 9 target events give 8 exact, 7 missing and
+1 unexpected common-projection row. All 33 window/location call groups completed
+without read failures. Full distribution fields remain unexposed; the other
+3 training harness projections are not executed UI/CSV evidence on either side.
+These narrower reads do not rewrite the strict Report or claim full parity.
+
 | Surface | Source | Target | Exact | Paired differing rows | Other missing rows |
 |---|---:|---:|---:|---:|---|
 | Duties |6|6|6|0|0|

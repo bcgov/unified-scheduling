@@ -21,6 +21,10 @@ within ±20%,1222 suppressed bounds and53 explicit noncomparables, zero failed c
 [complete actual shape/inventory/proof](reports/2026-11-16-shape-profile.md).
 Original external extractor SQL execution remains unverified, not waived.
 Preserved adverse-chain attempt: [actual rejects and blocked downstream cases](reports/2026-11-16-adverse-v7.md).
+Full valid-parent follow-up: [all selected identities and every manifest outcome](reports/2026-11-16-adverse-valid-parent.md).
+MyTeam2,233/Training568 completed; Scheduling98,625 executed with33synthetic-series
+rejects and2failed outcomes. All101,426 selected identities match exact source outcome
+sets; all3,388 manifest rows are classified. Business acceptance remains FAIL.
 Latest bounded milestone: [matched Report and actual response gaps](reports/2026-11-16-matched-report.md).
 Subsequent bounded implementation: [guarded graph replay, history/inverse proof and
 matched future availability](reports/2026-11-16-graph-replay.md).
@@ -28,6 +32,13 @@ Current bounded implementation: [real-DML dry-run parent candidates and PG proof
 Complete parent-document table: [matched surface/field differences and BL15 decision](reports/2026-11-16-matched-differences.md).
 Exact ready-v4 source captures are imported and verified; fixture coordination is no
 longer the Report blocker. Final matched Report is Failed, not accepted.
+Latest actual read verification: [remaining distribution surfaces](reports/2026-11-16-actual-distribution-reads.md).
+All19 distribution rows now have an executed common target resource/calendar projection;
+full-field parity remains unexposed. All33 supplemental real conflict calls completed.
+Original-query boundary and all53 noncomparable cells:
+[extractor validity](reports/2026-11-16-extractor-validity.md).
+Explicit implemented/blocked/unimplemented task inventory:
+[delivery inventory](reports/2026-11-16-acceptance-inventory.md).
 
 ## Implemented and exercised
 
@@ -111,6 +122,12 @@ longer the Report blocker. Final matched Report is Failed, not accepted.
   Milestones additionally executed real PG topology/retention/failure/history/
   confirmed-inverse and dry-parent lineage/footprint assertions; these are not counted
   as new xUnit coverage.
+- Full untrimmed adverse execution with genuine parent lineage now proves69,959 private
+  created roots equal the inserted counter, zero dangling scheduling crosswalks, and
+  five actual cancelled transferred shift Events. All ordinary/applied/progress/business
+  sequence/audit rows rolled back. Real Report acquisition rejects both Running and
+  Failed child lineage. Full manifest outcome/exception accounting deliberately fails;
+  literal ledger matches are not independent business-parity passes.
 
 ## Apply safety
 
@@ -129,7 +146,9 @@ clone-name/confirmation guard. No whole-database restore is implemented or attem
 2. **Source incremental optimization:** durable retry/backfill/checkpoints and bounded
    atomic target commits are implemented/exercised, but snapshots still rescan all
    source rows for group/identity/dependency reconstruction. Broader concurrency,
-   checkpoint and recovery integration coverage remains required.
+   checkpoint and recovery integration coverage remains required. Initial graph capture
+   also repeatedly reads the full crosswalk per disconnected component; the full adverse
+   run took5h24m. Production query-scaling/performance acceptance is not established.
 3. **Dry-run scope:** T065 isolated durable parent candidate staging/rehydration is
    implemented and exercised on PostgreSQL. Real writers operate against a private
    baseline with independent crosswalks; applied records remain untouched. Broader
@@ -149,9 +168,11 @@ clone-name/confirmation guard. No whole-database restore is implemented or attem
    three shift fields differ or are unexposed. All15 unexpected strict rows pair to
    source identities; not unexpected records. Stored training completion facts match;
    true-Excused policy, broad compliance and UI/date display parity are unproved.
-   Nineteen distribution rows have no executed equivalent target full-distribution adapter,
-   not proof of nineteen lost business records. Three source harness-projection rows
-   are not executed UI evidence on either side. Full adverse target chain was attempted:
+   Nineteen distribution rows now have actual target common reads: all4 resource
+   presences match;15 event rows yield8 exact,7 missing and1 unexpected merged interval.
+   The full distribution contract remains unexposed, not proof of nineteen lost
+   business records. Three source harness-projection rows are not executed UI evidence
+   on either side. The original adverse target chain was attempted:
    MyTeam Failed48 rejects with exact2233-row identity/outcome accounting,11 planted
    expected outcomes and3377 downstream cases unexecuted under the correct parent gate.
    Full downstream adverse acceptance remains pending, not a passed zero-row chain.
@@ -192,6 +213,14 @@ clone-name/confirmation guard. No whole-database restore is implemented or attem
    or out-of-scope application fix is implemented.
 9. **Independent coverage:** broader PostgreSQL concurrency, stale fencing, all mapped
    drift, retry, backfill, rollback and dry-run parity coverage remains required.
+10. **Unfinished migration operations:** T038 HTTP endpoints/migration permission
+    integration, T037 public operations DTO/API integration and complete T064
+    operator findings CSV/Markdown exports remain unimplemented/incomplete.
+    Service/CLI machinery and authored Markdown evidence are not that operations API.
+    T039/T050 endpoint authorization acceptance and the complete authoritative
+    per-SS-V register therefore cannot be marked complete. These are engineering
+    work, not app-model or missing-input blockers. Final parent canonical mirror
+    refresh also requires the parent-owned updated inputs.
 
 The original deleted `docs/data-migration/ss-mapping-contracts.md` stays deleted and
 unstaged. No application scheduling/training/auth behavior, JC defaults, generated web
