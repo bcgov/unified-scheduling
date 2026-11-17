@@ -24,6 +24,7 @@ internal static class AdverseGraphProof
                 or "unified_ss_rehearsal_adverse_valid_v13"
                 or "unified_ss_rehearsal_adverse_valid_v16"
                 or "unified_ss_rehearsal_adverse_valid_v18"
+                or "unified_ss_rehearsal_adverse_valid_v20"
             )
         )
             return;
@@ -33,7 +34,8 @@ internal static class AdverseGraphProof
             sourceDatabase is not ("ss_adverse_valid_v11" or "ss_adverse_valid_v18")
             || (
                 sourceDatabase == "ss_adverse_valid_v18"
-                && db.Database.GetDbConnection().Database != "unified_ss_rehearsal_adverse_valid_v18"
+                && db.Database.GetDbConnection().Database
+                    is not ("unified_ss_rehearsal_adverse_valid_v18" or "unified_ss_rehearsal_adverse_valid_v20")
             )
         )
             throw new InvalidOperationException("Adverse graph requires the exact source clone.");

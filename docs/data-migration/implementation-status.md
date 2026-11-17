@@ -2,10 +2,12 @@
 
 2026-11-17 operator implementation: [authorized API, complete exports and actual
 PG public-control proof](reports/2026-11-17-operations-api.md). SDK10 API build and
-101 migration +5 Hangfire tests pass, zero failures/skips. Existing permission
+103 migration +5 Hangfire tests pass, zero failures/skips. Existing permission
 framework only; production remains disabled.
 Latest migration fixes and actual PG regression:
 [mixed-capacity fallback, closed-slot rebind and capture index](reports/2026-11-17-series-capture.md).
+[Actual 100k reverse crosswalk lookup/index proof](reports/2026-11-17-target-lookup-index.md)
+adds only a migration-owned metadata index; full v20 is separate from retained v13.
 
 **Full migration acceptance remains incomplete. Guarded graph replay and durable
 dry-run parent simulation are verified; this is NOT a production or migration
@@ -124,9 +126,9 @@ Explicit implemented/blocked/unimplemented task inventory:
 - Dedicated runner audit configuration excludes private source strings/SSO/photo values
   while retaining Unified audit identity/action. Earlier isolated synthetic audit copies
   were redacted without deleting business rows, run evidence or audit identities.
-- **101 migration tests and 5 dependent Hangfire tests pass, zero failures/skips.**
+- **103 migration tests and 5 dependent Hangfire tests pass, zero failures/skips.**
   These include the prior 71, 28 operator HTTP/adapter/export tests and two index
-  regressions; not comprehensive PostgreSQL integration coverage.
+  regressions and two reverse-index schema tests; not comprehensive PostgreSQL integration coverage.
   Milestones additionally executed real PG topology/retention/failure/history/
   confirmed-inverse and dry-parent lineage/footprint assertions; these are not counted
   as new xUnit coverage.

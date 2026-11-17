@@ -1,6 +1,6 @@
 param(
  [ValidateSet('All','Initialize','Training','Scheduling','Report','ReportWhileRunning','Verify')][string]$Step='All',
- [ValidateSet('11','12','13','16','18')][string]$Version='11'
+ [ValidateSet('11','12','13','16','18','20')][string]$Version='11'
 )
 $ErrorActionPreference = 'Stop'
 Set-Location (Resolve-Path (Join-Path $PSScriptRoot '../..'))
@@ -12,7 +12,7 @@ function Target([string]$sql) {
 }
 if ($Step -in @('All','Initialize')) { Target @'
 DO $$ BEGIN
- IF current_database() NOT IN ('unified_ss_rehearsal_adverse_valid_v11','unified_ss_rehearsal_adverse_valid_v12','unified_ss_rehearsal_adverse_valid_v13','unified_ss_rehearsal_adverse_valid_v16','unified_ss_rehearsal_adverse_valid_v18')
+ IF current_database() NOT IN ('unified_ss_rehearsal_adverse_valid_v11','unified_ss_rehearsal_adverse_valid_v12','unified_ss_rehearsal_adverse_valid_v13','unified_ss_rehearsal_adverse_valid_v16','unified_ss_rehearsal_adverse_valid_v18','unified_ss_rehearsal_adverse_valid_v20')
  OR NOT EXISTS(SELECT 1 FROM "DataMigrationRuns" WHERE "Job"='MyTeam' AND "Status"='Completed')
  OR NOT EXISTS(SELECT 1 FROM "DataMigrationSimulations")
  THEN RAISE EXCEPTION 'Real completed candidate parent is required'; END IF;

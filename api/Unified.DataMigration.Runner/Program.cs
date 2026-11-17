@@ -92,6 +92,7 @@ var captureProof =
     && new Npgsql.NpgsqlConnectionStringBuilder(connection).Database
         is "unified_ss_rehearsal_adverse_valid_v16"
             or "unified_ss_rehearsal_adverse_valid_v18"
+            or "unified_ss_rehearsal_adverse_valid_v20"
         ? new CaptureQueryProof()
         : null;
 services.AddDbContext<UnifiedDbContext>(o =>
@@ -166,10 +167,14 @@ try
     {
         await operationsProof!.RunAsync();
     }
-    else if (args[0] == "stop-adverse-v16")
+    else if (args[0] is "stop-adverse-v16" or "stop-adverse-v18")
     {
+        var expected =
+            args[0] == "stop-adverse-v16"
+                ? "unified_ss_rehearsal_adverse_valid_v16"
+                : "unified_ss_rehearsal_adverse_valid_v18";
         if (
-            db.Database.GetDbConnection().Database != "unified_ss_rehearsal_adverse_valid_v16"
+            db.Database.GetDbConnection().Database != expected
             || !await db.DataMigrationRuns.AnyAsync(x => x.Job == "Scheduling" && x.Status == "Running" && x.DryRun)
         )
             throw new InvalidOperationException("Only the active isolated profiling attempt may be stopped.");

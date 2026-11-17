@@ -50,6 +50,7 @@ internal static class RehearsalBootstrap
                     or "unified_ss_rehearsal_operations_v15"
                     or "unified_ss_rehearsal_adverse_valid_v16"
                     or "unified_ss_rehearsal_adverse_valid_v18"
+                    or "unified_ss_rehearsal_adverse_valid_v20"
                     or "unified_ss_rehearsal_series_v17"
                     or "unified_ss_rehearsal_adverse_v7"
                     or "unified_ss_rehearsal_adverse_valid_v11"

@@ -811,6 +811,8 @@ namespace Unified.Db.Migrations
                     b.HasIndex("Source", "EntityType", "LegacyId")
                         .IsUnique();
 
+                    b.HasIndex("Source", "TargetType", "TargetKey");
+
                     b.ToTable("DataMigrationRecords", (string)null);
                 });
 

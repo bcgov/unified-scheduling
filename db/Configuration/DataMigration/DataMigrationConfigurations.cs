@@ -198,6 +198,12 @@ public sealed class DataMigrationRecordConfiguration : IEntityTypeConfiguration<
         builder.Property(entity => entity.TargetKey).HasMaxLength(128).IsRequired();
         builder.Property(entity => entity.PayloadHash).HasMaxLength(128).IsRequired();
         builder.Property(entity => entity.AfterHash).HasMaxLength(128);
+        builder.HasIndex(entity => new
+        {
+            entity.Source,
+            entity.TargetType,
+            entity.TargetKey,
+        });
         builder
             .HasIndex(entity => new
             {

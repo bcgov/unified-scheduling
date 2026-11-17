@@ -88,8 +88,10 @@ only `(COALESCE(UpdatedOn,CreatedOn),Id)` paging indexes. No business rows or
 expectations were changed; original v11 remains untouched. Indexed parent
 `181de33d-96ea-4400-86c6-3b786e29b34c` completed2,233 with zero rejects/failures.
 
-The fresh full v18 child execution uses BatchSize10 and that identical-row indexed
-source. It is separate from the retained v13 verdict. Results are not counted until
-completion. Any runtime improvement must name all three changes (batch size, source
-paging indexes and initial target-root index), not attribute it solely to one fix
-or claim production sizing acceptance.
+The v18 child profile was also stopped through audited abort after exposing missing
+reverse target lookup indexing. Its physical rollback passed; final coverage
+assertion correctly failed. It is not full adverse coverage.
+[The metadata-only reverse index and actual100k plan proof](2026-11-17-target-lookup-index.md)
+are now implemented. Fresh full v20 uses all four changes (batch size, source paging
+indexes, initial target-root membership index and reverse lookup index). No runtime
+improvement may be attributed solely to one fix or called production sizing acceptance.
