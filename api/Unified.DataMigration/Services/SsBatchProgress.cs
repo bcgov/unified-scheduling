@@ -24,7 +24,7 @@ internal sealed class SsBatchProgress(
     private readonly Dictionary<string, int> positions = [];
 
     public static string Stream(DateOnly start) =>
-        start < new DateOnly(2015, 1, 1) ? $"backfill:{start:yyyy-MM-dd}" : "normal";
+        start < new DateOnly(2020, 1, 1) ? $"backfill:{start:yyyy-MM-dd}" : "normal";
 
     private string? OwnedType(string table, SsRow row) =>
         table switch

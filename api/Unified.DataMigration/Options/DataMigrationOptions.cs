@@ -24,7 +24,7 @@ public sealed class DataMigrationSourceOptions
     public int BatchSize { get; set; } = 100;
     public bool DryRun { get; set; } = true;
     public DateOnly? CutoverDate { get; set; }
-    public DateOnly HistoryStartDate { get; set; } = new(2015, 1, 1);
+    public DateOnly HistoryStartDate { get; set; } = new(2020, 1, 1);
     public SsJobOptions Jobs { get; set; } = new();
     public bool AllowUnrecoverableSyntheticApply { get; set; }
 }

@@ -10,7 +10,7 @@
 - Docker; isolated migration target and persistent synthetic SS source; no shared DB reset.
 - Source schema from SS EF migrations and deterministic fake data shaped by SH aggregates.
 - SS read-only connection supplied outside Git. Explicit false JC expiry flags.
-- `HistoryStartDate=2015-01-01`, `CutoverDate=2026-12-01`; per-job disabled/dry-run defaults.
+- `HistoryStartDate=2020-01-01`, `CutoverDate=2026-12-01`; per-job disabled/dry-run defaults.
 
 Use the committed [implementation status/runbook index](../../unified-scheduling/docs/data-migration/implementation-status.md)
 and [final adverse report](../../unified-scheduling/docs/data-migration/reports/2026-11-17-adverse-v20-final.md)

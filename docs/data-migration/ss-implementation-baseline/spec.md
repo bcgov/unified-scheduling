@@ -131,10 +131,10 @@ An authorized operator can review a source-specific run, pause or abort it safel
   source secrets/network/enablement remain tracked deployment follow-up, not a local-build gate.
 - **FR-017**: SS Region, Location, and lookup migration MUST treat Unified as authoritative, link existing targets without mutation, and insert missing targets only under approved semantic identity and dependency rules. Legacy internal IDs MUST resolve through durable source-specific links to Unified target IDs.
 - **FR-018**: For approved SS non-reference mappings, updates to existing job-inserted targets MUST require (a) mapped SS values whose fingerprint differs from the stored `PayloadHash` and (b) current target mapped values whose fingerprint equals the stored `PayloadHash`, rechecked in the write transaction. Otherwise the target MUST NOT be written; a conflict MUST be logged and counted as skipped. Source timestamps select rows only; Unified `UpdatedOn` MUST NOT be used for decisions (amended 2026-11-09, Q-X4).
-- **FR-019**: SS history starts at configurable `2015-01-01` Vancouver midnight with
+- **FR-019**: SS history starts at configurable `2020-01-01` Vancouver midnight with
   inclusive EndDate boundary regardless of row timezone. Invalid config blocks writes.
   Earlier changes trigger resumable, idempotent backfill independent of normal watermarks,
-  with Q-X4 protection. Later changes delete nothing. Include unexpired Assignments and
+  with Q-X4 protection. Later changes delete nothing (amended 2026-11-17: 2015 -> 2020). Include unexpired Assignments and
   every Assignment referenced by an included Duty; people/roles/needed references are unfiltered.
 - **FR-020**: All SS jobs MUST use fixed required CutoverDate `2026-12-01`, lock it after
   applied work and preserve status/series/leave-type expiry on replay.

@@ -62,7 +62,8 @@ public sealed class DataMigrationControlService(UnifiedDbContext dbContext) : IM
         var runs = await dbContext.DataMigrationRuns.Where(x => x.Source == "SS").ToListAsync(cancellationToken);
         if (runs.Any(x => x.Status == "Running" && (x.Job == job || x.Job == "Legacy")))
             return null;
-        var history = historyStartDate ?? new DateOnly(2015, 1, 1);
+        var history = historyStartDate ?? new DateOnly(2020, 1, 1);
+        // Runs created before HistoryStartDate was persisted used the original 2015 boundary.
         var parent = runs.Where(x =>
                 x.Status != "RolledBack"
                 && x.Job == "MyTeam"

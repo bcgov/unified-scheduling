@@ -50,12 +50,12 @@ earlier than that date. Retained leave-type expiry is that date at UTC midnight.
 recompute these values from the run clock. Refuse a changed cutover after applied work until
 affected lineages are rolled back. Insert-only null date/photo fallbacks use one UTC run start.
 
-`HistoryStartDate=2015-01-01` means midnight America/Vancouver, initially
-`2015-01-01T08:00:00Z`. Include EndDate >= boundary regardless of row timezone for acting rank,
+`HistoryStartDate=2020-01-01` means midnight America/Vancouver, initially
+`2020-01-01T08:00:00Z`. Include EndDate >= boundary regardless of row timezone for acting rank,
 away, leave, training, Duty, DutySlot and Shift. Include unexpired Assignments and every
 Assignment needed by an included Duty. People, roles, UserRole and needed references are
 not history-filtered. Earlier cutoff changes trigger resumable backfill independent of normal
-incremental progress; later changes do not delete targets.
+incremental progress; later changes do not delete targets. Boundary moved from 2015-01-01 to 2020-01-01 on 2026-11-17.
 
 Copy DateTimeOffset instants as UTC. Preserve supplied valid IANA timezone; reject invalid
 values. Q-X1: person-event null timezone stays null (read-path fallback must be checked);
