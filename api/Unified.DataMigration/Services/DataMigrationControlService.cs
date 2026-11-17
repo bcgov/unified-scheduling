@@ -5,7 +5,7 @@ using Unified.Db.Models.DataMigration;
 
 namespace Unified.DataMigration.Services;
 
-public sealed class DataMigrationControlService(UnifiedDbContext dbContext)
+public sealed class DataMigrationControlService(UnifiedDbContext dbContext) : IMigrationRunCoordinator
 {
     public async Task<bool> RecoverStaleRunAsync(Guid runId, DateTimeOffset staleBefore, CancellationToken ct)
     {

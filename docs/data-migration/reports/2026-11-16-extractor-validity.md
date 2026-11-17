@@ -1,9 +1,13 @@
 # Original extractor boundary and all 53 noncomparable cells
 
-**Original production SQL execution is blocked on missing input, not passed.**
+**Original production SQL is located; exact execution is pending, not passed.**
 The supplied `ss-shape-extracts.md` says its producer was
 `ss-shape-extractor.sql`. That SQL file and the original EX/AG/AD/SP/OD extractors
-are not present in the supplied repo-local inputs. No original query was executed
+were not present in the supplied repo-local inputs. Parent has now located the
+unchanged workspace files in `documentation/data-migration/ss-job-notes/`, including
+`ss-shape-extractor.sql`. A restricted ignored repo-local handoff directory
+`docker/migration/inputs/original-extractors/` is ready; delivery is pending.
+No original query was executed
 against v10 in this validity pass. No substitute query is described as original.
 Provide the original files, preserve their SHA256, then execute them read-only
 against `ss_shape_v10`, documenting every clock/parameter/environment substitution.

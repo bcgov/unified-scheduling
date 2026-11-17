@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using Unified.Authorization;
 using Unified.Common.Jobs;
 using Unified.DataMigration.FeatureFlags;
 using Unified.DataMigration.Jobs;
@@ -38,6 +39,14 @@ public static class DataMigrationModule
 
         services.AddScoped<DataMigrationOrchestrator>();
         services.AddScoped<DataMigrationControlService>();
+        services.AddScoped<IMigrationRunCoordinator>(sp => sp.GetRequiredService<DataMigrationControlService>());
+        services.AddScoped<DataMigrationOperations>();
+        services.AddScoped<IMigrationJobDispatcher, MigrationJobDispatcher>();
+        services.AddSingleton(MigrationPermissions.Configuration);
+        services
+            .AddAuthorizationBuilder()
+            .AddPermissionPolicy(MigrationPermissions.Operate)
+            .AddPermissionPolicy(MigrationPermissions.Rollback);
         services.AddScoped<SsSnapshotReader>();
         services.AddScoped<SsMigrationExecutor>();
         services.AddScoped<SsRollbackJournal>();

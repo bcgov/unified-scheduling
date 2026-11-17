@@ -16,6 +16,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Unified.Common\Unified.Common.csproj" />
     <ProjectReference Include="..\Unified.Calendar\Unified.Calendar.csproj" />
+    <ProjectReference Include="..\Unified.Authorization\Unified.Authorization.csproj" />
     <ProjectReference Include="..\..\db\db.csproj" />
   </ItemGroup>
 </Project>

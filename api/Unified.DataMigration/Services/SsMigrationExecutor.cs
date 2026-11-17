@@ -23,14 +23,99 @@ public sealed class SsMigrationExecutor(
     SsRollbackJournal? rollbackJournal = null
 )
 {
-    public async Task ExecuteAsync(string job, CancellationToken ct)
+    public Task ExecuteAsync(string job, CancellationToken ct) => ExecuteCoreAsync(job, null, ct);
+
+    [Hangfire.AutomaticRetry(Attempts = 0)]
+    public async Task ExecuteAcquiredAsync(Guid runId, CancellationToken ct)
     {
-        if (ct.IsCancellationRequested)
-            throw new OperationCanceledException("SS migration was canceled.", ct);
+        await db.Database.OpenConnectionAsync(ct);
+        var locked = false;
+        try
+        {
+            // Hangfire is at-least-once. A session lock for THIS stable run prevents
+            // duplicate deliveries without serializing Training against Scheduling.
+            locked =
+                await db
+                    .Database.SqlQuery<int>(
+                        $"SELECT CASE WHEN pg_try_advisory_lock(873,hashtext({runId.ToString("D")})) THEN 1 ELSE 0 END AS \"Value\""
+                    )
+                    .SingleAsync(ct) == 1;
+            if (!locked)
+                throw new InvalidOperationException("SS run already has an execution owner.");
+            await ExecuteOwnedAsync(runId, ct);
+        }
+        finally
+        {
+            try
+            {
+                if (locked)
+                    await db.Database.ExecuteSqlInterpolatedAsync(
+                        $"SELECT pg_advisory_unlock(873,hashtext({runId.ToString("D")}))",
+                        CancellationToken.None
+                    );
+            }
+            finally
+            {
+                await db.Database.CloseConnectionAsync();
+            }
+        }
+    }
+
+    private async Task ExecuteOwnedAsync(Guid runId, CancellationToken ct)
+    {
+        var run = await db
+            .DataMigrationRuns.AsNoTracking()
+            .SingleOrDefaultAsync(x => x.Id == runId && x.Source == "SS", ct);
+        if (run?.Status != "Running")
+            throw new InvalidOperationException("SS queued run is no longer executable.");
+        // The acquired run, never mutable current defaults, determines its simulation mode.
+        // Rechecking configuration can disable execution, never escalate a dry request to apply.
+        try
+        {
+            await ExecuteCoreAsync(run.Job, run, ct);
+        }
+        catch
+        {
+            db.ChangeTracker.Clear();
+            var current = await db.DataMigrationRuns.SingleAsync(x => x.Id == runId, CancellationToken.None);
+            if (current.Status == "Running")
+            {
+                current.Status = "Failed";
+                current.CompletedOn = DateTimeOffset.UtcNow;
+                current.FailedCount++;
+                db.DataMigrationFailures.Add(
+                    new()
+                    {
+                        Source = "SS",
+                        RunId = runId,
+                        ErrorType = "QueuedExecutionRefused",
+                        ErrorMessage = "Queued execution refused; inspect migration configuration and controls.",
+                        OccurredOn = DateTimeOffset.UtcNow,
+                    }
+                );
+                await db.SaveChangesAsync(CancellationToken.None);
+            }
+            throw new InvalidOperationException("SS queued execution failed; inspect migration-only evidence.");
+        }
+    }
+
+    public MigrationJobOptions ValidateRequest(string job, bool? dryRun = null)
+    {
         var source = options.Value.Sources.SS;
-        var settings = source.Jobs.For(job);
+        var configured = source.Jobs.For(job);
+        var settings = new MigrationJobOptions
+        {
+            Enabled = configured.Enabled,
+            DryRun = dryRun ?? configured.DryRun,
+            BatchSize = configured.BatchSize,
+            CronSchedule = configured.CronSchedule,
+        };
         if (!flags.Value.Enabled || !source.Enabled || !settings.Enabled)
             throw new InvalidOperationException("SS migration job is disabled.");
+        if (!new DataMigrationOptionsValidator().Validate(null, options.Value).Succeeded)
+            throw new InvalidOperationException("SS migration configuration is invalid.");
+        if (!settings.DryRun && configured.DryRun)
+            throw new InvalidOperationException("SS apply requires explicitly configured apply mode.");
         // Inspect raw configuration: a code default of false is not explicit operator consent.
         foreach (var key in new[] { "ExpireRegions", "ExpireLocations", "ExpireCourtRooms" })
             if (!bool.TryParse(configuration[$"JCInterface:{key}"], out var value) || value)
@@ -61,10 +146,24 @@ public sealed class SsMigrationExecutor(
             throw new InvalidOperationException(
                 "SS apply is disabled outside explicitly acknowledged isolated synthetic rehearsals until safe rollback is implemented."
             );
-        DataMigrationRun? acquired;
+        return settings;
+    }
+
+    private async Task ExecuteCoreAsync(string job, DataMigrationRun? queuedRun, CancellationToken ct)
+    {
+        if (ct.IsCancellationRequested)
+            throw new OperationCanceledException("SS migration was canceled.", ct);
+        var source = options.Value.Sources.SS;
+        var settings = ValidateRequest(job, queuedRun?.DryRun);
+        if (
+            queuedRun is not null
+            && (queuedRun.CutoverDate != source.CutoverDate || queuedRun.HistoryStartDate != source.HistoryStartDate)
+        )
+            throw new InvalidOperationException("SS queued run configuration changed.");
+        DataMigrationRun? acquired = queuedRun;
         try
         {
-            acquired = await controls.TryStartJobAsync(
+            acquired ??= await controls.TryStartJobAsync(
                 job,
                 settings.DryRun,
                 source.CutoverDate.Value,
@@ -274,18 +373,21 @@ public sealed class SsMigrationExecutor(
         // Recheck AFTER acquiring the durable row lock: recovery may have revoked
         // the run while its source snapshot was loading. Report needs the same fence.
         await db.Database.ExecuteSqlInterpolatedAsync(
-            $"SELECT 1 FROM \"DataMigrationRuns\" WHERE \"Id\" = {run.Id} FOR UPDATE",
+            $"SELECT 1 FROM public.\"DataMigrationRuns\" WHERE \"Id\" = {run.Id} FOR UPDATE",
             ct
         );
-        var fenced = await db.DataMigrationRuns.AsNoTracking().SingleAsync(x => x.Id == run.Id, ct);
+        var fenced = await db
+            .DataMigrationRuns.FromSqlInterpolated($"SELECT * FROM public.\"DataMigrationRuns\" WHERE \"Id\"={run.Id}")
+            .AsNoTracking()
+            .SingleAsync(ct);
         if (fenced.Status != "Running")
             throw new InvalidOperationException("SS run fence was revoked.");
         var keys = new[] { "SS", $"SS:{run.Job}" };
         if (
-            await db.DataMigrationControls.AnyAsync(
-                x => keys.Contains(x.Source) && (x.IsPaused || x.AbortRequestedOn != null),
-                ct
-            )
+            await db
+                .DataMigrationControls.FromSqlRaw("SELECT * FROM public.\"DataMigrationControls\"")
+                .AsNoTracking()
+                .AnyAsync(x => keys.Contains(x.Source) && (x.IsPaused || x.AbortRequestedOn != null), ct)
         )
             throw new InvalidOperationException("SS job was stopped before business writes.");
         if (rollbackJournal is not null)

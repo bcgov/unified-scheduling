@@ -152,7 +152,7 @@ internal sealed class SsDryRunSimulation(
             if (parents.Any(x => x.Manifest.NamespaceId != ns))
                 throw new SsReject("WrongSimulationNamespace");
             session.SimulationNamespace = ns;
-            BoundTracking(session, batchSize);
+            BoundTracking(session, batchSize, fence);
             var schema = "ss_sim_" + run.Id.ToString("N");
             session.SimulationSchema = schema;
             await CloneAsync(schema, tables, ct);
@@ -171,7 +171,7 @@ internal sealed class SsDryRunSimulation(
                     SimulationNamespace = ns,
                     SimulationSchema = schema,
                 };
-                BoundTracking(hydrated, batchSize);
+                BoundTracking(hydrated, batchSize, fence);
                 await WriteAsync(parent.Run.Job, rows, hydrated, boundary, ct);
                 db.ChangeTracker.Clear();
                 if (
@@ -267,10 +267,10 @@ internal sealed class SsDryRunSimulation(
         return (prior, manifest);
     }
 
-    private void BoundTracking(SsWriteSession session, int batchSize)
+    private void BoundTracking(SsWriteSession session, int batchSize, Func<CancellationToken, Task> fence)
     {
         var units = 0;
-        session.AfterUnitAsync = token =>
+        session.AfterUnitAsync = async token =>
         {
             token.ThrowIfCancellationRequested();
             if (++units >= batchSize)
@@ -280,8 +280,8 @@ internal sealed class SsDryRunSimulation(
                 // owns every simulated row, identity sequence and audit mutation.
                 db.ChangeTracker.Clear();
                 units = 0;
+                await fence(token);
             }
-            return Task.CompletedTask;
         };
     }
 

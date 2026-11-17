@@ -131,6 +131,27 @@ public sealed class SsRollbackService(UnifiedDbContext db, SsRollbackJournal cry
         }
     }
 
+    // Sensitive values are available ONLY through the separately permissioned impact endpoint.
+    // Rebuild/revalidate the exact run-bound plan; never accept an arbitrary server file path.
+    public async Task<byte[]> ReadImpactAsync(Guid runId, string digest, CancellationToken ct)
+    {
+        if (!DataMigrationOperations.ValidDigest(digest))
+            throw new InvalidOperationException("Invalid rollback impact digest.");
+        await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
+        var plan = await BuildPlanAsync(runId, ct);
+        if (plan.Digest != digest)
+            throw new InvalidOperationException("Rollback impact changed; preview again.");
+        var path = ExportPath(plan);
+        if (!File.Exists(path))
+            throw new InvalidOperationException("Restricted impact preview is required.");
+        ValidateExportFile(path);
+        var json = await File.ReadAllTextAsync(path, ct);
+        if (json != ExportJson(plan))
+            throw new InvalidOperationException("Immutable rollback impact export mismatch.");
+        await tx.RollbackAsync(ct);
+        return Encoding.UTF8.GetBytes(json);
+    }
+
     private async Task<Guid> ApplyCoreAsync(Guid runId, string confirmation, CancellationToken ct)
     {
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);

@@ -11,7 +11,7 @@ checkboxes are not evidence and have not been bulk-checked.
 |---|---|---|
 | Persistent isolated source, original fixture preservation | Exercised | Named Docker volumes, original `ss-synth-pg` retained, no shared DB reset or host DB ports |
 | SH01–08 local production-aggregate fit | Local checks pass, original-query gate blocked | 4,631 comparable +1,222 suppressed bounds +53 explicitly noncomparable =5,906 cells; exact inventory/rebuild/refusal in [shape report](2026-11-16-shape-profile.md) |
-| Original production extractor SQL | **External input blocked** | Original SQL absent; no substitute-query claim. [All 53 reasons](2026-11-16-extractor-validity.md) |
+| Original production extractor SQL | **Located; exact execution pending** | Workspace originals located by parent; awaiting unchanged repo-local handoff within implementation scope. No substitute-query claim. [All 53 reasons](2026-11-16-extractor-validity.md) |
 | Ready-v4 source/target Report | **FAIL** | Actual matched source; 57/33 strict rows, 18 exact, 39 missing, 15 unexpected response rows. Not lost-record totals |
 | Formerly unexecuted 22 rows | Actual common reads executed where possible; full contract still unexposed | 4 resource presences exact; 15 event rows: 8 exact/7 missing/1 unexpected; 3 harness projections are not UI evidence. [Methods/fields/windows](2026-11-16-actual-distribution-reads.md) |
 | BL15 future scheduling | **Primary app-owned blocker** | 12 actual matched calls: 2 destination candidate-presence differences +4 missing Away conflict responses. No loss waiver or app change |
@@ -19,7 +19,8 @@ checkboxes are not evidence and have not been bulk-checked.
 | Graph replay and recovery | Implemented, selected PG cases pass | Merge/split/repartition, multi-entry duties, changed qualifying series, drift hold, interrupted batches/retry/backfill and confirmed inverse are exercised in linked milestone evidence |
 | Dry-run candidate lineage | Implemented, selected PG cases pass | Durable separate namespace, real rehydration, stable repeats/wrong/stale rejection and rollback footprint; not applied lineage |
 | Full valid-parent adverse execution | **Executed; acceptance FAIL** | 101,426 selected identities exactly accounted; Scheduling98,625/33rejected/2failed; all3,388 manifest rows classified. [Full outcome/exception table](2026-11-16-adverse-valid-parent.md) |
-| Full release security/concurrency/validation register | **Incomplete** | Foundation71 +Hangfire5 are not the complete PostgreSQL or SS-V001..057 suite |
+| Operations/auth/exports | Implemented, focused HTTP and actual PG proof pass | [Routes, guards, 99 migration +5 Hangfire tests and retained v15 proof](2026-11-17-operations-api.md); not full release-security approval |
+| Full release security/concurrency/validation register | **Incomplete** | Focused99 +Hangfire5 are not the complete PostgreSQL or SS-V001..057 suite |
 | Latest workspace canonical mirror | **External coordination pending** | Parent owns workspace documents; refreshed repo-local canonical copies have not been supplied. Existing mirrors are historical, not claimed current |
 
 ## Complete task inventory by actual implementation state
@@ -37,7 +38,7 @@ checkboxes are not evidence and have not been bulk-checked.
 | T058 | Typed bounded source paging, full-group hashes, durable retries/checkpoints and separate backfill implemented | Full-source rescans/group planning and repeated initial crosswalk capture reads remain performance work; full adverse Scheduling took5h24m, not production sizing acceptance |
 | T015 | Focused adapter/recovery cases exist | Exhaustive PostgreSQL tie/paging/cutoff/backfill matrix incomplete |
 | T059 | Persistent isolated mock/target Docker resources implemented and exercised | Original sources/failures/volume retained; full untrimmed valid-parent clone executed all selected physical identities |
-| T060 | Deterministic production-aggregate generation/local measurement/rebuild/refusal implemented | Original SH/EX/AG/AD/SP/OD queries missing; full task not accepted |
+| T060 | Deterministic production-aggregate generation/local measurement/rebuild/refusal implemented | Original SH/EX/AG/AD/SP/OD files now located in workspace; exact execution pending repo-local handoff; full task not accepted |
 | T018, T051 | Actual source projections/read-only snapshot/preflight and explicit-false JC guard implemented | No app JC-default edit, no production preflight acceptance |
 | T019, T020 | Primary MyTeam references/users/roles/UserRole/acting/leave/current LoanOut writers implemented | Real SSO login, all retained-reference/identity/drift variants not independently certified |
 | T023 | Selected actual PG insert/replay/drift/retry/atomicity cases exercised | Comprehensive independently maintained integration suite incomplete |
@@ -46,13 +47,13 @@ checkboxes are not evidence and have not been bulk-checked.
 | T062 | Required repartition/multi-entry/changed-series behavior implemented and exercised | Full adverse graph/cancellation/counter/rollback proofs passed, but33syntheticseries rejected inconsistent members; qualification/fallback suitability and2fixturemerge expectations unresolved |
 | T063 | Actual WorkingHours/publish/calendar services run; differences retained | All 43 planted logical SheriffDay overtime expectations lack independent matched actual-service proof; no source formula substitute |
 | T034 | Control/recovery/rollback machinery exists; selected failures exercised | Actual valid-parent Running/Failed child Report acquisition guards passed; exhaustive pause/abort/dependency races remain unimplemented test coverage |
-| T035 | Source/job control service and CLI/state reads implemented | Not an authorized HTTP operations surface |
+| T035 | Source/job controls, authorized HTTP operations and CLI/state reads implemented | Focused HTTP and actual PG public-control/simulation fence proofs pass; exhaustive races not claimed |
 | T036 | Encrypted inverse journal, immutable preview/export/digest, confirmation/dependency guards and atomic inverse implemented | Report reversal, broader races/adverse inverse and prior nonnull private-photo restoration remain uncovered/blocked; production apply disabled |
-| T037 | Written operations contract and service/CLI exist | Public job-scoped operations DTO/API integration incomplete |
-| **T038** | **Unimplemented: no migration controllers/HTTP endpoints or migration permission enforcement** | Must use existing auth framework; missing HTTP authorization is not an app-model blocker |
-| T039, T050 | Stable IDs, source/job guards and safe diagnostic paths exist | Endpoint authorization/security acceptance unimplemented because T038 is missing; full release review incomplete |
+| T037 | Job/source operations DTOs/controller/service, stable acquisition/dispatch and safe failures implemented | Focused HTTP tests and actual acquired-worker PG proof pass; live Hangfire server end-to-end not claimed |
+| T038 | Existing permission policies/module seeds enforce operations and separate rollback permissions | 401/403/allowed, resolved actor, source/job/run isolation tested; no role auto-grant or auth-framework edit |
+| T039, T050 | Stable IDs, scoped reads/mutations, audited controls, redaction and no-store outputs implemented | Focused endpoint/security tests pass; independent full release review incomplete |
 | T040, T047 | Safe structured findings, mapped cryptographic hashes, private artifact boundaries and restricted runner audit configuration implemented | Independent comprehensive security review not claimed; no photos/credentials/raw personal text in committed evidence |
-| T064 | Coverage ledger, exclusions, primary failure holds and same-lineage Report implemented | Complete operator-facing findings CSV/Markdown export/API still incomplete; JSON/CLI receipts and authored Markdown evidence are not that endpoint |
+| T064 | Coverage ledger, exclusions, failure holds, lineage Report and complete snapshot CSV/Markdown export/API implemented | 257-outcome plus failure tests prove no page cap, safe escaping/redaction and complete footer; ordinary export is not restricted rollback impact or business UI parity |
 | T065 | Durable dry candidates/actual DML/rehydration/rollback implemented and exercised | Broad overlapping applied-target/update-preview equivalence not proven |
 | T066 | Independent actual SS captures and actual target service comparisons executed | Strict Report fails; UI/CSV/PDF not executed; no recreated SS algorithms to force pass |
 | T048 | Concrete milestone evidence exists | Complete authoritative per-SS-V001..057 verdict ledger not finished; superseded040/041 must not become false missing ownership work |
@@ -70,12 +71,13 @@ checkboxes are not evidence and have not been bulk-checked.
 2. **Training/business owner:** decide future expiry-policy/date/Excused and presentation
    requirements using actual model/API evidence. Do not equate stored completion facts
    with all compliance/UI behavior.
-3. **Input/canonical owner:** supply original extractor SQL and final workspace mirrors.
-   No exact-original-query or current-mirror claim until those inputs are received.
-4. **Migration engineering still needed:** T037/038 operations API/permission integration,
-   complete T064 findings exports, the missing independent release/security/concurrency/
-   inverse/OT/SS-V coverage. These are genuinely unfinished work, not external blockers
-   and not silently declared complete because BL15 independently prevents acceptance.
+3. **Input/canonical owner:** unchanged repo-local handoff of the located original
+   extractors and final workspace mirrors remains pending. No exact-original-query
+   or current-mirror claim until executed/refreshed.
+4. **Migration engineering still needed:** independent release/security/concurrency/
+   inverse/OT/SS-V coverage. Operations API/permission integration and complete
+   findings exports are now implemented and focused-tested; unfinished coverage is
+   not silently declared complete because BL15 independently prevents acceptance.
 5. **Adverse suitability/performance:** all selected physical rows now executed, not
    3,377 pending downstream rows. Retain the actual mismatches:30 differing outcome
    labels,2 fixture merge mismatches,43 logical OT expectations without independent

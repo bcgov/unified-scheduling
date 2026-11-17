@@ -259,6 +259,8 @@ public sealed class SsDataMigrationRecurringJobTests : IAsyncDisposable
     {
         var configuration = new ConfigurationBuilder().Build();
         var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddRouting();
         services.AddSingleton<IConfiguration>(configuration);
         services.AddScoped<UnifiedDbContext>(_ => _db);
         services.AddDataMigrationModule(configuration);

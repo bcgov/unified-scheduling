@@ -1,5 +1,10 @@
 # SS implementation status — 2026-11-16
 
+2026-11-17 operator implementation: [authorized API, complete exports and actual
+PG public-control proof](reports/2026-11-17-operations-api.md). SDK10 API build and
+99 migration +5 Hangfire tests pass, zero failures/skips. Existing permission
+framework only; production remains disabled.
+
 **Full migration acceptance remains incomplete. Guarded graph replay and durable
 dry-run parent simulation are verified; this is NOT a production or migration
 acceptance pass.**

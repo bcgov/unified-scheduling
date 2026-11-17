@@ -46,6 +46,8 @@ internal static class RehearsalBootstrap
                     or "unified_ss_rehearsal_repartition_v5"
                     or "unified_ss_rehearsal_repartition_history_v5"
                     or "unified_ss_rehearsal_simulation_v6"
+                    or "unified_ss_rehearsal_operations_v14"
+                    or "unified_ss_rehearsal_operations_v15"
                     or "unified_ss_rehearsal_adverse_v7"
                     or "unified_ss_rehearsal_adverse_valid_v11"
                     or "unified_ss_rehearsal_adverse_valid_v12"

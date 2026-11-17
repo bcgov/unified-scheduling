@@ -86,7 +86,13 @@ if (string.IsNullOrWhiteSpace(connection) || args.Length != 1)
 }
 var services = new ServiceCollection();
 services.AddSingleton<IConfiguration>(configuration);
-services.AddDbContext<UnifiedDbContext>(o => o.UseNpgsql(connection));
+var operationsProof = args[0] == "operations-proof" ? new OperationsPgProof() : null;
+services.AddDbContext<UnifiedDbContext>(o =>
+{
+    o.UseNpgsql(connection);
+    if (operationsProof is not null)
+        o.AddInterceptors(operationsProof);
+});
 services.AddLogging();
 services.AddAuditModule(configuration);
 
@@ -134,13 +140,24 @@ if (LoanOutModule.IsModuleEnabled(configuration))
         sp.GetRequiredService<ILoanOutCalendarDataProvider>()
     );
 services.AddScoped<ISsMigrationBusinessValidator, ActualRehearsalValidation>();
+if (operationsProof is not null)
+{
+    services.AddScoped<RecordingDispatcher>();
+    services.AddScoped<IMigrationJobDispatcher>(sp => sp.GetRequiredService<RecordingDispatcher>());
+}
 await using var provider = services.BuildServiceProvider();
+if (operationsProof is not null)
+    operationsProof.Services = provider;
 provider.UseAuditModule();
 await using var scope = provider.CreateAsyncScope();
 var db = scope.ServiceProvider.GetRequiredService<UnifiedDbContext>();
 try
 {
-    if (args[0] == "schema")
+    if (args[0] == "operations-proof")
+    {
+        await operationsProof!.RunAsync();
+    }
+    else if (args[0] == "schema")
     {
         // Explicit command only. Never automatically migrate or reset a shared database.
         await db.Database.MigrateAsync();
