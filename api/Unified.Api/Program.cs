@@ -1,7 +1,10 @@
 using System.Text.Json.Serialization;
 using Hangfire;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.DataProtection.KeyManagement;
 using Microsoft.AspNetCore.HttpLogging;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.Extensions.Options;
 using Unified.Api.Controllers;
 using Unified.Api.Options;
 using Unified.Api.Services;
@@ -40,6 +43,7 @@ using Unified.Training;
 using Unified.Training.Controllers;
 using Unified.UserManagement;
 using Unified.UserManagement.Controllers;
+using SharedDataProtectionOptions = Unified.Infrastructure.Options.DataProtectionOptions;
 
 var builder = WebApplication.CreateBuilder(args);
 var hangfireOptions =
@@ -97,7 +101,7 @@ var hangfireOptions =
 
     // Modules (core infrastructure first, feature-gated modules conditionally, then Hangfire last)
     builder
-        .Services.AddInfrastructureModule()
+        .Services.AddInfrastructureModule(builder.Environment, builder.Configuration)
         .AddChesEmail(builder.Configuration)
         .AddCoreModule()
         .AddDbModule(builder.Configuration)
@@ -120,6 +124,11 @@ var hangfireOptions =
         .AddInterceptors()
         .AddLeaveModule(builder.Configuration)
         .AddLoanOutModule(builder.Configuration);
+
+    // Compose Infrastructure encryption with Db persistence at the application boundary.
+    builder
+        .Services.AddUnifiedDataProtection(builder.Configuration)
+        .PersistKeysToDbContext<DataProtectionKeyDbContext>();
     if (LoanOutModule.IsModuleEnabled(builder.Configuration))
     {
         builder.Services.AddScoped<ISchedulingCalendarEventDataProvider<SchedulingCalendarEventResponse>>(sp =>
@@ -182,6 +191,8 @@ var hangfireOptions =
 
 var app = builder.Build();
 {
+    // Validate before running migrations as well as through ValidateOnStart.
+    _ = app.Services.GetRequiredService<IOptions<SharedDataProtectionOptions>>().Value;
     ValidateUniqueFeatureFlagSources(app.Services);
 
     // Audit.NET's configuration is a process-wide static, so it must be wired up once the
@@ -208,6 +219,15 @@ var app = builder.Build();
     // Run database migrations
     var migrationService = app.Services.GetRequiredService<MigrationAndSeedService>();
     await migrationService.ExecuteMigrationsAndSeeds();
+
+    // Fail startup if the configured secret cannot read an existing key, rather than
+    // allowing automatic replacement keys to hide a deployment configuration error.
+    foreach (var key in app.Services.GetRequiredService<IKeyManager>().GetAllKeys())
+    {
+        _ =
+            key.CreateEncryptor()
+            ?? throw new InvalidOperationException("A persisted Data Protection key could not be initialized.");
+    }
 
     // Configure the HTTP request pipeline.
     app.UseExceptionHandler();

@@ -30,6 +30,7 @@ services:
       - ASPNETCORE_URLS=${ASPNETCORE_URLS}
       - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Development}
       - DatabaseConnectionString=${DatabaseConnectionString}
+      - DataProtection__EncryptionKey=${DataProtectionEncryptionKey:?Required}
       - Cors__AllowedOrigins=${CORS_DOMAIN}
       - Keycloak__Authority=${KeycloakAuthority}
       - Keycloak__Client=${KeycloakClient}
