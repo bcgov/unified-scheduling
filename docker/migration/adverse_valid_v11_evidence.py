@@ -79,7 +79,8 @@ def main():
     graph_path = ARTIFACTS / f'adverse-v11-graph-{latest["Scheduling"]["Id"]}.json'
     graph = json.loads(graph_path.read_text(encoding="utf-8-sig"))
     if (graph["RunId"] != latest["Scheduling"]["Id"]
-            or graph["TargetDatabase"] != "unified_ss_rehearsal_adverse_valid_v13"
+            or graph["TargetDatabase"] != TARGET
+            or graph["SourceDatabase"] != ("ss_adverse_valid_v18" if TARGET.endswith(("_v18", "_v20")) else "ss_adverse_valid_v11")
             or graph["DanglingSchedulingCrosswalks"] != 0
             or graph["DistinctPrivateCreatedTargets"] != graph["InsertedCounter"]):
         raise RuntimeError("Private graph integrity regression")

@@ -8,6 +8,10 @@ Latest migration fixes and actual PG regression:
 [mixed-capacity fallback, closed-slot rebind and capture index](reports/2026-11-17-series-capture.md).
 [Actual 100k reverse crosswalk lookup/index proof](reports/2026-11-17-target-lookup-index.md)
 adds only a migration-owned metadata index; full v20 is separate from retained v13.
+Final [full v20 results](reports/2026-11-17-adverse-v20-final.md): all101,426 selected
+identities accounted, zero rejections/two retained Scheduling failures; all33 prior
+series rejects now preserve20,224 actual standalone roots. Capture reads1 full index
+plus12,189 fresh component sets. Full business acceptance remains NO-GO.
 
 **Full migration acceptance remains incomplete. Guarded graph replay and durable
 dry-run parent simulation are verified; this is NOT a production or migration

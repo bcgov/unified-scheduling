@@ -18,9 +18,9 @@ checkboxes are not evidence and have not been bulk-checked.
 | Training facts | Narrow fixture facts match, broader acceptance unproved | Same completion/course/user/home/region/end/expiry. Three windows × `excused`, presentation variant, derived status =9 differing/unexposed cells; no broad compliance/UI claim |
 | Graph replay and recovery | Implemented, selected PG cases pass | Merge/split/repartition, multi-entry duties, changed qualifying series, drift hold, interrupted batches/retry/backfill and confirmed inverse are exercised in linked milestone evidence |
 | Dry-run candidate lineage | Implemented, selected PG cases pass | Durable separate namespace, real rehydration, stable repeats/wrong/stale rejection and rollback footprint; not applied lineage |
-| Full valid-parent adverse execution | **Executed; acceptance FAIL** | 101,426 selected identities exactly accounted; Scheduling98,625/33rejected/2failed; all3,388 manifest rows classified. [Full outcome/exception table](2026-11-16-adverse-valid-parent.md) |
+| Full valid-parent adverse execution | **Executed; acceptance FAIL** | Latest v20:101,426 exact identities; Scheduling98,625/0rejected/2failed; all3,388 manifest rows classified, unwaived. All33 former series rejects now20,224 real standalone roots. [Final actual proof](2026-11-17-adverse-v20-final.md) |
 | Operations/auth/exports | Implemented, focused HTTP and actual PG proof pass | [Routes, guards, 99 migration +5 Hangfire tests and retained v15 proof](2026-11-17-operations-api.md); not full release-security approval |
-| Full release security/concurrency/validation register | **Incomplete** | Focused99 +Hangfire5 are not the complete PostgreSQL or SS-V001..057 suite |
+| Full release security/concurrency/validation register | **Incomplete** | Focused103 +Hangfire5 are not the complete PostgreSQL or SS-V001..057 suite |
 | Latest workspace canonical mirror | **External coordination pending** | Parent owns workspace documents; refreshed repo-local canonical copies have not been supplied. Existing mirrors are historical, not claimed current |
 
 ## Complete task inventory by actual implementation state
@@ -35,7 +35,7 @@ checkboxes are not evidence and have not been bulk-checked.
 | T055, T046, T068 | Repo-local runbooks/evidence/logical commits and preserved resources exist | Final workspace mirror synchronization pending supplied canonical inputs; no push |
 | T056, T017, T022 | Four jobs/per-job options/ownership, old shell retirement, disabled defaults implemented | CASS unchanged/disabled; no production activation |
 | T057 | Job/lineage/cutover/fencing/controls/advisory acquisition and Running guard implemented | Complete independent race/stale-worker matrix not executed |
-| T058 | Typed bounded source paging, full-group hashes, retries/checkpoints, backfill and indexed initial graph capture implemented | Full-source rescans/group planning and changed-component selection remain performance work; old adverse5h24m is not production sizing acceptance |
+| T058 | Typed paging, group hashes, retries/checkpoints/backfill, indexed capture and reverse target lookup implemented | Actual v20:1 full root read/12,189 fresh component reads;4h30m50s. Full-source/group/row-DML performance remains work, not production sizing acceptance |
 | T015 | Focused adapter/recovery cases exist | Exhaustive PostgreSQL tie/paging/cutoff/backfill matrix incomplete |
 | T059 | Persistent isolated mock/target Docker resources implemented and exercised | Original sources/failures/volume retained; full untrimmed valid-parent clone executed all selected physical identities |
 | T060 | Deterministic production-aggregate generation/local measurement/rebuild/refusal implemented | Original SH/EX/AG/AD/SP/OD files now located in workspace; exact execution pending repo-local handoff; full task not accepted |
@@ -44,7 +44,7 @@ checkboxes are not evidence and have not been bulk-checked.
 | T023 | Selected actual PG insert/replay/drift/retry/atomicity cases exercised | Comprehensive independently maintained integration suite incomplete |
 | T061 | Categories/courses/profiles/history/requirements/exclusions implemented | BL13/BL14/true-Excused/broad compliance/date-display acceptance unresolved |
 | T021 | Scheduling definitions/shift merges/duties/slots/links/qualified series implemented | No synthetic occurrences; unsupported patterns remain standalone |
-| T062 | Required repartition/multi-entry/changed-series behavior and safe inconsistent-capacity fallback implemented and exercised | New actual PG baseline/requalification/reversion/drift proof passes; retained old33rejects and pre-fix closed-slot failure remain historical evidence; two fixture merge expectations remain unwaived |
+| T062 | Required repartition/multi-entry/changed-series and safe inconsistent-capacity fallback implemented and exercised | Actual small PG replay/drift plus full33groups/20,224standalone roots pass; old failures retained; two fixture merge expectations remain unwaived |
 | T063 | Actual WorkingHours/publish/calendar services run; differences retained | All 43 planted logical SheriffDay overtime expectations lack independent matched actual-service proof; no source formula substitute |
 | T034 | Control/recovery/rollback machinery exists; selected failures exercised | Actual valid-parent Running/Failed child Report acquisition guards passed; exhaustive pause/abort/dependency races remain unimplemented test coverage |
 | T035 | Source/job controls, authorized HTTP operations and CLI/state reads implemented | Focused HTTP and actual PG public-control/simulation fence proofs pass; exhaustive races not claimed |

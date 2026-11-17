@@ -38,7 +38,8 @@ retained full historical failure.
 Fresh v20 uses the source-identical indexed v18 clone, BatchSize10, initial capture
 membership index and this reverse target index. Genuine MyTeam
 `0c285a9b-8444-4525-9637-6fb654bf8d73` completed2,233 with zero rejects/failures.
-Full child results must be recorded only after completion.
+Full child results are now [recorded after completion](2026-11-17-adverse-v20-final.md):
+98,625 Scheduling identities, zero rejected/two failed; full acceptance NO-GO.
 
 ## Checks
 

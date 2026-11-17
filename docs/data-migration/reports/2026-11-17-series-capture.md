@@ -95,3 +95,7 @@ assertion correctly failed. It is not full adverse coverage.
 are now implemented. Fresh full v20 uses all four changes (batch size, source paging
 indexes, initial target-root membership index and reverse lookup index). No runtime
 improvement may be attributed solely to one fix or called production sizing acceptance.
+The [completed full v20 proof](2026-11-17-adverse-v20-final.md) verifies all33 groups
+and20,224 actual standalone Duty roots, zero rejected/two failed Scheduling outcomes,
+one full-root read and12,189 fresh component reads. Runtime4h30m50s; not a business
+or production-sizing pass.
