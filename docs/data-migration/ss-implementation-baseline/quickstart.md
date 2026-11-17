@@ -12,8 +12,10 @@
 - SS read-only connection supplied outside Git. Explicit false JC expiry flags.
 - `HistoryStartDate=2015-01-01`, `CutoverDate=2026-12-01`; per-job disabled/dry-run defaults.
 
-Use the implementation's committed migration Compose/runbook for exact paths/service names;
-do not invent commands for files that have not yet been delivered.
+Use the committed [implementation status/runbook index](../../unified-scheduling/docs/data-migration/implementation-status.md)
+and [final adverse report](../../unified-scheduling/docs/data-migration/reports/2026-11-17-adverse-v20-final.md)
+for exact commands and resource names. Shape mocks pass original SH SQL; the separate adverse
+fixture deliberately does not. Current acceptance is **NO-GO**, not permission to enable jobs.
 
 ## Smallest Code Checks
 
@@ -39,7 +41,8 @@ failures distinctly from newly introduced failures.
 3. Generate actual SS oracle exports for fixed past/cutover/future windows.
 4. Verify all disabled jobs have no active schedule; CASS has no reads/runs.
 5. Run dry MyTeam -> dry Training/Scheduling -> Report. Business writes must roll back;
-   MissingParent simulation gaps must reject honestly.
+   Durable candidate parents now rehydrate into child rollback scopes; wrong/stale lineage
+   must reject honestly. Simulation Report is not applied acceptance.
 6. On a fresh **isolated** target, record backup/footprint then apply MyTeam, followed by
    Training and Scheduling (parallel gate checked), then final Report.
 7. Compare actual Unified reports/read/publish paths to SS oracles through crosswalks.

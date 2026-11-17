@@ -1,7 +1,7 @@
 # Training Export And Code Comparison
 
-**Baseline 2026-11-16.** Actual SS oracle and limited target runs exist; matched cross-app
-comparison remains pending. This document does **not** claim exported-data parity.
+**Baseline 2026-11-16.** Actual matched cross-app Report is FAIL; per-surface training
+impact classification remains pending. This document does **not** claim exported-data parity.
 
 ## What The SS Export Actually Represents
 
@@ -116,3 +116,31 @@ Populate actual source/target row and field counts, report windows, ignored layo
 matched discrepancy classes and artifact/command links after execution. Any missing business
 field becomes BL-11 with concrete affected counts. Unexplained discrepancies mean Fail,
 not PassWithKnownDifferences.
+
+Latest [matched report](../../unified-scheduling/docs/data-migration/reports/2026-11-16-matched-report.md),
+Unified commit `29a8ea59`, is FAIL. Across all report surfaces it compares 57 source
+and 33 target response rows, finding 39 missing and 15 unexpected comparison rows.
+These totals are not training-only or lost-history counts. Training-specific field/population
+and derived-status differences must be separated before classifying BL-11 business impact.
+All 74 source business records have outcome coverage; coverage alone does not establish parity.
+
+Follow-up `44ce6a78` classifies all-surface discrepancies as 15 paired value differences,
+two merged aliases and 22 unexecuted-surface rows. Matched training completion facts agree.
+`Active` is derived compliance status, not a source completion fact to import. Excused
+exposure remains unproved. These findings do not establish full training-export parity;
+field-specific counts and missing-surface execution remain required.
+
+The complete table in `5d682093` counts three paired training response differences,
+nine field cells; stored completion facts still match. These are comparison-row/field
+counts, not nine missing training facts. See the [matched-difference table](../../unified-scheduling/docs/data-migration/reports/2026-11-16-matched-differences.md).
+
+Exact differing training cells, clarified in `4ee28f61`, are `excused false -> null`
+(three), `rowVariant white -> null` (three), and derived `status blank -> Active`
+(three). Stored completion facts match. Row styling is presentation metadata; missing
+Excused exposure and derived status require separate compliance interpretation, not rewritten
+completion records. True-Excused/broad compliance-export parity remains unproved.
+The three unexecuted harness projection rows (one per window) are not actual UI/CSV evidence.
+
+The later valid-parent pass executes all 19 distribution observations through actual common
+services. This closes their execution gap only; it does not supply missing training UI/CSV
+evidence or waive status/Excused differences. See the [acceptance inventory](../../unified-scheduling/docs/data-migration/reports/2026-11-16-acceptance-inventory.md).

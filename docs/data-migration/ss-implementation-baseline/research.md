@@ -33,8 +33,9 @@
   of current health or production-shaped fit. Default 80-user fixture is not a fitted model.
 - Source report trace uses actual SS code. Exact business-data parity and live authentication
   remain separate from visual layout and synthetic identifier persistence.
-- No extension hooks file exists. Plan setup script could not run through the current
-  Windows/RTK Bash path wrapper; active feature was resolved directly from
-  `.specify/feature.json`. Existing plan was replaced deliberately, no branch switch.
+- No extension hooks file exists. Initial Windows/RTK Bash path wrapping failed; native
+  Git Bash invoked with an argument array passed setup-plan and check-prerequisites
+  (`--require-tasks --include-tasks`). Active feature resolves from `.specify/feature.json`.
+  Existing plan was reconciled deliberately; no branch switch.
 - Implementation/runtime unknowns are explicit validation tasks, not unresolved business
   mappings. Failed evidence blocks the relevant primary goal, never becomes a default pass.

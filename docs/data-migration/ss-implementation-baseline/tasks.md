@@ -5,12 +5,17 @@
 Existing IDs retained. Checked foundation tasks are inherited history, not new test results.
 Implementation is authorized; production writes/pushes/non-migration app changes are not.
 
+**Current disposition:** migration implementation and focused runtime proofs are delivered;
+acceptance remains NO-GO. Exact original SH SQL passes two shape mocks. BL-15 and unresolved
+source/adverse/report/OT differences remain explicit. Unchecked compound tasks retain broader
+verification or acceptance work; see the [measured acceptance inventory](../../unified-scheduling/docs/data-migration/reports/2026-11-16-acceptance-inventory.md).
+
 ## Phase 0: Planning Milestone
 
 - [x] T016 Reconcile final Q/G decisions into canonical SS contract; distinguish build authorization from production-write approval.
 - [x] T053 Update spec, plan, data model, operations contract, quickstart and research for three loaders plus final Report.
 - [x] T054 Transfer BL-1..6 and all named app gaps to the 001 backlog; keep app fixes out of implementation.
-- [ ] T055 Persist repo-local implementation spec/runbook and workspace artifacts in a logical migration-only commit; preserve pre-existing deleted draft.
+- [x] T055 Persist repo-local implementation spec/runbook and workspace artifacts in a logical migration-only commit; preserve pre-existing deleted draft. Initial mirror: `b589bee4`; refresh final evidence before delivery.
 
 ## Existing Foundation (Inherited)
 
@@ -32,14 +37,14 @@ Implementation is authorized; production writes/pushes/non-migration app changes
 
 ## Phase 1: Job/State And Persistent Mock
 
-- [ ] T056 Replace blocked single SS shell with MyTeam, Training, Scheduling and Report jobs; per-job enabled/cron/dry-run/batch options and ownership validation. Remove old recurring identity safely; CASS untouched.
+- [x] T056 Replace blocked single SS shell with MyTeam, Training, Scheduling and Report jobs; per-job enabled/cron/dry-run/batch options and ownership validation. Remove old recurring identity safely; CASS untouched. Actual ready/adverse jobs and scoped operations executed; acceptance remains separate.
 - [ ] T057 Add Job/lineage/cutover/restore-point/heartbeat or fenced-lease state, `(Source,Job)` Running guard, per-job controls and source-wide controls in migration-owned schema. Atomic dependency gate permits parallel Training/Scheduling, not parent overlap; stale-run recovery cannot allow old-worker writes.
 - [ ] T058 Implement typed paging upper bounds, deterministic mapped/source hashes, full merge-group reloads, durable rejected-row retry and separate resumable cutoff-backfill progress (EN-1/4/5).
-- [ ] T059 Inspect/start/preserve existing stopped SS mock; add isolated persistent Compose resources, named volumes, synthetic seed/schema provenance and health checks. Never reset shared app DB.
-- [ ] T060 Tune deterministic synthetic data from production SH-01..08; measure ±20% fit on non-suppressed comparable buckets; verify repeated-build hashes, filled-DB refusal, all extractors and manifest cases (SS-V056).
+- [x] T059 Inspect/start/preserve existing stopped SS mock; add isolated persistent Compose resources, named volumes, synthetic seed/schema provenance and health checks. Healthy source/target retained; original source preserved. See measured report; shape fit remains T060.
+- [x] T060 Tune deterministic synthetic data from production SH-01..08; measure ±20% fit on non-suppressed comparable buckets; verify repeated-build hashes, filled-DB refusal, all extractors and manifest cases (SS-V056). Exact original SH SQL in `d3a05fe6` passes both independent shape builds: 4,631 numeric cells within bounds, 1,222 suppressed bounds satisfied, 53 production-withheld cells explicitly noncomparable; all 5,906 cells accounted. Adverse fixture is separate and correctly fails shape fit; manifest outcome mismatches remain T048, not waived.
 - [ ] T015 Extend adapter watermark/tied-time/read-only/cutoff and backfill tests (SS-V026).
-- [ ] T017 Retire original MappingApprovalRequired shell; implementation now belongs to T056.
-- [ ] T018 Implement all required read-only source projections/schema/timezone preflight; verify actual singular SS table/column names.
+- [x] T017 Retire original MappingApprovalRequired shell; implementation now belongs to T056.
+- [x] T018 Implement all required read-only source projections/schema/timezone preflight; verify actual singular SS table/column names. Actual source reads account for 101,426 selected identities.
 - [ ] T051 Migration-only JC guard requires all three expiry flags explicitly false, with no business writes on failure. Old JC code-default change moved to BL-9. Validate SS-V036/038/039/048 without altering JC behavior.
 
 ## Phase 2: MyTeam
@@ -59,14 +64,14 @@ Implementation is authorized; production writes/pushes/non-migration app changes
 ## Phase 4: Reports, Operations And Recovery
 
 - [ ] T034 Add pause/resume/abort/rollback/dry-run tests for split lineage and races.
-- [ ] T035 Implement durable source/job controls and safe status/failure queries.
-- [ ] T036 Implement preview-first confirmed compensating rollback, dependency order, merge ownership, footprint proof and transactional failure handling (SS-V055).
-- [ ] T037 Add job-scoped operations contracts/DTOs.
-- [ ] T038 Add existing-framework migration permission checks/endpoints; no auth framework changes.
-- [ ] T039 Verify authorization, source/job isolation, redaction and stable run IDs.
-- [ ] T040 Safe structured logging only.
-- [ ] T064 Implement findings/outcome coverage catalogue, fail-closed verdicts, same-lineage final Report and CSV/Markdown exports (SS-V053). Open NeedsAction never passes.
-- [ ] T065 Validate mode runs real DML then rollback; stage dry-run identities separately and resolve dependency simulation honestly. Applied rehearsal is isolated, not production (SS-V054).
+- [x] T035 Implement durable source/job controls and safe status/failure queries. Actual PostgreSQL operations proofs pass.
+- [x] T036 Implement preview-first confirmed compensating rollback, dependency order, merge ownership, footprint proof and transactional failure handling (SS-V055). Graph inverse restores prior footprint; broader release coverage remains T048/T050.
+- [x] T037 Add job-scoped operations contracts/DTOs.
+- [x] T038 Add existing-framework migration permission checks/endpoints; no auth framework changes.
+- [x] T039 Verify authorization, source/job isolation, redaction and stable run IDs. Focused operations tests and actual PostgreSQL proofs pass; exhaustive release review remains separate.
+- [x] T040 Safe structured logging only. Operations findings/exports are redacted; protected rows remain restricted.
+- [x] T064 Implement findings/outcome coverage catalogue, fail-closed verdicts, same-lineage final Report and CSV/Markdown exports (SS-V053). Open NeedsAction never passes. Actual ready Report fails differences; invalid adverse lineage rejects Report acquisition.
+- [x] T065 Validate mode runs real DML then rollback; stage dry-run identities separately and resolve dependency simulation honestly. Actual PostgreSQL parent/child simulation, repeats, wrong/stale lineage rejection/recovery and unchanged applied rows/crosswalks/progress/sequences passed in `5d682093`; zero leaked schemas/business audits. Dry Report remains simulation-only NeedsAction, not applied acceptance (SS-V054).
 - [ ] T066 Build/run actual SS oracle O-1..5; compare actual Unified report/service outputs for past/cutover/future windows. Every difference maps to a known finding; unmodified adverse cases must fail (SS-V057).
 
 ## Phase 5: Verification And Evidence
@@ -74,9 +79,9 @@ Implementation is authorized; production writes/pushes/non-migration app changes
 - [ ] T046 Repo-local config/operations/mock runbook; mirror required workspace artifacts for versioned history.
 - [ ] T047 Review projections/logging/findings/exports for credentials, photos, protected text and unsafe SQL.
 - [ ] T048 Run applicable SS-V001..057; record per-ID passed/failed/pending/superseded plus exact evidence.
-- [ ] T049 Run smallest relevant build/tests first, PostgreSQL end-to-end/EF script/formatter and broader checks as required. Use SDK container/Dev Container for .NET 10; no host SDK assumption.
+- [x] T049 Run smallest relevant build/tests first, PostgreSQL end-to-end/EF script/formatter and broader checks as required. SDK10 API/Runner builds, 103 migration + 5 Hangfire tests (zero skipped), actual PostgreSQL suites and format/Compose checks pass. This does not mark T048/T050 or business acceptance complete.
 - [ ] T050 Review migration endpoint authorization/security before release; unresolved checks stay visible.
-- [ ] T067 Produce significant migration-gap report, training export-vs-SS-code comparison and recommended backlog with primary-goal impacts.
+- [x] T067 Produce significant migration-gap report, training export-vs-SS-code comparison and recommended backlog with primary-goal impacts. Reports preserve NO-GO, BL-15 and unproved compliance/OT outcomes; no acceptance claim.
 - [ ] T068 Commit logical code/test/evidence milestones without attribution; no pushes. Leave persistent mock up and record readiness/resources.
 
 ## Deferred Scope (Not Required To Finish SS Implementation)

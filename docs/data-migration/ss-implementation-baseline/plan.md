@@ -17,6 +17,19 @@ mapping-approval wait. Production writes, deployment and go-live still require h
 Only unresolved failures of identity/authentication data, scheduling or training may block
 acceptance. Other gaps are explicit findings/backlog, not excuses to stop implementation.
 
+### Measured Delivery Disposition
+
+Migration jobs, writers, recovery/replay, dry-run lineage, authorized operations and redacted
+exports are implemented. SDK10 builds and 108 focused tests pass. Exact original SH SQL
+passes two independently built production-shaped mocks; the adverse source is intentionally
+separate. See [validation evidence](./validation-evidence.md) for precise denominators/results.
+
+Acceptance remains **NO-GO**: BL-15 is a measured primary scheduling-service gap; source
+future-gap repair/publication and unapproved adverse/OT/report differences also remain.
+Synthetic identity persistence does not prove real IDIR login. Broader release verification
+is incomplete. Do not waive these gates or alter ordinary Unified behavior to force migration.
+Unchecked tasks retain their verification/acceptance obligations, not an implied production pass.
+
 ## Technical Context
 
 | Item | Choice |
@@ -45,7 +58,10 @@ acceptance. Other gaps are explicit findings/backlog, not excuses to stop implem
 Scope override: older T051 JC code-default change is backlog only. Migration itself requires
 all three expiry flags explicitly false and fails closed otherwise. No non-migration app fix.
 
-## Phase 0: Reconcile Decisions
+## Implementation Gate: Mapping Contracts
+
+Phase 0 is complete for build authorization; this gate no longer blocks implementation.
+Production enablement still requires the validity evidence and human approval below.
 
 Use the [final worksheet](../../documentation/data-migration/ss-job-notes/mapping-decision-worksheet.md),
 [design](../../documentation/data-migration/migration-job-design.md), EX/LX/AG/AD/SP/OD and
