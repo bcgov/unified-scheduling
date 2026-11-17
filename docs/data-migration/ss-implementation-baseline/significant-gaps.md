@@ -97,3 +97,17 @@ Exact original SH execution now passes on both independent shape builds (`d3a05f
 the earlier pending-SQL statements are superseded. All 5,906 cells reconcile, including
 53 deliberately withheld production measures. The original-query gate is not a remaining
 blocker. Adverse shape failure is retained, separate from the production-fit mock.
+
+## Final Persistent Handoff
+
+The [closeout](../../unified-scheduling/docs/data-migration/reports/2026-11-17-closeout.md)
+records implementation delivered, acceptance **BLOCKED / NO-GO**. One unsupported inverse
+is explicit: restoring a replaced preexisting nonnull photo. Rollback blocks that case rather
+than claiming restoration; BL-16 recommends protected restoration support. Broader release
+coverage also remains open.
+
+Production-shaped databases `ss_shape_v10` and `ss_shape_v10_rebuild` are retained in healthy
+`unified-ss-migration-shape-source-1`, volume `unified-ss-migration_source-shape-v7`.
+Both synthetic markers/readiness probes and read-only reader permissions pass; each retains
+873 users, 115,433 shifts and 101,904 duties. No host ports are published; restart policy is
+`unless-stopped`. See [safe shape access](../../unified-scheduling/docker/migration/SHAPE-PROFILE.md).
