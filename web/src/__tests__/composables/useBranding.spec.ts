@@ -1,5 +1,6 @@
 import { createPinia, setActivePinia } from 'pinia';
 import { beforeEach, describe, expect, it } from 'vitest';
+import { ref } from 'vue';
 import { useBranding } from '@/composables/useBranding';
 import { defaultBrand } from '@/branding';
 import { useAuthStore } from '@/stores/auth';
@@ -161,5 +162,22 @@ describe('useBranding', () => {
     expect(branding.dashboardBanner.value).toEqual(defaultBrand.dashboardBanner);
     expect(branding.primaryLogoUrl.value).toBe('/images/bcid-logo-rev-en.svg');
     expect(branding.primaryLogoAlt.value).toBe('B.C. Government Logo');
+  });
+
+  it('allows the public logout view to use configured branding without authentication', () => {
+    useConfigStore().config = { selectedBrand: 'BCSS', brandingOptions };
+    const publicView = ref(true);
+    const branding = useBranding(publicView);
+
+    expect(useAuthStore().isAuthenticated).toBe(false);
+    expect(branding.primaryLogoUrl.value).toBe('/images/bcss-logo.svg');
+    expect(branding.secondaryLogoUrl.value).toBe('/images/bcss-logo.svg');
+    expect(branding.backgroundImageUrl.value).toBe('/images/bcss-overlay.svg');
+
+    publicView.value = false;
+
+    expect(branding.primaryLogoUrl.value).toBe('/images/bcid-logo-rev-en.svg');
+    expect(branding.secondaryLogoUrl.value).toBeNull();
+    expect(branding.backgroundImageUrl.value).toBeNull();
   });
 });

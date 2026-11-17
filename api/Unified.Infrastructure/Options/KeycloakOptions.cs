@@ -65,6 +65,11 @@ public class KeycloakOptions
     public string? LogoutEndpoint { get; set; } = "/protocol/openid-connect/logout";
 
     /// <summary>
+    /// Environment-specific upstream IDIR/SiteMinder logout URL, using returl and retnow.
+    /// </summary>
+    public string? SiteMinderLogoutUrl { get; set; }
+
+    /// <summary>
     /// Keycloak identity provider hint for automatic provider selection.
     /// </summary>
     public string KcIdpHint { get; set; } = "idir";

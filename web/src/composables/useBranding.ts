@@ -1,4 +1,4 @@
-import { computed } from 'vue';
+import { computed, toValue, type MaybeRefOrGetter } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import { getBrandingConfig } from '@/branding';
 import { defaultBrand, fixedPrimaryLogo } from '@/branding/brandingConfig';
@@ -6,16 +6,15 @@ import { defaultBrand, fixedPrimaryLogo } from '@/branding/brandingConfig';
 /**
  * Auth-gated view of the branding configuration.
  *
- * Custom branding (logo + background overlay image) is only applied once the
- * user is authenticated. Unauthenticated users (e.g. on the pre-login screen)
- * always see the default B.C. Government logo and no background overlay.
+ * Custom branding (logo + background overlay image) applies to authenticated
+ * users and the public logout landing page. Other unauthenticated views keep
+ * the default B.C. Government logo and no background overlay.
  */
-export const useBranding = () => {
+export const useBranding = (publicView: MaybeRefOrGetter<boolean> = false) => {
   const authStore = useAuthStore();
   const brand = computed(() => getBrandingConfig());
 
-  // Custom branding always applies once the user has logged in.
-  const isBrandingActive = computed(() => authStore.isAuthenticated);
+  const isBrandingActive = computed(() => authStore.isAuthenticated || toValue(publicView));
 
   const primaryLogo = computed(() => (isBrandingActive.value ? brand.value.primaryLogo : fixedPrimaryLogo));
   const primaryLogoUrl = computed(() => primaryLogo.value.url);

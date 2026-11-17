@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { useRoute } from 'vue-router';
+import { RouterLink, useRoute } from 'vue-router';
 import { useNavigationStore } from '@/stores/NavigationStore';
 import { useAuthStore } from '@/stores/auth';
 import { useLocationsStore } from '@/stores/LocationsStore';
@@ -9,17 +9,17 @@ import UaSelect from '@/shared/components/UaSelect.vue';
 import { redirectToLogout } from '@/utils/authNavigation';
 import { useBranding } from '@/composables/useBranding';
 
+const props = withDefaults(defineProps<{ publicView?: boolean }>(), { publicView: false });
 const navigationStore = useNavigationStore();
 const authStore = useAuthStore();
 const locationsStore = useLocationsStore();
-const branding = useBranding();
+const branding = useBranding(() => props.publicView);
 const route = useRoute();
 const isAdminActive = computed(() =>
   navigationStore.adminLinks.some((link) => route.path === link.path || route.path.startsWith(`${link.path}/`)),
 );
 
 const handleLogout = () => {
-  authStore.clearUserInfo();
   redirectToLogout();
 };
 </script>
@@ -27,7 +27,12 @@ const handleLogout = () => {
 <template>
   <div class="app-bar-wrapper">
     <v-app-bar class="app-bar" :height="80" flat>
-      <RouterLink class="appbar-branding appbar-branding-link" to="/dashboard" aria-label="Go to dashboard home">
+      <component
+        :is="publicView ? 'div' : RouterLink"
+        class="appbar-branding appbar-branding-link"
+        :to="publicView ? undefined : '/dashboard'"
+        :aria-label="publicView ? undefined : 'Go to dashboard home'"
+      >
         <div class="appbar-logo appbar-logo--primary">
           <img :src="branding.primaryLogoUrl.value" :alt="branding.primaryLogoAlt.value" />
         </div>
@@ -37,8 +42,8 @@ const handleLogout = () => {
             <img :src="branding.secondaryLogoUrl.value" :alt="branding.secondaryLogoAlt.value" />
           </div>
         </template>
-      </RouterLink>
-      <div v-if="authStore.isRegistered" class="router-link-container">
+      </component>
+      <div v-if="!publicView && authStore.isRegistered" class="router-link-container">
         <RouterLink
           v-for="navItem in navigationStore.mainLinks"
           :key="navItem.name"
@@ -65,7 +70,7 @@ const handleLogout = () => {
         </v-menu>
       </div>
 
-      <div v-if="authStore.isRegistered" class="appbar-mobile-navigation">
+      <div v-if="!publicView && authStore.isRegistered" class="appbar-mobile-navigation">
         <v-menu>
           <template #activator="{ props }">
             <v-btn v-bind="props" icon class="mobile-menu-btn" aria-label="Open navigation menu">
@@ -92,7 +97,7 @@ const handleLogout = () => {
 
       <v-spacer class="appbar-spacer" />
 
-      <div v-if="authStore.isAuthenticated" class="appbar-actions">
+      <div v-if="!publicView && authStore.isAuthenticated" class="appbar-actions">
         <UaSelect
           v-if="authStore.isRegistered"
           v-model="locationsStore.selectedLocationId"

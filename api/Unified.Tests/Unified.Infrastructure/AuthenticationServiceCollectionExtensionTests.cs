@@ -501,7 +501,9 @@ public class AuthenticationServiceCollectionExtensionTests
         return (options, new RecordingAuthenticationService());
     }
 
-    internal static IConfiguration CreateConfiguration() =>
+    internal static IConfiguration CreateConfiguration(
+        string? siteMinderLogoutUrl = "https://siteminder.example.com/clp-cgi/logoff.cgi?existing=1"
+    ) =>
         new ConfigurationBuilder()
             .AddInMemoryCollection(
                 new Dictionary<string, string?>
@@ -511,6 +513,7 @@ public class AuthenticationServiceCollectionExtensionTests
                     [$"{KeycloakOptions.SectionName}:Secret"] = "test-secret",
                     [$"{KeycloakOptions.SectionName}:Audience"] = "unified-api",
                     [$"{KeycloakOptions.SectionName}:CookieName"] = "UnifiedAuth",
+                    [$"{KeycloakOptions.SectionName}:SiteMinderLogoutUrl"] = siteMinderLogoutUrl,
                 }
             )
             .Build();

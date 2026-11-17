@@ -77,6 +77,21 @@ Authentication-cookie tests use a conservative 16 KB combined `Cookie` request-h
 - Supports identity provider hints (e.g., `idir` for BC Gov IDIR)
 - Saves only the refresh token, ID token, and access-token expiration in the authentication cookie
 
+### Logout sequence
+
+1. `GET /api/auth/logout` signs out of the Cookie and OIDC schemes. ASP.NET expires the application cookie and uses discovery's end-session endpoint and the retained ID token as `id_token_hint` to log out of Keycloak.
+2. Keycloak returns through `/api/auth/signout-callback-oidc` with protected OIDC state. The callback checks state and provider errors, then redirects to SiteMinder with an encoded absolute `/logged-out` URL in `returl` and `retnow=1`. Public scheme, host, port, and application base path are preserved.
+3. SiteMinder logs out the upstream IDIR session and returns to `/logged-out`. This public page loads configuration and the branded shell without authenticated controls or `/api/auth/user` checks, including on refresh.
+4. **Log in** navigates to the application root. Normal automatic authentication and PR #468's protected-page Back checks remain unchanged; IDIR may authenticate automatically through Windows authentication.
+
+**Configuration:** Supply an environment-specific absolute HTTPS `Keycloak__SiteMinderLogoutUrl` (`Keycloak:SiteMinderLogoutUrl` in configuration). Docker uses `SiteMinderLogoutUrl`, exported by `docker/manage` and mapped by Compose. The supplied non-production endpoint is `https://logontest7.gov.bc.ca/clp-cgi/logoff.cgi`; production requires its own approved endpoint. The nullable option has no default endpoint, and missing configuration does not block startup or normal login.
+
+Keycloak must advertise an `end_session_endpoint` and allow each exact public `/api/auth/signout-callback-oidc` URL in **Valid post logout redirect URIs**. The callback must reach the API anonymously. SiteMinder must support `returl`/`retnow=1` and allow the public `/logged-out` return URL. Include scheme, host, port, and any base path in both registrations. The web host must serve the SPA for direct `/logged-out` requests.
+
+**Failures:** Missing/invalid callback state or provider errors return 502. Missing, relative, or non-HTTPS SiteMinder configuration returns 503. Neither redirects as success; provider sessions may still be active. Discovery/end-session initiation failures remain server errors.
+
+**Deployment verification:** Unit tests use fake providers. Verify actual cookie and provider-session termination, redirect URLs behind the deployed proxy, anonymous `/logged-out` entry/refresh, real browser Back/cache behavior, and normal login after choosing **Log in**. A SiteMinder redirect alone does not prove logout succeeded; confirm that its `returl` is followed only after session termination.
+
 ### 3. JWT Bearer
 - **Primary default scheme** for API authentication
 - Validates tokens against Keycloak authority

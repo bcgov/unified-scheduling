@@ -18,6 +18,7 @@ import ApplicationUnavailable from '@/views/ApplicationUnavailable.vue';
 
 const UNREGISTERED_ROUTE_PATH = '/unregistered';
 const APPLICATION_UNAVAILABLE_ROUTE_PATH = '/application-unavailable';
+export const LOGGED_OUT_ROUTE_PATH = '/logged-out';
 
 declare module 'vue-router' {
   interface RouteMeta {
@@ -77,6 +78,14 @@ async function authGuard(to: RouteLocationNormalized, _from: RouteLocationNormal
 
 const baseRoutes: RouteRecordRaw[] = [
   {
+    path: LOGGED_OUT_ROUTE_PATH,
+    name: 'LoggedOut',
+    component: () => import('@/views/LoggedOut.vue'),
+    meta: {
+      title: 'Logged out',
+    },
+  },
+  {
     path: UNREGISTERED_ROUTE_PATH,
     name: 'UnregisteredUser',
     component: () => import('@/views/UnregisteredUser.vue'),
@@ -121,6 +130,20 @@ export const initializeRouter = (pinia: ReturnType<typeof createPinia>) => {
   const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
     routes,
+  });
+
+  window.addEventListener('pageshow', async (event) => {
+    if (!event.persisted) return;
+
+    const to = router.currentRoute.value;
+    if (!to.meta.requiresAuth) return;
+
+    useAuthStore(pinia).clearUserInfo();
+    const result = await authGuard(to, to);
+
+    if (typeof result !== 'boolean') {
+      await router.replace(result);
+    }
   });
 
   router.beforeEach(async (to, from) => {

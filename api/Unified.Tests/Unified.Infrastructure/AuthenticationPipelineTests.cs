@@ -10,11 +10,15 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.TestHost;
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Protocols;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
+using Unified.Authorization;
+using Unified.Db.Models.UserManagement;
 using Unified.Infrastructure;
+using Unified.UserManagement.Controllers;
 
 namespace Unified.Tests.Infrastructure;
 
@@ -143,21 +147,194 @@ public class AuthenticationPipelineTests
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
         Assert.NotNull(response.Headers.Location);
         Assert.Equal("keycloak.example.com", response.Headers.Location.Host);
+        var query = QueryHelpers.ParseQuery(response.Headers.Location.Query);
+        Assert.Equal("idir", query["kc_idp_hint"].ToString());
+        query.TryGetValue("prompt", out var prompt);
+        Assert.NotEqual("none", prompt.ToString());
     }
 
-    private static TestServer CreateServer(HttpMessageHandler? refreshHandler = null)
+    [Theory]
+    [InlineData("/", true)]
+    [InlineData("/unified-scheduling/", true)]
+    [InlineData("/unified-scheduling/", false)]
+    public async Task Logout_AuthenticatedCookie_ChainsOidcAndSiteMinderBeforeLoggedOutReturn(
+        string applicationBase,
+        bool behindProxy
+    )
+    {
+        using var server = CreateServer(pathBase: behindProxy ? "" : applicationBase.TrimEnd('/'));
+        using var client = CreateClientWithCookie(
+            server,
+            DateTimeOffset.UtcNow.AddHours(1),
+            "refresh-token",
+            "retained-id-token"
+        );
+        client.BaseAddress = new Uri(behindProxy ? "http://internal-api:5000" : "https://scheduling.example.com");
+        if (behindProxy)
+        {
+            client.DefaultRequestHeaders.Add("X-Forwarded-Proto", "https");
+            client.DefaultRequestHeaders.Add("X-Forwarded-Host", "scheduling.example.com");
+            client.DefaultRequestHeaders.Add("X-Forwarded-Port", "8443");
+            client.DefaultRequestHeaders.Add("X-Base-Href", applicationBase);
+        }
+        var backendBase = behindProxy ? "/" : applicationBase;
+        var logoutUri = new Uri(client.BaseAddress, $"{backendBase}api/auth/logout");
+        var cookies = new CookieContainer();
+        // Without an explicit cookie path, the handler scopes it to the application's PathBase.
+        var cookiePath = backendBase == "/" ? "/" : backendBase.TrimEnd('/');
+        cookies.SetCookies(
+            logoutUri,
+            client.DefaultRequestHeaders.GetValues("Cookie").Single() + $"; path={cookiePath}"
+        );
+        Assert.NotEmpty(cookies.GetCookieHeader(logoutUri));
+
+        var response = await client.GetAsync(logoutUri, TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        var location = Assert.IsType<Uri>(response.Headers.Location);
+        Assert.Equal("https://keycloak.example.com/logout", location.GetLeftPart(UriPartial.Path));
+        var query = QueryHelpers.ParseQuery(location.Query);
+        Assert.Equal("retained-id-token", query["id_token_hint"].ToString());
+        var publicOrigin = behindProxy ? "https://scheduling.example.com:8443" : "https://scheduling.example.com";
+        Assert.Equal(
+            $"{publicOrigin}{applicationBase}api/auth/signout-callback-oidc",
+            query["post_logout_redirect_uri"].ToString()
+        );
+        var options = server
+            .Services.GetRequiredService<IOptionsMonitor<OpenIdConnectOptions>>()
+            .Get(OpenIdConnectDefaults.AuthenticationScheme);
+        var state = query["state"].ToString();
+        Assert.Equal(
+            $"{publicOrigin}{applicationBase}logged-out",
+            options.StateDataFormat.Unprotect(state)?.RedirectUri
+        );
+
+        var deletedCookies = response.Headers.GetValues("Set-Cookie").ToArray();
+        Assert.Contains(
+            deletedCookies,
+            cookie => cookie.StartsWith("UnifiedAuth.Development=;", StringComparison.Ordinal)
+        );
+        foreach (var cookie in deletedCookies)
+            cookies.SetCookies(logoutUri, cookie);
+        Assert.Empty(cookies.GetCookieHeader(logoutUri));
+        client.DefaultRequestHeaders.Remove("Cookie");
+
+        var callback = QueryHelpers.AddQueryString($"{backendBase}api/auth/signout-callback-oidc", "state", state);
+        var callbackResponse = await client.GetAsync(callback, TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.Redirect, callbackResponse.StatusCode);
+        var upstreamLocation = Assert.IsType<Uri>(callbackResponse.Headers.Location);
+        Assert.Equal(
+            "https://siteminder.example.com/clp-cgi/logoff.cgi",
+            upstreamLocation.GetLeftPart(UriPartial.Path)
+        );
+        var upstreamQuery = QueryHelpers.ParseQuery(upstreamLocation.Query);
+        Assert.Contains("returl=https%3A%2F%2F", upstreamLocation.OriginalString);
+        Assert.Equal("1", upstreamQuery["retnow"].ToString());
+        Assert.Equal("1", upstreamQuery["existing"].ToString());
+        Assert.Equal($"{publicOrigin}{applicationBase}logged-out", upstreamQuery["returl"].ToString());
+    }
+
+    [Theory]
+    [InlineData("missing", null)]
+    [InlineData("invalid", null)]
+    [InlineData("no-redirect", null)]
+    [InlineData("valid", "server_error")]
+    public async Task LogoutCallback_InvalidStateOrProviderError_DoesNotRedirectAsSuccess(
+        string stateKind,
+        string? error
+    )
+    {
+        using var server = CreateServer();
+        using var client = server.CreateClient();
+        var options = server
+            .Services.GetRequiredService<IOptionsMonitor<OpenIdConnectOptions>>()
+            .Get(OpenIdConnectDefaults.AuthenticationScheme);
+        var state = stateKind switch
+        {
+            "missing" => null,
+            "invalid" => "tampered-state",
+            "no-redirect" => options.StateDataFormat.Protect(new AuthenticationProperties()),
+            _ => options.StateDataFormat.Protect(new AuthenticationProperties { RedirectUri = "/" }),
+        };
+        var callback = QueryHelpers.AddQueryString(
+            "/api/auth/signout-callback-oidc",
+            new Dictionary<string, string?> { ["state"] = state, ["error"] = error }
+        );
+
+        var response = await client.GetAsync(callback, TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.BadGateway, response.StatusCode);
+        Assert.Null(response.Headers.Location);
+        Assert.Contains(
+            "identity-provider session may still be active",
+            await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)
+        );
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("/relative-logout")]
+    [InlineData("http://siteminder.example.com/clp-cgi/logoff.cgi")]
+    public async Task LogoutCallback_MissingOrUnsafeUpstreamUrl_DoesNotReturnToAutomaticLogin(string? logoutUrl)
+    {
+        using var server = CreateServer(siteMinderLogoutUrl: logoutUrl);
+        using var client = CreateClientWithCookie(server, DateTimeOffset.UtcNow.AddHours(1), "refresh", "id");
+        var logoutResponse = await client.GetAsync("/api/auth/logout", TestContext.Current.CancellationToken);
+        var query = QueryHelpers.ParseQuery(logoutResponse.Headers.Location!.Query);
+        var callback = QueryHelpers.AddQueryString(
+            "/api/auth/signout-callback-oidc",
+            "state",
+            query["state"].ToString()
+        );
+
+        var response = await client.GetAsync(callback, TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
+        Assert.Null(response.Headers.Location);
+        Assert.Contains(
+            "identity-provider session may still be active",
+            await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)
+        );
+    }
+
+    [Fact]
+    public async Task Logout_MissingEndSessionEndpoint_PropagatesFailureInsteadOfRedirectingToRoot()
+    {
+        using var server = CreateServer(endSessionEndpoint: "");
+        using var client = CreateClientWithCookie(server, DateTimeOffset.UtcNow.AddHours(1), "refresh", "id");
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            client.GetAsync("/api/auth/logout", TestContext.Current.CancellationToken)
+        );
+
+        Assert.Contains("end session endpoint", exception.Message);
+    }
+
+    private static TestServer CreateServer(
+        HttpMessageHandler? refreshHandler = null,
+        string pathBase = "",
+        string endSessionEndpoint = "https://keycloak.example.com/logout",
+        string? siteMinderLogoutUrl = "https://siteminder.example.com/clp-cgi/logoff.cgi?existing=1"
+    )
     {
         var builder = new WebHostBuilder()
             .ConfigureServices(services =>
             {
                 services.AddRouting();
-                services.AddControllers().AddApplicationPart(typeof(AuthenticationPipelineTestController).Assembly);
+                services
+                    .AddControllers()
+                    .AddApplicationPart(typeof(AuthenticationPipelineTestController).Assembly)
+                    .AddApplicationPart(typeof(AuthController).Assembly);
+                services.AddSingleton(
+                    AuthenticationServiceCollectionExtensionTests.CreateConfiguration(siteMinderLogoutUrl)
+                );
+                services.AddSingleton<IUserAccountResolutionService>(new TestUserAccountResolutionService());
                 services.AddAuthorization(options =>
                     options.AddPolicy("view", policy => policy.RequireClaim("permission", "view"))
                 );
                 services.AddUnifiedAuthentication(
                     new AuthenticationServiceCollectionExtensionTests.FakeHostEnvironment(),
-                    AuthenticationServiceCollectionExtensionTests.CreateConfiguration()
+                    AuthenticationServiceCollectionExtensionTests.CreateConfiguration(siteMinderLogoutUrl)
                 );
                 if (refreshHandler is not null)
                 {
@@ -171,13 +348,15 @@ public class AuthenticationPipelineTests
                             {
                                 AuthorizationEndpoint = "https://keycloak.example.com/authorize",
                                 TokenEndpoint = "https://keycloak.example.com/token",
-                                EndSessionEndpoint = "https://keycloak.example.com/logout",
+                                EndSessionEndpoint = endSessionEndpoint,
                             }
                         )
                 );
             })
             .Configure(app =>
             {
+                if (!string.IsNullOrEmpty(pathBase))
+                    app.UsePathBase(pathBase);
                 app.UseRouting();
                 app.UseAuthentication();
                 app.UseAuthorization();
@@ -244,6 +423,20 @@ public class AuthenticationPipelineTests
         return string.Join("; ", cookiePairs);
     }
 
+    private sealed class TestUserAccountResolutionService : IUserAccountResolutionService
+    {
+        public Task UpdateCurrentUserLastLoginAsync(
+            ClaimsPrincipal principal,
+            CancellationToken cancellationToken = default
+        ) => Task.CompletedTask;
+
+        public Task<User?> ResolveCurrentUserAsync(
+            ClaimsPrincipal principal,
+            bool recordLogin = false,
+            CancellationToken cancellationToken = default
+        ) => Task.FromResult<User?>(null);
+    }
+
     private sealed class PipelineRefreshHandler(Func<int, HttpResponseMessage>? responseFactory = null)
         : HttpMessageHandler
     {
@@ -286,13 +479,6 @@ public sealed class AuthenticationPipelineTestController : ControllerBase
     [HttpGet("requires-permission")]
     [Authorize(Policy = "view")]
     public IActionResult RequiresPermission() => Ok(new { ok = true });
-
-    [HttpGet("auth/login")]
-    public IActionResult Login(string redirectUri) =>
-        Challenge(
-            new AuthenticationProperties { RedirectUri = redirectUri },
-            OpenIdConnectDefaults.AuthenticationScheme
-        );
 
     [HttpGet("auth/test-sign-in")]
     public async Task<IActionResult> TestSignIn()
