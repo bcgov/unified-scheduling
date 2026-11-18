@@ -256,11 +256,11 @@ WITH t(col, v) AS (
     UNION ALL SELECT 'SheriffTraining.FirstNotice (true)', CASE WHEN "FirstNotice" THEN 'y' END FROM "SheriffTraining"
 ), c AS (
     SELECT col, count(*) AS r, count(*) FILTER (WHERE v IS NULL) AS nl,
-           count(*) FILTER (WHERE v IS NOT NULL AND btrim(v) = '') AS bl,
-           count(*) FILTER (WHERE btrim(v) <> '' AND length(v) <= 20) AS l1,
-           count(*) FILTER (WHERE length(v) BETWEEN 21 AND 100 AND btrim(v) <> '') AS l2,
-           count(*) FILTER (WHERE length(v) BETWEEN 101 AND 500 AND btrim(v) <> '') AS l3,
-           count(*) FILTER (WHERE length(v) > 500 AND btrim(v) <> '') AS l4
+           count(*) FILTER (WHERE v IS NOT NULL AND v ~ '^\s*$') AS bl,
+           count(*) FILTER (WHERE v !~ '^\s*$' AND length(v) <= 20) AS l1,
+           count(*) FILTER (WHERE length(v) BETWEEN 21 AND 100 AND v !~ '^\s*$') AS l2,
+           count(*) FILTER (WHERE length(v) BETWEEN 101 AND 500 AND v !~ '^\s*$') AS l3,
+           count(*) FILTER (WHERE length(v) > 500 AND v !~ '^\s*$') AS l4
     FROM t GROUP BY 1
 ), p AS (
     -- Totals repeat across columns, and SH-08 partitions the User total again. Withholding
