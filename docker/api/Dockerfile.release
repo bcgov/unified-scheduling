@@ -8,6 +8,7 @@ COPY api/Unified.Audit/Unified.Audit.csproj ./api/Unified.Audit/
 COPY api/Unified.Authorization/Unified.Authorization.csproj ./api/Unified.Authorization/
 COPY api/Unified.Common/Unified.Common.csproj ./api/Unified.Common/
 COPY api/Unified.Core/Unified.Core.csproj ./api/Unified.Core/
+COPY api/Unified.DataMigration/Unified.DataMigration.csproj ./api/Unified.DataMigration/
 COPY api/Unified.Infrastructure/Unified.Infrastructure.csproj ./api/Unified.Infrastructure/
 COPY api/Unified.Stats/Unified.Stats.csproj ./api/Unified.Stats/
 COPY api/Unified.UserManagement/Unified.UserManagement.csproj ./api/Unified.UserManagement/

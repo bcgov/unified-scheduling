@@ -1,6 +1,7 @@
 # Custom
 .agents/
 skills-lock.json
+docker/migration/inputs/original-extractors/ss-shape-extracts.md
 
 # Claude Code
 .claude/
