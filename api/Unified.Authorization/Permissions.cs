@@ -123,4 +123,8 @@ public enum Permissions
     LoanOutEdit,
     LoanOutDelete,
     LoanOutView,
+
+    // --- Data Migration ---
+    DataMigrationOperate,
+    DataMigrationRollback,
 }

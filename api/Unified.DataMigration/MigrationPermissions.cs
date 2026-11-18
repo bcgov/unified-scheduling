@@ -1,11 +1,12 @@
+using Unified.Authorization;
 using Unified.Authorization.Seeders;
 
 namespace Unified.DataMigration;
 
 public static class MigrationPermissions
 {
-    public const string Operate = "DataMigrationOperate";
-    public const string Rollback = "DataMigrationRollback";
+    public const string Operate = nameof(Permissions.DataMigrationOperate);
+    public const string Rollback = nameof(Permissions.DataMigrationRollback);
     public const string OperationsPolicy = "Permission:" + Operate;
     public const string RollbackPolicy = "Permission:" + Rollback;
 

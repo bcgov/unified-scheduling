@@ -144,6 +144,24 @@ public class AuthControllerTest
     }
 
     [Fact]
+    public async Task GetUserInfo_Should_Include_DataMigration_Permissions()
+    {
+        var claims = new List<Claim>
+        {
+            new(UnifiedClaimTypes.UserId, Guid.NewGuid().ToString()),
+            new(UnifiedClaimTypes.Permission, "DataMigrationOperate"),
+            new(UnifiedClaimTypes.Permission, "DataMigrationRollback"),
+        };
+        var controller = CreateController(new ClaimsPrincipal(new ClaimsIdentity(claims, "TestAuth")));
+
+        var result = await controller.GetUserInfo(TestContext.Current.CancellationToken);
+
+        var userInfo = Assert.IsType<UserInfo>(Assert.IsType<OkObjectResult>(result.Result).Value);
+        Assert.Contains(Permissions.DataMigrationOperate, userInfo.Permissions);
+        Assert.Contains(Permissions.DataMigrationRollback, userInfo.Permissions);
+    }
+
+    [Fact]
     public async Task GetUserInfo_Should_Return_Null_UserId_When_Claim_Missing()
     {
         var claims = new List<Claim> { new(ClaimTypes.Name, "test-user") };

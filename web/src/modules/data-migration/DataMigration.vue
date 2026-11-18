@@ -35,7 +35,11 @@ function disabled(job: MigrationJob) {
 }
 
 function latest(job: MigrationJob) {
-  return accepted.value[job] ?? runs.value.find((run) => run.job === job);
+  return (
+    accepted.value[job] ??
+    runs.value.find((run) => run.job === job && run.status === 'Running') ??
+    runs.value.find((run) => run.job === job)
+  );
 }
 
 function refresh(): Promise<boolean> {
@@ -73,8 +77,7 @@ async function loadRuns() {
     runs.value = values;
     for (const { job } of migrationJobs) {
       const current = accepted.value[job];
-      const updated = current && values.find((run) => run.id === current.id);
-      if (updated) accepted.value[job] = updated;
+      if (current && values.some((run) => run.id === current.id && run.job === job)) delete accepted.value[job];
     }
     known.value = true;
     return true;
