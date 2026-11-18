@@ -30,6 +30,7 @@ public sealed class SsSchedulingWriter(UnifiedDbContext db)
         CancellationToken ct
     )
     {
+        rows = SwapReversedDates(rows);
         await RoomsAsync(rows, session, ct);
         await ClassificationsAsync(rows, session, ct);
         // A later cutoff must not implicitly remove a member applied by an
@@ -82,6 +83,17 @@ public sealed class SsSchedulingWriter(UnifiedDbContext db)
         await WriteGraphAsync(remaining, session, boundary, ct);
         await graphs.CaptureAsync(selected, session, boundary, ct);
     }
+
+    // Legacy SS has a few rows whose StartDate/EndDate were entered backwards; the interval
+    // itself is valid, so swap them instead of rejecting the row and cascading to its duty.
+    internal static Dictionary<string, List<SsRow>> SwapReversedDates(Dictionary<string, List<SsRow>> rows) =>
+        rows.ToDictionary(
+            x => x.Key,
+            x =>
+                x.Key is "Duty" or "DutySlot" or "Shift"
+                    ? x.Value.Select(r => r.WithReversedDatesSwapped()).ToList()
+                    : x.Value
+        );
 
     private async Task WriteGraphAsync(
         Dictionary<string, List<SsRow>> rows,

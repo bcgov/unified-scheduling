@@ -400,6 +400,16 @@ public sealed class SsRow(IReadOnlyDictionary<string, object?> values)
         return new SsRow(projected);
     }
 
+    internal SsRow WithReversedDatesSwapped()
+    {
+        if (Date("StartDate") is not { } start || Date("EndDate") is not { } end || end >= start)
+            return this;
+        var swapped = values.ToDictionary(x => x.Key, x => x.Value, StringComparer.Ordinal);
+        swapped["StartDate"] = values["EndDate"];
+        swapped["EndDate"] = values["StartDate"];
+        return new SsRow(swapped);
+    }
+
     public string Id => Convert.ToString(values["Id"], CultureInfo.InvariantCulture)!;
 
     public string? Text(string key) => values[key] as string;
