@@ -93,6 +93,26 @@ public sealed class DataMigrationModuleTests
     }
 
     [Fact]
+    public async Task AddDataMigrationModule_WhenEnabledWithoutCutover_RejectsOtherwiseValidSource()
+    {
+        var builder = CreateBuilder(true);
+        builder.Configuration.AddInMemoryCollection(
+            new Dictionary<string, string?>
+            {
+                ["DataMigration:Sources:SS:ConnectionString"] = "Host=source",
+                ["DataMigration:Sources:SS:BatchSize"] = "10",
+            }
+        );
+        using var host = builder.Build();
+
+        var error = await Assert.ThrowsAsync<OptionsValidationException>(() =>
+            host.StartAsync(TestContext.Current.CancellationToken)
+        );
+
+        Assert.Contains(error.Failures, failure => failure.Contains("SS:CutoverDate", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task AddDataMigrationModule_WhenEnabledWithValidSource_PreservesRegistrationAndBinding()
     {
         var builder = CreateBuilder(true);
