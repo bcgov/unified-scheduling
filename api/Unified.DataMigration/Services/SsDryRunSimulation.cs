@@ -54,6 +54,12 @@ internal sealed class SsDryRunSimulation(
         // Refuse unknown explicit mappings instead of silently falling through to them.
         if (db.Model.GetEntityTypes().Any(x => x.GetSchema() is not (null or "public" or "etl")))
             throw new SsReject("SimulationExplicitSchemaUnsupported");
+        var boundary = new DateTimeOffset(
+            TimeZoneInfo.ConvertTimeToUtc(
+                source.HistoryStartDate.ToDateTime(TimeOnly.MinValue),
+                TimeZoneInfo.FindSystemTimeZoneById("America/Vancouver")
+            )
+        );
         var rows = await reader.ReadAsync(
             SsMyTeamWriter
                 .Tables.Concat(SsTrainingWriter.Tables)
@@ -61,7 +67,8 @@ internal sealed class SsDryRunSimulation(
                 .Distinct()
                 .ToArray(),
             batchSize,
-            ct
+            ct,
+            boundary
         );
         var connection = new NpgsqlConnectionStringBuilder(source.ConnectionString);
         var inputHash = SsWriteSession.Hash(
@@ -158,12 +165,6 @@ internal sealed class SsDryRunSimulation(
             await CloneAsync(schema, tables, ct);
             await CommandAsync($"SET LOCAL search_path TO {Q(schema)}, pg_catalog", ct);
             db.ChangeTracker.Clear();
-            var boundary = new DateTimeOffset(
-                TimeZoneInfo.ConvertTimeToUtc(
-                    source.HistoryStartDate.ToDateTime(TimeOnly.MinValue),
-                    TimeZoneInfo.FindSystemTimeZoneById("America/Vancouver")
-                )
-            );
             foreach (var parent in parents)
             {
                 var hydrated = new SsWriteSession(db, parent.Run)

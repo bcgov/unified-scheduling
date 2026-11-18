@@ -200,7 +200,8 @@ public sealed class SsSnapshotReader(IOptions<DataMigrationOptions> options)
     public async Task<Dictionary<string, List<SsRow>>> ReadAsync(
         IEnumerable<string> tables,
         int batchSize,
-        CancellationToken ct
+        CancellationToken ct,
+        DateTimeOffset? userHistoryBoundary = null
     )
     {
         if (batchSize <= 0)
@@ -292,8 +293,86 @@ public sealed class SsSnapshotReader(IOptions<DataMigrationOptions> options)
                     break;
             }
         }
+        if (userHistoryBoundary is { } boundary)
+        {
+            if (!result.TryGetValue("User", out var users))
+                throw new ArgumentException("User history checks require the User source table.", nameof(tables));
+            var userIds = users
+                .Where(x => x.Guid("KeyCloakId") is not null)
+                .GroupBy(x => x.Guid("KeyCloakId")!.Value)
+                .Where(group =>
+                    group.Count() > 1 && group.Any(x => x.Bool("IsEnabled") && x.Guid("IdirId") is not null)
+                )
+                .SelectMany(group => group.Where(x => !x.Bool("IsEnabled") && x.Guid("IdirId") is null))
+                .Select(x => Guid.Parse(x.Id))
+                .ToArray();
+            if (userIds.Length == 0)
+                result["__UsersWithHistory"] = [];
+            else
+                result["__UsersWithHistory"] = await ReadUsersWithHistoryAsync(connection, tx, userIds, boundary, ct);
+        }
         await tx.RollbackAsync(ct);
         return result;
+    }
+
+    private static async Task<List<SsRow>> ReadUsersWithHistoryAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        Guid[] userIds,
+        DateTimeOffset boundary,
+        CancellationToken ct
+    )
+    {
+        await using var command = new NpgsqlCommand(
+            """
+            SELECT DISTINCT user_id
+            FROM (
+                SELECT r."UserId" AS user_id
+                FROM public."UserRole" r WHERE r."UserId" = ANY(@userIds)
+                UNION
+                SELECT r."SheriffId"
+                FROM public."SheriffActingRank" r
+                WHERE r."SheriffId" = ANY(@userIds) AND r."EndDate" >= @boundary
+                UNION
+                SELECT r."SheriffId"
+                FROM public."SheriffAwayLocation" r
+                WHERE r."SheriffId" = ANY(@userIds) AND r."EndDate" >= @boundary
+                UNION
+                SELECT r."SheriffId"
+                FROM public."SheriffLeave" r
+                WHERE r."SheriffId" = ANY(@userIds) AND r."EndDate" >= @boundary
+                UNION
+                SELECT r."SheriffId"
+                FROM public."SheriffTraining" r
+                JOIN public."User" u ON u."Id" = r."SheriffId"
+                WHERE r."SheriffId" = ANY(@userIds) AND r."EndDate" >= @boundary
+                    AND r."ExpiryDate" IS NULL AND NOT COALESCE(u."Excused", false)
+                UNION
+                SELECT r."SheriffId"
+                FROM public."Shift" r
+                WHERE r."SheriffId" = ANY(@userIds) AND r."EndDate" >= @boundary
+                UNION
+                SELECT slot."SheriffId"
+                FROM public."DutySlot" slot
+                JOIN public."Duty" duty ON duty."Id" = slot."DutyId"
+                LEFT JOIN public."Assignment" assignment ON assignment."Id" = duty."AssignmentId"
+                LEFT JOIN public."LookupCode" code ON code."Id" = assignment."LookupCodeId"
+                WHERE slot."SheriffId" = ANY(@userIds) AND slot."ExpiryDate" IS NULL
+                    AND slot."EndDate" >= @boundary AND duty."EndDate" >= @boundary
+                    AND COALESCE(code."Code", '') NOT IN ('Test', 'Leave Waitlist')
+            ) history
+            WHERE user_id IS NOT NULL
+            """,
+            connection,
+            transaction
+        );
+        command.Parameters.AddWithValue("userIds", userIds);
+        command.Parameters.AddWithValue("boundary", boundary);
+        var usersWithHistory = new List<SsRow>();
+        await using var reader = await command.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct))
+            usersWithHistory.Add(new SsRow(new Dictionary<string, object?> { ["Id"] = reader.GetGuid(0) }));
+        return usersWithHistory;
     }
 }
 
@@ -312,6 +391,14 @@ public sealed class SsRow(IReadOnlyDictionary<string, object?> values)
 
     internal SsRow ProjectNullable(params string[] fields) =>
         new(fields.ToDictionary(x => x, x => values.TryGetValue(x, out var value) ? value : null));
+
+    internal SsRow WithUserIdentities(Guid? idirId, Guid? keycloakId)
+    {
+        var projected = values.ToDictionary(x => x.Key, x => x.Value, StringComparer.Ordinal);
+        projected["IdirId"] = idirId;
+        projected["KeyCloakId"] = keycloakId;
+        return new SsRow(projected);
+    }
 
     public string Id => Convert.ToString(values["Id"], CultureInfo.InvariantCulture)!;
 

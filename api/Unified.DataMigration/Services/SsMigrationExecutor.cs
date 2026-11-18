@@ -266,12 +266,17 @@ public sealed class SsMigrationExecutor(
                 "Scheduling" => SsSchedulingWriter.Tables,
                 _ => throw new ArgumentOutOfRangeException(nameof(job)),
             };
-            var rows = await reader.ReadAsync(tables, settings.BatchSize, ct);
             var boundary = new DateTimeOffset(
                 TimeZoneInfo.ConvertTimeToUtc(
                     source.HistoryStartDate.ToDateTime(TimeOnly.MinValue),
                     TimeZoneInfo.FindSystemTimeZoneById("America/Vancouver")
                 )
+            );
+            var rows = await reader.ReadAsync(
+                tables,
+                settings.BatchSize,
+                ct,
+                job == "MyTeam" ? boundary : null
             );
             await using var batches = new SsBatchProgress(
                 db,

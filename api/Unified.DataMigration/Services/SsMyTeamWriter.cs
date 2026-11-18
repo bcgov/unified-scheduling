@@ -267,6 +267,72 @@ public sealed class SsMyTeamWriter(UnifiedDbContext db, SsLeaveWriter leaveWrite
             .SelectMany(x => x)
             .Select(x => x.Id)
             .ToHashSet();
+        var sourceUsers = rows["User"];
+        var duplicateIdentityGroups = DuplicateIdentityGroups(sourceUsers);
+        var effectiveIdentities = new Dictionary<string, SsRow>(StringComparer.Ordinal);
+        var duplicateIdentityRejections = new Dictionary<string, string>(StringComparer.Ordinal);
+        var staleBindingLosers = new HashSet<string>(StringComparer.Ordinal);
+        var usersWithHistory = rows.TryGetValue("__UsersWithHistory", out var historyRows)
+            ? historyRows.Select(x => x.Id).ToHashSet(StringComparer.Ordinal)
+            : null;
+        foreach (var group in duplicateIdentityGroups)
+        {
+            if (group.Any(x => x.Id == User.SystemUser.ToString()))
+            {
+                foreach (var member in group)
+                    duplicateIdentityRejections[member.Id] = "DuplicateSsoIdentity";
+                continue;
+            }
+
+            if (group.Any(x => duplicates.Contains(x.Id)))
+            {
+                foreach (var member in group)
+                    duplicateIdentityRejections[member.Id] = "DuplicateNormalizedIdirName";
+                continue;
+            }
+
+            var survivors = group
+                .Where(x => x.Bool("IsEnabled") && x.Guid("IdirId") is not null)
+                .ToList();
+            if (survivors.Count != 1)
+            {
+                foreach (var member in group)
+                    duplicateIdentityRejections[member.Id] = "DuplicateSsoIdentity";
+                continue;
+            }
+
+            var survivor = survivors[0];
+            var losers = group.Where(x => !ReferenceEquals(x, survivor)).ToList();
+            if (
+                losers.Any(x => x.Bool("IsEnabled") || x.Guid("IdirId") is not null)
+                || rows["User"].Count(x => x.Guid("IdirId") == survivor.Guid("IdirId")) != 1
+            )
+            {
+                foreach (var member in group)
+                    duplicateIdentityRejections[member.Id] = "DuplicateSsoIdentity";
+                continue;
+            }
+
+            if (usersWithHistory is null)
+            {
+                foreach (var member in group)
+                    duplicateIdentityRejections[member.Id] = "StaleSsoBindingHistoryUnavailable";
+                continue;
+            }
+
+            if (losers.Any(x => usersWithHistory.Contains(x.Id)))
+            {
+                foreach (var member in group)
+                    duplicateIdentityRejections[member.Id] = "StaleSsoBindingHasLiveHistory";
+                continue;
+            }
+
+            foreach (var member in losers)
+            {
+                effectiveIdentities[member.Id] = member.WithUserIdentities(null, null);
+                staleBindingLosers.Add(member.Id);
+            }
+        }
         foreach (var row in rows["User"])
             await session.RowAsync(
                 "User",
@@ -281,7 +347,13 @@ public sealed class SsMyTeamWriter(UnifiedDbContext db, SsLeaveWriter leaveWrite
                     }
                     if (duplicates.Contains(row.Id))
                         throw new SsReject("DuplicateNormalizedIdirName");
+                    if (duplicateIdentityRejections.TryGetValue(row.Id, out var identityRejection))
+                        throw new SsReject(identityRejection);
                     var idir = User.NormalizeIdirName(row.Text("IdirName")) ?? "";
+                    var effectiveRow = effectiveIdentities.GetValueOrDefault(row.Id) ?? row;
+                    var idirId = effectiveRow.Guid("IdirId");
+                    var keycloak = effectiveRow.Guid("KeyCloakId");
+                    var outcomeReason = staleBindingLosers.Contains(row.Id) ? "StaleSsoBindingCleared" : null;
                     var hash = SsWriteSession.Hash(
                         new
                         {
@@ -289,19 +361,15 @@ public sealed class SsMyTeamWriter(UnifiedDbContext db, SsLeaveWriter leaveWrite
                             Enabled = row.Bool("IsEnabled"),
                             Gender = row.Int("Gender"),
                             LastLogin = row.Date("LastLogin"),
+                            IdirId = idirId,
+                            KeyCloakId = keycloak,
+                            IdentityDifference = outcomeReason,
                         }
                     );
-                    var idirId = row.Guid("IdirId");
-                    var keycloak = row.Guid("KeyCloakId");
-                    if (
-                        idirId is not null && rows["User"].Count(x => x.Guid("IdirId") == idirId) > 1
-                        || keycloak is not null && rows["User"].Count(x => x.Guid("KeyCloakId") == keycloak) > 1
-                    )
-                        throw new SsReject("DuplicateSsoIdentity");
                     if (
                         await session.ReplayAsync(
                             "User",
-                            row,
+                            effectiveRow,
                             hash,
                             false,
                             ct,
@@ -354,7 +422,11 @@ public sealed class SsMyTeamWriter(UnifiedDbContext db, SsLeaveWriter leaveWrite
                             }
                         )
                     )
+                    {
+                        if (outcomeReason is not null)
+                            session.Outcome("User", row.Id, "MigratedWithDifference", outcomeReason);
                         return;
+                    }
                     var targets = await db.Users.Where(x => x.IdirName == idir).ToListAsync(ct);
                     if (targets.Count > 1)
                         throw new SsReject("AmbiguousUser");
@@ -426,14 +498,14 @@ public sealed class SsMyTeamWriter(UnifiedDbContext db, SsLeaveWriter leaveWrite
                         || string.IsNullOrWhiteSpace(row.Text("IdirName"));
                     await session.LinkAsync(
                         "User",
-                        row,
+                        effectiveRow,
                         "User",
                         target.Id,
                         hash,
                         created,
                         ct,
-                        missing ? "MigratedWithDifference" : "Migrated",
-                        missing ? "NullIdentityTextToEmpty" : null
+                        missing || outcomeReason is not null ? "MigratedWithDifference" : "Migrated",
+                        outcomeReason ?? (missing ? "NullIdentityTextToEmpty" : null)
                     );
                 },
                 ct
@@ -718,4 +790,51 @@ public sealed class SsMyTeamWriter(UnifiedDbContext db, SsLeaveWriter leaveWrite
         var id = await session.ResolveIntAsync("PositionType", matches[0].Int("Id"), ct);
         return await db.PositionTypes.SingleAsync(x => x.Id == id, ct);
     }
+
+    private static List<List<SsRow>> DuplicateIdentityGroups(List<SsRow> users)
+    {
+        var parents = Enumerable.Range(0, users.Count).ToArray();
+
+        int Find(int index)
+        {
+            while (parents[index] != index)
+            {
+                parents[index] = parents[parents[index]];
+                index = parents[index];
+            }
+            return index;
+        }
+
+        void Union(int left, int right)
+        {
+            var leftRoot = Find(left);
+            var rightRoot = Find(right);
+            if (leftRoot != rightRoot)
+                parents[rightRoot] = leftRoot;
+        }
+
+        var firstByIdentity = new Dictionary<(string Kind, Guid Value), int>();
+        for (var index = 0; index < users.Count; index++)
+        {
+            var identities = new List<(string Kind, Guid Value)>();
+            if (users[index].Guid("IdirId") is { } idir)
+                identities.Add(("IdirId", idir));
+            if (users[index].Guid("KeyCloakId") is { } keycloak)
+                identities.Add(("KeyCloakId", keycloak));
+            foreach (var key in identities)
+            {
+                if (firstByIdentity.TryGetValue(key, out var first))
+                    Union(first, index);
+                else
+                    firstByIdentity.Add(key, index);
+            }
+        }
+
+        return Enumerable.Range(0, users.Count)
+            .GroupBy(Find)
+            .Where(x => x.Count() > 1)
+            .Select(x => x.Select(index => users[index]).ToList())
+            .ToList();
+    }
+
 }
