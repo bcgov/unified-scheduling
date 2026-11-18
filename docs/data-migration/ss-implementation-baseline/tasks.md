@@ -82,7 +82,7 @@ GitOps are out of scope for this release.
 ## Phase 5: Verification And Evidence
 
 - [x] T046 Repo-local config/operations/mock runbook; mirror required workspace artifacts for versioned history. `docker/migration/README.md`, `SHAPE-PROFILE.md`, quickstart and `ss-implementation-baseline` mirror.
-- [ ] T047 Review projections/logging/findings/exports for credentials, photos, protected text and unsafe SQL.
+- [x] T047 Review projections/logging/findings/exports for credentials, photos, protected text and unsafe SQL. 2026-11-18 scan: dynamic SQL uses fixed/model identifiers only, values parameterized; no ILogger/value logging; stored failures and job exceptions use fixed text (no inner exception); source connections set `IncludeErrorDetail=false`; exports hold IDs/codes only with CSV formula-injection guard; photos excluded from hashes/exports; Runner not in release image. Low: rehearsal-only `SafeStack` console blocks (type/SqlState/frame names only) remain in executor/write session; remove before release.
 - [ ] T048 Run applicable SS-V001..057; record per-ID passed/failed/pending/superseded plus exact evidence.
 - [x] T049 Run smallest relevant build/tests first, PostgreSQL end-to-end/EF script/formatter and broader checks as required. SDK10 API/Runner builds, 103 migration + 5 Hangfire tests (zero skipped), actual PostgreSQL suites and format/Compose checks pass. This does not mark T048/T050 or business acceptance complete.
 - [ ] T050 Review migration endpoint authorization/security before release; unresolved checks stay visible.
@@ -91,7 +91,7 @@ GitOps are out of scope for this release.
 
 ## Phase 6: Release Acceptance (Remaining)
 
-Open tasks above still apply: T015, T034, T047, T048, T050, T051, T062, T066. T063 is deferred.
+Open tasks above still apply: T015, T034, T048, T050, T051, T062, T066. T063 is deferred.
 
 **Migration engineering (can be done now):**
 - [ ] T069 Re-run v20 full chain with `HistoryStartDate=2020-01-01` on a fresh target; record counts, skips and timing at BatchSize 100-250 plus an unchanged re-run.
@@ -100,7 +100,7 @@ Open tasks above still apply: T015, T034, T047, T048, T050, T051, T062, T066. T0
 - T015/T034: complete paging/cutoff and pause/abort/rollback race test matrices.
 - T048: finish the SS-V001..057 pass/fail ledger.
 - T051: validate the JC guard (SS-V036/038/039/048).
-- T047/T050: security and endpoint authorization review.
+- T047/T050: security and endpoint authorization review (T047 done 2026-11-18).
 
 **External owners (block production acceptance):**
 - [ ] T071 BL-15 LoanOut availability fix in Unified Scheduling (app owner). Primary blocker.
