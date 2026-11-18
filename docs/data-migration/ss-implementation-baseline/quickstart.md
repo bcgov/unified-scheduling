@@ -11,6 +11,12 @@
 - Source schema from SS EF migrations and deterministic fake data shaped by SH aggregates.
 - SS read-only connection supplied outside Git. Explicit false JC expiry flags.
 - `HistoryStartDate=2020-01-01`, `CutoverDate=2026-12-01`; per-job disabled/dry-run defaults.
+- Apply is disabled per job by default. An authorized operator must set that job's
+  `AllowMigrationApply=true` and explicitly request JSON `dryRun:false` through the operations
+  API. No second `DryRun=false` config is needed. Direct/recurring jobs cannot apply.
+- Apply is not limited by target database name. Rollback remains restricted to its existing
+  acknowledged synthetic database allowlist and is unavailable for production; plan
+  recovery and backup/restore separately.
 
 Use the committed implementation status/runbook index (local-only: `implementation-status.md`)
 and [final adverse report](../../unified-scheduling/docs/data-migration/reports/2026-11-17-adverse-v20-final.md)
@@ -27,7 +33,9 @@ rtk dotnet test --project api\Unified.Tests\Unified.Tests.csproj --filter FullyQ
 rtk git diff --check
 ```
 
-Confirm the repository test runner supports the selector before use. Then run its actual
+The broad migration filter includes HTTP tests and PostgreSQL-gated tests; run it only when
+those operations are explicitly approved. The direct-service safety tests can be selected
+with `--filter-class Unified.Tests.DataMigration.MigrationApplySafetyTests`. Then run its actual
 PostgreSQL integration harness, formatter and EF migration script/apply validation.
 Broader suite/build is required when the affected paths or failures demand it; record baseline
 failures distinctly from newly introduced failures.
@@ -60,6 +68,9 @@ failures distinctly from newly introduced failures.
 Report must account for every selected source row; all unexplained differences fail.
 Open NeedsAction never passes. Check identity/auth material, schedule business meaning and
 training compliance fields explicitly. Synthetic login identifiers do not prove real IDIR login.
+Report generation errors do not fail loader runs or block this apply effort. When run state
+is writable, record `NeedsAction`, not a pass; surface persistence errors. Genuine
+data-validation failures remain failures.
 
 Operator go-live tasks: actual backup/restore check, explicit JC config, read-only secrets,
 resolve future Surrey gap groups, final actual report comparison and publish preview/approval

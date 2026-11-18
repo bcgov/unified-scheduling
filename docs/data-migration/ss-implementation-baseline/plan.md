@@ -35,7 +35,7 @@ Unchecked tasks retain their verification/acceptance obligations, not an implied
 | Item | Choice |
 |---|---|
 | Language/runtime | C#, .NET 10; legacy oracle .NET 5 kept separate |
-| Jobs | Existing Hangfire `IRecurringJob`; Vancouver schedule |
+| Jobs | API-triggered Hangfire jobs; optional recurring dry runs on Vancouver schedule |
 | Target | Existing EF Core/Npgsql PostgreSQL model plus migration-owned state only |
 | Source | SS PostgreSQL 12 schema from legacy EF migrations; explicit read-only Npgsql DTOs |
 | Tests | Existing xUnit plus real PostgreSQL integration and actual report/service comparisons |
@@ -88,7 +88,14 @@ An expired worker cannot resume writes after takeover: enforce a fencing token o
 transactional lease ownership check. No automatic success for stale runs.
 
 Config: `DataMigration:Sources:SS:Jobs:{MyTeam|Training|Scheduling|Report}` each has
-Enabled, CronSchedule, DryRun=true, BatchSize. Disabled/empty cron removes schedule.
+Enabled, CronSchedule, DryRun=true, AllowMigrationApply=false, BatchSize. Disabled/empty cron removes schedule.
+Apply requires an authenticated, authorized API trigger with explicit JSON `dryRun:false`
+and the selected job's `AllowMigrationApply=true`; it does not require `DryRun=false`.
+The worker rechecks that gate, the recorded trigger audit, run mode and configuration.
+Direct and recurring execution cannot apply. Their configured `DryRun=false` is refused.
+Apply has no target-name allowlist; rollback retains its separate rehearsal-only guard.
+SS jobs share their source connection; Unified supplies the target connection. An independent
+backup/restore procedure and explicit owner approval are recommended before real writes.
 Validate entity ownership at startup. CASS stays disabled and source-isolated.
 Controls are per `(Source, Job)` plus source-wide pause/abort. Poll at batch boundaries.
 
@@ -174,6 +181,11 @@ Verdicts:
 - PassWithKnownDifferences: approved bounded differences, zero unresolved NeedsAction.
 - NeedsAction: open human action; **not a pass**.
 - Fail: coverage hole, unexpected/rejected/failed class, threshold breach or unmet primary goal.
+
+Report generation errors are non-blocking for the apply effort: the Report run records
+`NeedsAction` and safe diagnostics, while loader outcomes remain unchanged. A missing
+oracle validator is not a pass. Actual data failures remain visible and are assessed
+separately; the O-1..O-4 validator is not part of this apply change.
 
 Do not treat a matching row count as workflow parity. Verify actual Unified read paths,
 future edit/publish compatibility, compliance report business fields and authentication

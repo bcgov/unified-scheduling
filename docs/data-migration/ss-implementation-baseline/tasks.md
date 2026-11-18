@@ -13,7 +13,19 @@ verification or acceptance work; see the [measured acceptance inventory](../../u
 **2026-11-18 review:** build tasks with measured v20 evidence are checked
 ("implemented; acceptance separate"). Remaining work is grouped in Phase 6 by owner.
 Training compliance sign-off can only happen in production (T070). CASS and tenant
-GitOps are out of scope for this release.
+deployment configuration is out of scope; the GitOps runbook is in scope.
+
+## Current Scoped Apply Work
+
+- [x] T074 Add per-job opt-in for API-only apply, defaulting to dry-run and preserving the rehearsal-only rollback guard.
+- [x] T075 Keep Report generation errors separate from loader failures, with explicit non-passing diagnostics.
+- [x] T076 Align apply, rollback and Report operations documentation without enabling production configuration.
+- [x] T077 Verify the apply and Report contracts, format changed code and record test evidence.
+
+Focused checks: 14 direct safety and 31 recurring-job tests passed. Seven isolated
+PostgreSQL tests passed, including default and explicit dry runs, one nonempty apply,
+worker gate rechecks, Report errors and refusal of rollback on a non-rehearsal target.
+No HTTP or production requests were sent. Full-chain and race coverage remains open.
 
 ## Phase 0: Planning Milestone
 
@@ -90,7 +102,7 @@ GitOps are out of scope for this release.
 
 ## Phase 6: Release Acceptance (Remaining)
 
-Open tasks above still apply: T015, T034, T051, T062, T066. T050 is complete; T063 is deferred.
+Open tasks above still apply: T015, T034, T051, T062, T066. T050 is complete; T063 moved to Out Of Scope (BL-17).
 
 **Migration engineering (can be done now):**
 - [ ] T069 Re-run v20 full chain with `HistoryStartDate=2020-01-01` on a fresh target; record counts, skips and timing at BatchSize 100-250 plus an unchanged re-run.

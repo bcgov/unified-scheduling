@@ -10,6 +10,17 @@
 
 ## Clarifications
 
+### Session 2026-11-18: Apply Opt-in
+
+- SS apply requires an authenticated, audited API trigger with explicit `dryRun:false`
+  and `AllowMigrationApply=true` for that job. Both defaults remain safe; configured
+  job `DryRun=false` is not an additional apply requirement.
+- Remove the rehearsal target-name restriction from apply only. Existing rollback
+  stays rehearsal-only; production migration rollback is not available.
+- A Report generation error is non-blocking and must not fail the loader runs. Record
+  the Report as `NeedsAction` with safe diagnostics, not a pass. Real data failures
+  remain failures and missing validation evidence remains visible.
+
 ### Session 2026-11-16
 
 - Implement SS now using final findings; CASS and tenant deployment work stay deferred.
@@ -91,6 +102,11 @@ An authorized operator can review a source-specific run, pause or abort it safel
 5. **Given** later user edits or dependent work exist, **When** rollback is requested,
    **Then** preview/export occurs first and no business writes occur without explicit,
    current-impact confirmation for the selected run.
+6. **Given** an SS apply is requested, **When** the request is not an audited API trigger
+   or the selected job has not opted in, **Then** no apply starts.
+7. **Given** an acquired Report cannot be generated and run state is writable,
+   **When** its run ends, **Then** it records `NeedsAction` without changing loader
+   outcomes or claiming a pass.
 
 ### Edge Cases
 
@@ -109,10 +125,12 @@ An authorized operator can review a source-specific run, pause or abort it safel
 
 - **FR-001**: SS MUST provide MyTeam, Training, Scheduling and final Report recurring jobs.
   CASS remains a separate disabled source with deferred implementation.
-- **FR-002**: Each source job MUST have independent enablement, schedule, source connection, controls, run state, watermarks, failures, and rollback evidence.
+- **FR-002**: Each source MUST have an independent connection. Each job MUST have
+  independent enablement, schedule, controls, run state, watermarks, failures, and
+  rollback evidence; SS jobs share their source connection.
 - **FR-003**: Disabling one source MUST prevent its future scheduled runs without changing the configuration or execution of the other source.
 - **FR-004**: Both sources MUST be disabled by default. A source MUST validate its connection, schedule, and batch settings only when that source is enabled.
-- **FR-005**: Each source job MUST use its own read-only legacy credentials. Credentials and source payloads MUST NOT be logged or stored in migration evidence.
+- **FR-005**: Each source MUST use its own read-only legacy credentials. Credentials and source payloads MUST NOT be logged or stored in migration evidence.
 - **FR-006**: A source job MUST use Pacific time for its configured schedule and treat an empty or disabled schedule as no active recurring job.
 - **FR-007**: The system MUST allow only one active run per `(Source, Job)`, with atomic
   dependency/lineage checks and safe stale-run recovery that cannot permit an old worker to write.
@@ -161,6 +179,13 @@ An authorized operator can review a source-specific run, pause or abort it safel
 - **FR-028**: Findings/CSV/Markdown MUST expose significant omissions, accepted differences,
   safe source IDs/metrics and human actions. Ordinary evidence MUST contain no protected free
   text/photos/credentials; rollback impact values require separate restricted export controls.
+- **FR-029**: SS apply MUST require an authenticated, audited API trigger with explicit
+  `dryRun:false` and that job's `AllowMigrationApply=true`. Both request and job defaults
+  MUST deny apply. Scheduled and direct execution MUST NOT apply.
+- **FR-030**: A Report generation error MUST NOT change loader outcomes or mark the Report
+  migration run as failed or passed, or increment its failure count. When run state is
+  writable it MUST remain visible as `NeedsAction` with safe diagnostics; persistence
+  errors MUST be surfaced. Genuine migration and data-validation failures MUST remain failures.
 
 ### Key Entities *(include if feature involves data)*
 
