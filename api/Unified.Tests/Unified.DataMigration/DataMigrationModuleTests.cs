@@ -5,6 +5,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
+using Unified.Common.FeatureFlags;
 using Unified.DataMigration;
 using Unified.DataMigration.FeatureFlags;
 using Unified.DataMigration.Options;
@@ -14,6 +15,21 @@ namespace Unified.Tests.DataMigration;
 
 public sealed class DataMigrationModuleTests
 {
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    [InlineData(null)]
+    public void AddDataMigrationModule_ExposesFeatureFlagForWebConfig(bool? enabled)
+    {
+        var builder = CreateBuilder(enabled);
+        using var provider = builder.Services.BuildServiceProvider();
+
+        var flag = Assert.Single(provider.GetServices<IFeatureFlags>());
+
+        Assert.Equal("DataMigration", flag.Source);
+        Assert.Equal(enabled == true, Assert.IsType<DataMigrationFeatureFlags>(flag).Enabled);
+    }
+
     [Theory]
     [InlineData(true, true)]
     [InlineData(false, true)]

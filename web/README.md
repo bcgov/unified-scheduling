@@ -2,6 +2,21 @@
 
 This template should help get you started developing with Vue 3 in Vite.
 
+## Unlinked data-migration operator page
+
+Open `/data-migration` under the configured web base path. It requires an
+authenticated, registered user with `DataMigrationOperate` **and**
+`FeatureFlags:DataMigration:Enabled=true` (exposed through `/api/config`).
+There is no normal navigation link. Start My Team, Start Training, and Start
+Scheduling each confirm before POSTing to `/api/data-migration/SS/jobs/{job}/runs`
+with explicit `{"dryRun":false}`: **apply writes**, not simulations.
+Nothing starts on entry. Runs load on entry and refresh every five seconds;
+pending/Running jobs and unknown/failed state reads disable starts. Accepted run
+IDs/status remain visible. Server authorization, auditing, concurrency and MyTeam
+lineage checks remain authoritative; 409 means refusal, not success.
+No Report or rollback action is provided. Existing migration acceptance and
+activation restrictions remain unchanged.
+
 ## Recommended IDE Setup
 
 [VS Code](https://code.visualstudio.com/) + [Vue (Official)](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).

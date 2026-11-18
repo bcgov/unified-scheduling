@@ -1,0 +1,27 @@
+import type { RouteRecordRaw } from 'vue-router';
+import { useAccessControl } from '@/composables/useAccessControl';
+
+// Local contract additions until the next full Orval regeneration.
+type MigrationFeatureFlags = { DataMigration?: { enabled?: boolean } };
+
+export function canOperateDataMigration(access = useAccessControl()) {
+  const flags: MigrationFeatureFlags = access.featureFlags.value as MigrationFeatureFlags;
+  return (
+    flags.DataMigration?.enabled === true &&
+    access.authStore.isAuthenticated &&
+    access.authStore.isRegistered &&
+    access.authStore.userInfo?.permissions.some((permission) => String(permission) === 'DataMigrationOperate') === true
+  );
+}
+
+export function registerModule(routes: RouteRecordRaw[]) {
+  if (!canOperateDataMigration()) return;
+
+  routes.push({
+    path: '/data-migration',
+    name: 'DataMigration',
+    component: () => import('./DataMigration.vue'),
+    meta: { title: 'Data Migration', requiresAuth: true },
+    beforeEnter: () => (canOperateDataMigration() ? true : { path: '/dashboard' }),
+  });
+}
