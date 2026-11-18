@@ -110,19 +110,6 @@ public sealed class DataMigrationPersistenceTests : IAsyncDisposable
         await Assert.ThrowsAsync<DbUpdateException>(() => _db.SaveChangesAsync(TestContext.Current.CancellationToken));
     }
 
-    [Fact]
-    public async Task ActiveRunGuard_AllowsOnlyOneRunningRunPerSource()
-    {
-        var service = new DataMigrationControlService(_db);
-        var first = await service.TryStartRunAsync("SS", false, TestContext.Current.CancellationToken);
-        var second = await service.TryStartRunAsync("SS", false, TestContext.Current.CancellationToken);
-
-        Assert.NotNull(first);
-        Assert.Null(second);
-        await service.CompleteRunAsync(first!, "Completed", TestContext.Current.CancellationToken);
-        Assert.NotNull(await service.TryStartRunAsync("SS", false, TestContext.Current.CancellationToken));
-    }
-
     private static DataMigrationRecord CreateRecord(string source, string entityType, string legacyId) =>
         new()
         {

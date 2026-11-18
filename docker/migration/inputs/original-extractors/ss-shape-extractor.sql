@@ -10,6 +10,11 @@
 -- are public reference data. Any count from 1 to 4 is shown as "<5", and its share % and median
 -- are left blank. Rank text values held by fewer than 5 users are grouped as "other". Per-sheriff
 -- measures are percentiles over groups of 5 or more sheriffs; no maximums.
+-- SH-07 additionally withholds ALL field-presence counts for a table if any of its cells is 1-4,
+-- including zeros and repeated row totals. "suppressed" can therefore mean any non-negative count,
+-- not just 1-4. SH-08 counts are also withheld when User field-presence counts are withheld.
+-- This conservative rule protects field-presence partitions, not arbitrary linkage to other
+-- extracts or a general disclosure assessment of the other aggregate sections.
 --
 -- Target: legacy Sheriff Scheduling PostgreSQL database (EF Core quoted PascalCase tables).
 -- Output: GitHub-flavoured Markdown written to ss-shape-extracts.md.
@@ -219,7 +224,7 @@ FROM g ORDER BY 1, n DESC, 2, 3, 4;
 \qecho
 \qecho '## SH-07 Field Presence And Text Length'
 \qecho
-\qecho 'All rows. Blank = empty or whitespace only. Length bands describe non-blank values; no text is shown.'
+\qecho 'All rows. Blank = empty or whitespace only. Length bands describe non-blank values; no text is shown. If any cell is 1-4, all field-presence counts for that table (including zeros and totals) are suppressed.'
 \qecho
 \qecho 'Table.Column | Rows | Null | Blank | Len 1-20 | Len 21-100 | Len 101-500 | Len >500'
 \qecho '--- | ---: | ---: | ---: | ---: | ---: | ---: | ---:'
@@ -257,16 +262,29 @@ WITH t(col, v) AS (
            count(*) FILTER (WHERE length(v) BETWEEN 101 AND 500 AND btrim(v) <> '') AS l3,
            count(*) FILTER (WHERE length(v) > 500 AND btrim(v) <> '') AS l4
     FROM t GROUP BY 1
+), p AS (
+    -- Totals repeat across columns, and SH-08 partitions the User total again. Withholding
+    -- only a total, or leaving several "<5" cells whose sum is known, can still disclose them.
+    -- Hide the entire table's histograms without identifying primary vs complementary cells.
+    SELECT c.*, bool_or(
+        r BETWEEN 1 AND 4 OR nl BETWEEN 1 AND 4 OR bl BETWEEN 1 AND 4 OR
+        l1 BETWEEN 1 AND 4 OR l2 BETWEEN 1 AND 4 OR l3 BETWEEN 1 AND 4 OR l4 BETWEEN 1 AND 4
+    ) OVER (PARTITION BY split_part(col, '.', 1)) AS hide
+    FROM c
 )
-SELECT col, (SELECT :sup FROM (SELECT r AS n) x), (SELECT :sup FROM (SELECT nl AS n) x),
-       (SELECT :sup FROM (SELECT bl AS n) x), (SELECT :sup FROM (SELECT l1 AS n) x),
-       (SELECT :sup FROM (SELECT l2 AS n) x), (SELECT :sup FROM (SELECT l3 AS n) x),
-       (SELECT :sup FROM (SELECT l4 AS n) x)
-FROM c ORDER BY 1;
+SELECT coalesce(string_agg(col || ' | ' || CASE WHEN hide
+           THEN 'suppressed | suppressed | suppressed | suppressed | suppressed | suppressed | suppressed'
+           ELSE concat_ws(' | ', r, nl, bl, l1, l2, l3, l4) END, E'\n' ORDER BY col), '') AS field_presence_rows,
+       coalesce(bool_or(hide) FILTER (WHERE col LIKE 'User.%'), false) AS suppress_user_counts
+FROM p
+\gset
+\qecho :field_presence_rows
 
 -- ---------------------------------------------------------------------------------------------
 \qecho
 \qecho '## SH-08 Users, Roles And Home Locations'
+\qecho
+\qecho 'Counts are suppressed when User field-presence counts are suppressed, so these distributions cannot reconstruct the withheld User total or boolean/rank counts.'
 \qecho
 \qecho 'Measure | Value | Users'
 \qecho '--- | --- | ---:'
@@ -284,6 +302,6 @@ WITH u AS (
         SELECT CASE WHEN n < 5 THEN '01 1-4' WHEN n < 10 THEN '02 5-9' WHEN n < 25 THEN '03 10-24' WHEN n < 50 THEN '04 25-49' WHEN n < 100 THEN '05 50-99' ELSE '06 100+' END AS b
         FROM (SELECT "HomeLocationId", count(*) AS n FROM u WHERE "Discriminator" = 'Sheriff' AND "IsEnabled" GROUP BY 1) h) hb GROUP BY 3
 )
-SELECT k, v, :sup FROM m ORDER BY o, v;
+SELECT k, v, CASE WHEN :'suppress_user_counts'::boolean THEN 'suppressed' ELSE :sup END FROM m ORDER BY o, v;
 
 ROLLBACK;

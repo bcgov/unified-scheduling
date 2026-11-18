@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using Unified.Db;
 using Unified.Db.Models.DataMigration;
 
@@ -27,7 +28,14 @@ public sealed class DataMigrationControlService(UnifiedDbContext dbContext)
             await dbContext.SaveChangesAsync(cancellationToken);
             return run;
         }
-        catch (DbUpdateException)
+        catch (DbUpdateException ex)
+            when (ex.InnerException
+                    is PostgresException
+                    {
+                        SqlState: PostgresErrorCodes.UniqueViolation,
+                        ConstraintName: "IX_DataMigrationRuns_Source_Status",
+                    }
+            )
         {
             dbContext.Entry(run).State = EntityState.Detached;
             return null;
@@ -40,8 +48,11 @@ public sealed class DataMigrationControlService(UnifiedDbContext dbContext)
         CancellationToken cancellationToken = default
     )
     {
-        run.Status = status;
-        run.CompletedOn = DateTimeOffset.UtcNow;
+        var trackedRun = await dbContext
+            .DataMigrationRuns.AsTracking()
+            .SingleAsync(item => item.Id == run.Id, cancellationToken);
+        trackedRun.Status = status;
+        trackedRun.CompletedOn = DateTimeOffset.UtcNow;
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 }

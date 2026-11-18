@@ -19,6 +19,14 @@ public static class DataMigrationModule
             .BindConfiguration(DataMigrationFeatureFlags.Section)
             .ValidateOnStart();
 
+        if (
+            configuration.GetSection(DataMigrationFeatureFlags.Section).Get<DataMigrationFeatureFlags>()?.Enabled
+            != true
+        )
+        {
+            return services;
+        }
+
         services
             .AddOptions<DataMigrationOptions>()
             .BindConfiguration(DataMigrationOptions.SectionName)
