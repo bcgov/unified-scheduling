@@ -1,3 +1,4 @@
+using System.Reflection;
 using Microsoft.EntityFrameworkCore;
 using Unified.DataMigration.Sources;
 using Unified.Db;
@@ -29,6 +30,8 @@ public sealed class SsReconciliationWriter(UnifiedDbContext db)
             .DataMigrationOutcomes.AsNoTracking()
             .Where(x => runIds.Contains(x.RunId))
             .ToListAsync(ct);
+        // Retain every member: duplicate coverage across lineage runs must still fail.
+        var outcomeIndex = outcomes.ToLookup(x => (x.EntityType, x.LegacyId));
         var allowed = new HashSet<string>
         {
             "Migrated",
@@ -78,16 +81,55 @@ public sealed class SsReconciliationWriter(UnifiedDbContext db)
             else
                 expected.Add((type, row));
         }
+        var applied = expected
+            .Where(x =>
+            {
+                var ledger = outcomeIndex[(x.Type, x.Row.Id)].ToArray();
+                return ledger.Length == 1 && ledger[0].Outcome is "Migrated" or "Merged" or "MigratedWithDifference";
+            })
+            .ToList();
+        var links = new List<DataMigrationRecord>();
+        foreach (var entity in applied.GroupBy(x => x.Type))
+        foreach (var ids in entity.Select(x => x.Row.Id).Distinct().Chunk(1000))
+            links.AddRange(
+                await db
+                    .DataMigrationRecords.AsNoTracking()
+                    .Where(x => x.Source == "SS" && x.EntityType == entity.Key && ids.Contains(x.LegacyId))
+                    .ToListAsync(ct)
+            );
+        var linkIndex = links.ToDictionary(x => (x.EntityType, x.LegacyId));
+        var targets = new HashSet<(string Type, string Key)>();
+        var currentLinks = applied
+            .Where(x => linkIndex.TryGetValue((x.Type, x.Row.Id), out var link) && !SourceChanged(x.Type, x.Row, link))
+            .Select(x => linkIndex[(x.Type, x.Row.Id)])
+            .Distinct()
+            .GroupBy(x => x.TargetType);
+        foreach (var entity in currentLinks)
+        {
+            var metadata = db.Model.GetEntityTypes().SingleOrDefault(x => x.ClrType.Name == entity.Key);
+            var key = metadata?.FindPrimaryKey()?.Properties.Single();
+            if (
+                key is null
+                || key.ClrType != typeof(Guid) && key.ClrType != typeof(int) && key.ClrType != typeof(string)
+            )
+                continue;
+            var read = typeof(SsReconciliationWriter)
+                .GetMethod(nameof(ReadTargetKeysAsync), BindingFlags.Instance | BindingFlags.NonPublic)!
+                .MakeGenericMethod(metadata!.ClrType, key.ClrType);
+            var found = await (Task<HashSet<string>>)
+                read.Invoke(this, [key.Name, entity.Select(x => x.TargetKey).Distinct().ToArray(), ct])!;
+            targets.UnionWith(found.Select(x => (entity.Key, x)));
+        }
         foreach (var (type, row) in expected)
         {
-            var ledger = outcomes.Where(x => x.EntityType == type && x.LegacyId == row.Id).ToList();
-            if (ledger.Count != 1)
+            var ledger = outcomeIndex[(type, row.Id)].ToArray();
+            if (ledger.Length != 1)
             {
                 s.Outcome(
                     type,
                     row.Id,
                     "Failed",
-                    ledger.Count == 0 ? "MissingSourceCoverage" : "DuplicateSourceCoverage"
+                    ledger.Length == 0 ? "MissingSourceCoverage" : "DuplicateSourceCoverage"
                 );
                 continue;
             }
@@ -100,43 +142,20 @@ public sealed class SsReconciliationWriter(UnifiedDbContext db)
             );
             if (outcome.Outcome is not ("Migrated" or "Merged" or "MigratedWithDifference"))
                 continue;
-            var link = await db
-                .DataMigrationRecords.AsNoTracking()
-                .SingleOrDefaultAsync(x => x.Source == "SS" && x.EntityType == type && x.LegacyId == row.Id, ct);
-            if (link is null)
+            if (!linkIndex.TryGetValue((type, row.Id), out var link))
             {
                 // Replace, rather than inflate, the selected row's one final outcome.
                 s.Outcomes[^1].Outcome = "Failed";
                 s.Outcomes[^1].Reason = "MissingPrimaryCrosswalk";
                 continue;
             }
-            if (
-                type
-                    is "User"
-                        or "UserRole"
-                        or "SheriffActingRank"
-                        or "SheriffAwayLocation"
-                        or "SheriffLeave"
-                        or "SheriffTraining"
-                        or "Assignment"
-                        or "Shift"
-                        or "Duty"
-                        or "DutySlot"
-                && link.SourceUpdatedAtUtc != (row.Date("UpdatedOn") ?? row.Date("CreatedOn"))
-            )
+            if (SourceChanged(type, row, link))
             {
                 s.Outcomes[^1].Outcome = "NeedsAction";
                 s.Outcomes[^1].Reason = "SourceChangedSinceApplied";
                 continue;
             }
-            var metadata = db.Model.GetEntityTypes().SingleOrDefault(x => x.ClrType.Name == link.TargetType);
-            var keyType = metadata?.FindPrimaryKey()?.Properties.Single().ClrType;
-            object? key =
-                keyType == typeof(Guid) ? Guid.Parse(link.TargetKey)
-                : keyType == typeof(int) ? int.Parse(link.TargetKey)
-                : keyType == typeof(string) ? link.TargetKey
-                : null;
-            if (metadata is null || key is null || await db.FindAsync(metadata.ClrType, [key], ct) is null)
+            if (!targets.Contains((link.TargetType, link.TargetKey)))
             {
                 s.Outcomes[^1].Outcome = "Failed";
                 s.Outcomes[^1].Reason = "MissingCrosswalkTarget";
@@ -144,5 +163,49 @@ public sealed class SsReconciliationWriter(UnifiedDbContext db)
         }
         // Group metrics are deliberately not copied as selected-source outcomes.
         // Coverage and actual query checks remain separate evidence dimensions.
+    }
+
+    private static bool SourceChanged(string type, SsRow row, DataMigrationRecord link) =>
+        type
+            is "User"
+                or "UserRole"
+                or "SheriffActingRank"
+                or "SheriffAwayLocation"
+                or "SheriffLeave"
+                or "SheriffTraining"
+                or "Assignment"
+                or "Shift"
+                or "Duty"
+                or "DutySlot"
+        && link.SourceUpdatedAtUtc != (row.Date("UpdatedOn") ?? row.Date("CreatedOn"));
+
+    // Only the target entity/key types vary; keep this batched existence read local to Report.
+    private async Task<HashSet<string>> ReadTargetKeysAsync<TEntity, TKey>(
+        string keyName,
+        string[] values,
+        CancellationToken ct
+    )
+        where TEntity : class
+        where TKey : notnull
+    {
+        var parsed = values.ToDictionary(
+            x => x,
+            x =>
+                (TKey)(
+                    typeof(TKey) == typeof(Guid) ? (object)Guid.Parse(x)
+                    : typeof(TKey) == typeof(int) ? int.Parse(x)
+                    : x
+                )
+        );
+        var found = new HashSet<TKey>();
+        foreach (var keys in parsed.Values.Distinct().Chunk(1000))
+            found.UnionWith(
+                await db.Set<TEntity>()
+                    .AsNoTracking()
+                    .Where(x => keys.Contains(EF.Property<TKey>(x, keyName)))
+                    .Select(x => EF.Property<TKey>(x, keyName))
+                    .ToListAsync(ct)
+            );
+        return parsed.Where(x => found.Contains(x.Value)).Select(x => x.Key).ToHashSet();
     }
 }
