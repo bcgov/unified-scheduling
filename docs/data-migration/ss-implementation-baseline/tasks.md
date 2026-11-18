@@ -46,7 +46,7 @@ GitOps are out of scope for this release.
 - [x] T057 Add Job/lineage/cutover/restore-point/heartbeat or fenced-lease state, `(Source,Job)` Running guard, per-job controls and source-wide controls in migration-owned schema. Atomic dependency gate permits parallel Training/Scheduling, not parent overlap; stale-run recovery cannot allow old-worker writes. Implemented; v20 lineage gate refused Report on failed child. Exhaustive race matrix is T034.
 - [x] T058 Implement typed paging upper bounds, deterministic mapped/source hashes, full merge-group reloads, durable rejected-row retry and separate resumable cutoff-backfill progress (EN-1/4/5). Implemented; PG resume/retry/backfill probes pass; v20 4h30m50s. Production sizing is T069.
 - [x] T059 Inspect/start/preserve existing stopped SS mock; add isolated persistent Compose resources, named volumes, synthetic seed/schema provenance and health checks. Healthy source/target retained; original source preserved. See measured report; shape fit remains T060.
-- [x] T060 Tune deterministic synthetic data from production SH-01..08; measure ±20% fit on non-suppressed comparable buckets; verify repeated-build hashes, filled-DB refusal, all extractors and manifest cases (SS-V056). Exact original SH SQL in `d3a05fe6` passes both independent shape builds: 4,631 numeric cells within bounds, 1,222 suppressed bounds satisfied, 53 production-withheld cells explicitly noncomparable; all 5,906 cells accounted. Adverse fixture is separate and correctly fails shape fit; manifest outcome mismatches remain T048, not waived.
+- [x] T060 Tune deterministic synthetic data from production SH-01..08; measure ±20% fit on non-suppressed comparable buckets; verify repeated-build hashes, filled-DB refusal, all extractors and manifest cases (SS-V056). Exact original SH SQL in `d3a05fe6` passes both independent shape builds: 4,631 numeric cells within bounds, 1,222 suppressed bounds satisfied, 53 production-withheld cells explicitly noncomparable; all 5,906 cells accounted. Adverse fixture is separate and correctly fails shape fit. Remaining manifest differences are explicit in the T048 ledger; the two G8 fixture expectation mismatches are accepted under T062.
 - [ ] T015 Extend adapter watermark/tied-time/read-only/cutoff and backfill tests (SS-V026).
 - [x] T017 Retire original MappingApprovalRequired shell; implementation now belongs to T056.
 - [x] T018 Implement all required read-only source projections/schema/timezone preflight; verify actual singular SS table/column names. Actual source reads account for 101,426 selected identities.
@@ -63,14 +63,14 @@ GitOps are out of scope for this release.
 
 - [x] T061 Implement categories/courses/profile requirements/history/versioning/qualifying profiles. Preserve certificate expiry including null; exclusions/notes/notice exact; no renewal/mail side effects (EN-6). v20: 568 identities, 0 rejected/failed; stored facts match SS. Compliance sign-off is T070.
 - [x] T021 Implement classifications, merged definitions/shifts, duties/slots/links and qualifying G-10 series in required order. No invented shift gap time/occurrences. v20: 98,625 identities, 0 rejected; 20,224 standalone roots kept. 2 failed outcomes are source/app issues (T071/T072).
-- [ ] T062 Validate capacities, many-to-one identities, source membership changes, future Draft publish readiness, cutover-day series compatibility and retained expired leave editing (SS-V014..022/050..052).
+- [ ] T062 Validate capacities, many-to-one identities, source membership changes, future Draft publish readiness, cutover-day series compatibility and retained expired leave editing (SS-V014..022/050..052). Owner decisions 2026-11-18: accepts the two G8 fixture merge mismatches as expectation errors (no mapping change); accepts the future publish preview as blocked pending T072 (not a pass). Code review confirms BL-8: leave edit forms filter by event date and clear a saved type when it is no longer active. Keep open for BL-8 and remaining coverage; see the [validation ledger](validation-ledger.md).
 - [ ] T063 Verify overtime using actual WorkingHoursService and configured 420/60/0; report every discrepancy and threshold. Future difference is not silently accepted.
 
 ## Phase 4: Reports, Operations And Recovery
 
 - [ ] T034 Add pause/resume/abort/rollback/dry-run tests for split lineage and races.
 - [x] T035 Implement durable source/job controls and safe status/failure queries. Actual PostgreSQL operations proofs pass.
-- [x] T036 Implement preview-first confirmed compensating rollback, dependency order, merge ownership, footprint proof and transactional failure handling (SS-V055). Graph inverse restores prior footprint; broader release coverage remains T048/T050.
+- [x] T036 Implement preview-first confirmed compensating rollback, dependency order, merge ownership, footprint proof and transactional failure handling (SS-V055). Graph inverse restores prior footprint; broader race/inverse coverage remains T034/T055, and endpoint authorization review remains T050. T048 records the current evidence and open cases.
 - [x] T037 Add job-scoped operations contracts/DTOs.
 - [x] T038 Add existing-framework migration permission checks/endpoints; no auth framework changes.
 - [x] T039 Verify authorization, source/job isolation, redaction and stable run IDs. Focused operations tests and actual PostgreSQL proofs pass; exhaustive release review remains separate.
@@ -83,22 +83,22 @@ GitOps are out of scope for this release.
 
 - [x] T046 Repo-local config/operations/mock runbook; mirror required workspace artifacts for versioned history. `docker/migration/README.md`, `SHAPE-PROFILE.md`, quickstart and `ss-implementation-baseline` mirror.
 - [x] T047 Review projections/logging/findings/exports for credentials, photos, protected text and unsafe SQL. 2026-11-18 scan: dynamic SQL uses fixed/model identifiers only, values parameterized; no ILogger/value logging; stored failures and job exceptions use fixed text (no inner exception); source connections set `IncludeErrorDetail=false`; exports hold IDs/codes only with CSV formula-injection guard; photos excluded from hashes/exports; Runner not in release image. Low: rehearsal-only `SafeStack` console blocks (type/SqlState/frame names only) remain in executor/write session; remove before release.
-- [ ] T048 Run applicable SS-V001..057; record per-ID passed/failed/pending/superseded plus exact evidence.
-- [x] T049 Run smallest relevant build/tests first, PostgreSQL end-to-end/EF script/formatter and broader checks as required. SDK10 API/Runner builds, 103 migration + 5 Hangfire tests (zero skipped), actual PostgreSQL suites and format/Compose checks pass. This does not mark T048/T050 or business acceptance complete.
+- [x] T048 Build the SS-V001..057 ledger from retained evidence; label pass/partial/failed/blocked/pending/deferred/superseded states, BL-15 blockers and the separate production-only gate. Ledger completion does not mean all tests pass or production is accepted; see the [validation ledger](validation-ledger.md).
+- [x] T049 Run smallest relevant build/tests first, PostgreSQL end-to-end/EF script/formatter and broader checks as required. SDK10 API/Runner builds, 103 migration + 5 Hangfire tests (zero skipped), actual PostgreSQL suites and format/Compose checks pass. This does not close the open validations in the T048 ledger, T050, or business acceptance.
 - [ ] T050 Review migration endpoint authorization/security before release; unresolved checks stay visible.
 - [x] T067 Produce significant migration-gap report, training export-vs-SS-code comparison and recommended backlog with primary-goal impacts. Reports preserve NO-GO, BL-15 and unproved compliance/OT outcomes; no acceptance claim.
 - [x] T068 Commit logical code/test/evidence milestones without attribution; no pushes. Leave persistent mock up and record readiness/resources. Mock retained per closeout report.
 
 ## Phase 6: Release Acceptance (Remaining)
 
-Open tasks above still apply: T015, T034, T048, T050, T051, T062, T066. T063 is deferred.
+Open tasks above still apply: T015, T034, T050, T051, T062, T066. T063 is deferred.
 
 **Migration engineering (can be done now):**
 - [ ] T069 Re-run v20 full chain with `HistoryStartDate=2020-01-01` on a fresh target; record counts, skips and timing at BatchSize 100-250 plus an unchanged re-run.
-- T062: resolve or record approval for the 2 merge expectation mismatches.
+- T062: two G8 fixture expectation mismatches accepted; future publish preview waits on T072; BL-8 edit gap confirmed by code review and remains open.
 - T063: deferred (owner decision 2026-11-18): known multi-location overtime gaps; past differences stay as findings.
 - T015/T034: complete paging/cutoff and pause/abort/rollback race test matrices.
-- T048: finish the SS-V001..057 pass/fail ledger.
+- T048: complete; per-ID evidence ledger is recorded. Open validations remain explicitly open.
 - T051: validate the JC guard (SS-V036/038/039/048).
 - T047/T050: security and endpoint authorization review (T047 done 2026-11-18).
 

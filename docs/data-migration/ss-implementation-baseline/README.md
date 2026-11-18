@@ -13,7 +13,8 @@ links: quickstart, significant-gaps, training-comparison and validation-evidence
 Tracked evidence: [acceptance inventory](../reports/2026-11-16-acceptance-inventory.md),
 [final v20 run](../reports/2026-11-17-adverse-v20-final.md),
 [original SH execution](../reports/2026-11-17-original-sh-execution.md) and
-[closeout](../reports/2026-11-17-closeout.md).
+[closeout](../reports/2026-11-17-closeout.md), plus the
+[SS-V001..057 validation ledger](./validation-ledger.md).
 
 This snapshot is **not business acceptance**. NO-GO, BL-15 and unresolved
 Report/OT differences remain; see `tasks.md` Phase 6.
