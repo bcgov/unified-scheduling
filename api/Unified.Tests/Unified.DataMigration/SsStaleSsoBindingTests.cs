@@ -1,5 +1,6 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using Unified.DataMigration.Services;
 using Unified.DataMigration.Sources;
 using Unified.Db;
@@ -9,24 +10,53 @@ using Unified.Tests.TestHelpers;
 
 namespace Unified.Tests.DataMigration;
 
-public sealed class SsStaleSsoBindingTests : IAsyncDisposable
+// Rejection paths stop before any crosswalk write and run on SQLite. Successful imports reach the
+// PostgreSQL-only xmin version fence in SsWriteSession, so those run only against PostgreSQL.
+public sealed class SsStaleSsoBindingTests : IAsyncLifetime
 {
-    private readonly SqliteConnection _connection = new("DataSource=:memory:;Foreign Keys=True");
-    private readonly UnifiedDbContext _db;
+    private const string PostgresSkip = "Set UNIFIED_TEST_POSTGRES_CONNECTION_STRING to run against PostgreSQL.";
+    private static readonly string? PostgresConnectionString = Environment.GetEnvironmentVariable(
+        "UNIFIED_TEST_POSTGRES_CONNECTION_STRING"
+    );
+    private readonly string _database = $"stale_sso_test_{Guid.NewGuid():N}";
+    private SqliteConnection? _connection;
+    private UnifiedDbContext _db = null!;
     private static readonly DateTimeOffset Boundary = new(2025, 1, 1, 0, 0, 0, TimeSpan.Zero);
     private static readonly Guid SharedKeycloak = Guid.Parse("10000000-0000-0000-0000-000000000001");
     private static readonly Guid SurvivorIdir = Guid.Parse("20000000-0000-0000-0000-000000000001");
 
-    public SsStaleSsoBindingTests()
+    public static bool IsPostgresConfigured => !string.IsNullOrWhiteSpace(PostgresConnectionString);
+
+    public async ValueTask InitializeAsync()
     {
-        _connection.Open();
-        _db = new SqliteTestUnifiedDbContext(
-            new DbContextOptionsBuilder<UnifiedDbContext>().UseSqlite(_connection).Options
-        );
-        _db.Database.EnsureCreated();
+        var ct = TestContext.Current.CancellationToken;
+        if (IsPostgresConfigured)
+        {
+            await using (var admin = new NpgsqlConnection(PostgresConnectionString))
+            {
+                await admin.OpenAsync(ct);
+                await using var create = new NpgsqlCommand($"CREATE DATABASE \"{_database}\"", admin);
+                await create.ExecuteNonQueryAsync(ct);
+            }
+            _db = new UnifiedDbContext(
+                new DbContextOptionsBuilder<UnifiedDbContext>().UseNpgsql(DatabaseConnectionString()).Options
+            );
+        }
+        else
+        {
+            _connection = new SqliteConnection("DataSource=:memory:;Foreign Keys=True");
+            await _connection.OpenAsync(ct);
+            _db = new SqliteTestUnifiedDbContext(
+                new DbContextOptionsBuilder<UnifiedDbContext>().UseSqlite(_connection).Options
+            );
+        }
+        await _db.Database.EnsureCreatedAsync(ct);
     }
 
-    [Fact]
+    private string DatabaseConnectionString() =>
+        new NpgsqlConnectionStringBuilder(PostgresConnectionString) { Database = _database }.ConnectionString;
+
+    [Fact(Skip = PostgresSkip, SkipUnless = nameof(IsPostgresConfigured))]
     public async Task DisabledUnboundDuplicate_IsImportedClearedAndChildResolutionRemainsDistinct()
     {
         var users = ValidDuplicate();
@@ -38,7 +68,7 @@ public sealed class SsStaleSsoBindingTests : IAsyncDisposable
         rows["UserRole"].Add(UserRoleRow(Guid.Parse(users[0].Id)));
         var session = await WriteAsync(rows);
 
-        var imported = await _db.Users.OrderBy(x => x.IdirName).ToListAsync();
+        var imported = await _db.Users.OrderBy(x => x.IdirName).ToListAsync(TestContext.Current.CancellationToken);
         Assert.Equal(2, imported.Count);
         var loser = imported.Single(x => x.IdirName == "loser");
         Assert.False(loser.IsEnabled);
@@ -137,16 +167,19 @@ public sealed class SsStaleSsoBindingTests : IAsyncDisposable
                 );
             }
         );
-        Assert.Empty(await _db.Users.ToListAsync());
+        Assert.Empty(await _db.Users.ToListAsync(TestContext.Current.CancellationToken));
     }
 
-    [Fact]
+    [Fact(Skip = PostgresSkip, SkipUnless = nameof(IsPostgresConfigured))]
     public async Task StaleBindingIdentityReplay_IsIdempotent()
     {
         var users = ValidDuplicate();
         var first = await WriteAsync(users);
-        var initialTargetIds = await _db.Users.OrderBy(x => x.IdirName).Select(x => x.Id).ToListAsync();
-        var initialMutationCount = await _db.DataMigrationMutations.CountAsync();
+        var initialTargetIds = await _db
+            .Users.OrderBy(x => x.IdirName)
+            .Select(x => x.Id)
+            .ToListAsync(TestContext.Current.CancellationToken);
+        var initialMutationCount = await _db.DataMigrationMutations.CountAsync(TestContext.Current.CancellationToken);
 
         var rerun = await NewSessionAsync();
         await new SsMyTeamWriter(_db, new SsLeaveWriter(_db)).WriteAsync(
@@ -157,8 +190,17 @@ public sealed class SsStaleSsoBindingTests : IAsyncDisposable
         );
         await CommitCurrentAsync();
 
-        Assert.Equal(initialTargetIds, await _db.Users.OrderBy(x => x.IdirName).Select(x => x.Id).ToListAsync());
-        Assert.Equal(initialMutationCount, await _db.DataMigrationMutations.CountAsync());
+        Assert.Equal(
+            initialTargetIds,
+            await _db
+                .Users.OrderBy(x => x.IdirName)
+                .Select(x => x.Id)
+                .ToListAsync(TestContext.Current.CancellationToken)
+        );
+        Assert.Equal(
+            initialMutationCount,
+            await _db.DataMigrationMutations.CountAsync(TestContext.Current.CancellationToken)
+        );
         Assert.Equal(1, rerun.Outcomes.Count(x => x.EntityType == "User" && x.Outcome == "Migrated"));
         Assert.Equal(
             "StaleSsoBindingCleared",
@@ -179,6 +221,12 @@ public sealed class SsStaleSsoBindingTests : IAsyncDisposable
             TestContext.Current.CancellationToken
         );
         await CommitCurrentAsync();
+        // Production completes a run before the Running (Source, Job) lease can be acquired again.
+        await new DataMigrationControlService(_db).CompleteRunAsync(
+            session.Run,
+            "Completed",
+            TestContext.Current.CancellationToken
+        );
         return session;
     }
 
@@ -232,7 +280,17 @@ public sealed class SsStaleSsoBindingTests : IAsyncDisposable
             }
         );
 
-    private static SsRow RoleRow() => new(new Dictionary<string, object?> { ["Id"] = 99, ["Name"] = "TestRole" });
+    private static SsRow RoleRow() =>
+        new(
+            new Dictionary<string, object?>
+            {
+                ["Id"] = 99,
+                ["Name"] = "TestRole",
+                // SsSnapshotReader always projects Id, CreatedOn and UpdatedOn for every table.
+                ["UpdatedOn"] = null,
+                ["CreatedOn"] = null,
+            }
+        );
 
     private static SsRow UserRoleRow(Guid userId) =>
         new(
@@ -272,7 +330,16 @@ public sealed class SsStaleSsoBindingTests : IAsyncDisposable
     {
         foreach (var transaction in _transactions)
             await transaction.DisposeAsync();
-        await _db.DisposeAsync();
-        await _connection.DisposeAsync();
+        if (_db is not null)
+            await _db.DisposeAsync();
+        if (_connection is not null)
+            await _connection.DisposeAsync();
+        if (IsPostgresConfigured)
+        {
+            await using var admin = new NpgsqlConnection(PostgresConnectionString);
+            await admin.OpenAsync(CancellationToken.None);
+            await using var drop = new NpgsqlCommand($"DROP DATABASE IF EXISTS \"{_database}\" WITH (FORCE)", admin);
+            await drop.ExecuteNonQueryAsync(CancellationToken.None);
+        }
     }
 }

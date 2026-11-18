@@ -304,7 +304,7 @@ public sealed class MigrationOperationsTests
         Assert.Contains("sha256:", body);
         // All 257 outcomes plus one failure, not the default50 or maximum200 UI page.
         Assert.Equal(257, body.Split('\n').Count(x => x.StartsWith(format == "csv" ? "\"Outcome\"" : "| Outcome |")));
-        Assert.Single(body.Split('\n').Where(x => x.StartsWith(format == "csv" ? "\"Failure\"" : "| Failure |")));
+        Assert.Single(body.Split('\n'), x => x.StartsWith(format == "csv" ? "\"Failure\"" : "| Failure |"));
         Assert.Contains("258", body.Split('\n').Single(x => x.Contains("SnapshotComplete")));
         Assert.True(response.Headers.CacheControl!.NoStore);
         Assert.Contains(id.ToString(), response.Content.Headers.ContentDisposition!.FileName);
