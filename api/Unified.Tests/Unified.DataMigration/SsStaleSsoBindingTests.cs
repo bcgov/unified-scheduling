@@ -47,10 +47,14 @@ public sealed class SsStaleSsoBindingTests : IAsyncDisposable
         var survivor = imported.Single(x => x.IdirName == "survivor");
         Assert.Equal(SurvivorIdir, survivor.IdirId);
         Assert.Equal(SharedKeycloak, survivor.KeyCloakId);
-        Assert.Equal("MigratedWithDifference", session.Outcomes.Single(x =>
-            x.EntityType == "User" && x.LegacyId == users[1].Id).Outcome);
-        Assert.Equal("StaleSsoBindingCleared", session.Outcomes.Single(x =>
-            x.EntityType == "User" && x.LegacyId == users[1].Id).Reason);
+        Assert.Equal(
+            "MigratedWithDifference",
+            session.Outcomes.Single(x => x.EntityType == "User" && x.LegacyId == users[1].Id).Outcome
+        );
+        Assert.Equal(
+            "StaleSsoBindingCleared",
+            session.Outcomes.Single(x => x.EntityType == "User" && x.LegacyId == users[1].Id).Reason
+        );
 
         var firstTarget = await session.ResolveAsync("User", users[0].Id, TestContext.Current.CancellationToken);
         var secondTarget = await session.ResolveAsync("User", users[1].Id, TestContext.Current.CancellationToken);
@@ -74,13 +78,7 @@ public sealed class SsStaleSsoBindingTests : IAsyncDisposable
         switch (scenario)
         {
             case "multiple-enabled":
-                users[1] = UserRow(
-                    2,
-                    "loser",
-                    enabled: true,
-                    idir: null,
-                    keycloak: SharedKeycloak
-                );
+                users[1] = UserRow(2, "loser", enabled: true, idir: null, keycloak: SharedKeycloak);
                 break;
             case "bound-loser":
                 users[1] = UserRow(
@@ -95,13 +93,7 @@ public sealed class SsStaleSsoBindingTests : IAsyncDisposable
                 users.Add(UserRow(3, "unrelated", false, SurvivorIdir, null));
                 break;
             case "normalized-name-duplicate":
-                users[1] = UserRow(
-                    2,
-                    " SURVIVOR ",
-                    enabled: false,
-                    idir: null,
-                    keycloak: SharedKeycloak
-                );
+                users[1] = UserRow(2, " SURVIVOR ", enabled: false, idir: null, keycloak: SharedKeycloak);
                 break;
             case "live-history":
                 break;
@@ -112,37 +104,39 @@ public sealed class SsStaleSsoBindingTests : IAsyncDisposable
             rows.Remove("__UsersWithHistory");
         if (scenario == "live-history")
         {
-            rows["SheriffTraining"].Add(
-                new SsRow(
-                    new Dictionary<string, object?>
-                    {
-                        ["Id"] = 1,
-                        ["SheriffId"] = Guid.Parse(users[1].Id),
-                        ["EndDate"] = new DateTime(2026, 1, 1),
-                        ["ExpiryDate"] = null,
-                    }
-                )
-            );
-            rows["__UsersWithHistory"].Add(
-                new SsRow(new Dictionary<string, object?> { ["Id"] = Guid.Parse(users[1].Id) })
-            );
+            rows["SheriffTraining"]
+                .Add(
+                    new SsRow(
+                        new Dictionary<string, object?>
+                        {
+                            ["Id"] = 1,
+                            ["SheriffId"] = Guid.Parse(users[1].Id),
+                            ["EndDate"] = new DateTime(2026, 1, 1),
+                            ["ExpiryDate"] = null,
+                        }
+                    )
+                );
+            rows["__UsersWithHistory"]
+                .Add(new SsRow(new Dictionary<string, object?> { ["Id"] = Guid.Parse(users[1].Id) }));
         }
 
         var session = await WriteAsync(rows);
         var userOutcomes = session.Outcomes.Where(x => x.EntityType == "User").ToList();
         Assert.Equal(users.Count, userOutcomes.Count);
-        Assert.All(userOutcomes.Where(x => users.Take(2).Any(user => user.Id == x.LegacyId)), outcome =>
-        {
-            Assert.Equal("Rejected", outcome.Outcome);
-            Assert.Equal(
-                scenario == "normalized-name-duplicate"
-                    ? "DuplicateNormalizedIdirName"
-                    : scenario == "live-history" ? "StaleSsoBindingHasLiveHistory"
-                    : scenario == "history-unavailable" ? "StaleSsoBindingHistoryUnavailable"
-                    : "DuplicateSsoIdentity",
-                outcome.Reason
-            );
-        });
+        Assert.All(
+            userOutcomes.Where(x => users.Take(2).Any(user => user.Id == x.LegacyId)),
+            outcome =>
+            {
+                Assert.Equal("Rejected", outcome.Outcome);
+                Assert.Equal(
+                    scenario == "normalized-name-duplicate" ? "DuplicateNormalizedIdirName"
+                        : scenario == "live-history" ? "StaleSsoBindingHasLiveHistory"
+                        : scenario == "history-unavailable" ? "StaleSsoBindingHistoryUnavailable"
+                        : "DuplicateSsoIdentity",
+                    outcome.Reason
+                );
+            }
+        );
         Assert.Empty(await _db.Users.ToListAsync());
     }
 
@@ -211,10 +205,7 @@ public sealed class SsStaleSsoBindingTests : IAsyncDisposable
         await _transactions[^1].CommitAsync(TestContext.Current.CancellationToken);
 
     private static List<SsRow> ValidDuplicate() =>
-    [
-        UserRow(1, "survivor", true, SurvivorIdir, SharedKeycloak),
-        UserRow(2, "loser", false, null, SharedKeycloak),
-    ];
+        [UserRow(1, "survivor", true, SurvivorIdir, SharedKeycloak), UserRow(2, "loser", false, null, SharedKeycloak)];
 
     private static SsRow UserRow(int id, string name, bool enabled, Guid? idir, Guid? keycloak) =>
         new(
@@ -241,8 +232,7 @@ public sealed class SsStaleSsoBindingTests : IAsyncDisposable
             }
         );
 
-    private static SsRow RoleRow() =>
-        new(new Dictionary<string, object?> { ["Id"] = 99, ["Name"] = "TestRole" });
+    private static SsRow RoleRow() => new(new Dictionary<string, object?> { ["Id"] = 99, ["Name"] = "TestRole" });
 
     private static SsRow UserRoleRow(Guid userId) =>
         new(

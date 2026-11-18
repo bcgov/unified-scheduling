@@ -272,12 +272,7 @@ public sealed class SsMigrationExecutor(
                     TimeZoneInfo.FindSystemTimeZoneById("America/Vancouver")
                 )
             );
-            var rows = await reader.ReadAsync(
-                tables,
-                settings.BatchSize,
-                ct,
-                job == "MyTeam" ? boundary : null
-            );
+            var rows = await reader.ReadAsync(tables, settings.BatchSize, ct, job == "MyTeam" ? boundary : null);
             await using var batches = new SsBatchProgress(
                 db,
                 session,

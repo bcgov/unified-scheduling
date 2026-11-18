@@ -291,9 +291,7 @@ public sealed class SsMyTeamWriter(UnifiedDbContext db, SsLeaveWriter leaveWrite
                 continue;
             }
 
-            var survivors = group
-                .Where(x => x.Bool("IsEnabled") && x.Guid("IdirId") is not null)
-                .ToList();
+            var survivors = group.Where(x => x.Bool("IsEnabled") && x.Guid("IdirId") is not null).ToList();
             if (survivors.Count != 1)
             {
                 foreach (var member in group)
@@ -830,11 +828,11 @@ public sealed class SsMyTeamWriter(UnifiedDbContext db, SsLeaveWriter leaveWrite
             }
         }
 
-        return Enumerable.Range(0, users.Count)
+        return Enumerable
+            .Range(0, users.Count)
             .GroupBy(Find)
             .Where(x => x.Count() > 1)
             .Select(x => x.Select(index => users[index]).ToList())
             .ToList();
     }
-
 }
