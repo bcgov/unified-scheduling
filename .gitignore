@@ -142,3 +142,13 @@ temp/
 
 # Local-only SS migration test harness (kept on disk, not tracked)
 docker/migration/
+
+# Local-only SS migration harness and run evidence (kept on disk, not tracked)
+api/Unified.DataMigration.Runner/
+docs/data-migration/ss-implementation-baseline/evidence/
+docs/data-migration/implementation-status.md
+docs/data-migration/reports/*
+!docs/data-migration/reports/2026-11-16-acceptance-inventory.md
+!docs/data-migration/reports/2026-11-17-adverse-v20-final.md
+!docs/data-migration/reports/2026-11-17-closeout.md
+!docs/data-migration/reports/2026-11-17-original-sh-execution.md

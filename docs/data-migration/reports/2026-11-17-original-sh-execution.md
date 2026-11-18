@@ -67,7 +67,7 @@ Denominators are explicit: **4,631 numeric**, **1,222 suppressed count bounds**,
 1..4, not an invented exact count or a numeric ±20% pass. All53 withheld cells
 remain in the inventory as **NotComparableProductionWithheld**, never passes:
 SH02 share25; SH03 share9 +median9; SH04 share1; SH05 percentile9.
-The [complete bucket-by-bucket rationale](2026-11-16-extractor-validity.md)
+The complete bucket-by-bucket rationale (local-only: `2026-11-16-extractor-validity.md`)
 retains all53. Neither original SQL nor further synthetic measurements can recover
 these deliberately undisclosed production metrics.
 

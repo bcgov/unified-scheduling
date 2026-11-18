@@ -39,7 +39,7 @@ groups: every mapped entry and Event has null series membership; no unqualified
 series crosswalk or dangling/partial series attachment survived. This is not
 merely a relabeled outcome. Actual small PG replay also covers becoming uniform,
 requalification, reverting to mixed capacity, closed-slot rebind and whole-graph
-target-drift rejection: [v17 cases](2026-11-17-series-capture.md).
+target-drift rejection: v17 cases (local-only: `2026-11-17-series-capture.md`).
 
 The two remaining failures are unchanged, not softened:
 
@@ -67,7 +67,7 @@ waiver was applied.
   business audit physical footprint unchanged after every child rollback.
 - No private schema/business audit escaped. Failed-lineage Report acquisition
   refused; earlier genuine Running-child guards remain recorded.
-- [Actual100k reverse lookup proof](2026-11-17-target-lookup-index.md):
+- Actual100k reverse lookup proof (local-only: `2026-11-17-target-lookup-index.md`):
   ten aliases selected through the new nonunique index; all probes rolled back.
 
 v16/v18 interrupted profiling attempts remain retained and **not** counted as
@@ -87,7 +87,7 @@ abort/physical rollback results are separate.
 | Superseded dependent of repaired parent | 5 |
 | **Total** | **3,388** |
 
-All group details remain unchanged from the [full v13 table](2026-11-16-adverse-valid-parent.md).
+All group details remain unchanged from the full v13 table (local-only: `2026-11-16-adverse-valid-parent.md`).
 The30 differences are20 flag-only slots,5 partial-outside slots,2 G8 cross-type
 definitions and3 future-conflict training rows. The2 G8 expected merge members
 have two distinct canonical full display names; changing the normalization to

@@ -117,7 +117,7 @@ matched discrepancy classes and artifact/command links after execution. Any miss
 field becomes BL-11 with concrete affected counts. Unexplained discrepancies mean Fail,
 not PassWithKnownDifferences.
 
-Latest [matched report](../../unified-scheduling/docs/data-migration/reports/2026-11-16-matched-report.md),
+Latest matched report (local-only: `2026-11-16-matched-report.md`),
 Unified commit `29a8ea59`, is FAIL. Across all report surfaces it compares 57 source
 and 33 target response rows, finding 39 missing and 15 unexpected comparison rows.
 These totals are not training-only or lost-history counts. Training-specific field/population
@@ -132,7 +132,7 @@ field-specific counts and missing-surface execution remain required.
 
 The complete table in `5d682093` counts three paired training response differences,
 nine field cells; stored completion facts still match. These are comparison-row/field
-counts, not nine missing training facts. See the [matched-difference table](../../unified-scheduling/docs/data-migration/reports/2026-11-16-matched-differences.md).
+counts, not nine missing training facts. See the matched-difference table (local-only: `2026-11-16-matched-differences.md`).
 
 Exact differing training cells, clarified in `4ee28f61`, are `excused false -> null`
 (three), `rowVariant white -> null` (three), and derived `status blank -> Active`

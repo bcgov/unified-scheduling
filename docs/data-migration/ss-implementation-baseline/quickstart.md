@@ -12,7 +12,7 @@
 - SS read-only connection supplied outside Git. Explicit false JC expiry flags.
 - `HistoryStartDate=2020-01-01`, `CutoverDate=2026-12-01`; per-job disabled/dry-run defaults.
 
-Use the committed [implementation status/runbook index](../../unified-scheduling/docs/data-migration/implementation-status.md)
+Use the committed implementation status/runbook index (local-only: `implementation-status.md`)
 and [final adverse report](../../unified-scheduling/docs/data-migration/reports/2026-11-17-adverse-v20-final.md)
 for exact commands and resource names. Shape mocks pass original SH SQL; the separate adverse
 fixture deliberately does not. Current acceptance is **NO-GO**, not permission to enable jobs.

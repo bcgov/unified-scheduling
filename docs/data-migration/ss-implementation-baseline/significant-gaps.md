@@ -28,7 +28,7 @@ future actions. Secondary Stats mapping refinement alone does not block implemen
 
 ## Latest Runtime Findings
 
-The [measured rehearsal](../../unified-scheduling/docs/data-migration/reports/2026-11-16-rehearsal.md)
+The measured rehearsal (local-only: `2026-11-16-rehearsal.md`)
 is not accepted, but initial mapper/constructor gaps have been fixed. Ready-v4 loaders
 complete 41/10/23 rows with no rejected/failed; actual LoanOut/recurrence/publication paths run.
 71 migration + 5 Hangfire tests pass. Latest matched Report covers 74 source records and
@@ -110,4 +110,4 @@ Production-shaped databases `ss_shape_v10` and `ss_shape_v10_rebuild` are retain
 `unified-ss-migration-shape-source-1`, volume `unified-ss-migration_source-shape-v7`.
 Both synthetic markers/readiness probes and read-only reader permissions pass; each retains
 873 users, 115,433 shifts and 101,904 duties. No host ports are published; restart policy is
-`unless-stopped`. See [safe shape access](../../unified-scheduling/docker/migration/SHAPE-PROFILE.md).
+`unless-stopped`. See safe shape access (local-only: `SHAPE-PROFILE.md`).

@@ -78,7 +78,7 @@ No target parity follows from a source-only pass.
 ## Initial Unified Runtime Milestone
 
 Local commits `b589bee4` -> `e16b559b` -> `7287236` -> `21ae1f3`, not pushed.
-[Measured report](../../unified-scheduling/docs/data-migration/reports/2026-11-16-rehearsal.md)
+Measured report (local-only: `2026-11-16-rehearsal.md`)
 records exact commands/run IDs. Initial implementation is explicitly incomplete, not a pass.
 Source `unified-ss-migration-source-1` and target `unified-ss-migration-target-1` are healthy,
 unless-stopped, no host DB ports. Existing `ss-synth-pg` and anonymous volume retained.
@@ -195,7 +195,7 @@ The future source oracle now has its own restricted connection file with verifie
 `Database=ss_ready_v4_probe`, marker and 22/22 SELECT grants; its execution is pending.
 
 SDK10 build, 76 focused tests (zero skipped), Compose/format and CRLF-aware whitespace
-checks passed. See the [matched report](../../unified-scheduling/docs/data-migration/reports/2026-11-16-matched-report.md).
+checks passed. See the matched report (local-only: `2026-11-16-matched-report.md`).
 Repartition/multi-entry/changed-series replay, dry-run parent staging, broader integration
 coverage and SH fit remain unfinished. Production apply remains disabled.
 
@@ -253,9 +253,9 @@ never evidence of applied acceptance.
 
 SDK10 Runner build, 76 focused tests (zero failed/skipped), CSharpier, Compose and PowerShell
 parsing passed. Final whitespace check passed; earlier raw CRLF warnings are documented.
-See [dry-run evidence](../../unified-scheduling/docs/data-migration/reports/2026-11-16-dry-run-candidates.md).
+See dry-run evidence (local-only: `2026-11-16-dry-run-candidates.md`).
 
-The [complete difference table](../../unified-scheduling/docs/data-migration/reports/2026-11-16-matched-differences.md)
+The complete difference table (local-only: `2026-11-16-matched-differences.md`)
 accounts for 15 paired differences: slots 6 rows/24 field cells, shifts 6/19 and training
 3/9; plus two merged aliases and 22 unexecuted-surface rows. Counts describe comparison
 responses, not lost source records. Stored training facts match; derived compliance and
@@ -307,7 +307,7 @@ SDK10 builds, 71 migration plus five Hangfire tests (zero skipped), formatter an
 script/Compose checks passed. The adverse acceptance verifier **fails**, preserving differences.
 RTK whitespace wrapper exited 2; direct CRLF-aware Git check passed.
 See the [acceptance inventory](../../unified-scheduling/docs/data-migration/reports/2026-11-16-acceptance-inventory.md)
-and [valid-parent adverse outcomes](../../unified-scheduling/docs/data-migration/reports/2026-11-16-adverse-valid-parent.md).
+and valid-parent adverse outcomes (local-only: `2026-11-16-adverse-valid-parent.md`).
 
 Original SH extractor SQL is present at
 [ss-shape-extractor.sql](../../documentation/data-migration/ss-job-notes/ss-shape-extractor.sql);
