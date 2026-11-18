@@ -2,6 +2,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Unified.Authorization;
+using Unified.Common.FeatureFlags;
 using Unified.Common.Jobs;
 using Unified.DataMigration.FeatureFlags;
 using Unified.DataMigration.Jobs;
@@ -25,6 +26,7 @@ public static class DataMigrationModule
             .AddOptions<DataMigrationFeatureFlags>()
             .BindConfiguration(DataMigrationFeatureFlags.Section)
             .ValidateOnStart();
+        services.AddSingleton<IFeatureFlags>(sp => sp.GetRequiredService<IOptions<DataMigrationFeatureFlags>>().Value);
 
         services.AddHostedService<SsLegacyScheduleCleanup>();
 

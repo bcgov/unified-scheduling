@@ -103,6 +103,8 @@ export const GetApiAuthUserResponse = zod.object({
       'LoanOutEdit',
       'LoanOutDelete',
       'LoanOutView',
+      'DataMigrationOperate',
+      'DataMigrationRollback',
     ]),
   ),
   userId: zod.uuid().nullable(),
