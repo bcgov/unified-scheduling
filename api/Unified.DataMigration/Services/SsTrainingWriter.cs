@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using Unified.DataMigration.Sources;
 using Unified.Db;
@@ -15,6 +16,22 @@ public sealed class SsTrainingWriter(UnifiedDbContext db)
         "Carbine Practice 2",
         "Carbine Annual Recertification",
     ];
+
+    internal static string AllocateCourseCode(string code, IReadOnlySet<string> reserved)
+    {
+        if (code.Length <= 50)
+            return code;
+        var prefixLength = char.IsHighSurrogate(code[44]) && char.IsLowSurrogate(code[45]) ? 44 : 45;
+        var prefix = code[..prefixLength];
+        for (var suffix = 1; ; suffix++)
+        {
+            var candidate = prefix + "_" + suffix.ToString(CultureInfo.InvariantCulture);
+            if (candidate.Length > 50)
+                throw new SsReject("CourseCodeSuffixExhausted");
+            if (!reserved.Contains(candidate))
+                return candidate;
+        }
+    }
 
     private static string? MappedNotes(SsRow row, Training course)
     {
@@ -39,6 +56,19 @@ public sealed class SsTrainingWriter(UnifiedDbContext db)
     )
     {
         var users = rows["User"].ToDictionary(x => x.Id);
+        var sourceCodes = rows["LookupCode"]
+            .Where(x => x.Int("Type") == 6)
+            .Select(x => x.Text("Code"))
+            .OfType<string>()
+            .ToHashSet(StringComparer.Ordinal);
+        var shortenedCarbineCourseIds = rows["LookupCode"]
+            .Where(x =>
+                x.Int("Type") == 6
+                && x.Text("Code") is { Length: > 50 } code
+                && code.Contains("Carbine", StringComparison.Ordinal)
+            )
+            .Select(x => x.Int("Id"))
+            .ToHashSet();
         bool Eligible(SsRow history) =>
             history.Date("EndDate") >= boundary
             && history.Date("ExpiryDate") is null
@@ -57,7 +87,7 @@ public sealed class SsTrainingWriter(UnifiedDbContext db)
                 async () =>
                 {
                     var code = row.Text("Code");
-                    if (string.IsNullOrWhiteSpace(code) || code.Length > 50)
+                    if (string.IsNullOrWhiteSpace(code))
                         throw new SsReject("InvalidCourseCode");
                     if (row.Int("LocationId") is not null || row.Text("SubCode") is not null)
                         throw new SsReject("UnsupportedScopedCourse");
@@ -92,6 +122,15 @@ public sealed class SsTrainingWriter(UnifiedDbContext db)
                     if (await session.ReplayAsync("Training", row, hash, true, ct))
                         return;
                     await db.Database.ExecuteSqlRawAsync("LOCK TABLE \"Trainings\" IN SHARE ROW EXCLUSIVE MODE", ct);
+                    var shortened = code.Length > 50;
+                    if (shortened)
+                    {
+                        var reserved = (await db.Trainings.Select(x => x.Code).ToListAsync(ct)).ToHashSet(
+                            StringComparer.Ordinal
+                        );
+                        reserved.UnionWith(sourceCodes);
+                        code = AllocateCourseCode(code, reserved);
+                    }
                     var targets = await db.Trainings.Where(x => x.Code == code).ToListAsync(ct);
                     if (targets.Count > 1)
                         throw new SsReject("AmbiguousCourse");
@@ -153,7 +192,17 @@ public sealed class SsTrainingWriter(UnifiedDbContext db)
                             );
                         }
                     }
-                    await session.LinkAsync("Training", row, "Training", target.Id, hash, created, ct);
+                    await session.LinkAsync(
+                        "Training",
+                        row,
+                        "Training",
+                        target.Id,
+                        hash,
+                        created,
+                        ct,
+                        shortened ? "MigratedWithDifference" : "Migrated",
+                        shortened ? "CourseCodeShortened" : null
+                    );
                 },
                 ct
             );
@@ -291,7 +340,11 @@ public sealed class SsTrainingWriter(UnifiedDbContext db)
                     );
                     db.UserTrainings.Add(target);
                     // Only Training owns this user field; do not emit user-created/renewal/email signals.
-                    if (course.Code.Contains("Carbine", StringComparison.Ordinal))
+                    // Keep the source keyword when shortening or later cleanup removes it from the target label.
+                    if (
+                        course.Code.Contains("Carbine", StringComparison.Ordinal)
+                        || shortenedCarbineCourseIds.Contains(row.Int("TrainingTypeId"))
+                    )
                     {
                         var user = await db.Users.SingleAsync(x => x.Id == userId, ct);
                         if (user.TrainingProfileId is null)

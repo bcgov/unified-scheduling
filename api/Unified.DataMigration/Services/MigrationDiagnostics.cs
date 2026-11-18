@@ -15,7 +15,7 @@ public static class MigrationDiagnostics
         AmbiguousOwnedShiftUsers AmbiguousPosition AmbiguousRegion AmbiguousRole AmbiguousRoom AmbiguousTrainingCategory AmbiguousUser
         AnticipatedAssignmentOmitted ApprovedOrderOmission ApprovedTestOrLeaveWaitlist AwayToLoanOutDayAvailability
         BeforeHistoryBoundary CannotRemovePrimarySourceCrosswalk CarbineCourseNotMandatory CompositionRequiresOwnedTargets
-        CourseDescriptionTooLong CrossTypeDefinitionNameTooLong CyclicDeleteDependencyNeedsResolution CyclicLocationParent
+        CourseCodeShortened CourseCodeSuffixExhausted CourseDescriptionTooLong CrossTypeDefinitionNameTooLong CyclicDeleteDependencyNeedsResolution CyclicLocationParent
         DefinitionNameTooLong DefinitionWindowWidened DeletedHistory DeletedSlot DependentJobsMustRollbackFirst DescriptionTooLong
         DuplicateAgencyId DuplicateCode DuplicateCourseCode DuplicateNormalizedIdirName DuplicateSourceCoverage DuplicateSourceName
         DuplicateSsoIdentity DuplicateTrimmedLeaveCode DutyMultiEntryRequiresGraphRepartition DutySplitByDistinctSheriff

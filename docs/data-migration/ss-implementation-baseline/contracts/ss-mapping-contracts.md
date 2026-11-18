@@ -135,8 +135,20 @@ type is expired; record any edit/picker loss as a Unified backlog item.
 
 ### Type 6: Trainings
 
-- Exact untrimmed Code, nonblank/max 50; no aliases/case folding. Duplicate exact source
-  Codes reject rather than merge. LocationId and SubCode must both be null.
+- Nonblank Code of <=50 UTF-16 units copies exactly, without trim/case folding.
+  Approved 2026-11-17: longer codes use the longest leading substring fitting <=45
+  UTF-16 units without splitting a surrogate pair, plus `_1`, `_2`, etc. In numeric
+  source-ID order, take the first suffix not used by any source Type 6 code or
+  target course (including retired rows and earlier inserts). Allocate under the
+  existing target table lock; never merge a generated match with another course.
+  Reject `CourseCodeSuffixExhausted` if no suffix fits 50 units. New shortened
+  courses report `MigratedWithDifference:CourseCodeShortened`. Hash raw source
+  values; replay existing crosswalks before allocation so later manual target
+  renames stay intact. Duplicate exact source Codes still reject rather than merge.
+  LocationId and SubCode must both be null. Source-only SQL previews assume an
+  empty target/no crosswalks; they cannot predict final target-aware suffixes.
+- `Carbine` in an overlength source code still qualifies its migrated history for
+  user-profile assignment even when shortening/manual cleanup removes that keyword.
 - Preserve existing course fields/links. Insert missing valid courses, expired included.
 - Description copies exactly, null -> empty, max 200 without truncation. Supplied
   timestamptz copies its UTC instant; null EffectiveDate -> fixed UTC run start.
