@@ -1,5 +1,0 @@
-services:
-  runner:
-    environment:
-      DatabaseConnectionString: Host=target;Database=unified_ss_rehearsal_series_v17;Username=postgres
-      DataMigration__Sources__SS__ConnectionString: Host=source;Database=ss_series_v17;Username=ss_migration_reader

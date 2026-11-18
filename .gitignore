@@ -139,3 +139,6 @@ temp/
 *.tmp
 *.orig
 *.diff
+
+# Local-only SS migration test harness (kept on disk, not tracked)
+docker/migration/

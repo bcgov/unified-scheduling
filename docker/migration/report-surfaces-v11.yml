@@ -1,6 +1,0 @@
-services:
-  runner:
-    environment:
-      # Actual endpoint services may own/close their connection. Enforce read-only
-      # on EVERY opened connection, not an ambient transaction they do not own.
-      DatabaseConnectionString: Host=target;Database=unified_ss_rehearsal_ready_v4_rollback;Username=postgres;Options=-c default_transaction_read_only=on

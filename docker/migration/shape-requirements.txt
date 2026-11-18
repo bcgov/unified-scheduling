@@ -1,3 +1,0 @@
-# Rehearsal tooling only. Install into ignored artifacts/shape-tools, not application runtime.
-numpy==2.5.5
-scipy==1.18.1

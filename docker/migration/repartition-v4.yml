@@ -1,5 +1,0 @@
-services:
-  runner:
-    environment:
-      DatabaseConnectionString: Host=target;Database=unified_ss_rehearsal_repartition_v4;Username=postgres
-      DataMigration__Sources__SS__ConnectionString: Host=source;Database=ss_repartition_v4;Username=ss_migration_reader

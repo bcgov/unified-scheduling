@@ -1,5 +1,0 @@
-services:
-  runner:
-    environment:
-      DatabaseConnectionString: Host=target;Database=unified_ss_rehearsal_ready_v3_publish;Username=postgres
-      DataMigrationRehearsal__ConfirmPublishDatabase: unified_ss_rehearsal_ready_v3_publish

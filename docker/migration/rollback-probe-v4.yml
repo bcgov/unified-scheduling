@@ -1,4 +1,0 @@
-services:
-  runner:
-    environment:
-      DataMigration__Sources__SS__ConnectionString: Host=source;Database=ss_ready_v4_probe;Username=ss_migration_reader
