@@ -15,6 +15,8 @@ using Unified.DataMigration.Sources;
 using Unified.Db;
 using Unified.Db.Models;
 using Unified.Db.Models.DataMigration;
+using Unified.Db.Models.Lookup;
+using Unified.Db.Models.UserManagement;
 
 namespace Unified.Tests.DataMigration;
 
@@ -576,6 +578,171 @@ public sealed class MigrationApplyPostgresTests : IAsyncLifetime
                 """
             )
         );
+    }
+
+    [Theory(Skip = SkipReason, SkipUnless = nameof(IsConfigured))]
+    [InlineData("name")]
+    [InlineData("home")]
+    [InlineData("fallback-zone")]
+    [InlineData("explicit-zone")]
+    [InlineData("drift")]
+    [InlineData("linked-only")]
+    public async Task LeaveReplay_RefreshesDerivedUserValuesWithoutChangingSource(string change)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var home = new Location
+        {
+            AgencyId = "SYN1",
+            Name = "Synthetic One",
+            Timezone = "America/Vancouver",
+        };
+        var other = new Location
+        {
+            AgencyId = "SYN2",
+            Name = "Synthetic Two",
+            Timezone = "America/Vancouver",
+        };
+        var user = new User
+        {
+            Id = Guid.NewGuid(),
+            IdirName = "synthetic",
+            FirstName = "Before",
+            LastName = "Name",
+            HomeLocation = home,
+        };
+        var leaveType = new LeaveType
+        {
+            Code = "Synthetic",
+            Description = "Synthetic Leave",
+            IsPaid = true,
+        };
+        db.AddRange(home, other, user, leaveType);
+        if (!await db.EventTypes.AnyAsync(x => x.Code == "leave", ct))
+            db.EventTypes.Add(new EventType { Code = "leave", Description = "Leave" });
+        foreach (var code in new[] { "active", "draft" })
+            if (!await db.EventStatusTypes.AnyAsync(x => x.Code == code, ct))
+                db.EventStatusTypes.Add(new EventStatusType { Code = code, Description = code });
+        await db.SaveChangesAsync(ct);
+        var homeId = home.Id;
+        var otherId = other.Id;
+        db.DataMigrationRecords.AddRange(
+            new DataMigrationRecord
+            {
+                Source = "SS",
+                EntityType = "User",
+                LegacyId = user.Id.ToString(),
+                TargetType = "User",
+                TargetKey = user.Id.ToString(),
+                PayloadHash = "synthetic",
+            },
+            new DataMigrationRecord
+            {
+                Source = "SS",
+                EntityType = "LeaveType",
+                LegacyId = "1",
+                TargetType = "LeaveType",
+                TargetKey = leaveType.Id.ToString(),
+                PayloadHash = "synthetic",
+            }
+        );
+        await db.SaveChangesAsync(ct);
+        // The source row, including its timestamps, is reused verbatim for every replay.
+        // Vancouver is still Dec 1 at this instant; UTC is already Dec 2 (active vs draft).
+        var row = new SsRow(
+            new Dictionary<string, object?>
+            {
+                ["Id"] = 1,
+                ["SheriffId"] = user.Id,
+                ["LeaveTypeId"] = 1,
+                ["StartDate"] = new DateTime(2026, 12, 2, 3, 0, 0, DateTimeKind.Utc),
+                ["EndDate"] = new DateTime(2026, 12, 2, 4, 0, 0, DateTimeKind.Utc),
+                ["CreatedOn"] = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+                ["UpdatedOn"] = null,
+                ["Timezone"] = change == "explicit-zone" ? "America/Vancouver" : null,
+                ["ExpiryDate"] = null,
+                ["ExpiryReason"] = null,
+                ["Comment"] = "Synthetic leave",
+            }
+        );
+        async Task<SsWriteSession> Write()
+        {
+            var run = Completed("MyTeam", null);
+            db.DataMigrationRuns.Add(run);
+            await db.SaveChangesAsync(ct);
+            await using var tx = await db.Database.BeginTransactionAsync(ct);
+            var session = new SsWriteSession(db, run);
+            await new SsLeaveWriter(db).EntriesAsync([row], session, DateTimeOffset.MinValue, ct);
+            await tx.CommitAsync(ct);
+            db.ChangeTracker.Clear();
+            return session;
+        }
+        var initial = await Write();
+        Assert.Equal("Migrated", Assert.Single(initial.Outcomes).Outcome);
+        var entry = await db.LeaveEntries.Include(x => x.Event).SingleAsync(ct);
+        var entryId = entry.Id;
+        var eventId = entry.Event!.Id;
+        Assert.Equal("Before Name leave", entry.Event.Title);
+        Assert.Equal(homeId, entry.Event.LocationId);
+        Assert.Equal("active", entry.Event.StatusTypeCode);
+        var record = await db.DataMigrationRecords.SingleAsync(x => x.EntityType == "SheriffLeave", ct);
+        var initialHash = record.PayloadHash;
+        var initialSourceStamp = record.SourceUpdatedAtUtc;
+        var currentUser = await db.Users.SingleAsync(x => x.Id == user.Id, ct);
+        if (change is "name" or "drift" or "linked-only")
+        {
+            currentUser.FirstName = "After";
+            currentUser.LastName = "Rename";
+        }
+        if (change == "home")
+            currentUser.HomeLocationId = otherId;
+        if (change is "fallback-zone" or "explicit-zone")
+            (await db.Locations.SingleAsync(x => x.Id == homeId, ct)).Timezone = "Etc/UTC";
+        if (change == "drift")
+            entry.Event.Title = "User edit";
+        if (change == "linked-only")
+            record.CreatedByRunId = null;
+        await db.SaveChangesAsync(ct);
+        db.ChangeTracker.Clear();
+
+        var replay = await Write();
+
+        var outcome = Assert.Single(replay.Outcomes);
+        var refused = change is "drift" or "linked-only";
+        Assert.Equal(refused ? "Rejected" : "Migrated", outcome.Outcome);
+        Assert.Equal(
+            change == "drift" ? "OwnedTargetDrift"
+                : change == "linked-only" ? "LinkedOnlyTargetCannotUpdate"
+                : change == "explicit-zone" ? "ExistingCrosswalk"
+                : "OwnedMappedUpdate",
+            outcome.Reason
+        );
+        var refreshed = await db.LeaveEntries.Include(x => x.Event).Include(x => x.Users).SingleAsync(ct);
+        Assert.Equal(entryId, refreshed.Id);
+        Assert.Equal(eventId, refreshed.Event!.Id);
+        Assert.Equal(user.Id, Assert.Single(refreshed.Users).UserId);
+        Assert.Equal(
+            change == "drift" ? "User edit"
+                : change == "name" ? "After Rename leave"
+                : "Before Name leave",
+            refreshed.Event.Title
+        );
+        Assert.Equal(change == "home" ? otherId : homeId, refreshed.Event.LocationId);
+        Assert.Equal(change == "fallback-zone" ? "draft" : "active", refreshed.Event.StatusTypeCode);
+        Assert.Equal(change == "explicit-zone" ? "America/Vancouver" : null, refreshed.Event.TimeZoneId);
+        var after = await db.DataMigrationRecords.SingleAsync(x => x.EntityType == "SheriffLeave", ct);
+        Assert.Equal(initialSourceStamp, after.SourceUpdatedAtUtc);
+        Assert.Equal(refused || change == "explicit-zone", initialHash == after.PayloadHash);
+        var mutations = await db.DataMigrationMutations.CountAsync(x => x.DataMigrationRecordId == after.Id, ct);
+        Assert.Equal(refused || change == "explicit-zone" ? 1 : 2, mutations);
+        // Once the derived values match, another replay adds neither rows nor mutations.
+        if (!refused)
+        {
+            Assert.Equal("ExistingCrosswalk", Assert.Single((await Write()).Outcomes).Reason);
+            Assert.Equal(
+                mutations,
+                await db.DataMigrationMutations.CountAsync(x => x.DataMigrationRecordId == after.Id, ct)
+            );
+        }
     }
 
     private DataMigrationRun Completed(string job, Guid? parent) =>

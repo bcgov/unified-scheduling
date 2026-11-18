@@ -160,6 +160,16 @@ public sealed class SsLeaveWriter(UnifiedDbContext db)
                     var typeId =
                         await session.ResolveIntAsync("LeaveType", row.Int("LeaveTypeId"), ct)
                         ?? throw new SsReject("MissingLeaveType");
+                    var user = await db.Users.SingleAsync(x => x.Id == userId, ct);
+                    var fallbackZone = zone;
+                    if (fallbackZone is null && user.HomeLocationId is { } homeLocation)
+                        fallbackZone = await db
+                            .Locations.Where(x => x.Id == homeLocation)
+                            .Select(x => x.Timezone)
+                            .SingleAsync(ct);
+                    var name = $"{user.FirstName} {user.LastName}".Trim();
+                    var title = name.Length == 0 ? "Leave" : $"{name} leave";
+                    var status = EventStatus(dates.Start, fallbackZone, row.Date("ExpiryDate"));
                     var hash = SsWriteSession.Hash(
                         new
                         {
@@ -167,6 +177,9 @@ public sealed class SsLeaveWriter(UnifiedDbContext db)
                             typeId,
                             dates,
                             zone,
+                            Title = title,
+                            LocationId = user.HomeLocationId,
+                            Status = status,
                             Expiry = row.Date("ExpiryDate"),
                         }
                     );
@@ -187,24 +200,16 @@ public sealed class SsLeaveWriter(UnifiedDbContext db)
                                 if (owned.Users.Count != 1)
                                     throw new SsReject("AmbiguousOwnedLeaveUsers");
                                 owned.Users.Single().UserId = userId;
-                                var currentUser = await db.Users.SingleAsync(x => x.Id == userId, ct);
-                                var fallback = zone;
-                                if (fallback is null && currentUser.HomeLocationId is { } home)
-                                    fallback = await db
-                                        .Locations.Where(x => x.Id == home)
-                                        .Select(x => x.Timezone)
-                                        .SingleAsync(ct);
                                 owned.LeaveTypeId = typeId;
                                 owned.UpdatedOn = session.Now;
                                 var e = owned.Event!;
-                                var name = $"{currentUser.FirstName} {currentUser.LastName}".Trim();
-                                e.Title = name.Length == 0 ? "Leave" : $"{name} leave";
+                                e.Title = title;
                                 e.Description = row.Text("Comment");
                                 e.StartAtUtc = dates.Start;
                                 e.EndAtUtc = dates.End;
                                 e.TimeZoneId = zone;
-                                e.LocationId = currentUser.HomeLocationId;
-                                e.StatusTypeCode = EventStatus(dates.Start, fallback, row.Date("ExpiryDate"));
+                                e.LocationId = user.HomeLocationId;
+                                e.StatusTypeCode = status;
                                 e.CancelledAt = row.Date("ExpiryDate");
                                 e.CancellationReason = row.Text("ExpiryReason");
                                 e.UpdatedOn = session.Now;
@@ -212,18 +217,10 @@ public sealed class SsLeaveWriter(UnifiedDbContext db)
                         )
                     )
                         return;
-                    var user = await db.Users.SingleAsync(x => x.Id == userId, ct);
-                    var fallbackZone = zone;
-                    if (fallbackZone is null && user.HomeLocationId is { } homeLocation)
-                        fallbackZone = await db
-                            .Locations.Where(x => x.Id == homeLocation)
-                            .Select(x => x.Timezone)
-                            .SingleAsync(ct);
-                    var name = $"{user.FirstName} {user.LastName}".Trim();
                     var targetEvent = session.Stamp(
                         new Event
                         {
-                            Title = name.Length == 0 ? "Leave" : $"{name} leave",
+                            Title = title,
                             Description = row.Text("Comment"),
                             StartAtUtc = dates.Start,
                             EndAtUtc = dates.End,
@@ -231,7 +228,7 @@ public sealed class SsLeaveWriter(UnifiedDbContext db)
                             AllDay = false,
                             EventTypeCode = "leave",
                             SourceModule = "leave",
-                            StatusTypeCode = EventStatus(dates.Start, fallbackZone, row.Date("ExpiryDate")),
+                            StatusTypeCode = status,
                             CancelledAt = row.Date("ExpiryDate"),
                             CancellationReason = row.Text("ExpiryReason"),
                             LocationId = user.HomeLocationId,
