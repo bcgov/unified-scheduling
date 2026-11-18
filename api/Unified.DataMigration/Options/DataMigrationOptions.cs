@@ -52,6 +52,7 @@ public sealed class MigrationJobOptions
     public bool Enabled { get; set; }
     public string? CronSchedule { get; set; }
     public bool DryRun { get; set; } = true;
+    public bool AllowMigrationApply { get; set; }
     public int BatchSize { get; set; } = 100;
 }
 

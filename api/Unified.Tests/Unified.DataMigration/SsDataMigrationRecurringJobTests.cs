@@ -298,7 +298,7 @@ public sealed class SsDataMigrationRecurringJobTests : IAsyncDisposable
     private SsDataMigrationRecurringJob CreateJob(
         bool featureEnabled = true,
         bool sourceEnabled = true,
-        bool dryRun = false,
+        bool dryRun = true,
         DataMigrationOptions? options = null,
         IConfiguration? configuration = null
     )
@@ -306,6 +306,7 @@ public sealed class SsDataMigrationRecurringJobTests : IAsyncDisposable
         options ??= CreateOptions();
         options.Sources.SS.Enabled = sourceEnabled;
         options.Sources.SS.Jobs.MyTeam.DryRun = dryRun;
+        options.Sources.SS.Jobs.MyTeam.AllowMigrationApply = !dryRun;
         var wrapped = Microsoft.Extensions.Options.Options.Create(options);
         var flags = Microsoft.Extensions.Options.Options.Create(
             new DataMigrationFeatureFlags { Enabled = featureEnabled }

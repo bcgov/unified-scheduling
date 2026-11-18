@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
@@ -80,18 +81,11 @@ public sealed class SsMigrationExecutor(
             var current = await db.DataMigrationRuns.SingleAsync(x => x.Id == runId, CancellationToken.None);
             if (current.Status == "Running")
             {
-                current.Status = "Failed";
-                current.CompletedOn = DateTimeOffset.UtcNow;
-                current.FailedCount++;
-                db.DataMigrationFailures.Add(
-                    new()
-                    {
-                        Source = "SS",
-                        RunId = runId,
-                        ErrorType = "QueuedExecutionRefused",
-                        ErrorMessage = "Queued execution refused; inspect migration configuration and controls.",
-                        OccurredOn = DateTimeOffset.UtcNow,
-                    }
+                MigrationTechnicalFailure.Record(
+                    db,
+                    current,
+                    "QueuedExecutionRefused",
+                    "Queued execution refused; inspect migration configuration and controls."
                 );
                 await db.SaveChangesAsync(CancellationToken.None);
             }
@@ -107,6 +101,7 @@ public sealed class SsMigrationExecutor(
         {
             Enabled = configured.Enabled,
             DryRun = dryRun ?? configured.DryRun,
+            AllowMigrationApply = configured.AllowMigrationApply,
             BatchSize = configured.BatchSize,
             CronSchedule = configured.CronSchedule,
         };
@@ -114,40 +109,69 @@ public sealed class SsMigrationExecutor(
             throw new InvalidOperationException("SS migration job is disabled.");
         if (!new DataMigrationOptionsValidator().Validate(null, options.Value).Succeeded)
             throw new InvalidOperationException("SS migration configuration is invalid.");
-        if (!settings.DryRun && configured.DryRun)
-            throw new InvalidOperationException("SS apply requires explicitly configured apply mode.");
+        if (!settings.DryRun && !configured.AllowMigrationApply)
+            throw new InvalidOperationException("SS apply is disabled for this job.");
         // Inspect raw configuration: a code default of false is not explicit operator consent.
         foreach (var key in new[] { "ExpireRegions", "ExpireLocations", "ExpireCourtRooms" })
             if (!bool.TryParse(configuration[$"JCInterface:{key}"], out var value) || value)
                 throw new InvalidOperationException("SS migration requires explicit false JC expiry flags.");
         if (source.CutoverDate != new DateOnly(2026, 12, 1))
             throw new InvalidOperationException("SS CutoverDate must explicitly be 2026-12-01.");
-        if (
-            !settings.DryRun
-            && (
-                !source.AllowUnrecoverableSyntheticApply
-                || db.Database.GetDbConnection().Database
-                    is not (
-                        "unified_ss_rehearsal"
-                        or "unified_ss_rehearsal_ready"
-                        or "unified_ss_rehearsal_ready_v2"
-                        or "unified_ss_rehearsal_ready_v3"
-                        or "unified_ss_rehearsal_ready_v3_drift"
-                        or "unified_ss_rehearsal_ready_v4"
-                        or "unified_ss_rehearsal_ready_v4_recovery"
-                        or "unified_ss_rehearsal_ready_v4_probe"
-                        or "unified_ss_rehearsal_ready_v4_rollback"
-                        or "unified_ss_rehearsal_repartition_v4"
-                        or "unified_ss_rehearsal_repartition_v5"
-                        or "unified_ss_rehearsal_repartition_history_v5"
-                        or "unified_ss_rehearsal_series_v17"
-                    )
-            )
-        )
-            throw new InvalidOperationException(
-                "SS apply is disabled outside explicitly acknowledged isolated synthetic rehearsals until safe rollback is implemented."
-            );
         return settings;
+    }
+
+    internal async Task ValidateExecutionAsync(string job, DataMigrationRun? queuedRun, CancellationToken ct)
+    {
+        var source = options.Value.Sources.SS;
+        var settings = ValidateRequest(job, queuedRun?.DryRun);
+        if (
+            queuedRun is not null
+            && (queuedRun.Source != "SS" || queuedRun.Job != job || queuedRun.Status != "Running")
+        )
+            throw new InvalidOperationException("SS queued run is no longer executable.");
+        if (queuedRun is null && !settings.DryRun)
+            throw new InvalidOperationException("SS apply requires an audited API-acquired run.");
+        if (
+            queuedRun is not null
+            && (queuedRun.CutoverDate != source.CutoverDate || queuedRun.HistoryStartDate != source.HistoryStartDate)
+        )
+            throw new InvalidOperationException("SS queued run configuration changed.");
+        if (queuedRun is not null && !queuedRun.DryRun)
+        {
+            var evidence = await db
+                .AuditRecords.AsNoTracking()
+                .Where(x =>
+                    x.EntityType == "DataMigrationOperation"
+                    && x.TableName == "DataMigrationRuns"
+                    && x.Action == "Added"
+                    && x.EntityPK == queuedRun.Id.ToString("D")
+                    && x.ActorUserId != null
+                    && x.ActorUserId != Guid.Empty
+                )
+                .Select(x => x.NewValues)
+                .ToListAsync(ct);
+            if (!evidence.Any(x => IsTriggerEvidence(x, queuedRun)))
+                throw new InvalidOperationException("SS apply requires an audited API-acquired run.");
+        }
+    }
+
+    private static bool IsTriggerEvidence(string? json, DataMigrationRun run)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(json ?? "");
+            var root = document.RootElement;
+            return root.GetProperty("Source").GetString() == "SS"
+                && root.GetProperty("Job").GetString() == run.Job
+                && root.GetProperty("RunId").GetGuid() == run.Id
+                && root.GetProperty("Operation").GetString() == "Trigger"
+                && root.GetProperty("DryRun").ValueKind == JsonValueKind.False;
+        }
+        catch (Exception ex)
+            when (ex is JsonException or InvalidOperationException or KeyNotFoundException or FormatException)
+        {
+            return false;
+        }
     }
 
     private async Task ExecuteCoreAsync(string job, DataMigrationRun? queuedRun, CancellationToken ct)
@@ -155,19 +179,15 @@ public sealed class SsMigrationExecutor(
         if (ct.IsCancellationRequested)
             throw new OperationCanceledException("SS migration was canceled.", ct);
         var source = options.Value.Sources.SS;
+        await ValidateExecutionAsync(job, queuedRun, ct);
         var settings = ValidateRequest(job, queuedRun?.DryRun);
-        if (
-            queuedRun is not null
-            && (queuedRun.CutoverDate != source.CutoverDate || queuedRun.HistoryStartDate != source.HistoryStartDate)
-        )
-            throw new InvalidOperationException("SS queued run configuration changed.");
         DataMigrationRun? acquired = queuedRun;
         try
         {
             acquired ??= await controls.TryStartJobAsync(
                 job,
                 settings.DryRun,
-                source.CutoverDate.Value,
+                source.CutoverDate!.Value,
                 ct,
                 source.HistoryStartDate
             );
@@ -197,7 +217,7 @@ public sealed class SsMigrationExecutor(
                     training,
                     scheduling,
                     businessValidators ?? []
-                ).ExecuteAsync(run, source, settings.BatchSize, token => FenceAsync(run, token), ct);
+                ).ExecuteAsync(run, session, source, settings.BatchSize, token => FenceAsync(run, token), ct);
                 session = result.Session;
                 await using var simulationReceiptTx = await db.Database.BeginTransactionAsync(ct);
                 await FenceAsync(run, ct);
@@ -322,19 +342,22 @@ public sealed class SsMigrationExecutor(
             var persisted = await db.DataMigrationRuns.SingleAsync(x => x.Id == run.Id, CancellationToken.None);
             if (persisted.Status != "Running")
                 throw new InvalidOperationException("SS migration stopped after its run fence was revoked.");
-            persisted.Status = "Failed";
-            persisted.CompletedOn = DateTimeOffset.UtcNow;
-            persisted.FailedCount++;
-            db.DataMigrationFailures.Add(
-                new DataMigrationFailure
-                {
-                    RunId = run.Id,
-                    Source = "SS",
-                    ErrorType = ex is OperationCanceledException ? "Canceled" : "ExecutionFailed",
-                    ErrorMessage =
-                        "SS job failed; current batch rolled back. Earlier committed batches and retry/progress evidence are retained.",
-                    OccurredOn = DateTimeOffset.UtcNow,
-                }
+            if (job == "Report" && session.Outcomes.Count > 0)
+            {
+                // The report transaction rolled back, but already discovered validation failures
+                // must not be hidden by a later technical error.
+                foreach (var outcome in session.Outcomes)
+                    await SsBatchProgress.UpsertOutcomeAsync(db, outcome, CancellationToken.None);
+                persisted.FailedCount = session.Outcomes.Count(x => x.Outcome == "Failed");
+                persisted.RejectedCount = session.Outcomes.Count(x => x.Outcome == "Rejected");
+            }
+            MigrationTechnicalFailure.Record(
+                db,
+                persisted,
+                ex is OperationCanceledException ? "Canceled" : "ExecutionFailed",
+                job == "Report"
+                    ? "SS report did not complete; inspect migration-only evidence."
+                    : "SS job failed; current batch rolled back. Earlier committed batches and retry/progress evidence are retained."
             );
             await db.SaveChangesAsync(CancellationToken.None);
             throw new InvalidOperationException("SS migration failed; inspect migration-only run evidence.");

@@ -40,6 +40,7 @@ public static class DataMigrationModule
         services.AddScoped<DataMigrationOrchestrator>();
         services.AddScoped<DataMigrationControlService>();
         services.AddScoped<IMigrationRunCoordinator>(sp => sp.GetRequiredService<DataMigrationControlService>());
+        services.AddHttpContextAccessor();
         services.AddScoped<DataMigrationOperations>();
         services.AddScoped<IMigrationJobDispatcher, MigrationJobDispatcher>();
         services.AddSingleton(MigrationPermissions.Configuration);

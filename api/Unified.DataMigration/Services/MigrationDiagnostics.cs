@@ -110,13 +110,13 @@ public static class MigrationDiagnostics
         );
     }
 
-    public static MigrationFindingDto Failure(DataMigrationFailure value) =>
+    public static MigrationFindingDto Failure(DataMigrationFailure value, bool report = false) =>
         new(
             value.Id,
             "Failure",
             Entity(value.EntityType),
             Key(value.LegacyId),
-            "Failed",
+            report && MigrationTechnicalFailure.IsReportDiagnostic(value.ErrorType) ? "NeedsAction" : "Failed",
             Code(value.ErrorType),
             value.OccurredOn
         );

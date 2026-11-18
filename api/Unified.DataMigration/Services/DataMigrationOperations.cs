@@ -1,8 +1,12 @@
 using System.Data;
 using System.Globalization;
+using System.Security.Claims;
 using System.Text.Json;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using Unified.Authorization.Claims;
 using Unified.DataMigration.FeatureFlags;
 using Unified.DataMigration.Models;
 using Unified.DataMigration.Options;
@@ -18,7 +22,9 @@ public sealed class DataMigrationOperations(
     IOptions<DataMigrationFeatureFlags> flags,
     IMigrationRunCoordinator controls,
     IMigrationJobDispatcher dispatcher,
-    SsRollbackService rollback
+    SsRollbackService rollback,
+    IHttpContextAccessor httpContext,
+    IAuthorizationService authorization
 )
 {
     public static readonly string[] Jobs = ["MyTeam", "Training", "Scheduling", "Report"];
@@ -96,9 +102,20 @@ public sealed class DataMigrationOperations(
             .ToListAsync(ct);
         var verdict =
             run.FailedCount + run.RejectedCount > 0
-            || await db.DataMigrationFailures.AnyAsync(x => x.RunId == run.Id && x.Source == run.Source, ct)
+            || await db.DataMigrationFailures.AnyAsync(
+                x =>
+                    x.RunId == run.Id
+                    && x.Source == run.Source
+                    && x.ErrorType != "DispatchFailed"
+                    && x.ErrorType != "QueuedExecutionRefused"
+                    && x.ErrorType != "ExecutionFailed"
+                    && x.ErrorType != "Canceled",
+                ct
+            )
             || findings.Any(x => x.Outcome is "Failed" or "Rejected")
                 ? "Fail"
+            : await db.DataMigrationFailures.AnyAsync(x => x.RunId == run.Id && x.Source == run.Source, ct)
+                ? "NeedsAction"
             : findings.Any(x => x.Outcome is "NeedsAction" or "DroppedBadData") ? "NeedsAction"
             : run.DryRun ? "NeedsAction"
             : findings.Any(x =>
@@ -176,6 +193,19 @@ public sealed class DataMigrationOperations(
     )
     {
         Scope(source, job);
+        if (actor == Guid.Empty)
+            throw new MigrationOperationException(403, "ResolvedMigrationActorRequired");
+        if (!dryRun)
+        {
+            var user = httpContext.HttpContext?.User;
+            if (
+                user?.Identity?.IsAuthenticated != true
+                || !Guid.TryParse(user.FindFirstValue(UnifiedClaimTypes.UserId), out var resolved)
+                || resolved != actor
+                || !(await authorization.AuthorizeAsync(user, MigrationPermissions.OperationsPolicy)).Succeeded
+            )
+                throw new MigrationOperationException(403, "AuthenticatedMigrationRequestRequired");
+        }
         try
         {
             dispatcher.Validate(job, dryRun);
@@ -190,25 +220,18 @@ public sealed class DataMigrationOperations(
             ?? throw new MigrationOperationException(409, "JobBusyPausedOrLineageNotReady");
         try
         {
-            await AuditAsync(source, job, run.Id, actor, "Trigger", ct);
+            await AuditAsync(source, job, run.Id, actor, "Trigger", ct, dryRun);
             dispatcher.Enqueue(run.Id);
         }
         catch
         {
             db.ChangeTracker.Clear();
             var failed = await db.DataMigrationRuns.SingleAsync(x => x.Id == run.Id, CancellationToken.None);
-            failed.Status = "Failed";
-            failed.CompletedOn = DateTimeOffset.UtcNow;
-            failed.FailedCount++;
-            db.DataMigrationFailures.Add(
-                new()
-                {
-                    Source = source,
-                    RunId = run.Id,
-                    ErrorType = "DispatchFailed",
-                    ErrorMessage = "Job dispatch failed before business execution.",
-                    OccurredOn = DateTimeOffset.UtcNow,
-                }
+            MigrationTechnicalFailure.Record(
+                db,
+                failed,
+                "DispatchFailed",
+                "Job dispatch failed before business execution."
             );
             await db.SaveChangesAsync(CancellationToken.None);
             throw new MigrationOperationException(503, "JobDispatchFailed");
@@ -350,7 +373,7 @@ public sealed class DataMigrationOperations(
             var q = db.DataMigrationFailures.AsNoTracking().Where(x => x.RunId == id && x.Source == source);
             return new(
                 (await q.OrderBy(x => x.Id).Skip(offset).Take(limit).ToListAsync(ct))
-                    .Select(MigrationDiagnostics.Failure)
+                    .Select(x => MigrationDiagnostics.Failure(x, job == "Report"))
                     .ToList(),
                 offset,
                 limit,
@@ -360,7 +383,15 @@ public sealed class DataMigrationOperations(
         throw new MigrationOperationException(400, "InvalidFindingKind");
     }
 
-    public async Task AuditAsync(string source, string? job, Guid? id, Guid actor, string action, CancellationToken ct)
+    private async Task AuditAsync(
+        string source,
+        string? job,
+        Guid? id,
+        Guid actor,
+        string action,
+        CancellationToken ct,
+        bool? dryRun = null
+    )
     {
         db.AuditRecords.Add(
             new AuditRecord
@@ -378,6 +409,7 @@ public sealed class DataMigrationOperations(
                         Job = job,
                         RunId = id,
                         Operation = action,
+                        DryRun = dryRun,
                     }
                 ),
             }
@@ -498,7 +530,7 @@ public sealed class DataMigrationOperations(
                 .WithCancellation(ct)
         )
         {
-            var finding = MigrationDiagnostics.Failure(value);
+            var finding = MigrationDiagnostics.Failure(value, job == "Report");
             await Row(
                 finding.Kind,
                 finding.Id.ToString(CultureInfo.InvariantCulture),

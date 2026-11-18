@@ -32,13 +32,13 @@ internal sealed class SsDryRunSimulation(
 
     internal async Task<(SsWriteSession Session, DataMigrationSimulation? Manifest)> ExecuteAsync(
         DataMigrationRun run,
+        SsWriteSession session,
         DataMigrationSourceOptions source,
         int batchSize,
         Func<CancellationToken, Task> fence,
         CancellationToken ct
     )
     {
-        var session = new SsWriteSession(db, run);
         var tables = db
             .Model.GetEntityTypes()
             .Where(x => x.GetSchema() is null or "public")
