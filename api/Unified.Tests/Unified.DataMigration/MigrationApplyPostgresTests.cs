@@ -459,6 +459,125 @@ public sealed class MigrationApplyPostgresTests : IAsyncLifetime
         );
     }
 
+    [Fact(Skip = SkipReason, SkipUnless = nameof(IsConfigured))]
+    public async Task RollbackJournal_UsesIndexedTypedKeysAndExactSavepointXmin()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var run = Completed("MyTeam", null);
+        db.DataMigrationRuns.Add(run);
+        await db.SaveChangesAsync(ct);
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync(ct);
+        async Task Execute(string sql)
+        {
+            await using var command = new NpgsqlCommand(sql, connection);
+            await command.ExecuteNonQueryAsync(ct);
+        }
+        async Task<string> Scalar(string sql)
+        {
+            await using var command = new NpgsqlCommand(sql, connection);
+            return (string)(await command.ExecuteScalarAsync(ct))!;
+        }
+        await Execute(
+            """
+            CREATE TABLE public."SsVersionProbe" ("Part Id" int, "Key" text, "Value" text,
+              PRIMARY KEY ("Part Id","Key"));
+            INSERT INTO public."SsVersionProbe"
+              SELECT i, 'synthetic', 'before' FROM generate_series(1,98000) i;
+            ANALYZE public."SsVersionProbe";
+            CREATE TRIGGER ss_rollback_capture AFTER INSERT OR UPDATE OR DELETE ON public."SsVersionProbe"
+              FOR EACH ROW EXECUTE FUNCTION public.ss_capture_rollback('["Part Id","Key"]');
+            """
+        );
+        var query = """
+            SELECT t.xmin::text FROM public."SsVersionProbe" t
+            CROSS JOIN jsonb_populate_record(NULL::public."SsVersionProbe",'{"Part Id":42000,"Key":"synthetic"}') k
+            WHERE t."Part Id" = k."Part Id" AND t."Key" = k."Key"
+            """;
+        var plan = await Scalar("EXPLAIN (FORMAT JSON) " + query);
+        Assert.Contains("Index Scan", plan);
+        Assert.Contains("SsVersionProbe_pkey", plan);
+        Assert.DoesNotContain("Seq Scan", plan);
+        var definition = await Scalar("SELECT pg_get_functiondef('public.ss_capture_rollback()'::regprocedure)");
+        Assert.Contains("jsonb_populate_record", definition);
+        Assert.DoesNotContain("WHERE to_jsonb(t)", definition);
+        // Settings are synthetic and transaction-local, never applied to a live resource.
+        await Execute(
+            $"""
+            BEGIN;
+            SET LOCAL unified_ss.run = '{run.Id}';
+            SET LOCAL unified_ss.key_id = '{Guid.NewGuid()}';
+            SET LOCAL unified_ss.key = 'synthetic-only';
+            SAVEPOINT inserted;
+            INSERT INTO public."SsVersionProbe" VALUES (99000,'inserted','new');
+            """
+        );
+        async Task ExactVersion(string table, string predicate)
+        {
+            var actual = await Scalar($"SELECT xmin::text FROM public.\"{table}\" WHERE {predicate}");
+            var captured = await Scalar(
+                $"""
+                SELECT "AfterVersion" FROM public."DataMigrationJournals"
+                WHERE "RunId"='{run.Id}' AND "TableName"='{table}' ORDER BY "Id" DESC LIMIT 1
+                """
+            );
+            Assert.Equal(actual, captured);
+            Assert.NotEqual(await Scalar("SELECT (pg_current_xact_id()::text::numeric % 4294967296)::text"), captured);
+        }
+        await ExactVersion("SsVersionProbe", "\"Part Id\"=99000 AND \"Key\"='inserted'");
+        await Execute(
+            """
+            RELEASE SAVEPOINT inserted;
+            SAVEPOINT updated;
+            UPDATE public."SsVersionProbe" SET "Value"='updated' WHERE "Part Id"=42000 AND "Key"='synthetic';
+            """
+        );
+        await ExactVersion("SsVersionProbe", "\"Part Id\"=42000 AND \"Key\"='synthetic'");
+        await Execute(
+            """
+            SAVEPOINT reverted;
+            UPDATE public."SsVersionProbe" SET "Value"='reverted' WHERE "Part Id"=42000 AND "Key"='synthetic';
+            ROLLBACK TO SAVEPOINT reverted;
+            RELEASE SAVEPOINT reverted;
+            """
+        );
+        await ExactVersion("SsVersionProbe", "\"Part Id\"=42000 AND \"Key\"='synthetic'");
+        await Execute(
+            """
+            RELEASE SAVEPOINT updated;
+            SAVEPOINT singlekey;
+            INSERT INTO public."Regions" ("Id","Name","CreatedOn") VALUES (99000,'Synthetic',now());
+            """
+        );
+        await ExactVersion("Regions", "\"Id\"=99000");
+        await Execute(
+            """
+            RELEASE SAVEPOINT singlekey;
+            DELETE FROM public."SsVersionProbe" WHERE "Part Id"=99000 AND "Key"='inserted';
+            """
+        );
+        Assert.Equal(
+            "missing",
+            await Scalar(
+                $"""
+                SELECT "AfterVersion" FROM public."DataMigrationJournals"
+                WHERE "RunId"='{run.Id}' ORDER BY "Id" DESC LIMIT 1
+                """
+            )
+        );
+        await Execute("COMMIT");
+        // No migration run setting: ordinary DML still produces no journal.
+        await Execute("""UPDATE public."SsVersionProbe" SET "Value"='ordinary' WHERE "Part Id"=1""");
+        Assert.Equal(
+            "4",
+            await Scalar(
+                $"""
+                SELECT count(*)::text FROM public."DataMigrationJournals" WHERE "RunId"='{run.Id}'
+                """
+            )
+        );
+    }
+
     private DataMigrationRun Completed(string job, Guid? parent) =>
         new()
         {

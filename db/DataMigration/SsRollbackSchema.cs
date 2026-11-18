@@ -4,6 +4,27 @@ namespace Unified.Db.DataMigration;
 // setting these triggers return immediately and never change ordinary application DML.
 public static class SsRollbackSchema
 {
+    // V3 changes only the lookup predicate. V1 and V2 remain immutable for existing migrations.
+    // Populate a typed key record so every PK column stays bare and indexable, including composite keys.
+    public static string IndexedSubtransactionVersions =>
+        FixSubtransactionVersions
+            .Replace(
+                "capturedversion text := 'missing';",
+                "capturedversion text := 'missing';\n keypredicate text;",
+                StringComparison.Ordinal
+            )
+            .Replace(
+                "EXECUTE format('SELECT t.xmin::text FROM %I.%I t WHERE to_jsonb(t) @> $1',TG_TABLE_SCHEMA,TG_TABLE_NAME)",
+                """
+                SELECT string_agg(format('t.%1$I = k.%1$I',p.col),' AND ' ORDER BY p.ord)
+                  INTO keypredicate
+                  FROM jsonb_array_elements_text(TG_ARGV[0]::jsonb) WITH ORDINALITY AS p(col,ord);
+                EXECUTE format('SELECT t.xmin::text FROM %I.%I t CROSS JOIN jsonb_populate_record(NULL::%I.%I,$1) k WHERE %s',
+                  TG_TABLE_SCHEMA,TG_TABLE_NAME,TG_TABLE_SCHEMA,TG_TABLE_NAME,keypredicate)
+                """,
+                StringComparison.Ordinal
+            );
+
     // V1 is immutable because an applied migration references it. A later migration
     // corrects xmin capture: row savepoints use subtransaction IDs, not the top xid.
     public static string FixSubtransactionVersions =>
