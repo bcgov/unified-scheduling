@@ -48,7 +48,7 @@ Sources: [stable validation register](../../../../documentation/data-migration/s
 | SS-V028 | Partial | Selected target drift and mapped-text update cases passed; full concurrent-edit matrix remains open. [Inventory] |
 | SS-V029 | Pass | Actual dry-run lineage, repeat, stale/wrong-parent rejection and no-business-footprint checks passed. [Evidence] |
 | SS-V030 | Partial | Confirmed inverse and selected controls passed; pause/abort/dependency race matrix remains open (T034). [Inventory] |
-| SS-V031 | Partial | T047 exposure scan found no data leak; endpoint authorization review remains open (T050). |
+| SS-V031 | Partial | T047 exposure scan found no data leak. T050 endpoint review fixed disabled-flag routes returning 500 and added JSON-only unsafe requests; broader cookie-CSRF and Hangfire dashboard concerns remain BL-18/19. |
 | SS-V032 | Partial | SDK10 builds, 103 migration and 5 Hangfire tests pass; exhaustive release suite and separate acceptance gates remain open. [V20] |
 | SS-V033 | Pending | No isolated operational null-key region result. |
 | SS-V034 | Pending | No isolated agency-key mapping result. |

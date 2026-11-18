@@ -156,7 +156,8 @@ Keep an unmodified adverse fixture run (expected Fail/NeedsAction) and a separat
 approved-ready fixture run; never erase bad cases merely to obtain Pass.
 
 Run actual SS report services against the synthetic source. Export goldens for O-1 training,
-O-2 shifts, O-3 distribute schedule, O-4 roster and O-5 stored/rule overtime.
+O-2 shifts, O-3 distribute schedule and O-4 roster. O-5 stored/rule overtime is deferred
+with T063 to BL-17; it is not a production feature or release acceptance gate.
 Use past month, cutover +/-14 days and first future month per active location.
 Map identities through real crosswalks; compare instants and business values, not layout.
 

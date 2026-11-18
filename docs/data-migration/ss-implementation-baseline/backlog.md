@@ -1,6 +1,6 @@
 # Unified Follow-Ups From SS Migration
 
-**Updated 2026-11-16.** No item authorizes app changes in this migration build.
+**Updated 2026-11-18.** No item authorizes unrelated app changes in this migration build.
 Primary gates are user identity/auth data, scheduling and training business data.
 Approved historical differences do not become silently fixed data.
 
@@ -22,6 +22,9 @@ Approved historical differences do not become silently fixed data.
 | BL-14 | Verify per-record training timezone/date visibility | SS exports completion/expiry in record timezone; UserTrainings has no timezone column. Compare actual displayed/exported business dates and quantify any loss; do not silently substitute UTC or current home timezone | O-1/SS-V057; Unified Training |
 | BL-15 | Make LoanOut availability interval-sensitive with consistent candidate/overlap semantics | Past and future matched service comparisons show 2 destination candidate-presence differences and 4 missing Away conflict responses over 12 calls. Exact calendar timing survives. Primary scheduling-service parity blocker: preserve partial-day home/destination availability without widening events. Add matched before/inside/after/whole-day/boundary tests; no migration workaround or UI-parity claim | Actual source oracle `e6e674c` and target `29a8ea59` / `44ce6a78`; Unified Scheduling/LoanOut |
 | BL-16 | Support safe inverse of a replaced preexisting nonnull photo before permitting that rollback | Current rollback explicitly blocks this unsupported restoration. Retain the guard; a future implementation needs protected prior-photo storage, ownership/version checks and exact restore tests. Never log/export photo bytes or claim a full inverse for an unsupported case | Final closeout `be3c6b8e`; Unified Migration |
+| BL-17 | Revise and test overtime before treating it as a production feature | Deferred T063 work: verify actual WorkingHoursService with configured 420/60/0, multi-location days and O-5 stored-vs-rule comparison. Do after BL-4; then decide BL-6. Migrated shifts are unaffected; only computed overtime is unproven | T063 deferral 2026-11-18; Unified Scheduling |
+| BL-18 | Add app-wide CSRF protection for cookie-authenticated POST/PUT/DELETE | Auth cookie is `SameSite=None` with no antiforgery check. Migration POSTs now require JSON (T050); other modules' body-less mutating endpoints remain exposed to cross-site form posts | T050 review 2026-11-18; Unified Platform |
+| BL-19 | Make the Hangfire dashboard read-only or require operate permission to trigger jobs | Dashboard access checks `HangfireDashboardView`, not `DataMigrationOperate`; a viewer may be able to trigger enabled migration jobs without migration audit. Confirm in deployment and restrict dashboard access to migration operators until fixed | T050 review 2026-11-18; Unified Platform |
 
 ## BL-6 Proposed Follow-Up Design (Not Implemented)
 

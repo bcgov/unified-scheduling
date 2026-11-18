@@ -188,8 +188,9 @@ An authorized operator can review a source-specific run, pause or abort it safel
   data without duplicate targets or links.
 - **SC-008**: Comparable unsuppressed synthetic SH volume/distribution buckets fit production
   within +/-20%; suppressed `<5` buckets use ranges. Unmet shape buckets remain explicit failures.
-- **SC-009**: O-1..O-5 actual report/service comparisons account for every difference through
+- **SC-009**: O-1..O-4 actual report/service comparisons account for every difference through
   a known finding in past, cutover and future windows; no unexplained training/schedule loss.
+  O-5 overtime parity is deferred to BL-17 and is not required for this release.
 - **SC-010**: Persistent synthetic source remains healthy after work; isolated target can
   be recreated without touching shared application data.
 
