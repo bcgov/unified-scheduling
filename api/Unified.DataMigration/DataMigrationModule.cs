@@ -13,6 +13,9 @@ namespace Unified.DataMigration;
 
 public static class DataMigrationModule
 {
+    public static bool IsModuleEnabled(IConfiguration config) =>
+        config.GetSection(DataMigrationFeatureFlags.Section).Get<DataMigrationFeatureFlags>()?.Enabled ?? false;
+
     public static IServiceCollection AddDataMigrationModule(
         this IServiceCollection services,
         IConfiguration configuration
@@ -23,10 +26,7 @@ public static class DataMigrationModule
             .BindConfiguration(DataMigrationFeatureFlags.Section)
             .ValidateOnStart();
 
-        if (
-            configuration.GetSection(DataMigrationFeatureFlags.Section).Get<DataMigrationFeatureFlags>()?.Enabled
-            != true
-        )
+        if (!IsModuleEnabled(configuration))
         {
             return services;
         }

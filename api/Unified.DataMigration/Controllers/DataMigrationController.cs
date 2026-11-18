@@ -14,6 +14,7 @@ namespace Unified.DataMigration.Controllers;
 [Route("api/data-migration/{source}")]
 [Authorize(Policy = MigrationPermissions.OperationsPolicy)]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
+[RequireJsonContentType]
 [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
 [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
 [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
@@ -109,6 +110,7 @@ public sealed class DataMigrationController(DataMigrationOperations operations) 
         Invoke(async _ => Ok(await operations.RunAsync(source, job, id, ct)));
 
     [HttpPost("jobs/{job}/runs")]
+    [Consumes("application/json")]
     [ProducesResponseType(typeof(MigrationAcceptedDto), StatusCodes.Status202Accepted)]
     public Task<IActionResult> Trigger(
         string source,
@@ -123,16 +125,19 @@ public sealed class DataMigrationController(DataMigrationOperations operations) 
         });
 
     [HttpPost("control/{actionName}")]
+    [Consumes("application/json")]
     [ProducesResponseType(typeof(MigrationControlDto), StatusCodes.Status200OK)]
     public Task<IActionResult> SourceControl(string source, string actionName, CancellationToken ct) =>
         Invoke(async actor => Ok(await operations.ControlAsync(source, null, actionName, actor, ct)));
 
     [HttpPost("jobs/{job}/control/{actionName}")]
+    [Consumes("application/json")]
     [ProducesResponseType(typeof(MigrationControlDto), StatusCodes.Status200OK)]
     public Task<IActionResult> JobControl(string source, string job, string actionName, CancellationToken ct) =>
         Invoke(async actor => Ok(await operations.ControlAsync(source, job, actionName, actor, ct)));
 
     [HttpPost("jobs/{job}/runs/{id:guid}/recover")]
+    [Consumes("application/json")]
     [ProducesResponseType(typeof(MigrationRunDto), StatusCodes.Status200OK)]
     public Task<IActionResult> Recover(
         string source,
@@ -166,6 +171,7 @@ public sealed class DataMigrationController(DataMigrationOperations operations) 
 
     [Authorize(Policy = MigrationPermissions.RollbackPolicy)]
     [HttpPost("jobs/{job}/runs/{id:guid}/rollback-preview")]
+    [Consumes("application/json")]
     [ProducesResponseType(typeof(MigrationRollbackPreviewDto), StatusCodes.Status200OK)]
     public Task<IActionResult> RollbackPreview(string source, string job, Guid id, CancellationToken ct) =>
         Invoke(async actor => Ok(await operations.PreviewAsync(source, job, id, actor, ct)));
@@ -189,6 +195,7 @@ public sealed class DataMigrationController(DataMigrationOperations operations) 
 
     [Authorize(Policy = MigrationPermissions.RollbackPolicy)]
     [HttpPost("jobs/{job}/runs/{id:guid}/rollback")]
+    [Consumes("application/json")]
     [ProducesResponseType(typeof(MigrationRollbackReceiptDto), StatusCodes.Status200OK)]
     public Task<IActionResult> Rollback(
         string source,

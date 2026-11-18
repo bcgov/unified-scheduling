@@ -17,6 +17,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Unified.Authorization;
 using Unified.Authorization.Claims;
+using Unified.Common.Mvc;
 using Unified.DataMigration;
 using Unified.DataMigration.Controllers;
 using Unified.DataMigration.Models;
@@ -191,6 +192,7 @@ public sealed class MigrationOperationsTests
         foreach (var route in new[] { "jobs/Training/control/abort", "control/pause", "jobs/Training/control/resume" })
         {
             using var request = Request("operate", HttpMethod.Post, "/api/data-migration/SS/" + route);
+            request.Content = new StringContent("{}", Encoding.UTF8, "application/json");
             using var response = await test.Client.SendAsync(request, TestContext.Current.CancellationToken);
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         }
@@ -206,6 +208,77 @@ public sealed class MigrationOperationsTests
             .StatusAsync("SS", "Training", TestContext.Current.CancellationToken);
         Assert.False(status.Enabled); // Resume never mutates disabled options.
         Assert.True(status.SourceControl.Paused);
+    }
+
+    [Theory]
+    [InlineData("application/x-www-form-urlencoded", "a=1")]
+    [InlineData("multipart/form-data; boundary=x", "--x--")]
+    [InlineData("text/plain", "{}")]
+    [InlineData(null, null)]
+    public async Task UnsafePost_RequiresJsonContentType_BeforeAuditOrControl(string? contentType, string? body)
+    {
+        await using var test = await Harness.Start();
+        using (var request = Request("operate", HttpMethod.Post, "/api/data-migration/SS/control/pause"))
+        {
+            if (contentType is not null)
+            {
+                request.Content = new StringContent(body!, Encoding.UTF8);
+                request.Content.Headers.Remove("Content-Type");
+                request.Content.Headers.TryAddWithoutValidation("Content-Type", contentType);
+            }
+            using var rejected = await test.Client.SendAsync(request, TestContext.Current.CancellationToken);
+            Assert.Equal(HttpStatusCode.UnsupportedMediaType, rejected.StatusCode);
+        }
+        Assert.Empty(await test.Db.DataMigrationControls.ToListAsync(TestContext.Current.CancellationToken));
+        Assert.Empty(await test.Db.AuditRecords.ToListAsync(TestContext.Current.CancellationToken));
+
+        using var accepted = Request("operate", HttpMethod.Post, "/api/data-migration/SS/control/pause");
+        accepted.Content = new StringContent("{}", Encoding.UTF8, "application/json");
+        using var response = await test.Client.SendAsync(accepted, TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.True((await test.Db.DataMigrationControls.SingleAsync(TestContext.Current.CancellationToken)).IsPaused);
+        Assert.Single(await test.Db.AuditRecords.ToListAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Theory]
+    [InlineData("anonymous")]
+    [InlineData("operate")]
+    public async Task FlagOff_ConditionalApplicationPart_RemovesRoutes_Returning404Not500(string mode)
+    {
+        var builder = WebApplication.CreateBuilder();
+        builder.WebHost.UseTestServer();
+        builder.Configuration.AddInMemoryCollection(
+            new Dictionary<string, string?> { ["FeatureFlags:DataMigration:Enabled"] = "false" }
+        );
+        builder.Logging.ClearProviders();
+        builder.Services.AddDataMigrationModule(builder.Configuration);
+        builder.Services.AddAuthorizationModule();
+        builder.Services.AddAuthentication("Test").AddScheme<AuthenticationSchemeOptions, Handler>("Test", _ => { });
+        builder.Services.RemoveAll<IClaimsTransformation>();
+        builder.Services.AddSingleton<IClaimsTransformation, NoTransform>();
+        var mvc = builder
+            .Services.AddControllers()
+            .ConfigureApplicationPartManager(parts =>
+            {
+                // Model the bug state: the module assembly is discovered as an MVC part.
+                parts.ApplicationParts.Clear();
+                parts.ApplicationParts.Add(new AssemblyPart(typeof(DataMigrationController).Assembly));
+            });
+        // Program.cs wiring.
+        mvc.AddConditionalApplicationPart<DataMigrationController>(
+            DataMigrationModule.IsModuleEnabled(builder.Configuration)
+        );
+        await using var app = builder.Build();
+        app.UseAuthentication();
+        app.UseAuthorization();
+        app.MapControllers();
+        await app.StartAsync(TestContext.Current.CancellationToken);
+        using var client = app.GetTestClient();
+
+        Assert.False(DataMigrationModule.IsModuleEnabled(builder.Configuration));
+        using var request = Request(mode, HttpMethod.Get, "/api/data-migration/SS/status");
+        using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
     [Theory]
@@ -370,7 +443,8 @@ public sealed class MigrationOperationsTests
                 {
                     ["DataMigration:Sources:SS:CutoverDate"] = "2026-12-01",
                     ["DataMigration:Sources:SS:Enabled"] = "false",
-                    ["FeatureFlags:DataMigration:Enabled"] = "false",
+                    // Module must be enabled so its policies and operations register (SS source stays disabled).
+                    ["FeatureFlags:DataMigration:Enabled"] = "true",
                 }
             );
             builder.Logging.ClearProviders();

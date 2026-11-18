@@ -56,6 +56,7 @@ public sealed class DataMigrationModuleTests
                 ["DataMigration:Sources:SS:ConnectionString"] = "Host=source",
                 ["DataMigration:Sources:SS:CronSchedule"] = "0 * * * *",
                 ["DataMigration:Sources:SS:BatchSize"] = "10",
+                ["DataMigration:Sources:SS:CutoverDate"] = "2026-12-01",
             }
         );
         using var host = builder.Build();

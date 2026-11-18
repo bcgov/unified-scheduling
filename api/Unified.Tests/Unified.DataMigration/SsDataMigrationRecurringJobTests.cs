@@ -257,7 +257,10 @@ public sealed class SsDataMigrationRecurringJobTests : IAsyncDisposable
     [Fact]
     public void Module_ResolvesFourScopedJobsAndDisabledSources()
     {
-        var configuration = new ConfigurationBuilder().Build();
+        // The module only registers when its feature flag is on; sources and jobs stay disabled by default.
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["FeatureFlags:DataMigration:Enabled"] = "true" })
+            .Build();
         var services = new ServiceCollection();
         services.AddLogging();
         services.AddRouting();
@@ -285,7 +288,7 @@ public sealed class SsDataMigrationRecurringJobTests : IAsyncDisposable
         Assert.Equal("SS", source.Source);
         Assert.Same(source, scope.ServiceProvider.GetRequiredService<ISsLegacyMigrationSource>());
         Assert.Null(scope.ServiceProvider.GetService<ICassLegacyMigrationSource>());
-        Assert.False(scope.ServiceProvider.GetRequiredService<IOptions<DataMigrationFeatureFlags>>().Value.Enabled);
+        Assert.True(scope.ServiceProvider.GetRequiredService<IOptions<DataMigrationFeatureFlags>>().Value.Enabled);
         var options = scope.ServiceProvider.GetRequiredService<IOptions<DataMigrationOptions>>().Value;
         Assert.False(options.Sources.SS.Enabled);
         Assert.False(options.Sources.CASS.Enabled);
