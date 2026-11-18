@@ -1,7 +1,8 @@
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { http, HttpResponse } from 'msw';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { FeatureFlagsResponse, Permissions } from '@/api-access/generated/models';
+import { Permissions, type FeatureFlagsResponse } from '@/api-access/generated/models';
+import { GetApiAuthUserResponse } from '@/api-access/generated/auth/auth.zod';
 import DataMigration from '@/modules/data-migration/DataMigration.vue';
 import { registerModule } from '@/modules/data-migration/DataMigrationModule';
 import type { MigrationRun } from '@/modules/data-migration/dataMigrationApi';
@@ -13,7 +14,7 @@ import { createTestApp } from '../../helpers/createTestApp';
 import { server } from '../../mocks/server';
 import type { RouteRecordRaw } from 'vue-router';
 
-const permission = 'DataMigrationOperate' as Permissions;
+const permission = Permissions.DataMigrationOperate;
 const flags = { DataMigration: { enabled: true } } as FeatureFlagsResponse;
 const runId = '00000000-0000-0000-0000-000000000001';
 let wrapper: VueWrapper | undefined;
@@ -22,6 +23,7 @@ let reads: number;
 let posts: number;
 let readFailure: boolean;
 let postStatus: number;
+let publishPostRun: boolean;
 let releasePost: (() => void) | undefined;
 
 beforeEach(() => {
@@ -30,6 +32,7 @@ beforeEach(() => {
   posts = 0;
   readFailure = false;
   postStatus = 202;
+  publishPostRun = true;
   vi.stubGlobal(
     'confirm',
     vi.fn(() => true),
@@ -49,7 +52,7 @@ beforeEach(() => {
       if (releasePost) await new Promise<void>((resolve) => (releasePost = resolve));
       if (postStatus === 0) return HttpResponse.error();
       if (postStatus !== 202) return HttpResponse.json({ title: 'Refused' }, { status: postStatus });
-      runs = [{ id: runId, job: String(params.job), status: 'Running' }];
+      if (publishPostRun) runs = [{ id: runId, job: String(params.job), status: 'Running' }];
       return HttpResponse.json({ runId }, { status: 202 });
     }),
   );
@@ -83,6 +86,20 @@ function buttons() {
 }
 
 describe('data migration guards', () => {
+  it('accepts migration permissions in the generated auth response schema', () => {
+    const user = GetApiAuthUserResponse.parse({
+      isAuthenticated: true,
+      isRegistered: true,
+      name: null,
+      authenticationType: 'TestAuth',
+      claims: [],
+      permissions: [Permissions.DataMigrationOperate, Permissions.DataMigrationRollback],
+      userId: '00000000-0000-4000-8000-000000000001',
+      homeLocationId: null,
+    });
+    expect(user.permissions).toContain(Permissions.DataMigrationOperate);
+  });
+
   it.each([
     [true, false],
     [false, true],
@@ -157,6 +174,37 @@ describe('data migration apply controls', () => {
     await vi.waitFor(() => expect(wrapper!.text()).toContain(runId));
     expect(posts).toBe(0);
     expect(buttons()[0]!.attributes('disabled')).toBeDefined();
+  });
+
+  it('replaces an optimistic accepted run with newer server state during polling', async () => {
+    publishPostRun = false;
+    const app = await setup();
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    wrapper = mount(DataMigration, { global: { plugins: app.mountPlugins } });
+    await vi.waitFor(() => expect(buttons()[0]?.attributes('disabled')).toBeUndefined());
+    await buttons()[0]!.trigger('click');
+    await vi.waitFor(() => expect(wrapper!.text()).toContain(`Run ID: ${runId} — Running`));
+    expect(buttons()[0]!.attributes('disabled')).toBeDefined();
+
+    runs = [{ id: runId, job: 'MyTeam', status: 'Completed' }];
+    await vi.advanceTimersByTimeAsync(5000);
+    await vi.waitFor(() => expect(wrapper!.text()).toContain(`Run ID: ${runId} — Completed`));
+    expect(buttons()[0]!.attributes('disabled')).toBeUndefined();
+
+    const newerId = '00000000-0000-0000-0000-000000000002';
+    runs = [
+      { id: newerId, job: 'MyTeam', status: 'Running' },
+      { id: runId, job: 'MyTeam', status: 'Completed' },
+    ];
+    await vi.advanceTimersByTimeAsync(5000);
+    await vi.waitFor(() => expect(wrapper!.text()).toContain(`Run ID: ${newerId} — Running`));
+    expect(wrapper!.text()).not.toContain(`Run ID: ${runId}`);
+    expect(buttons()[0]!.attributes('disabled')).toBeDefined();
+
+    runs[0]!.status = 'Completed';
+    await vi.advanceTimersByTimeAsync(5000);
+    await vi.waitFor(() => expect(wrapper!.text()).toContain(`Run ID: ${newerId} — Completed`));
+    expect(buttons()[0]!.attributes('disabled')).toBeUndefined();
   });
 
   it('fails closed on poll errors, recovers status, and stops polling after unmount', async () => {

@@ -1,4 +1,5 @@
 import type { RouteRecordRaw } from 'vue-router';
+import { Permissions } from '@/api-access/generated/models';
 import { useAccessControl } from '@/composables/useAccessControl';
 
 // Local contract additions until the next full Orval regeneration.
@@ -10,7 +11,7 @@ export function canOperateDataMigration(access = useAccessControl()) {
     flags.DataMigration?.enabled === true &&
     access.authStore.isAuthenticated &&
     access.authStore.isRegistered &&
-    access.authStore.userInfo?.permissions.some((permission) => String(permission) === 'DataMigrationOperate') === true
+    access.authStore.userInfo?.permissions.includes(Permissions.DataMigrationOperate) === true
   );
 }
 

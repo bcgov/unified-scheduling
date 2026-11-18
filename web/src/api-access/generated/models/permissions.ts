@@ -82,4 +82,6 @@ export const Permissions = {
   LoanOutEdit: 'LoanOutEdit',
   LoanOutDelete: 'LoanOutDelete',
   LoanOutView: 'LoanOutView',
+  DataMigrationOperate: 'DataMigrationOperate',
+  DataMigrationRollback: 'DataMigrationRollback',
 } as const;
