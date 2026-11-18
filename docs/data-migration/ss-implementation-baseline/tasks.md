@@ -1,6 +1,6 @@
 # Tasks: SS Migration And Validity
 
-**Updated 2026-11-16.** [Plan](./plan.md), [spec](./spec.md),
+**Updated 2026-11-18.** [Plan](./plan.md), [spec](./spec.md),
 [canonical contract](./contracts/ss-mapping-contracts.md), [backlog](./backlog.md).
 Existing IDs retained. Checked foundation tasks are inherited history, not new test results.
 Implementation is authorized; production writes/pushes/non-migration app changes are not.
@@ -9,6 +9,11 @@ Implementation is authorized; production writes/pushes/non-migration app changes
 acceptance remains NO-GO. Exact original SH SQL passes two shape mocks. BL-15 and unresolved
 source/adverse/report/OT differences remain explicit. Unchecked compound tasks retain broader
 verification or acceptance work; see the [measured acceptance inventory](../../unified-scheduling/docs/data-migration/reports/2026-11-16-acceptance-inventory.md).
+
+**2026-11-18 review:** build tasks with measured v20 evidence are checked
+("implemented; acceptance separate"). Remaining work is grouped in Phase 6 by owner.
+Training compliance sign-off can only happen in production (T070). CASS and tenant
+GitOps are out of scope for this release.
 
 ## Phase 0: Planning Milestone
 
@@ -38,8 +43,8 @@ verification or acceptance work; see the [measured acceptance inventory](../../u
 ## Phase 1: Job/State And Persistent Mock
 
 - [x] T056 Replace blocked single SS shell with MyTeam, Training, Scheduling and Report jobs; per-job enabled/cron/dry-run/batch options and ownership validation. Remove old recurring identity safely; CASS untouched. Actual ready/adverse jobs and scoped operations executed; acceptance remains separate.
-- [ ] T057 Add Job/lineage/cutover/restore-point/heartbeat or fenced-lease state, `(Source,Job)` Running guard, per-job controls and source-wide controls in migration-owned schema. Atomic dependency gate permits parallel Training/Scheduling, not parent overlap; stale-run recovery cannot allow old-worker writes.
-- [ ] T058 Implement typed paging upper bounds, deterministic mapped/source hashes, full merge-group reloads, durable rejected-row retry and separate resumable cutoff-backfill progress (EN-1/4/5).
+- [x] T057 Add Job/lineage/cutover/restore-point/heartbeat or fenced-lease state, `(Source,Job)` Running guard, per-job controls and source-wide controls in migration-owned schema. Atomic dependency gate permits parallel Training/Scheduling, not parent overlap; stale-run recovery cannot allow old-worker writes. Implemented; v20 lineage gate refused Report on failed child. Exhaustive race matrix is T034.
+- [x] T058 Implement typed paging upper bounds, deterministic mapped/source hashes, full merge-group reloads, durable rejected-row retry and separate resumable cutoff-backfill progress (EN-1/4/5). Implemented; PG resume/retry/backfill probes pass; v20 4h30m50s. Production sizing is T069.
 - [x] T059 Inspect/start/preserve existing stopped SS mock; add isolated persistent Compose resources, named volumes, synthetic seed/schema provenance and health checks. Healthy source/target retained; original source preserved. See measured report; shape fit remains T060.
 - [x] T060 Tune deterministic synthetic data from production SH-01..08; measure ±20% fit on non-suppressed comparable buckets; verify repeated-build hashes, filled-DB refusal, all extractors and manifest cases (SS-V056). Exact original SH SQL in `d3a05fe6` passes both independent shape builds: 4,631 numeric cells within bounds, 1,222 suppressed bounds satisfied, 53 production-withheld cells explicitly noncomparable; all 5,906 cells accounted. Adverse fixture is separate and correctly fails shape fit; manifest outcome mismatches remain T048, not waived.
 - [ ] T015 Extend adapter watermark/tied-time/read-only/cutoff and backfill tests (SS-V026).
@@ -49,15 +54,15 @@ verification or acceptance work; see the [measured acceptance inventory](../../u
 
 ## Phase 2: MyTeam
 
-- [ ] T019 Implement reference/type mappings under final contract; per-job ownership splits Type 6/0 into later jobs. Existing references unchanged, generated IDs/crosswalks, safe append locking with ordinary writers.
-- [ ] T020 Implement users/roles/UserRole/acting/leave/away with identity/auth preservation, null Gender Other, exact dates/text, no UserCreatedSignal or invented training. Training alone owns profile assignment.
-- [ ] T022 Wire source/mappers/jobs and disabled-by-default configuration without CASS coupling.
-- [ ] T023 Add MyTeam PostgreSQL integration cases for idempotence, links, later-user edits, row rejection/retry and batch atomicity.
+- [x] T019 Implement reference/type mappings under final contract; per-job ownership splits Type 6/0 into later jobs. Existing references unchanged, generated IDs/crosswalks, safe append locking with ordinary writers. v20: 2,233 MyTeam identities, 0 rejected/failed.
+- [x] T020 Implement users/roles/UserRole/acting/leave/away with identity/auth preservation, null Gender Other, exact dates/text, no UserCreatedSignal or invented training. Training alone owns profile assignment. All users/roles/lookups migrate (not history-filtered). Real IDIR login is T073.
+- [x] T022 Wire source/mappers/jobs and disabled-by-default configuration without CASS coupling.
+- [x] T023 Add MyTeam PostgreSQL integration cases for idempotence, links, later-user edits, row rejection/retry and batch atomicity. Actual PG insert/replay/drift/retry/atomicity cases pass (rehearsal, recovery, rollback reports).
 
 ## Phase 3: Training And Scheduling
 
-- [ ] T061 Implement categories/courses/profile requirements/history/versioning/qualifying profiles. Preserve certificate expiry including null; exclusions/notes/notice exact; no renewal/mail side effects (EN-6).
-- [ ] T021 Implement classifications, merged definitions/shifts, duties/slots/links and qualifying G-10 series in required order. No invented shift gap time/occurrences.
+- [x] T061 Implement categories/courses/profile requirements/history/versioning/qualifying profiles. Preserve certificate expiry including null; exclusions/notes/notice exact; no renewal/mail side effects (EN-6). v20: 568 identities, 0 rejected/failed; stored facts match SS. Compliance sign-off is T070.
+- [x] T021 Implement classifications, merged definitions/shifts, duties/slots/links and qualifying G-10 series in required order. No invented shift gap time/occurrences. v20: 98,625 identities, 0 rejected; 20,224 standalone roots kept. 2 failed outcomes are source/app issues (T071/T072).
 - [ ] T062 Validate capacities, many-to-one identities, source membership changes, future Draft publish readiness, cutover-day series compatibility and retained expired leave editing (SS-V014..022/050..052).
 - [ ] T063 Verify overtime using actual WorkingHoursService and configured 420/60/0; report every discrepancy and threshold. Future difference is not silently accepted.
 
@@ -76,15 +81,37 @@ verification or acceptance work; see the [measured acceptance inventory](../../u
 
 ## Phase 5: Verification And Evidence
 
-- [ ] T046 Repo-local config/operations/mock runbook; mirror required workspace artifacts for versioned history.
+- [x] T046 Repo-local config/operations/mock runbook; mirror required workspace artifacts for versioned history. `docker/migration/README.md`, `SHAPE-PROFILE.md`, quickstart and `ss-implementation-baseline` mirror.
 - [ ] T047 Review projections/logging/findings/exports for credentials, photos, protected text and unsafe SQL.
 - [ ] T048 Run applicable SS-V001..057; record per-ID passed/failed/pending/superseded plus exact evidence.
 - [x] T049 Run smallest relevant build/tests first, PostgreSQL end-to-end/EF script/formatter and broader checks as required. SDK10 API/Runner builds, 103 migration + 5 Hangfire tests (zero skipped), actual PostgreSQL suites and format/Compose checks pass. This does not mark T048/T050 or business acceptance complete.
 - [ ] T050 Review migration endpoint authorization/security before release; unresolved checks stay visible.
 - [x] T067 Produce significant migration-gap report, training export-vs-SS-code comparison and recommended backlog with primary-goal impacts. Reports preserve NO-GO, BL-15 and unproved compliance/OT outcomes; no acceptance claim.
-- [ ] T068 Commit logical code/test/evidence milestones without attribution; no pushes. Leave persistent mock up and record readiness/resources.
+- [x] T068 Commit logical code/test/evidence milestones without attribution; no pushes. Leave persistent mock up and record readiness/resources. Mock retained per closeout report.
 
-## Deferred Scope (Not Required To Finish SS Implementation)
+## Phase 6: Release Acceptance (Remaining)
+
+Open tasks above still apply: T015, T034, T047, T048, T050, T051, T062, T063, T066.
+
+**Migration engineering (can be done now):**
+- [ ] T069 Re-run v20 full chain with `HistoryStartDate=2020-01-01` on a fresh target; record counts, skips and timing at BatchSize 100-250 plus an unchanged re-run.
+- T062: resolve or record approval for the 2 merge expectation mismatches.
+- T063: independently confirm or record the 43 overtime expectations.
+- T015/T034: complete paging/cutoff and pause/abort/rollback race test matrices.
+- T048: finish the SS-V001..057 pass/fail ledger.
+- T051: validate the JC guard (SS-V036/038/039/048).
+- T047/T050: security and endpoint authorization review.
+
+**External owners (block production acceptance):**
+- [ ] T071 BL-15 LoanOut availability fix in Unified Scheduling (app owner). Primary blocker.
+- [ ] T072 Repair four Surrey future-gap shift groups in SS before cutover (scheduler); re-run unblocks the held DutySlot and publish preview.
+- [ ] T073 Verify real IDIR/Keycloak login for migrated users in dev/test (environment owner).
+- T066: business accepts training status/Excused/layout report differences or raises backlog.
+
+**Production only:**
+- [ ] T070 Training compliance sign-off against production data (excused-user and deleted histories excluded; BL-1/2/13/14). Cannot be completed before production.
+
+## Out Of Scope For This Release
 
 - [ ] T024 CASS registration tests — deferred.
 - [ ] T025 CASS adapter tests — deferred.
@@ -110,6 +137,7 @@ T061 and T021 can proceed independently after MyTeam works. T062/063 depend on S
 T034..040/064/065 depend on split state and respective writers; T066 depends on oracle,
 all writers and findings. T048/049/067/068 depend on relevant implementation and actual evidence.
 No deferred CASS/GitOps task blocks this SS build.
+Phase 6: T069 depends on T049; T072 precedes the final T069 re-run; T070 follows production cutover.
 
 Milestones: plan; persistent mock; split/state/MyTeam; Training/Scheduling; reports/recovery;
 validity evidence. Do not check a task merely because code compiles or its expected rule
