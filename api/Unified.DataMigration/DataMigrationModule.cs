@@ -45,7 +45,6 @@ public static class DataMigrationModule
         services.AddHttpContextAccessor();
         services.AddScoped<DataMigrationOperations>();
         services.AddScoped<IMigrationJobDispatcher, MigrationJobDispatcher>();
-        services.AddSingleton(MigrationPermissions.Configuration);
         services
             .AddAuthorizationBuilder()
             .AddPermissionPolicy(MigrationPermissions.Operate)

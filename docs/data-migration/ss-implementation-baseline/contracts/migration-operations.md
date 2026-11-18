@@ -3,6 +3,13 @@
 **Design baseline 2026-11-16.** Use existing Unified authorization with a migration-operations
 permission. These are required operations, not claims that endpoints exist.
 
+Enabling `FeatureFlags:DataMigration:Enabled` requires explicitly selecting
+`DataMigrationPermissionsDataSet` in deployment `SeedData:DataSets`, like the other
+feature-owned permission datasets. It seeds only `DataMigrationOperate` and
+`DataMigrationRollback` definitions: no roles, accounts or role grants. Selecting
+it while the feature is disabled is rejected. Module registration alone does not seed
+permissions; deployment owners must select the dataset and separately approve any grants.
+
 ## Scope And Keys
 
 Source is SS or deferred CASS. SS Job is MyTeam, Training, Scheduling or Report.

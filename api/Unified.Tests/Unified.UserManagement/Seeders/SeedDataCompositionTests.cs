@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Unified.Api.Services;
 using Unified.Authorization.Seeders;
 using Unified.Common.Seeding;
+using Unified.DataMigration;
 using Unified.Db;
 using Unified.Reporting;
 using Unified.Stats;
@@ -147,6 +148,7 @@ public sealed class SeedDataCompositionTests
     [InlineData(StatsSeedDataSets.StatsPermissionsDataSet, "Stats:Enabled")]
     [InlineData(TrainingSeedDataSets.TrainingPermissionsDataSet, "Training:Enabled")]
     [InlineData(ReportingSeedDataSets.ReportingPermissionsDataSet, "Reporting:Enabled")]
+    [InlineData(DataMigrationSeedDataSets.DataMigrationPermissionsDataSet, "DataMigration:Enabled")]
     public void AddConfiguredSeedData_FeatureDataSetDisabled_ThrowsConfigurationError(string dataSet, string feature)
     {
         var exception = Assert.Throws<InvalidOperationException>(() =>
@@ -161,6 +163,7 @@ public sealed class SeedDataCompositionTests
     [InlineData(StatsSeedDataSets.StatsPermissionsDataSet, "Stats:Enabled")]
     [InlineData(TrainingSeedDataSets.TrainingPermissionsDataSet, "Training:Enabled")]
     [InlineData(ReportingSeedDataSets.ReportingPermissionsDataSet, "Reporting:Enabled")]
+    [InlineData(DataMigrationSeedDataSets.DataMigrationPermissionsDataSet, "DataMigration:Enabled")]
     public void AddConfiguredSeedData_FeatureEnabledWithoutPermissionDataSet_ThrowsConfigurationError(
         string dataSet,
         string feature
@@ -178,6 +181,7 @@ public sealed class SeedDataCompositionTests
     [InlineData(StatsSeedDataSets.StatsPermissionsDataSet, "Stats:Enabled")]
     [InlineData(TrainingSeedDataSets.TrainingPermissionsDataSet, "Training:Enabled")]
     [InlineData(ReportingSeedDataSets.ReportingPermissionsDataSet, "Reporting:Enabled")]
+    [InlineData(DataMigrationSeedDataSets.DataMigrationPermissionsDataSet, "DataMigration:Enabled")]
     public void AddConfiguredSeedData_FeatureDataSetEnabled_RegistersContribution(string dataSet, string feature)
     {
         var composition = GetComposition(dataSet, feature);
@@ -199,6 +203,32 @@ public sealed class SeedDataCompositionTests
         );
     }
 
+    [Fact]
+    public void AddConfiguredSeedData_MigrationPermissions_RegistersOnlyPermissionsWithoutRoleGrants()
+    {
+        var composition = GetComposition(
+            DataMigrationSeedDataSets.DataMigrationPermissionsDataSet,
+            "DataMigration:Enabled"
+        );
+
+        var permissions = Assert.Single(composition.PermissionConfigurations);
+        Assert.Equal(
+            [MigrationPermissions.Operate, MigrationPermissions.Rollback],
+            permissions.Definitions.Select(x => x.Id)
+        );
+        Assert.Empty(composition.RoleConfigurations);
+        Assert.Empty(composition.UserConfigurations);
+    }
+
+    [Fact]
+    public void AddDataMigrationModule_WithoutSeedComposition_DoesNotRegisterPermissions()
+    {
+        var services = new ServiceCollection();
+        services.AddDataMigrationModule(BuildConfiguration([], "DataMigration:Enabled"));
+
+        Assert.DoesNotContain(services, descriptor => descriptor.ServiceType == typeof(PermissionSeedConfiguration));
+    }
+
     private static SeedComposition GetComposition(params string[] dataSets) => GetComposition(dataSets, null);
 
     private static IReadOnlyList<SeedDataSetDescriptor> AllDataSets { get; } =
@@ -207,6 +237,7 @@ public sealed class SeedDataCompositionTests
         .. StatsSeedDataSets.All,
         .. TrainingSeedDataSets.All,
         .. ReportingSeedDataSets.All,
+        .. DataMigrationSeedDataSets.All,
     ];
 
     private static SeedComposition GetComposition(string dataSet, string feature) => GetComposition([dataSet], feature);

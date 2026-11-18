@@ -121,6 +121,7 @@ var hangfireOptions =
                 .Concat(TrainingSeedDataSets.All)
                 .Concat(ReportingSeedDataSets.All)
                 .Concat(AuditSeedDataSets.All)
+                .Concat(DataMigrationSeedDataSets.All)
         )
         .AddJCInterfaceModule(builder.Configuration)
         .AddDataMigrationModule(builder.Configuration)
