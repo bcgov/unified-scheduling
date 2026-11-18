@@ -195,17 +195,14 @@ public sealed class DataMigrationOperations(
         Scope(source, job);
         if (actor == Guid.Empty)
             throw new MigrationOperationException(403, "ResolvedMigrationActorRequired");
-        if (!dryRun)
-        {
-            var user = httpContext.HttpContext?.User;
-            if (
-                user?.Identity?.IsAuthenticated != true
-                || !Guid.TryParse(user.FindFirstValue(UnifiedClaimTypes.UserId), out var resolved)
-                || resolved != actor
-                || !(await authorization.AuthorizeAsync(user, MigrationPermissions.OperationsPolicy)).Succeeded
-            )
-                throw new MigrationOperationException(403, "AuthenticatedMigrationRequestRequired");
-        }
+        var user = httpContext.HttpContext?.User;
+        if (
+            user?.Identity?.IsAuthenticated != true
+            || !Guid.TryParse(user.FindFirstValue(UnifiedClaimTypes.UserId), out var resolved)
+            || resolved != actor
+            || !(await authorization.AuthorizeAsync(user, MigrationPermissions.OperationsPolicy)).Succeeded
+        )
+            throw new MigrationOperationException(403, "AuthenticatedMigrationRequestRequired");
         try
         {
             dispatcher.Validate(job, dryRun);

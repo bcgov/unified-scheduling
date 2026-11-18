@@ -195,19 +195,36 @@ public sealed class MigrationApplySafetyTests : IAsyncDisposable
         );
     }
 
-    [Fact]
-    public async Task TriggerApply_RequiresAuthenticatedAuthorizedMatchingActor()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Trigger_RequiresAuthenticatedAuthorizedMatchingActor(bool dryRun)
     {
         var coordinator = new Coordinator(db);
         var dispatcher = new Dispatcher(Executor());
         var context = new HttpContextAccessor();
-        var auth = new Authorization();
+        var auth = new Authorization { Allowed = true };
         var operations = Operations(coordinator, dispatcher, context, auth);
         var actor = Guid.NewGuid();
         options.Sources.SS.Jobs.MyTeam.AllowMigrationApply = true;
         await Assert.ThrowsAsync<MigrationOperationException>(() =>
-            operations.TriggerAsync("SS", "MyTeam", false, actor, CancellationToken.None)
+            operations.TriggerAsync("SS", "MyTeam", dryRun, actor, CancellationToken.None)
         );
+        foreach (var claim in new[] { "", "not-a-guid", actor.ToString() })
+        {
+            context.HttpContext = new DefaultHttpContext
+            {
+                User = new ClaimsPrincipal(
+                    new ClaimsIdentity(
+                        [new Claim(UnifiedClaimTypes.UserId, claim)],
+                        claim == actor.ToString() ? null : "test"
+                    )
+                ),
+            };
+            await Assert.ThrowsAsync<MigrationOperationException>(() =>
+                operations.TriggerAsync("SS", "MyTeam", dryRun, actor, CancellationToken.None)
+            );
+        }
         context.HttpContext = new DefaultHttpContext
         {
             User = new ClaimsPrincipal(
@@ -216,16 +233,22 @@ public sealed class MigrationApplySafetyTests : IAsyncDisposable
         };
         auth.Allowed = false;
         await Assert.ThrowsAsync<MigrationOperationException>(() =>
-            operations.TriggerAsync("SS", "MyTeam", false, actor, CancellationToken.None)
+            operations.TriggerAsync("SS", "MyTeam", dryRun, actor, CancellationToken.None)
         );
         auth.Allowed = true;
         await Assert.ThrowsAsync<MigrationOperationException>(() =>
-            operations.TriggerAsync("SS", "MyTeam", false, Guid.NewGuid(), CancellationToken.None)
+            operations.TriggerAsync("SS", "MyTeam", dryRun, Guid.NewGuid(), CancellationToken.None)
+        );
+        await Assert.ThrowsAsync<MigrationOperationException>(() =>
+            operations.TriggerAsync("SS", "MyTeam", dryRun, Guid.Empty, CancellationToken.None)
         );
         Assert.Empty(db.DataMigrationRuns);
-        var accepted = await operations.TriggerAsync("SS", "MyTeam", false, actor, CancellationToken.None);
+        Assert.Empty(db.AuditRecords);
+        Assert.Null(dispatcher.Enqueued);
+        var accepted = await operations.TriggerAsync("SS", "MyTeam", dryRun, actor, CancellationToken.None);
         Assert.Equal(accepted.RunId, dispatcher.Enqueued);
         var run = await db.DataMigrationRuns.SingleAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(dryRun, run.DryRun);
         await Executor().ValidateExecutionAsync("MyTeam", run, CancellationToken.None);
         Assert.Equal(actor, (await db.AuditRecords.SingleAsync(TestContext.Current.CancellationToken)).ActorUserId);
     }
@@ -236,9 +259,19 @@ public sealed class MigrationApplySafetyTests : IAsyncDisposable
     public async Task DispatchError_SeparatesReportFromLoader(string job, string expected, int failures)
     {
         var dispatcher = new Dispatcher(Executor()) { Fail = true };
-        var operations = Operations(new Coordinator(db), dispatcher, new HttpContextAccessor(), new Authorization());
+        var actor = Guid.NewGuid();
+        var context = new HttpContextAccessor
+        {
+            HttpContext = new DefaultHttpContext
+            {
+                User = new ClaimsPrincipal(
+                    new ClaimsIdentity([new Claim(UnifiedClaimTypes.UserId, actor.ToString())], "test")
+                ),
+            },
+        };
+        var operations = Operations(new Coordinator(db), dispatcher, context, new Authorization { Allowed = true });
         var ex = await Assert.ThrowsAsync<MigrationOperationException>(() =>
-            operations.TriggerAsync("SS", job, true, Guid.NewGuid(), CancellationToken.None)
+            operations.TriggerAsync("SS", job, true, actor, CancellationToken.None)
         );
         Assert.Equal("JobDispatchFailed", ex.Code);
         var run = await db.DataMigrationRuns.SingleAsync(TestContext.Current.CancellationToken);
