@@ -146,7 +146,8 @@ public sealed class DataMigrationControlService(UnifiedDbContext dbContext) : IM
                     is PostgresException
                     {
                         SqlState: PostgresErrorCodes.UniqueViolation,
-                        ConstraintName: "IX_DataMigrationRuns_Source_Status",
+                        // Running-run lease index (replaced IX_DataMigrationRuns_Source_Status in AddSsMigrationJobLineage).
+                        ConstraintName: "IX_DataMigrationRuns_Source_Job",
                     }
             )
         {
