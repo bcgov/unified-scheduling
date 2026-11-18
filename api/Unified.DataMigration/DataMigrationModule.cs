@@ -26,6 +26,8 @@ public static class DataMigrationModule
             .BindConfiguration(DataMigrationFeatureFlags.Section)
             .ValidateOnStart();
 
+        services.AddHostedService<SsLegacyScheduleCleanup>();
+
         if (!IsModuleEnabled(configuration))
         {
             return services;
@@ -60,7 +62,6 @@ public static class DataMigrationModule
         services.AddScoped<IRecurringJob, SsTrainingRecurringJob>();
         services.AddScoped<IRecurringJob, SsSchedulingRecurringJob>();
         services.AddScoped<IRecurringJob, SsReportRecurringJob>();
-        services.AddHostedService<SsLegacyScheduleCleanup>();
         services.AddScoped<ISsLegacyMigrationSource, SsLegacyMigrationSource>();
 
         return services;
