@@ -6,12 +6,12 @@ import { useAccessControl } from '@/composables/useAccessControl';
 type MigrationFeatureFlags = { DataMigration?: { enabled?: boolean } };
 
 export function canOperateDataMigration(access = useAccessControl()) {
-  const flags: MigrationFeatureFlags = access.featureFlags.value as MigrationFeatureFlags;
+  const flags = (access.featureFlags?.value ?? {}) as MigrationFeatureFlags;
   return (
     flags.DataMigration?.enabled === true &&
-    access.authStore.isAuthenticated &&
+    access.authStore?.isAuthenticated === true &&
     access.authStore.isRegistered &&
-    access.authStore.userInfo?.permissions.includes(Permissions.DataMigrationOperate) === true
+    access.hasPermission?.(Permissions.DataMigrationOperate) === true
   );
 }
 
