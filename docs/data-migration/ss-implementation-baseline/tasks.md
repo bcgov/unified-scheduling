@@ -91,12 +91,12 @@ GitOps are out of scope for this release.
 
 ## Phase 6: Release Acceptance (Remaining)
 
-Open tasks above still apply: T015, T034, T047, T048, T050, T051, T062, T063, T066.
+Open tasks above still apply: T015, T034, T047, T048, T050, T051, T062, T066. T063 is deferred.
 
 **Migration engineering (can be done now):**
 - [ ] T069 Re-run v20 full chain with `HistoryStartDate=2020-01-01` on a fresh target; record counts, skips and timing at BatchSize 100-250 plus an unchanged re-run.
 - T062: resolve or record approval for the 2 merge expectation mismatches.
-- T063: independently confirm or record the 43 overtime expectations.
+- T063: deferred (owner decision 2026-11-18): known multi-location overtime gaps; past differences stay as findings.
 - T015/T034: complete paging/cutoff and pause/abort/rollback race test matrices.
 - T048: finish the SS-V001..057 pass/fail ledger.
 - T051: validate the JC guard (SS-V036/038/039/048).
