@@ -19,6 +19,7 @@ using Unified.Common.Scheduling;
 using Unified.Common.Time;
 using Unified.Core;
 using Unified.DataMigration;
+using Unified.DataMigration.Controllers;
 using Unified.Db;
 using Unified.Hangfire;
 using Unified.Hangfire.Options;
@@ -120,6 +121,7 @@ var hangfireOptions =
                 .Concat(TrainingSeedDataSets.All)
                 .Concat(ReportingSeedDataSets.All)
                 .Concat(AuditSeedDataSets.All)
+                .Concat(DataMigrationSeedDataSets.All)
         )
         .AddJCInterfaceModule(builder.Configuration)
         .AddDataMigrationModule(builder.Configuration)
@@ -165,6 +167,9 @@ var hangfireOptions =
     );
     mvcBuilder.AddConditionalApplicationPart<UsersController>(
         UserManagementModule.IsModuleEnabled(builder.Configuration)
+    );
+    mvcBuilder.AddConditionalApplicationPart<DataMigrationController>(
+        DataMigrationModule.IsModuleEnabled(builder.Configuration)
     );
 
     builder.Services.AddSingleton<MigrationAndSeedService>();

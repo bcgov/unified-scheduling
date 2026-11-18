@@ -10,6 +10,8 @@ public sealed class DataMigrationRecord
     public required string TargetKey { get; set; }
     public DateTimeOffset? SourceUpdatedAtUtc { get; set; }
     public required string PayloadHash { get; set; }
+    public string? AfterHash { get; set; }
+    public Guid? CreatedByRunId { get; set; }
     public Guid? LastAppliedRunId { get; set; }
     public bool IsDeleted { get; set; }
     public DataMigrationRun? LastAppliedRun { get; set; }

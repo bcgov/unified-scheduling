@@ -11,6 +11,37 @@ namespace Unified.Tests.DataMigration;
 public sealed class DataMigrationSchemaTests
 {
     [Fact]
+    public void Crosswalk_ReverseTargetLookup_IsIndexedButAllowsAliases()
+    {
+        using var db = new UnifiedDbContext(
+            new DbContextOptionsBuilder<UnifiedDbContext>().UseSqlite("DataSource=:memory:").Options
+        );
+        var entity = db.Model.FindEntityType(typeof(DataMigrationRecord))!;
+        var index = Assert.Single(
+            entity.GetIndexes(),
+            x => x.Properties.Select(p => p.Name).SequenceEqual(["Source", "TargetType", "TargetKey"])
+        );
+        Assert.False(index.IsUnique);
+        Assert.Contains(
+            entity.GetIndexes(),
+            x => x.IsUnique && x.Properties.Select(p => p.Name).SequenceEqual(["Source", "EntityType", "LegacyId"])
+        );
+    }
+
+    [Fact]
+    public void ReverseLookupMigration_OnlyAddsAndRemovesItsMetadataIndex()
+    {
+        var migration = new TestableTargetLookup();
+        var up = Assert.IsType<CreateIndexOperation>(Assert.Single(migration.Operations(true)));
+        Assert.Equal("DataMigrationRecords", up.Table);
+        Assert.Equal(["Source", "TargetType", "TargetKey"], up.Columns);
+        Assert.False(up.IsUnique);
+        var down = Assert.IsType<DropIndexOperation>(Assert.Single(migration.Operations(false)));
+        Assert.Equal(up.Name, down.Name);
+        Assert.Equal(up.Table, down.Table);
+    }
+
+    [Fact]
     public void Watermark_LastCompletedRunRelationship_IsOptionalRestrictiveAndIndexed()
     {
         using var db = new UnifiedDbContext(
@@ -64,6 +95,19 @@ public sealed class DataMigrationSchemaTests
         {
             var builder = new MigrationBuilder("Npgsql.EntityFrameworkCore.PostgreSQL");
             Up(builder);
+            return builder.Operations;
+        }
+    }
+
+    private sealed class TestableTargetLookup : AddSsCrosswalkTargetLookup
+    {
+        public IReadOnlyList<MigrationOperation> Operations(bool up)
+        {
+            var builder = new MigrationBuilder("Npgsql.EntityFrameworkCore.PostgreSQL");
+            if (up)
+                Up(builder);
+            else
+                Down(builder);
             return builder.Operations;
         }
     }

@@ -1,22 +1,20 @@
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Migrations;
 using Npgsql;
 using Unified.DataMigration.Services;
 using Unified.Db;
-using Unified.Db.Migrations;
 using Unified.Db.Models.DataMigration;
 
 namespace Unified.Tests.DataMigration;
 
 public sealed class DataMigrationControlServicePostgresTests : IAsyncLifetime
 {
-    private readonly string _schema = $"migration_test_{Guid.NewGuid():N}";
-    private NpgsqlConnection _connection = null!;
+    private readonly string _database = $"migration_test_{Guid.NewGuid():N}";
     private UnifiedDbContext _db = null!;
 
-    public static bool IsConfigured =>
-        !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("UNIFIED_TEST_POSTGRES_CONNECTION_STRING"));
+    private static string? AdminConnectionString =>
+        Environment.GetEnvironmentVariable("UNIFIED_TEST_POSTGRES_CONNECTION_STRING");
+
+    public static bool IsConfigured => !string.IsNullOrWhiteSpace(AdminConnectionString);
 
     [Fact(
         Skip = "Set UNIFIED_TEST_POSTGRES_CONNECTION_STRING to run against PostgreSQL.",
@@ -144,28 +142,23 @@ public sealed class DataMigrationControlServicePostgresTests : IAsyncLifetime
             return;
         }
 
+        // Fresh database per test, built with every current migration exactly as MigrationAndSeedService does.
         var ct = TestContext.Current.CancellationToken;
-        _connection = new NpgsqlConnection(
-            Environment.GetEnvironmentVariable("UNIFIED_TEST_POSTGRES_CONNECTION_STRING")
-        );
-        await _connection.OpenAsync(ct);
-        await using (
-            var command = new NpgsqlCommand(
-                $"CREATE SCHEMA \"{_schema}\"; SET search_path TO \"{_schema}\";",
-                _connection
-            )
-        )
+        await using (var admin = new NpgsqlConnection(AdminConnectionString))
         {
+            await admin.OpenAsync(ct);
+            await using var command = new NpgsqlCommand($"CREATE DATABASE \"{_database}\";", admin);
             await command.ExecuteNonQueryAsync(ct);
         }
 
-        _db = new UnifiedDbContext(new DbContextOptionsBuilder<UnifiedDbContext>().UseNpgsql(_connection).Options);
-        var commands = _db.GetService<IMigrationsSqlGenerator>()
-            .Generate(new AddDataMigrationState().UpOperations, _db.Model);
-        foreach (var command in commands)
-        {
-            await _db.Database.ExecuteSqlRawAsync(command.CommandText, ct);
-        }
+        _db = new UnifiedDbContext(
+            new DbContextOptionsBuilder<UnifiedDbContext>()
+                .UseNpgsql(
+                    new NpgsqlConnectionStringBuilder(AdminConnectionString) { Database = _database }.ConnectionString
+                )
+                .Options
+        );
+        await _db.Database.MigrateAsync(ct);
     }
 
     public async ValueTask DisposeAsync()
@@ -174,11 +167,15 @@ public sealed class DataMigrationControlServicePostgresTests : IAsyncLifetime
         {
             await _db.DisposeAsync();
         }
-        if (_connection is not null)
+        if (IsConfigured)
         {
-            await using var command = new NpgsqlCommand($"DROP SCHEMA \"{_schema}\" CASCADE;", _connection);
+            await using var admin = new NpgsqlConnection(AdminConnectionString);
+            await admin.OpenAsync(CancellationToken.None);
+            await using var command = new NpgsqlCommand(
+                $"DROP DATABASE IF EXISTS \"{_database}\" WITH (FORCE);",
+                admin
+            );
             await command.ExecuteNonQueryAsync(CancellationToken.None);
-            await _connection.DisposeAsync();
         }
     }
 

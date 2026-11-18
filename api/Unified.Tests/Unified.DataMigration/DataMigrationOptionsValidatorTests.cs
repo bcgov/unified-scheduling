@@ -27,6 +27,7 @@ public sealed class DataMigrationOptionsValidatorTests
                     ConnectionString = "Host=source",
                     CronSchedule = "0 * * * *",
                     BatchSize = 10,
+                    CutoverDate = new DateOnly(2026, 12, 1),
                 },
             },
         };
