@@ -53,6 +53,8 @@ services:
       - Hangfire__DashboardEnabled=${HangfireDashboardEnabled:-false}
       - Hangfire__PrepareSchemaIfNecessary=${HangfirePrepareSchemaIfNecessary:-true}
       - Hangfire__RetryCount=${HangfireRetryCount:-3}
+      - FeatureFlags__DataMigration__Enabled
+      - SeedData__DataSets__10
       - DataMigration__Sources__SS__ConnectionString=${DataMigrationSSConnectionString:-}
       - DataMigration__Sources__SS__CronSchedule=${DataMigrationSSCronSchedule:-}
       - DataMigration__Sources__SS__Enabled=${DataMigrationSSEnabled:-false}

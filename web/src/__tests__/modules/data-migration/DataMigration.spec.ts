@@ -21,6 +21,7 @@ let wrapper: VueWrapper | undefined;
 let runs: MigrationRun[];
 let reads: number;
 let posts: number;
+let postedDryRuns: boolean[];
 let readFailure: boolean;
 let postStatus: number;
 let publishPostRun: boolean;
@@ -30,6 +31,7 @@ beforeEach(() => {
   runs = [];
   reads = 0;
   posts = 0;
+  postedDryRuns = [];
   readFailure = false;
   postStatus = 202;
   publishPostRun = true;
@@ -46,7 +48,9 @@ beforeEach(() => {
     }),
     http.post('*/api/data-migration/SS/jobs/:job/runs', async ({ request, params }) => {
       posts++;
-      expect(await request.json()).toEqual({ dryRun: false });
+      const body = (await request.json()) as { dryRun: boolean };
+      postedDryRuns.push(body.dryRun);
+      expect(body).toEqual({ dryRun: expect.any(Boolean) });
       expect(request.credentials).toBe('same-origin');
       expect(request.headers.get('Content-Type')).toBe('application/json');
       if (releasePost) await new Promise<void>((resolve) => (releasePost = resolve));
@@ -135,16 +139,15 @@ describe('data migration guards', () => {
 });
 
 describe('data migration apply controls', () => {
-  it('only starts explicitly confirmed applies, prevents duplicates, and retains accepted run state', async () => {
+  it('starts a dry run by default, prevents duplicates, and retains accepted run state', async () => {
     await render();
     expect(buttons().map((button) => button.text())).toEqual(['Start My Team', 'Start Training', 'Start Scheduling']);
-    expect(posts).toBe(0);
-    vi.mocked(window.confirm).mockReturnValueOnce(false);
-    await buttons()[0]!.trigger('click');
     expect(posts).toBe(0);
     releasePost = () => {};
     await buttons()[0]!.trigger('click');
     await vi.waitFor(() => expect(posts).toBe(1));
+    expect(postedDryRuns).toEqual([true]);
+    expect(window.confirm).not.toHaveBeenCalled();
     expect(buttons()[0]!.attributes('disabled')).toBeDefined();
     await buttons()[0]!.trigger('click');
     expect(posts).toBe(1);
@@ -152,7 +155,21 @@ describe('data migration apply controls', () => {
     await vi.waitFor(() => expect(wrapper!.text()).toContain(runId));
     expect(wrapper!.text()).toContain('Running');
     expect(buttons()[0]!.attributes('disabled')).toBeDefined();
-    expect(window.confirm).toHaveBeenLastCalledWith(expect.stringContaining('not a dry run'));
+  });
+
+  it('requires explicit confirmation before sending an apply job', async () => {
+    await render();
+    const checkbox = wrapper!.findAll<HTMLInputElement>('input[type="checkbox"]')[0]!;
+    vi.mocked(window.confirm).mockReturnValueOnce(false);
+
+    await checkbox.setValue(true);
+    await buttons()[0]!.trigger('click');
+    expect(posts).toBe(0);
+    expect(window.confirm).toHaveBeenLastCalledWith(expect.stringContaining('commits changes'));
+
+    await buttons()[0]!.trigger('click');
+    await vi.waitFor(() => expect(posts).toBe(1));
+    expect(postedDryRuns).toEqual([false]);
   });
 
   it('loads all pages and blocks a Running job even if it is not the latest run', async () => {
