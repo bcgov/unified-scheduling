@@ -2,11 +2,13 @@ using System.Security.Claims;
 using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
 using Unified.Authorization.Claims;
+using Unified.DataMigration.Controllers;
 using Unified.DataMigration.FeatureFlags;
 using Unified.DataMigration.Jobs;
 using Unified.DataMigration.Models;
@@ -251,6 +253,50 @@ public sealed class MigrationApplySafetyTests : IAsyncDisposable
         Assert.Equal(dryRun, run.DryRun);
         await Executor().ValidateExecutionAsync("MyTeam", run, CancellationToken.None);
         Assert.Equal(actor, (await db.AuditRecords.SingleAsync(TestContext.Current.CancellationToken)).ActorUserId);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("/scheduling")]
+    [InlineData("/tenant/scheduling")]
+    public async Task TriggerAcceptedLocation_PreservesRequestPathBase(string pathBase)
+    {
+        var actor = Guid.NewGuid();
+        var http = new DefaultHttpContext
+        {
+            User = new ClaimsPrincipal(
+                new ClaimsIdentity([new Claim(UnifiedClaimTypes.UserId, actor.ToString())], "test")
+            ),
+        };
+        http.Request.PathBase = pathBase;
+        var dispatcher = new Dispatcher(Executor());
+        var operations = Operations(
+            new Coordinator(db),
+            dispatcher,
+            new HttpContextAccessor { HttpContext = http },
+            new Authorization { Allowed = true }
+        );
+        var controller = new DataMigrationController(operations)
+        {
+            ControllerContext = new ControllerContext { HttpContext = http },
+        };
+
+        var result = Assert.IsType<AcceptedResult>(
+            await controller.Trigger(
+                "SS",
+                "MyTeam",
+                new MigrationTriggerRequest(),
+                TestContext.Current.CancellationToken
+            )
+        );
+
+        var accepted = Assert.IsType<MigrationAcceptedDto>(result.Value);
+        Assert.Equal($"{pathBase}/api/data-migration/SS/jobs/MyTeam/runs/{accepted.RunId:D}", result.Location);
+        Assert.Equal(accepted.RunId, dispatcher.Enqueued);
+        Assert.Equal(
+            accepted.RunId,
+            (await db.DataMigrationRuns.SingleAsync(TestContext.Current.CancellationToken)).Id
+        );
     }
 
     [Theory]

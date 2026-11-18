@@ -121,7 +121,7 @@ public sealed class DataMigrationController(DataMigrationOperations operations) 
         Invoke(async actor =>
         {
             var value = await operations.TriggerAsync(source, job, request.DryRun, actor, ct);
-            return Accepted($"/api/data-migration/{source}/jobs/{job}/runs/{value.RunId:D}", value);
+            return Accepted($"{Request.PathBase}/api/data-migration/{source}/jobs/{job}/runs/{value.RunId:D}", value);
         });
 
     [HttpPost("control/{actionName}")]
