@@ -102,14 +102,14 @@ getRemoveBaseHref() {
 
 getPublicHostRules() {
   local hosts="${PUBLIC_HOST_ALLOWLIST:-}"
-  local authority hostname port key
+  local authority hostname key
   local hostnamePattern='^[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*$'
   local -a entries
   local -A seen=()
 
   [ -n "$hosts" ] || return 0
   if [[ "$hosts" == ,* || "$hosts" == *, || "$hosts" == *,,* || "$hosts" == *$'\n'* || "$hosts" == *$'\r'* ]]; then
-    echo "Invalid PUBLIC_HOST_ALLOWLIST: expected comma-separated host[:port] values" >&2
+    echo "Invalid PUBLIC_HOST_ALLOWLIST: expected comma-separated host or host:443 values" >&2
     return 1
   fi
 
@@ -120,12 +120,9 @@ getPublicHostRules() {
       echo "Invalid PUBLIC_HOST_ALLOWLIST hostname" >&2
       return 1
     fi
-    if [[ "$authority" == *:* ]]; then
-      port="${authority#*:}"
-      if [[ ! "$port" =~ ^[0-9]{1,5}$ ]] || (( 10#$port < 1 || 10#$port > 65535 )); then
-        echo "Invalid PUBLIC_HOST_ALLOWLIST port" >&2
-        return 1
-      fi
+    if [[ "$authority" == *:* && "${authority#*:}" != "443" ]]; then
+      echo "Invalid PUBLIC_HOST_ALLOWLIST port: only :443 is supported" >&2
+      return 1
     fi
 
     key="${authority,,}"
