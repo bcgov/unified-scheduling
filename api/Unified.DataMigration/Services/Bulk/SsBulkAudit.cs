@@ -56,12 +56,22 @@ internal sealed class SsBulkAudit(UnifiedDbContext db)
     {
         if (!enabled)
             return;
+        // No persisted change at all: EF would not have saved, so Audit.NET writes nothing.
+        if (
+            before.PersistedValues.Count == after.PersistedValues.Count
+            && after.PersistedValues.All(x => ValueEquals(before.PersistedValues.GetValueOrDefault(x.Key), x.Value))
+        )
+            return;
         var columns = after
-            .AuditValues.Where(x => !Equals(before.AuditValues.GetValueOrDefault(x.Key), x.Value))
+            .AuditValues.Where(x => !ValueEquals(before.AuditValues.GetValueOrDefault(x.Key), x.Value))
             .Select(x => x.Key)
             .ToList();
+        // Every changed column excluded: keep the operation (actor, key) with no values, like Audit.NET.
         if (columns.Count == 0)
+        {
+            rows.Add(new("Modified", entityType, after.Key, table, null, null, null));
             return;
+        }
         rows.Add(
             new(
                 "Modified",
@@ -118,6 +128,9 @@ internal sealed class SsBulkAudit(UnifiedDbContext db)
         }
         rows.Clear();
     }
+
+    private static bool ValueEquals(object? left, object? right) =>
+        left is byte[] a && right is byte[] b ? a.AsSpan().SequenceEqual(b) : Equals(left, right);
 
     private static Task WriteNullableAsync(
         NpgsqlBinaryImporter importer,

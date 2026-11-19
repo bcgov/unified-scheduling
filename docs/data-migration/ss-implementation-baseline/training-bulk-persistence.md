@@ -44,7 +44,9 @@ ledger changes; earlier chunks stay committed and the next approved run resumes 
 
 Business-table `AuditRecords` are written by COPY with the same shape as Audit.NET: Added/Modified, the System
 actor, and the column exclusions configured in `AuditRecord:ExcludedPropertyNames` (applied through
-`AuditPropertyExclusion`, like the live pipeline). Migration ledger tables (`DataMigration*`) are not audited
+`AuditPropertyExclusion`, like the live pipeline). A modified row whose changed columns are all excluded
+still gets a metadata-only `Modified` record (no old/new values or changed columns), matching Audit.NET.
+Migration ledger tables (`DataMigration*`) are not audited
 in Bulk mode.
 
 Raw staging commands and COPY operations inherit the migration command timeout

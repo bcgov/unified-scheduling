@@ -11,12 +11,17 @@ using Unified.Db.Models.UserManagement;
 
 namespace Unified.DataMigration.Services.Bulk;
 
-/// <summary>Post-image of one target row: migration fingerprint, row version and audited column values.</summary>
+/// <summary>
+/// Post-image of one target row: migration fingerprint, row version and audited column values.
+/// <see cref="PersistedValues"/> holds every persisted column except concurrency tokens, so change detection
+/// sees edits to audit-excluded columns too (Audit.NET still records such an update, with no values).
+/// </summary>
 internal sealed record SsBulkTargetImage(
     string Key,
     string Fingerprint,
     string Version,
-    IReadOnlyDictionary<string, object?> AuditValues
+    IReadOnlyDictionary<string, object?> AuditValues,
+    IReadOnlyDictionary<string, object?> PersistedValues
 );
 
 /// <summary>
@@ -147,15 +152,22 @@ internal static class SsBulkTargets
                     fields[property.Metadata.Name] = property.CurrentValue;
                 var targetType = metadata.ClrType.Name;
                 var audit = new Dictionary<string, object?>(StringComparer.Ordinal);
+                var persisted = new Dictionary<string, object?>(StringComparer.Ordinal);
                 var table = StoreObjectIdentifier.Table(metadata.GetTableName()!, metadata.GetSchema());
                 foreach (var property in entry.Properties)
+                {
+                    var column = property.Metadata.GetColumnName(table) ?? property.Metadata.Name;
+                    if (!property.Metadata.IsConcurrencyToken)
+                        persisted[column] = property.CurrentValue;
                     if (!AuditPropertyExclusion.ShouldExclude(property.Metadata, auditOptions))
-                        audit[property.Metadata.GetColumnName(table) ?? property.Metadata.Name] = property.CurrentValue;
+                        audit[column] = property.CurrentValue;
+                }
                 result[key] = new(
                     key,
                     SsWriteSession.Hash(new { targetType, fields }),
                     versions.GetValueOrDefault(key) ?? throw new SsReject("MissingCrosswalkTarget"),
-                    audit
+                    audit,
+                    persisted
                 );
             }
         }

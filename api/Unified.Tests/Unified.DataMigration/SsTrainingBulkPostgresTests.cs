@@ -22,6 +22,7 @@ using Unified.Db;
 using Unified.Db.Models;
 using Unified.Db.Models.Training;
 using Unified.Db.Models.UserManagement;
+using MsOptions = Microsoft.Extensions.Options.Options;
 
 namespace Unified.Tests.DataMigration;
 
@@ -162,10 +163,14 @@ public sealed class SsTrainingBulkPostgresTests : IAsyncLifetime
         }
     }
 
+    // Shared by the PerRow Audit.NET action and the Bulk writer so both honour the same exclusions.
+    private static readonly AuditRecordOptions AuditOptions = new();
+
     private static void EnableAudit()
     {
         global::Audit.Core.Configuration.AuditDisabled = false;
-        var action = new AuditRecordEntityAction(new SystemActor(), new AuditRecordOptions());
+        AuditOptions.ExcludedPropertyNames = new AuditRecordOptions().ExcludedPropertyNames;
+        var action = new AuditRecordEntityAction(new SystemActor(), AuditOptions);
         global::Audit
             .Core.Configuration.Setup()
             .UseEntityFramework(ef =>
@@ -200,7 +205,18 @@ public sealed class SsTrainingBulkPostgresTests : IAsyncLifetime
                     await EditTargetsAsync(clone, ct);
             }
             if (round == 4)
+            {
                 await ExecuteAsync(sourceConnection, RoundFourSource(), ct);
+                // A note-only owned update with every changed column excluded must still be audited
+                // (metadata-only Modified record) in both modes.
+                AuditOptions.ExcludedPropertyNames =
+                [
+                    .. AuditOptions.ExcludedPropertyNames,
+                    "Notes",
+                    "UpdatedOn",
+                    "UpdatedById",
+                ];
+            }
             var watch = Stopwatch.StartNew();
             var perRowRun = await RunAsync(perRow, "Training", ct);
             var perRowElapsed = watch.Elapsed;
@@ -239,6 +255,20 @@ public sealed class SsTrainingBulkPostgresTests : IAsyncLifetime
                             SELECT COUNT(*) FROM "UserTrainings" u JOIN "DataMigrationRecords" r
                               ON r."TargetKey"=u."Id"::text AND r."EntityType"='SheriffTraining' AND r."LegacyId"='4002'
                             WHERE char_length(u."Notes")=1001
+                            """,
+                            ct
+                        )
+                    );
+                    Assert.Equal(
+                        1,
+                        await CountAsync(
+                            clone,
+                            $"""
+                            SELECT COUNT(*) FROM "AuditRecords" a
+                            WHERE a."Id" > {clone.AuditFloor} AND a."TableName"='UserTrainings' AND a."Action"='Modified'
+                              AND a."EntityPK" IN (SELECT "TargetKey" FROM "DataMigrationRecords" WHERE "LegacyId"='1074')
+                              AND a."OldValues" IS NULL AND a."NewValues" IS NULL AND a."ChangedColumns" IS NULL
+                              AND a."ActorName"='System'
                             """,
                             ct
                         )
@@ -773,7 +803,7 @@ public sealed class SsTrainingBulkPostgresTests : IAsyncLifetime
             new SsTrainingWriter(context),
             new SsSchedulingWriter(context),
             rollbackJournal: new SsRollbackJournal(context, configuration),
-            trainingBulk: bulk ?? new SsTrainingBulkWriter(context)
+            trainingBulk: bulk ?? new SsTrainingBulkWriter(context, MsOptions.Create(AuditOptions))
         );
 
     private DataMigrationOperations Operations(UnifiedDbContext context, DataMigrationOptions options)
@@ -806,7 +836,7 @@ public sealed class SsTrainingBulkPostgresTests : IAsyncLifetime
         await using var context = clone.Db();
         var accepted = await Operations(context, clone.Options).TriggerAsync("SS", job, dryRun, actor, ct);
         await using var worker = clone.Db();
-        var writer = new SsTrainingBulkWriter(worker) { BeforeChunkCommitAsync = hook };
+        var writer = new SsTrainingBulkWriter(worker, MsOptions.Create(AuditOptions)) { BeforeChunkCommitAsync = hook };
         var execute = () => Executor(worker, clone.Options, writer).ExecuteAcquiredAsync(accepted.RunId, ct);
         if (expectFailure)
             await Assert.ThrowsAsync<InvalidOperationException>(execute);
@@ -1340,6 +1370,7 @@ public sealed class SsTrainingBulkPostgresTests : IAsyncLifetime
         $"""
             ALTER TABLE "SheriffTraining" ALTER COLUMN "Note" TYPE text;
             UPDATE "SheriffTraining" SET "Note"=repeat('x', 2001), "UpdatedOn"='2025-07-01Z' WHERE "Id"=1073;
+            UPDATE "SheriffTraining" SET "Note"='note-only change', "UpdatedOn"='2025-07-01Z' WHERE "Id"=1074;
             INSERT INTO "SheriffTraining" ("Id","SheriffId","TrainingTypeId","StartDate","EndDate","ExpiryDate",
                 "TrainingCertificationExpiry","FirstNotice","Comment","Note","Timezone","CreatedOn") VALUES
             (4001,'{U(
