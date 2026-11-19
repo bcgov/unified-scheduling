@@ -39,14 +39,16 @@ defineProps<{
   font-size: var(--ua-font-size-xs);
   font-weight: var(--ua-font-weight-bold);
   padding: var(--ua-spacing-sm) var(--ua-spacing-md);
+  position: sticky;
   text-transform: uppercase;
+  top: 0;
+  z-index: 5;
 }
 
 .calendar-matrix-header__primary {
   border-bottom: 1px solid var(--ua-border-color);
   left: 0;
-  position: sticky;
-  z-index: 3;
+  z-index: 6;
 }
 
 .calendar-matrix-header__day {
@@ -61,5 +63,12 @@ defineProps<{
     linear-gradient(var(--calendar-today-bg-color), var(--calendar-today-bg-color)) padding-box,
     rgb(var(--v-theme-surface)) border-box;
   color: var(--ua-text-primary);
+}
+
+@media print {
+  .calendar-matrix-header__primary,
+  .calendar-matrix-header__day {
+    position: static;
+  }
 }
 </style>
