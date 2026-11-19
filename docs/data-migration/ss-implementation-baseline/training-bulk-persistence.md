@@ -200,12 +200,18 @@ interfaces (`ISsSessionBackend`, `ISsSchedulingStore`):
 
 `SsSchedulingBulkWriter` first runs a complete **no-write preflight pass**. If any path Bulk cannot reproduce
 exactly is reached, the run fails before the first business write with a `SchedulingBulk` outcome
-`Failed:BulkRequiresPerRow:<reason>`. The operator then runs the same job in `PerRow`. The real pass persists each
-chunk in one transaction through `SsBulkChunkRunner`:
+`Failed:BulkRequiresPerRow:<reason>`. The operator then runs the same job in `PerRow`. The real pass reloads the
+target and refuses with `TargetChangedDuringBulkRun` unless its snapshot digest equals the one the preflight
+validated, so a refusal can never surface after earlier chunks committed. The real pass persists each chunk in
+one transaction through `SsBulkChunkRunner`:
 
 1. Fence: the run is still `Running`, with no pause or abort for `SS` or `SS:Scheduling`.
-2. Lock the modelled tables. Refuse with `TargetChangedDuringBulkRun` if anything outside this run changed them
-   since the snapshot or the previous chunk (digest check).
+2. Lock the modelled tables (`SHARE ROW EXCLUSIVE`) and the read-only rule inputs (`SHARE`: `Users`, `StatCategories`,
+   `SubCategories`, `ShiftAssignmentSeriesLinks` and the principal tables referenced by foreign keys). Refuse with
+   `TargetChangedDuringBulkRun` if anything outside this run changed them since the snapshot or the previous
+   chunk (digest check). The read-only inputs are digested by content (user names and IDIR, stat-category groups,
+   series links, principal keys), so unrelated column updates elsewhere do not refuse the run. The `SHARE` locks
+   block application writes to those tables only for the duration of each chunk transaction.
 3. Binary COPY of new rows: `CourtRooms`, `AssignmentDefinitions`, `EventSeries`, `Events`, `AssignmentSeries`,
    `ShiftEntries`, `ShiftEntryUsers`, `AssignmentEntries`, `ShiftAssignmentEntries`, `ShiftAssignmentEntryUsers`
    and `DataMigrationRecords`. Ids are pre-allocated and mapped by key, never by `RETURNING` order.
@@ -268,9 +274,13 @@ Scheduling-specific blockers (nothing is changed):
 - `RunTouchedPreExistingCrosswalk`: a crosswalk the run touched has receipts from another run. This covers a Bulk
   run that resumed a PerRow run.
 - `RunUpdatedPreExistingCrosswalk` and `RunModifiedPreExistingTarget`: graph-shaping receipts on rows the run did
-  not insert, or any row outside the owned set carrying one of the run's chunk transaction ids.
+  not insert, or any row outside the owned set carrying one of the run's chunk transaction ids. `Link` receipts
+  to pre-existing rows (e.g. a sub-category written by another transaction) are not version-checked.
 - `OwnedTargetDrift`: an owned row (including child events and users) no longer carries one of the run's chunk
-  versions, i.e. it was edited, or a row was added under an owned shift.
+  versions, i.e. it was edited, or a row was added under an owned shift. The graph fingerprint of every owned
+  crosswalked target is also recomputed and compared with the crosswalk's recorded hash, which catches a later
+  **delete** of a child row (shift user, shift-entry link or link user) that leaves no version behind. This costs
+  one fingerprint read per owned target, so undo of a large run takes minutes.
 - `InsertedTargetMissing` and `InsertedTargetHasLaterDependents`: later rows reference owned rows, including
   set-null references that would silently detach them.
 - `LaterSameJobRunMustRollbackFirst`, `DependentJobsMustRollbackFirst` and `SourceJobRunning` (shared). An undo

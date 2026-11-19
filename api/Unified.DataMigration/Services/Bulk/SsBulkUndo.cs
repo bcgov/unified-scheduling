@@ -386,6 +386,53 @@ public sealed class SsBulkUndo(UnifiedDbContext db, IOptions<AuditRecordOptions>
         Guid? CreatedBy
     );
 
+    /// <summary>True when an owned crosswalked target no longer produces its recorded graph fingerprint.</summary>
+    private async Task<bool> OwnedFingerprintDriftAsync(
+        long[] records,
+        HashSet<(string Type, string Key)> ownedRows,
+        CancellationToken ct
+    )
+    {
+        var crosswalks = await db
+            .DataMigrationRecords.AsNoTracking()
+            .Where(x => records.Contains(x.Id))
+            .Select(x => new
+            {
+                x.TargetType,
+                x.TargetKey,
+                x.AfterHash,
+            })
+            .ToListAsync(ct);
+        try
+        {
+            foreach (
+                var target in crosswalks
+                    .Where(x => ownedRows.Contains((x.TargetType, x.TargetKey)))
+                    .GroupBy(x => (x.TargetType, x.TargetKey))
+            )
+            {
+                var actual = await SsEfSessionBackend.FingerprintAsync(
+                    db,
+                    target.Key.TargetType,
+                    target.Key.TargetKey,
+                    ct
+                );
+                db.ChangeTracker.Clear();
+                if (target.Any(x => x.AfterHash != actual))
+                    return true;
+            }
+            return false;
+        }
+        catch (SsReject)
+        {
+            return true;
+        }
+        finally
+        {
+            db.ChangeTracker.Clear();
+        }
+    }
+
     // Scheduling graph tables in delete order (children first).
     private static readonly (string Table, string Type)[] SchedulingTables =
     [
@@ -559,19 +606,15 @@ public sealed class SsBulkUndo(UnifiedDbContext db, IOptions<AuditRecordOptions>
             ["CourtRoom"] = owned["CourtRoom"],
         };
         // Versions of receipts on rows the run owns are its chunk transactions. A Link to a pre-existing target
-        // records that target's own (earlier) version, which is not a run write and must not be scanned for.
+        // (a Scheduling row or a lookup such as a SubCategory) records that target's own earlier version, which
+        // is not a run write and must not be scanned for.
         var ownedRows = SchedulingTables
             .SelectMany(t =>
                 delete[t.Type].Select(id => (t.Type, id.ToString(System.Globalization.CultureInfo.InvariantCulture)))
             )
             .ToHashSet();
-        var tableTypes = SchedulingTables.Select(x => x.Type).ToHashSet(StringComparer.Ordinal);
         var versions = mutations
-            .Where(x =>
-                x.Operation != "Link"
-                || !tableTypes.Contains(x.TargetType)
-                || ownedRows.Contains((x.TargetType, x.TargetKey))
-            )
+            .Where(x => x.Operation != "Link" || ownedRows.Contains((x.TargetType, x.TargetKey)))
             .Select(x => x.Version)
             .OfType<string>()
             .SelectMany(x => x.Split(':', StringSplitOptions.RemoveEmptyEntries))
@@ -601,6 +644,12 @@ public sealed class SsBulkUndo(UnifiedDbContext db, IOptions<AuditRecordOptions>
             blockers.Add("OwnedTargetDrift");
         if (foreign > 0)
             blockers.Add("RunModifiedPreExistingTarget");
+        // Row versions cannot reveal a later DELETE of an owned child (a shift user, a shift-entry link or its
+        // users) because the parents are not rewritten. The run's crosswalks carry the canonical graph
+        // fingerprint PerRow uses as its drift oracle (GuardGraphAsync), so every owned crosswalked target must
+        // still produce exactly that fingerprint.
+        if (!blockers.Contains("InsertedTargetMissing") && await OwnedFingerprintDriftAsync(records, ownedRows, ct))
+            blockers.Add("OwnedTargetDrift");
         // Set-null references would silently detach later rows from an owned series.
         var detached = await SsBulkStaging.QueryAsync(
             connection,

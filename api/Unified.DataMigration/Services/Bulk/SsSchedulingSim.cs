@@ -192,6 +192,12 @@ internal sealed class SsSchedulingSim : ISsSessionBackend, ISsSchedulingStore, I
     private long runSequence;
     private string? expectedDigest;
 
+    // Unmodelled tables whose keys the simulation validates foreign keys against (table, key column).
+    private readonly List<(string Table, string Column)> principalColumns = [];
+
+    /// <summary>Digest of the modelled tables and the cached rule inputs at load or after the last flush.</summary>
+    internal string Digest => expectedDigest!;
+
     private Table Records => tables[typeof(DataMigrationRecord)];
     private Index recordByLegacy = null!;
     private Index recordByTarget = null!;
@@ -249,7 +255,7 @@ internal sealed class SsSchedulingSim : ISsSessionBackend, ISsSchedulingStore, I
             await using var tx = await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.RepeatableRead, ct);
             await SsBulkStaging.ExecuteAsync(SsBulkStaging.Connection(db), "SET TRANSACTION READ ONLY", ct);
             await sim.LoadRowsAsync(ct);
-            sim.expectedDigest = await DigestAsync(SsBulkStaging.Connection(db), ct);
+            sim.expectedDigest = await sim.DigestAsync(SsBulkStaging.Connection(db), ct);
             await tx.CommitAsync(ct);
             db.ChangeTracker.Clear();
             return sim;
@@ -506,6 +512,9 @@ internal sealed class SsSchedulingSim : ISsSessionBackend, ISsSchedulingStore, I
             )
                 keys.Add(value);
             principalKeys[principal] = keys;
+            // Migration ledger tables are fenced by the SS advisory lock and written by the run itself.
+            if (!owner.GetTableName()!.StartsWith("DataMigration", StringComparison.Ordinal))
+                principalColumns.Add((owner.GetTableName()!, column));
         }
     }
 
@@ -525,19 +534,55 @@ internal sealed class SsSchedulingSim : ISsSessionBackend, ISsSchedulingStore, I
         "SubCategories",
     ];
 
-    /// <summary>Row count and row-version digest of every table the simulation models.</summary>
-    private static async Task<string> DigestAsync(NpgsqlConnection connection, CancellationToken ct)
+    // Cached rule inputs outside the modelled tables, digested by content (the columns the rules read), so an
+    // unrelated update (for example a login timestamp on a user) does not refuse the run.
+    private static readonly (string Table, string Sql)[] ReadSetDigests =
+    [
+        (
+            "Users",
+            "SELECT count(*)::bigint, coalesce(sum(hashtext(concat_ws('|', \"Id\", \"IdirName\", \"FirstName\", \"LastName\"))::bigint), 0)::bigint FROM \"Users\""
+        ),
+        (
+            "StatCategories",
+            "SELECT count(*)::bigint, coalesce(sum(hashtext(concat_ws('|', \"Id\", \"GroupId\"))::bigint), 0)::bigint FROM \"StatCategories\""
+        ),
+        (
+            "ShiftAssignmentSeriesLinks",
+            "SELECT count(DISTINCT \"AssignmentSeriesId\")::bigint, coalesce(sum(DISTINCT hashtext(\"AssignmentSeriesId\"::text)::bigint), 0)::bigint FROM \"ShiftAssignmentSeriesLinks\""
+        ),
+    ];
+
+    /// <summary>Tables locked (SHARE) per chunk so the cached rule inputs cannot change under a flush.</summary>
+    private IEnumerable<string> ReadSetTables =>
+        ReadSetDigests
+            .Select(x => x.Table)
+            .Concat(principalColumns.Select(x => x.Table))
+            .Append("SubCategories")
+            .Distinct(StringComparer.Ordinal);
+
+    /// <summary>
+    /// Row count and row-version digest of every table the simulation models, plus a content digest of every
+    /// other target input the rules read from the snapshot (users, stat category groups, linked assignment
+    /// series, principal keys of unmodelled foreign keys).
+    /// </summary>
+    private async Task<string> DigestAsync(NpgsqlConnection connection, CancellationToken ct)
     {
-        var sql = string.Join(
-            " UNION ALL ",
-            FencedTables.Select(
-                (x, i) =>
-                    $"SELECT {i}, count(*)::bigint, coalesce(sum(hashtext(xmin::text || ctid::text)::bigint), 0)::bigint FROM \"{x}\""
+        var parts = FencedTables
+            .Select(x =>
+                $"SELECT count(*)::bigint, coalesce(sum(hashtext(xmin::text || ctid::text)::bigint), 0)::bigint FROM \"{x}\""
             )
-        );
+            .Concat(ReadSetDigests.Select(x => x.Sql))
+            .Concat(
+                principalColumns
+                    .Distinct()
+                    .Select(x =>
+                        $"SELECT count(*)::bigint, coalesce(sum(hashtext(\"{x.Column}\"::text)::bigint), 0)::bigint FROM \"{x.Table}\""
+                    )
+            )
+            .Select((sql, i) => $"SELECT {i}, * FROM ({sql}) d{i}");
         var rows = await SsBulkStaging.QueryAsync(
             connection,
-            sql,
+            string.Join(" UNION ALL ", parts),
             reader => $"{reader.GetInt32(0)}:{reader.GetInt64(1)}:{reader.GetInt64(2)}",
             ct
         );
@@ -1522,7 +1567,9 @@ internal sealed class SsSchedulingSim : ISsSessionBackend, ISsSchedulingStore, I
             connection,
             "LOCK TABLE "
                 + string.Join(", ", FencedTables.Where(x => x != "SubCategories").Select(x => $"\"{x}\""))
-                + ", \"DataMigrationMutations\" IN SHARE ROW EXCLUSIVE MODE; LOCK TABLE \"SubCategories\" IN SHARE MODE",
+                + ", \"DataMigrationMutations\" IN SHARE ROW EXCLUSIVE MODE; LOCK TABLE "
+                + string.Join(", ", ReadSetTables.Select(x => $"\"{x}\""))
+                + " IN SHARE MODE",
             ct
         );
         if (await DigestAsync(connection, ct) != expectedDigest)

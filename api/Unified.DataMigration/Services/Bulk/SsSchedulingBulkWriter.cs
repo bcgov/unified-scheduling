@@ -68,11 +68,19 @@ public sealed class SsSchedulingBulkWriter(UnifiedDbContext db, IOptions<AuditRe
             // findings cannot be reproduced against the uncommitted in-memory image.
             if (validatorsRegistered)
                 throw new SsBulkRefusal("SchedulingBusinessValidatorsRegistered");
+            string validated;
             using (var preflight = await SsSchedulingSim.LoadAsync(db, run, audit, ct))
+            {
                 await PassAsync(preflight, run, rows, boundary, batchSize, null, ct);
+                validated = preflight.Digest;
+            }
             if (AfterPreflightAsync is not null)
                 await AfterPreflightAsync(ct);
             using var sim = await SsSchedulingSim.LoadAsync(db, run, audit, ct);
+            // The real pass must replay exactly the target state the preflight validated; otherwise a refusal
+            // could surface only after earlier chunks committed.
+            if (sim.Digest != validated)
+                throw new SsBulkRefusal("TargetChangedDuringBulkRun");
             await PassAsync(sim, run, rows, boundary, batchSize, new Chunks(db, sim, ledger, runner, chunkSize), ct);
         }
         catch (SsBulkRefusal refusal)

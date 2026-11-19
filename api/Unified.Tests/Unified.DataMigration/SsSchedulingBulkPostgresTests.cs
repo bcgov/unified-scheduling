@@ -704,6 +704,46 @@ public sealed class SsSchedulingBulkPostgresTests : IAsyncLifetime
         var afterCancel = await RunAsync(cancel, ct);
         await AssertNoTechnicalFailureAsync(cancel, afterCancel, ct);
         AssertEquivalent(expected, await SnapshotAsync(cancel, true, ct), compared, "cancel resume");
+
+        // A cached rule input (a user's name, used for shift titles) changes between the preflight and the real
+        // pass: refused before any business write, so a later refusal can never follow committed chunks.
+        var moved = await CloneAsync(fixture, "sf_moved", MigrationPersistenceMode.Bulk, ct, chunk: 3, batch: 3);
+        var beforeMoved = await SnapshotAsync(moved, true, ct);
+        await using (var context = moved.Db())
+        {
+            var accepted = await Operations(context, moved.Options).TriggerAsync("SS", "Scheduling", false, actor, ct);
+            await using var worker = moved.Db();
+            var writer = new SsSchedulingBulkWriter(worker, MsOptions.Create(AuditOptions))
+            {
+                AfterPreflightAsync = token =>
+                    ExecuteAsync(
+                        moved.ConnectionString,
+                        """
+                        UPDATE "Users" SET "LastName" = "LastName" || 'x'
+                        WHERE "Id" = (SELECT "Id" FROM "Users" WHERE "LastName" IS NOT NULL ORDER BY "Id" LIMIT 1)
+                        """,
+                        token
+                    ),
+            };
+            await Executor(worker, moved.Options, writer).ExecuteAcquiredAsync(accepted.RunId, ct);
+            await using var check = moved.Db();
+            var run = await check.DataMigrationRuns.AsNoTracking().SingleAsync(x => x.Id == accepted.RunId, ct);
+            Assert.Equal("Failed", run.Status);
+            Assert.Equal(0, run.InsertedCount);
+            Assert.Equal(
+                "BulkRequiresPerRow:TargetChangedDuringBulkRun",
+                (
+                    await check
+                        .DataMigrationOutcomes.AsNoTracking()
+                        .SingleAsync(x => x.RunId == accepted.RunId && x.EntityType == "SchedulingBulk", ct)
+                ).Reason
+            );
+        }
+        AssertEquivalent(beforeMoved, await SnapshotAsync(moved, true, ct), BusinessSections, "moved preflight");
+        var afterMoved = await RunAsync(moved, ct);
+        await AssertNoTechnicalFailureAsync(moved, afterMoved, ct);
+        await AssertNotRefusedAsync(moved, afterMoved, ct);
+        await AssertNoDuplicatesOrOrphansAsync(moved, ct);
     }
 
     [Fact(Skip = TemplatesSkipReason, SkipUnless = nameof(AreTemplatesConfigured))]
@@ -821,6 +861,37 @@ public sealed class SsSchedulingBulkPostgresTests : IAsyncLifetime
             "DELETE FROM \"ShiftEntryUsers\" WHERE \"CreatedOn\" > (SELECT MAX(\"StartedOn\") FROM \"DataMigrationRuns\")",
             ct
         );
+
+        // A later DELETE of an owned child (a shift-entry link and its users) leaves every surviving row at a run
+        // version; the recorded graph fingerprint still reveals it and undo refuses without changing anything.
+        var deleted = await CopyAsync(clone, "undo_del", MigrationPersistenceMode.Bulk, ct);
+        await ExecuteAsync(
+            deleted.ConnectionString,
+            """
+            WITH link AS (
+              SELECT min(l."Id") AS "Id" FROM "ShiftAssignmentEntries" l
+              JOIN "DataMigrationRecords" r ON r."TargetType"='AssignmentEntry'
+                AND r."TargetKey"=l."AssignmentEntryId"::text AND r."Source"='SS'
+            ), users AS (
+              DELETE FROM "ShiftAssignmentEntryUsers" WHERE "ShiftAssignmentEntryId" = (SELECT "Id" FROM link)
+            )
+            DELETE FROM "ShiftAssignmentEntries" WHERE "Id" = (SELECT "Id" FROM link)
+            """,
+            ct
+        );
+        const string countLinks = "SELECT count(*) FROM \"ShiftAssignmentEntries\"";
+        Assert.Equal(
+            await CountAsync(clone.ConnectionString, countLinks, ct) - 1,
+            await CountAsync(deleted.ConnectionString, countLinks, ct)
+        );
+        var withoutLink = await SnapshotAsync(deleted, true, ct);
+        await using (var context = deleted.Db())
+        {
+            var blocked = await new SsBulkUndo(context).UndoAsync(reapplied, ct);
+            Assert.Null(blocked.ReceiptRunId);
+            Assert.Equal(["OwnedTargetDrift"], blocked.Blockers);
+        }
+        AssertEquivalent(withoutLink, await SnapshotAsync(deleted, true, ct), compared, "blocked undo (deleted link)");
 
         // A Unified edit to an owned row (the event of a migrated shift) blocks undo and nothing changes.
         await ExecuteAsync(clone.ConnectionString, AdverseTargetDrift, ct);

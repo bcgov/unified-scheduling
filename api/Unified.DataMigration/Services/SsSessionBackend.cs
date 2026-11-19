@@ -231,7 +231,16 @@ internal sealed class SsEfSessionBackend(UnifiedDbContext db, SsWriteSession ses
     // Canonical mapped target digest is deliberately independent of the source shape.
     // Text/SSO values are hashed in memory, never stored/emitted as audit evidence.
     // Photo bytes are excluded; their private copy is additionally fenced by row versions.
-    public async Task<string> TargetFingerprintAsync(string targetType, object targetId, CancellationToken ct)
+    public Task<string> TargetFingerprintAsync(string targetType, object targetId, CancellationToken ct) =>
+        FingerprintAsync(db, targetType, targetId, ct);
+
+    /// <summary>The canonical mapped target digest (also the Bulk undo drift oracle).</summary>
+    internal static async Task<string> FingerprintAsync(
+        UnifiedDbContext db,
+        string targetType,
+        object targetId,
+        CancellationToken ct
+    )
     {
         var metadata =
             db.Model.GetEntityTypes().SingleOrDefault(x => x.ClrType.Name == targetType)
