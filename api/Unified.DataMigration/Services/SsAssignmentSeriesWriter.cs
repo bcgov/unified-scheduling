@@ -37,13 +37,15 @@ public sealed class SsAssignmentSeriesWriter(UnifiedDbContext db)
         List<SsSchedulingProposal>? proposals
     )
     {
+        // Indexed on first use; each lookup keeps snapshot order, like the scans it replaces.
+        ILookup<string?, SsRow>? liveDutiesByAssignment = null;
+        Dictionary<string, int>? liveSlotsByDuty = null;
         foreach (var assignment in rows["Assignment"])
         {
-            var sourceDuties = rows["Duty"]
-                .Where(x =>
-                    x.Int("AssignmentId")?.ToString(CultureInfo.InvariantCulture) == assignment.Id
-                    && x.Date("ExpiryDate") is null
-                )
+            liveDutiesByAssignment ??= rows["Duty"]
+                .Where(x => x.Date("ExpiryDate") is null)
+                .ToLookup(x => x.Int("AssignmentId")?.ToString(CultureInfo.InvariantCulture));
+            var sourceDuties = liveDutiesByAssignment[assignment.Id]
                 .OrderBy(x => x.Date("StartDate"))
                 .ThenBy(x => x.Int("Id"))
                 .ToList();
@@ -119,13 +121,13 @@ public sealed class SsAssignmentSeriesWriter(UnifiedDbContext db)
                             return;
                         }
                         // A split/multi-sheriff duty cannot be represented by one capacity-one series.
-                        if (
-                            rows["DutySlot"]
-                                .Count(x =>
-                                    x.Int("DutyId")?.ToString(CultureInfo.InvariantCulture) == duty.Id
-                                    && x.Date("ExpiryDate") is null
-                                ) > 1
-                        )
+                        liveSlotsByDuty ??= rows["DutySlot"]
+                            .Where(x => x.Date("ExpiryDate") is null)
+                            .Select(x => x.Int("DutyId")?.ToString(CultureInfo.InvariantCulture))
+                            .OfType<string>()
+                            .CountBy(x => x, StringComparer.Ordinal)
+                            .ToDictionary(StringComparer.Ordinal);
+                        if (liveSlotsByDuty.GetValueOrDefault(duty.Id) > 1)
                         {
                             s.Outcome("AssignmentSeries", key, "Excluded", "StandaloneSplitDuty");
                             return;

@@ -51,8 +51,11 @@ public sealed class SsSchedulingWriter(UnifiedDbContext db)
                     ? x.Value.Where(r => r.Date("EndDate") >= boundary || retained.Contains($"{x.Key}:{r.Id}")).ToList()
                     : x.Value
         );
+        var selectedRows = selected
+            .Where(x => x.Key is "Duty" or "DutySlot" or "Shift")
+            .ToDictionary(x => x.Key, x => x.Value.ToHashSet<SsRow>(ReferenceEqualityComparer.Instance));
         foreach (var table in rows.Where(x => x.Key is "Duty" or "DutySlot" or "Shift"))
-        foreach (var row in table.Value.Where(x => !selected[table.Key].Contains(x)))
+        foreach (var row in table.Value.Where(x => !selectedRows[table.Key].Contains(x)))
             session.Outcome(table.Key, row.Id, "Excluded", "BeforeHistoryBoundary");
         boundary = selected
             .Where(x => x.Key is "Duty" or "DutySlot" or "Shift")
@@ -235,14 +238,20 @@ public sealed class SsSchedulingWriter(UnifiedDbContext db)
     {
         var lookup = rows["LookupCode"].ToDictionary(x => x.Id);
         var prepared = new List<(SsRow Row, SsRow Code, int Location, string Name, string Normalized)>();
+        // Built on first use, inside the row, so a malformed snapshot fails the same row as a scan.
+        // HashSet<int?>/ILookup keep the lifted int? equality (null matches null) of the scans.
+        HashSet<int?>? referencedAssignments = null;
         foreach (var row in rows["Assignment"])
             await s.RowAsync(
                 "Assignment",
                 row,
                 async () =>
                 {
-                    var referenced = rows["Duty"]
-                        .Any(x => x.Int("AssignmentId") == row.Int("Id") && x.Date("EndDate") >= boundary);
+                    referencedAssignments ??= rows["Duty"]
+                        .Where(x => x.Date("EndDate") >= boundary)
+                        .Select(x => x.Int("AssignmentId"))
+                        .ToHashSet();
+                    var referenced = referencedAssignments.Contains(row.Int("Id"));
                     if (row.Date("ExpiryDate") is not null && !referenced)
                     {
                         s.Outcome("Assignment", row.Id, "Excluded", "ExpiredUnreferencedDefinition");
@@ -277,6 +286,12 @@ public sealed class SsSchedulingWriter(UnifiedDbContext db)
                 ct
             );
         var groups = prepared.GroupBy(x => (x.Location, Type: x.Code.Int("Type"), x.Normalized)).ToList();
+        // Group keys are distinct, so another group with this (Location, Normalized) has another Type.
+        var namesakes = groups
+            .GroupBy(x => (x.Key.Location, x.Key.Normalized))
+            .ToDictionary(x => x.Key, x => x.Count());
+        // Duties by AssignmentId with their snapshot positions, so per-group scans keep snapshot order.
+        ILookup<int?, (SsRow Duty, int Position)>? dutiesByAssignment = null;
         foreach (var group in groups)
         {
             var members = group.OrderBy(x => x.Row.Int("Id")).ToList();
@@ -291,13 +306,7 @@ public sealed class SsSchedulingWriter(UnifiedDbContext db)
                         .ThenByDescending(x => x.Row.Int("Id"))
                         .First();
                     var name = chosen.Name;
-                    if (
-                        groups.Any(x =>
-                            x.Key.Location == group.Key.Location
-                            && x.Key.Normalized == group.Key.Normalized
-                            && x.Key.Type != group.Key.Type
-                        )
-                    )
+                    if (namesakes[(group.Key.Location, group.Key.Normalized)] > 1)
                         name += $" [Type {group.Key.Type}]";
                     if (name.Length > 100)
                         throw new SsReject("CrossTypeDefinitionNameTooLong");
@@ -363,12 +372,18 @@ public sealed class SsSchedulingWriter(UnifiedDbContext db)
                     DateTimeOffset? validTo = members.Any(x => ValidTo(x.Row) is null)
                         ? null
                         : members.Max(x => ValidTo(x.Row));
-                    var dutyEnd = rows["Duty"]
-                        .Where(x =>
-                            x.Date("ExpiryDate") is null
-                            && members.Any(y => y.Row.Int("Id") == x.Int("AssignmentId"))
-                            && x.Date("EndDate") >= boundary
-                        )
+                    dutiesByAssignment ??= rows["Duty"]
+                        .Select((duty, position) => (Duty: duty, Position: position))
+                        .ToLookup(x => x.Duty.Int("AssignmentId"));
+                    var memberDuties = members
+                        .Select(y => y.Row.Int("Id"))
+                        .Distinct()
+                        .SelectMany(id => dutiesByAssignment[id])
+                        .OrderBy(x => x.Position)
+                        .Select(x => x.Duty)
+                        .ToList();
+                    var dutyEnd = memberDuties
+                        .Where(x => x.Date("ExpiryDate") is null && x.Date("EndDate") >= boundary)
                         .Select(x => x.Date("EndDate"))
                         .Max();
                     var widened = validTo is not null && dutyEnd >= validTo;
@@ -406,8 +421,7 @@ public sealed class SsSchedulingWriter(UnifiedDbContext db)
                     }
                     else
                     {
-                        var times = rows["Duty"]
-                            .Where(x => members.Any(y => y.Row.Int("Id") == x.Int("AssignmentId")))
+                        var times = memberDuties
                             .Where(x => x.Date("StartDate") is not null && x.Date("EndDate") is not null)
                             .Select(x =>
                                 (
@@ -1281,7 +1295,9 @@ public sealed class SsSchedulingWriter(UnifiedDbContext db)
             );
             if (proposals is not null)
                 continue;
-            var dutyOutcome = s.Outcomes.Last(x => x.EntityType == "Duty" && x.LegacyId == row.Id);
+            var dutyOutcome =
+                s.FindOutcome("Duty", row.Id)
+                ?? throw new InvalidOperationException("Sequence contains no matching element");
             if (dutyOutcome.Outcome is "Rejected" or "Failed" or "Excluded")
                 foreach (var slot in relevantSlots)
                     slotOutcomes[slot.Id] = (dutyOutcome.Outcome, "ParentDutyNotMigrated");
@@ -1341,11 +1357,14 @@ public sealed class SsSchedulingWriter(UnifiedDbContext db)
         }
     }
 
-    private static void CompleteGroupOutcomes(SsWriteSession s, string type, IEnumerable<SsRow> members)
+    internal static void CompleteGroupOutcomes(SsWriteSession s, string type, IEnumerable<SsRow> members)
     {
         var list = members.ToList();
-        var failure = s.Outcomes.LastOrDefault(x => x.EntityType == type && list.Any(y => y.Id == x.LegacyId));
-        foreach (var row in list.Where(x => !s.Outcomes.Any(y => y.EntityType == type && y.LegacyId == x.Id)))
+        // Outcome keys are unique, so the last matching outcome is the member outcome with the
+        // highest list position.
+        var at = list.Select(x => s.OutcomePosition(type, x.Id)).DefaultIfEmpty(-1).Max();
+        var failure = at < 0 ? null : s.Outcomes[at];
+        foreach (var row in list.Where(x => s.FindOutcome(type, x.Id) is null))
             s.Outcome(type, row.Id, failure?.Outcome ?? "Failed", failure?.Reason ?? "GroupWriteFailed");
     }
 }

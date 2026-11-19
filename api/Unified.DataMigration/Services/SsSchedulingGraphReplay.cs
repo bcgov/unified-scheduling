@@ -256,35 +256,16 @@ internal sealed class SsSchedulingGraphReplay(UnifiedDbContext db)
             .ToListAsync(ct);
         var proposed = Plan(rows, boundary, members.Select(x => x.LegacyId).ToHashSet());
         var old = members.GroupBy(x => (x.TargetType, x.TargetKey)).ToList();
+        var componentKeys = proposed.Select(x => (IReadOnlyList<string>)x.Nodes.Select(n => n.Key).ToList()).ToList();
+        var oldGroups = old.Select(g => (IReadOnlyList<DataMigrationRecord>)g.ToList()).ToList();
+        var expansion = new FamilyExpansion<DataMigrationRecord>(componentKeys, oldGroups, x => x.LegacyId);
         var excluded = new HashSet<string>();
         var seen = new HashSet<int>();
         for (var index = 0; index < proposed.Count; index++)
         {
             if (!seen.Add(index))
                 continue;
-            var family = new HashSet<int> { index };
-            var keys = proposed[index].Nodes.Select(x => x.Key).ToHashSet();
-            var oldMembers = new List<DataMigrationRecord>();
-            bool expanded;
-            do
-            {
-                expanded = false;
-                foreach (var group in old.Where(g => g.Any(m => keys.Contains(m.LegacyId))))
-                foreach (var member in group)
-                {
-                    if (!oldMembers.Contains(member))
-                        oldMembers.Add(member);
-                    if (keys.Add(member.LegacyId))
-                        expanded = true;
-                }
-                for (var i = 0; i < proposed.Count; i++)
-                    if (proposed[i].Nodes.Any(n => keys.Contains(n.Key)) && family.Add(i))
-                    {
-                        foreach (var n in proposed[i].Nodes)
-                            keys.Add(n.Key);
-                        expanded = true;
-                    }
-            } while (expanded);
+            var (family, keys, oldMembers) = expansion.Expand(index);
             seen.UnionWith(family);
             if (oldMembers.Count == 0)
                 continue; // First apply: writers establish original proofs.
@@ -314,10 +295,14 @@ internal sealed class SsSchedulingGraphReplay(UnifiedDbContext db)
                     foreach (var record in records.Where(x => !keep.Contains((x.TargetType, x.TargetKey))))
                         s.Rebinding.Add((record.EntityType, record.LegacyId));
                     await write(Subset(rows, nodes));
-                    var failure = s.SourceOutcomes.FirstOrDefault(x =>
-                        nodes.Any(n => n.Type == x.EntityType && n.Row.Id == x.LegacyId)
-                        && x.Outcome is "Rejected" or "Failed" or "NeedsAction"
-                    );
+                    var failurePosition = nodes
+                        .Where(n => SsWriteSession.IsSourceType(n.Type))
+                        .Select(n => s.OutcomePosition(n.Type, n.Row.Id))
+                        .Where(p => p >= 0 && s.Outcomes[p].Outcome is "Rejected" or "Failed" or "NeedsAction")
+                        .DefaultIfEmpty(-1)
+                        .Min();
+                    // Same as the first matching source outcome in list order (keys are unique).
+                    var failure = failurePosition < 0 ? null : s.Outcomes[failurePosition];
                     if (failure is not null)
                         throw new SsReject(failure.Reason ?? "GraphProposalRequiresAction");
                     foreach (
@@ -368,7 +353,7 @@ internal sealed class SsSchedulingGraphReplay(UnifiedDbContext db)
                 ct,
                 nodes.Select(x => (x.Type, x.Row.Id)).ToList()
             );
-            var outcome = s.Outcomes.LastOrDefault(x => x.EntityType == first.Type && x.LegacyId == first.Row.Id);
+            var outcome = s.FindOutcome(first.Type, first.Row.Id);
             if (outcome?.Outcome is "Rejected" or "Failed")
                 foreach (var node in nodes)
                     s.Outcome(node.Type, node.Row.Id, outcome.Outcome, outcome.Reason);
@@ -420,10 +405,11 @@ internal sealed class SsSchedulingGraphReplay(UnifiedDbContext db)
         );
         foreach (var component in Plan(rows, boundary, retained.ToHashSet()))
         {
-            var keys = component.Nodes.Select(x => (x.Type, x.Row.Id)).ToHashSet();
+            // Each key has at most one outcome, so look the component's own keys up directly.
             if (
-                s.SourceOutcomes.Any(o =>
-                    o.Outcome is "Rejected" or "Failed" or "NeedsAction" && keys.Contains((o.EntityType, o.LegacyId))
+                component.Nodes.Any(n =>
+                    SsWriteSession.IsSourceType(n.Type)
+                    && s.FindOutcome(n.Type, n.Row.Id)?.Outcome is "Rejected" or "Failed" or "NeedsAction"
                 )
             )
                 continue;

@@ -41,6 +41,8 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run)
     ];
     public IEnumerable<DataMigrationOutcome> SourceOutcomes => Outcomes.Where(x => PrimaryTypes.Contains(x.EntityType));
 
+    internal static bool IsSourceType(string type) => PrimaryTypes.Contains(type);
+
     // Append-only between savepoints: nested rollback removes only new members.
     // Copying the full growing sets for every row makes large simulations quadratic.
     private sealed class TargetCounter
@@ -73,8 +75,14 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run)
     public int Updated => updatedTargets.Count;
     public int Linked { get; private set; }
     public Func<CancellationToken, Task>? AfterUnitAsync { get; set; }
-    private readonly Dictionary<(string Type, string Id), DataMigrationOutcome> outcomeIndex = [];
+
+    // (EntityType, LegacyId) is unique in Outcomes; the index stores each key's list position.
+    // Outcomes only grows by Outcome(), shrinks by tail rollback and is rebuilt by graph planning.
+    private readonly Dictionary<(string Type, string Id), int> outcomeIndex = [];
     private Dictionary<DataMigrationOutcome, (string Outcome, string? Reason)>? outcomeChanges;
+
+    // Keys whose outcome may have changed since the last batch commit (opt-in by SsBatchProgress).
+    private HashSet<(string Type, string Id)>? dirtyOutcomes;
     public DataMigrationRun Run => run;
     internal Guid? SimulationNamespace { get; set; }
     internal string? SimulationSchema { get; set; }
@@ -129,7 +137,7 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run)
             AfterUnitAsync = after;
             Rebinding.Clear();
         }
-        var result = Outcomes.LastOrDefault(x => x.EntityType == type && x.LegacyId == source.Id);
+        var result = FindOutcome(type, source.Id);
         if (result?.Outcome is "Rejected" or "Failed" && members is not null)
             foreach (var member in members)
                 Outcome(member.Type, member.Id, result.Outcome, result.Reason);
@@ -244,8 +252,8 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run)
             {
                 item.Item.Outcome = item.Outcome;
                 item.Item.Reason = item.Reason;
+                outcomeIndex[(item.Item.EntityType, item.Item.LegacyId)] = Outcomes.Count;
                 Outcomes.Add(item.Item);
-                outcomeIndex[(item.Item.EntityType, item.Item.LegacyId)] = item.Item;
             }
             insertedTargets.Rollback(inserted);
             updatedTargets.Rollback(updated);
@@ -259,10 +267,36 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run)
     public static string Hash(object safeStructuralFields) =>
         DataMigrationOrchestrator.ComputePayloadHash(JsonSerializer.Serialize(safeStructuralFields));
 
+    internal DataMigrationOutcome? FindOutcome(string type, string id) =>
+        outcomeIndex.TryGetValue((type, id), out var position) ? Outcomes[position] : null;
+
+    /// <summary>List position of the outcome for this key, or -1 when it has none.</summary>
+    internal int OutcomePosition(string type, string id) =>
+        outcomeIndex.TryGetValue((type, id), out var position) ? position : -1;
+
+    internal void TrackOutcomeChanges()
+    {
+        dirtyOutcomes ??= [];
+        foreach (var outcome in Outcomes)
+            dirtyOutcomes.Add((outcome.EntityType, outcome.LegacyId));
+    }
+
+    /// <summary>Keys touched since the previous call (some may since have been rolled back).</summary>
+    internal List<(string Type, string Id)> TakeChangedOutcomeKeys()
+    {
+        if (dirtyOutcomes is null)
+            throw new InvalidOperationException("Outcome change tracking is not enabled.");
+        var keys = dirtyOutcomes.ToList();
+        dirtyOutcomes.Clear();
+        return keys;
+    }
+
     public void Outcome(string type, string id, string outcome, string? reason = null)
     {
-        if (outcomeIndex.TryGetValue((type, id), out var prior))
+        dirtyOutcomes?.Add((type, id));
+        if (outcomeIndex.TryGetValue((type, id), out var position))
         {
+            var prior = Outcomes[position];
             outcomeChanges?.TryAdd(prior, (prior.Outcome, prior.Reason));
             prior.Outcome = outcome;
             prior.Reason = reason;
@@ -277,8 +311,8 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run)
                 Outcome = outcome,
                 Reason = reason,
             };
+            outcomeIndex[(type, id)] = Outcomes.Count;
             Outcomes.Add(item);
-            outcomeIndex[(type, id)] = item;
         }
     }
 
@@ -358,15 +392,17 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run)
             await tx.RollbackToSavepointAsync("ss_row", CancellationToken.None);
             await tx.ReleaseSavepointAsync("ss_row", CancellationToken.None);
             db.ChangeTracker.Clear();
+            // Keys are unique, so dropping the removed tail from the index is the same as
+            // rebuilding it from the surviving prefix (whose positions do not move).
+            for (var i = checkpoint; i < Outcomes.Count; i++)
+                outcomeIndex.Remove((Outcomes[i].EntityType, Outcomes[i].LegacyId));
             Outcomes.RemoveRange(checkpoint, Outcomes.Count - checkpoint);
             foreach (var change in changes)
             {
                 change.Key.Outcome = change.Value.Outcome;
                 change.Key.Reason = change.Value.Reason;
+                dirtyOutcomes?.Add((change.Key.EntityType, change.Key.LegacyId));
             }
-            outcomeIndex.Clear();
-            foreach (var outcome in Outcomes)
-                outcomeIndex[(outcome.EntityType, outcome.LegacyId)] = outcome;
             insertedTargets.Rollback(inserted);
             updatedTargets.Rollback(updated);
             Linked = linked;

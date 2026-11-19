@@ -69,6 +69,13 @@ public sealed class SsTrainingWriter(UnifiedDbContext db)
             )
             .Select(x => x.Int("Id"))
             .ToHashSet();
+        // Course rows per exact (ordinal) code; null codes never match a non-blank course code.
+        var courseCodeCounts = rows["LookupCode"]
+            .Where(x => x.Int("Type") == 6)
+            .Select(x => x.Text("Code"))
+            .OfType<string>()
+            .CountBy(x => x, StringComparer.Ordinal)
+            .ToDictionary(StringComparer.Ordinal);
         bool Eligible(SsRow history) =>
             history.Date("EndDate") >= boundary
             && history.Date("ExpiryDate") is null
@@ -91,7 +98,7 @@ public sealed class SsTrainingWriter(UnifiedDbContext db)
                         throw new SsReject("InvalidCourseCode");
                     if (row.Int("LocationId") is not null || row.Text("SubCode") is not null)
                         throw new SsReject("UnsupportedScopedCourse");
-                    if (rows["LookupCode"].Count(x => x.Int("Type") == 6 && x.Text("Code") == code) != 1)
+                    if (courseCodeCounts.GetValueOrDefault(code) != 1)
                         throw new SsReject("DuplicateCourseCode");
                     var description = row.Text("Description") ?? "";
                     if (description.Length > 200)
