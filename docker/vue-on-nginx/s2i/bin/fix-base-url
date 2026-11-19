@@ -1,6 +1,83 @@
 #!/bin/bash
 set -euo pipefail
 
-export WEB_BASE_HREF="${WEB_BASE_HREF:-/}"
+# Container entrypoint for the web image.
+#
+# The web bundle is built once with a fixed placeholder base path (see
+# docker/web/Dockerfile.release) and stored in an immutable template directory.
+# The public path prefix differs per tenant/environment (e.g. /sheriff-scheduling/
+# behind the dev reverse proxy, / on the direct route), so on every container start
+# this script:
+#   1. normalizes WEB_BASE_HREF (default "/", always leading + trailing slash),
+#   2. recreates the runtime-writable dist dir from the template,
+#   3. replaces the placeholder base with WEB_BASE_HREF in all text assets,
+#   4. hands off to the nginx s2i run script (which also consumes WEB_BASE_HREF).
+#
+# Idempotent: the dist dir is always rebuilt from the pristine template.
+# If no template exists (e.g. images that copy dist straight into /tmp/app/dist),
+# the existing dist dir is served unchanged.
 
-/usr/libexec/s2i/run
+PLACEHOLDER="/__WEB_BASE_HREF__/"
+TEMPLATE_DIR="${WEB_DIST_TEMPLATE_DIR:-/opt/app/dist-template}"
+DIST_DIR="${WEB_DIST_DIR:-/tmp/app/dist}"
+
+normalizeBaseHref() {
+  local base="${1:-}"
+  # Strip all whitespace.
+  base="$(printf '%s' "${base}" | tr -d '[:space:]')"
+  if [ -z "${base}" ]; then
+    base="/"
+  fi
+  if [ "${base#/}" = "${base}" ]; then
+    base="/${base}"
+  fi
+  if [ "${base%/}" = "${base}" ]; then
+    base="${base}/"
+  fi
+  # Collapse repeated slashes (e.g. "//app//" -> "/app/").
+  base="$(printf '%s' "${base}" | tr -s '/')"
+  printf '%s' "${base}"
+}
+
+WEB_BASE_HREF="$(normalizeBaseHref "${WEB_BASE_HREF:-/}")"
+
+# Only allow URL-path-safe characters; this also keeps the value safe to embed
+# in the sed replacement below and in the generated nginx config.
+case "${WEB_BASE_HREF}" in
+  *[!A-Za-z0-9._~/-]*)
+    echo "---> ERROR: WEB_BASE_HREF '${WEB_BASE_HREF}' contains unsupported characters (allowed: A-Z a-z 0-9 . _ ~ / -)" >&2
+    exit 1
+    ;;
+esac
+
+export WEB_BASE_HREF
+echo "---> Using WEB_BASE_HREF=${WEB_BASE_HREF}"
+
+if [ -d "${TEMPLATE_DIR}" ]; then
+  echo "---> Generating ${DIST_DIR} from ${TEMPLATE_DIR}"
+  mkdir -p "${DIST_DIR}"
+  # Empty (rather than remove) the dist dir so this also works if it is a mount point.
+  find "${DIST_DIR}" -mindepth 1 -delete
+  cp -R "${TEMPLATE_DIR}/." "${DIST_DIR}/"
+
+  # Replace the placeholder in every text file that contains it, regardless of
+  # extension (Vite emits it in .html, .js and .css; this also covers .json, .svg,
+  # .map, .webmanifest, etc.). grep -I skips binary files.
+  mapfile -d '' placeholderFiles < <(grep -rlIZF -- "${PLACEHOLDER}" "${DIST_DIR}" || true)
+  if [ "${#placeholderFiles[@]}" -gt 0 ]; then
+    sed -i "s|${PLACEHOLDER}|${WEB_BASE_HREF}|g" -- "${placeholderFiles[@]}"
+  fi
+  echo "---> Replaced base placeholder in ${#placeholderFiles[@]} file(s)"
+
+  # Fail startup rather than serve a bundle with an unresolved base path
+  # (checks binary files too).
+  if grep -rqF -- "${PLACEHOLDER}" "${DIST_DIR}"; then
+    echo "---> ERROR: placeholder ${PLACEHOLDER} still present after substitution in:" >&2
+    grep -rlF -- "${PLACEHOLDER}" "${DIST_DIR}" >&2 || true
+    exit 1
+  fi
+else
+  echo "---> No template at ${TEMPLATE_DIR}; serving ${DIST_DIR} as-is"
+fi
+
+exec /usr/libexec/s2i/run

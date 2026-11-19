@@ -119,6 +119,68 @@ describe('useFetchAPI', () => {
     expect(new URL(window.location.href).pathname).toBe('/unified-scheduling/api/auth/login');
   });
 
+  it.each([
+    ['/sheriff-scheduling/', '/api/config', '/sheriff-scheduling/api/config'],
+    ['/sheriff-scheduling/', '/sheriff-scheduling/api/config', '/sheriff-scheduling/api/config'],
+    ['/', '/api/config', '/api/config'],
+  ])('resolves request URLs against base %s (%s -> %s)', async (base, url, expectedPath) => {
+    vi.stubEnv('BASE_URL', base);
+    const requestedPaths: string[] = [];
+    server.use(
+      http.get('*/api/config', ({ request }) => {
+        requestedPaths.push(new URL(request.url).pathname);
+        return HttpResponse.json({ ok: true });
+      }),
+    );
+    const { useFetchAPI } = await loadApi();
+    const request = useFetchAPI<{ ok: boolean }>({ url, method: 'GET' }, { options: { immediate: false } });
+
+    await request.execute();
+
+    expect(requestedPaths).toEqual([expectedPath]);
+    expect(request.data.value).toEqual({ ok: true });
+  });
+
+  it.each([
+    ['/sheriff-scheduling/', '/api/config', '/sheriff-scheduling/api/config'],
+    ['/sheriff-scheduling/', 'https://api.example.com/api/config', 'https://api.example.com/api/config'],
+    ['/sheriff-scheduling/', '//cdn.example.com/api/config', '//cdn.example.com/api/config'],
+    ['/sheriff-scheduling/', 'api/config', 'api/config'],
+    ['/', '/api/config', '/api/config'],
+    ['/', 'http://api.example.com/api/config', 'http://api.example.com/api/config'],
+  ])('resolveApiUrl with base %s maps %s to %s', async (base, url, expected) => {
+    vi.stubEnv('BASE_URL', base);
+    const { resolveApiUrl } = await import('@/api-access/useFetchAPI');
+
+    expect(resolveApiUrl(url)).toBe(expected);
+  });
+
+  it('redirects a protected API 401 when the API path carries the base prefix', async () => {
+    vi.stubEnv('BASE_URL', '/sheriff-scheduling/');
+    window.history.replaceState({}, '', '/sheriff-scheduling/dashboard');
+    server.use(http.get('*/sheriff-scheduling/api/protected', () => HttpResponse.json({}, { status: 401 })));
+    const { useFetchAPI } = await loadApi();
+    const request = useFetchAPI<void>({ url: '/api/protected', method: 'GET' }, { options: { immediate: false } });
+
+    await request.execute();
+
+    const loginUrl = new URL(window.location.href);
+    expect(loginUrl.pathname).toBe('/sheriff-scheduling/api/auth/login');
+    expect(loginUrl.searchParams.get('redirectUri')).toBe('/sheriff-scheduling/dashboard');
+  });
+
+  it('does not redirect prefixed auth endpoint 401s', async () => {
+    vi.stubEnv('BASE_URL', '/sheriff-scheduling/');
+    window.history.replaceState({}, '', '/sheriff-scheduling/dashboard');
+    server.use(http.get('*/sheriff-scheduling/api/auth/user', () => HttpResponse.json({}, { status: 401 })));
+    const { useFetchAPI } = await loadApi();
+    const request = useFetchAPI<void>({ url: '/api/auth/user', method: 'GET' }, { options: { immediate: false } });
+
+    await request.execute();
+
+    expect(window.location.pathname).toBe('/sheriff-scheduling/dashboard');
+  });
+
   it('surfaces plain text error responses and invokes caller onFetchError', async () => {
     server.use(
       http.put('*/api/plain-text-error', () =>
