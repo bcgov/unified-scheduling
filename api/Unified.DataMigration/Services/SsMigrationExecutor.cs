@@ -5,6 +5,7 @@ using Microsoft.Extensions.Options;
 using Npgsql;
 using Unified.DataMigration.FeatureFlags;
 using Unified.DataMigration.Options;
+using Unified.DataMigration.Services.Bulk;
 using Unified.DataMigration.Sources;
 using Unified.Db;
 using Unified.Db.Models.DataMigration;
@@ -22,7 +23,8 @@ public sealed class SsMigrationExecutor(
     SsTrainingWriter training,
     SsSchedulingWriter scheduling,
     IEnumerable<ISsMigrationBusinessValidator>? businessValidators = null,
-    SsRollbackJournal? rollbackJournal = null
+    SsRollbackJournal? rollbackJournal = null,
+    SsTrainingBulkWriter? trainingBulk = null
 )
 {
     public Task ExecuteAsync(string job, CancellationToken ct)
@@ -123,6 +125,8 @@ public sealed class SsMigrationExecutor(
             AllowMigrationApply = configured.AllowMigrationApply,
             BatchSize = configured.BatchSize,
             CronSchedule = configured.CronSchedule,
+            PersistenceMode = configured.PersistenceMode,
+            BulkChunkSize = configured.BulkChunkSize,
         };
         if (!flags.Value.Enabled || !source.Enabled || !settings.Enabled)
             throw new InvalidOperationException("SS migration job is disabled.");
@@ -171,15 +175,27 @@ public sealed class SsMigrationExecutor(
                 .ToListAsync(ct);
             if (!evidence.Any(x => IsTriggerEvidence(x, queuedRun)))
                 throw new InvalidOperationException("SS apply requires an audited API-acquired run.");
+            // Persistence mode is bound at trigger time; a later configuration change refuses the run.
+            if (!evidence.Any(x => IsTriggerEvidence(x, queuedRun, settings.PersistenceMode)))
+                throw new InvalidOperationException("SS queued run configuration changed.");
         }
     }
 
-    private static bool IsTriggerEvidence(string? json, DataMigrationRun run)
+    internal static bool IsTriggerEvidence(string? json, DataMigrationRun run, MigrationPersistenceMode? mode = null)
     {
         try
         {
             using var document = JsonDocument.Parse(json ?? "");
             var root = document.RootElement;
+            if (mode is not null)
+            {
+                // Evidence written before PersistenceMode existed means the default PerRow.
+                var recorded = root.TryGetProperty("PersistenceMode", out var value)
+                    ? value.GetString()
+                    : nameof(MigrationPersistenceMode.PerRow);
+                if (recorded != mode.ToString())
+                    return false;
+            }
             return root.GetProperty("Source").GetString() == "SS"
                 && root.GetProperty("Job").GetString() == run.Job
                 && root.GetProperty("RunId").GetGuid() == run.Id
@@ -312,6 +328,23 @@ public sealed class SsMigrationExecutor(
                 )
             );
             var rows = await reader.ReadAsync(tables, settings.BatchSize, ct, job == "MyTeam" ? boundary : null);
+            if (job == "Training" && settings.PersistenceMode == MigrationPersistenceMode.Bulk)
+            {
+                // Same acquisition, lineage, run lock, fence and counters; no rollback journal is
+                // captured (undo is crosswalk-scoped, see SsBulkUndo).
+                await (
+                    trainingBulk ?? throw new InvalidOperationException("SS Training bulk writer is not registered.")
+                ).ExecuteAsync(
+                    run,
+                    rows,
+                    boundary,
+                    source.HistoryStartDate,
+                    settings.BulkChunkSize,
+                    token => FenceAsync(run, token, captureJournal: false),
+                    ct
+                );
+                return;
+            }
             await using var batches = new SsBatchProgress(
                 db,
                 session,
@@ -411,7 +444,7 @@ public sealed class SsMigrationExecutor(
         }
     }
 
-    private async Task FenceAsync(DataMigrationRun run, CancellationToken ct)
+    private async Task FenceAsync(DataMigrationRun run, CancellationToken ct, bool captureJournal = true)
     {
         // Recheck AFTER acquiring the durable row lock: recovery may have revoked
         // the run while its source snapshot was loading. Report needs the same fence.
@@ -433,7 +466,7 @@ public sealed class SsMigrationExecutor(
                 .AnyAsync(x => keys.Contains(x.Source) && (x.IsPaused || x.AbortRequestedOn != null), ct)
         )
             throw new InvalidOperationException("SS job was stopped before business writes.");
-        if (rollbackJournal is not null)
+        if (captureJournal && rollbackJournal is not null)
             await rollbackJournal.CaptureAsync(run, ct);
     }
 

@@ -1,4 +1,3 @@
-using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using Unified.DataMigration.Sources;
 using Unified.Db;
@@ -9,44 +8,9 @@ namespace Unified.DataMigration.Services;
 public sealed class SsTrainingWriter(UnifiedDbContext db)
 {
     public static readonly string[] Tables = ["LookupCode", "User", "SheriffTraining", "SheriffStandardTraining"];
-    private static readonly HashSet<string> CarbineCourses =
-    [
-        "Carbine Initial Course",
-        "Carbine Practice 1",
-        "Carbine Practice 2",
-        "Carbine Annual Recertification",
-    ];
 
-    internal static string AllocateCourseCode(string code, IReadOnlySet<string> reserved)
-    {
-        if (code.Length <= 50)
-            return code;
-        var prefixLength = char.IsHighSurrogate(code[44]) && char.IsLowSurrogate(code[45]) ? 44 : 45;
-        var prefix = code[..prefixLength];
-        for (var suffix = 1; ; suffix++)
-        {
-            var candidate = prefix + "_" + suffix.ToString(CultureInfo.InvariantCulture);
-            if (candidate.Length > 50)
-                throw new SsReject("CourseCodeSuffixExhausted");
-            if (!reserved.Contains(candidate))
-                return candidate;
-        }
-    }
-
-    private static string? MappedNotes(SsRow row, Training course)
-    {
-        var comment = row.Text("Comment");
-        var note = row.Text("Note");
-        if (course.Code != "Other")
-        {
-            if (!string.IsNullOrEmpty(comment))
-                throw new SsReject("UnexpectedNonOtherComment");
-            return note;
-        }
-        return string.IsNullOrEmpty(comment)
-            ? note
-            : $"Other training: {comment}" + (string.IsNullOrEmpty(note) || note == comment ? "" : "\n" + note);
-    }
+    internal static string AllocateCourseCode(string code, IReadOnlySet<string> reserved) =>
+        SsTrainingRules.AllocateCourseCode(code, reserved);
 
     public async Task WriteAsync(
         Dictionary<string, List<SsRow>> rows,
@@ -56,76 +20,19 @@ public sealed class SsTrainingWriter(UnifiedDbContext db)
     )
     {
         var users = rows["User"].ToDictionary(x => x.Id);
-        var sourceCodes = rows["LookupCode"]
-            .Where(x => x.Int("Type") == 6)
-            .Select(x => x.Text("Code"))
-            .OfType<string>()
-            .ToHashSet(StringComparer.Ordinal);
-        var shortenedCarbineCourseIds = rows["LookupCode"]
-            .Where(x =>
-                x.Int("Type") == 6
-                && x.Text("Code") is { Length: > 50 } code
-                && code.Contains("Carbine", StringComparison.Ordinal)
-            )
-            .Select(x => x.Int("Id"))
-            .ToHashSet();
-        // Course rows per exact (ordinal) code; null codes never match a non-blank course code.
-        var courseCodeCounts = rows["LookupCode"]
-            .Where(x => x.Int("Type") == 6)
-            .Select(x => x.Text("Code"))
-            .OfType<string>()
-            .CountBy(x => x, StringComparer.Ordinal)
-            .ToDictionary(StringComparer.Ordinal);
-        bool Eligible(SsRow history) =>
-            history.Date("EndDate") >= boundary
-            && history.Date("ExpiryDate") is null
-            && users.TryGetValue(history.Guid("SheriffId")?.ToString() ?? "", out var user)
-            && !user.Bool("Excused");
-        var repeats = rows["SheriffTraining"]
-            .Where(Eligible)
-            .GroupBy(x => (User: x.Guid("SheriffId"), Course: x.Int("TrainingTypeId")))
-            .Where(x => x.Count() > 1)
-            .Select(x => x.Key.Course)
-            .ToHashSet();
-        foreach (var row in rows["LookupCode"].Where(x => x.Int("Type") == 6).OrderBy(x => x.Int("Id")))
+        var sourceCodes = SsTrainingRules.SourceCourseCodes(rows["LookupCode"]);
+        var shortenedCarbineCourseIds = SsTrainingRules.ShortenedCarbineCourseIds(rows["LookupCode"]);
+        var courseCodeCounts = SsTrainingRules.CourseCodeCounts(rows["LookupCode"]);
+        var repeats = SsTrainingRules.RepeatedCourses(rows["SheriffTraining"], users, boundary);
+        foreach (var row in SsTrainingRules.Courses(rows["LookupCode"]))
             await session.RowAsync(
                 "Training",
                 row,
                 async () =>
                 {
-                    var code = row.Text("Code");
-                    if (string.IsNullOrWhiteSpace(code))
-                        throw new SsReject("InvalidCourseCode");
-                    if (row.Int("LocationId") is not null || row.Text("SubCode") is not null)
-                        throw new SsReject("UnsupportedScopedCourse");
-                    if (courseCodeCounts.GetValueOrDefault(code) != 1)
-                        throw new SsReject("DuplicateCourseCode");
-                    var description = row.Text("Description") ?? "";
-                    if (description.Length > 200)
-                        throw new SsReject("CourseDescriptionTooLong");
-                    var validity = row.Int("ValidityPeriod") ?? 0;
-                    var notice = row.Int("AdvanceNotice") ?? 0;
-                    if (validity < 0 || notice < 0)
-                        throw new SsReject("NegativeTrainingPeriod");
-                    int? days =
-                        validity == 0 ? null
-                        : validity == 1461 ? 1460
-                        : Math.Min(validity, 1825);
-                    if (notice > 0 && days is not null && notice >= days)
-                        throw new SsReject("InvalidAdvanceNotice");
-                    var hash = SsWriteSession.Hash(
-                        new
-                        {
-                            code,
-                            days,
-                            notice,
-                            Mandatory = row.Bool("Mandatory"),
-                            Rotating = row.Bool("Rotating"),
-                            Effective = row.Date("EffectiveDate"),
-                            Expiry = row.Date("ExpiryDate"),
-                            Category = row.Text("Category"),
-                        }
-                    );
+                    var mapping = SsTrainingRules.MapCourse(row, courseCodeCounts);
+                    var code = mapping.Code;
+                    var hash = mapping.Hash;
                     if (await session.ReplayAsync("Training", row, hash, true, ct))
                         return;
                     await db.Database.ExecuteSqlRawAsync("LOCK TABLE \"Trainings\" IN SHARE ROW EXCLUSIVE MODE", ct);
@@ -145,12 +52,10 @@ public sealed class SsTrainingWriter(UnifiedDbContext db)
                     var created = target is null;
                     if (target is null)
                     {
-                        var category = row.Text("Category");
+                        var category = SsTrainingRules.ApprovedCategory(row);
                         int? categoryId = null;
-                        if (!string.IsNullOrWhiteSpace(category))
+                        if (category is not null)
                         {
-                            if (category is not ("Provincial Standard" or "Branch" or "Local") || category.Length > 100)
-                                throw new SsReject("UnapprovedTrainingCategory");
                             var categories = await db.TrainingCategories.Where(x => x.Name == category).ToListAsync(ct);
                             if (categories.Count > 1)
                                 throw new SsReject("AmbiguousTrainingCategory");
@@ -170,20 +75,20 @@ public sealed class SsTrainingWriter(UnifiedDbContext db)
                             new Training
                             {
                                 Code = code,
-                                Description = description,
+                                Description = mapping.Description,
                                 EffectiveDate = row.Date("EffectiveDate") ?? session.Now,
                                 ExpiryDate = row.Date("ExpiryDate"),
                                 Mandatory = row.Bool("Mandatory"),
-                                Rotating = row.Bool("Rotating") || validity > 0 || repeats.Contains(row.Int("Id")),
-                                ValidityDays = days,
-                                AdvanceNoticeDays = notice == 0 ? null : notice,
+                                Rotating = SsTrainingRules.Rotating(row, mapping, repeats),
+                                ValidityDays = mapping.Days,
+                                AdvanceNoticeDays = SsTrainingRules.AdvanceNoticeDays(mapping),
                                 TrainingCategoryId = categoryId,
                                 Order = max is null ? 0 : max.Value + 1,
                             }
                         );
                         db.Trainings.Add(target);
                         await db.SaveChangesAsync(ct);
-                        if (CarbineCourses.Contains(code))
+                        if (SsTrainingRules.CarbineCourses.Contains(code))
                         {
                             if (!target.Mandatory)
                                 throw new SsReject("CarbineCourseNotMandatory");
@@ -199,6 +104,7 @@ public sealed class SsTrainingWriter(UnifiedDbContext db)
                             );
                         }
                     }
+                    var (linkOutcome, linkReason) = SsTrainingRules.CourseLinkOutcome(shortened);
                     await session.LinkAsync(
                         "Training",
                         row,
@@ -207,18 +113,13 @@ public sealed class SsTrainingWriter(UnifiedDbContext db)
                         hash,
                         created,
                         ct,
-                        shortened ? "MigratedWithDifference" : "Migrated",
-                        shortened ? "CourseCodeShortened" : null
+                        linkOutcome,
+                        linkReason
                     );
                 },
                 ct
             );
-        foreach (
-            var row in rows["SheriffTraining"]
-                .OrderBy(x => x.Date("EndDate"))
-                .ThenBy(x => x.Date("StartDate"))
-                .ThenBy(x => x.Int("Id"))
-        )
+        foreach (var row in SsTrainingRules.HistoryOrder(rows["SheriffTraining"]))
             await session.RowAsync(
                 "SheriffTraining",
                 row,
@@ -242,24 +143,13 @@ public sealed class SsTrainingWriter(UnifiedDbContext db)
                             "SheriffTraining",
                             row.Id,
                             "Excluded",
-                            linked ? "PreviouslyMigratedNowExcludedRetained"
-                                : sheriff.Bool("Excused") ? "ExcusedSheriff"
-                                : "DeletedHistory"
+                            SsTrainingRules.ExcludedHistoryReason(linked, sheriff.Bool("Excused"))
                         );
                         return;
                     }
                     var dates = SsWriteSession.Dates(row);
                     SsWriteSession.Timezone(row, false); // Target UserTraining has no timezone column; report the loss.
-                    var hash = SsWriteSession.Hash(
-                        new
-                        {
-                            User = sourceUser,
-                            Course = row.Int("TrainingTypeId"),
-                            dates,
-                            Expiry = row.Date("TrainingCertificationExpiry"),
-                            Notice = row.Bool("FirstNotice"),
-                        }
-                    );
+                    var hash = SsTrainingRules.HistoryHash(row, sourceUser, dates);
                     if (
                         await session.ReplayAsync(
                             "SheriffTraining",
@@ -283,7 +173,7 @@ public sealed class SsTrainingWriter(UnifiedDbContext db)
                                         "LOCK TABLE \"UserTrainings\" IN SHARE ROW EXCLUSIVE MODE",
                                         ct
                                     );
-                                    var version =
+                                    owned.Version = SsTrainingRules.NextVersion(
                                         await db
                                             .UserTrainings.Where(x =>
                                                 x.UserId == resolvedUser
@@ -292,10 +182,7 @@ public sealed class SsTrainingWriter(UnifiedDbContext db)
                                             )
                                             .Select(x => (int?)x.Version)
                                             .MaxAsync(ct)
-                                        ?? 0;
-                                    if (version == int.MaxValue)
-                                        throw new SsReject("VersionOverflow");
-                                    owned.Version = version + 1;
+                                    );
                                     owned.UserId = resolvedUser;
                                     owned.TrainingId = resolvedCourse;
                                     owned.Training = await db.Trainings.SingleAsync(x => x.Id == resolvedCourse, ct);
@@ -303,10 +190,8 @@ public sealed class SsTrainingWriter(UnifiedDbContext db)
                                 owned.AwardedOn = dates.Start;
                                 owned.EndingOn = dates.End;
                                 owned.ExpiryDate = row.Date("TrainingCertificationExpiry");
-                                owned.Notes = MappedNotes(row, owned.Training);
-                                owned.NoticeState = row.Bool("FirstNotice")
-                                    ? UserTrainingNoticeStates.Sent
-                                    : UserTrainingNoticeStates.None;
+                                owned.Notes = SsTrainingRules.MappedNotes(row, owned.Training.Code);
+                                owned.NoticeState = SsTrainingRules.NoticeState(row);
                                 owned.UpdatedOn = session.Now;
                                 // Keep the existing version; never invoke renewal or mail services.
                             }
@@ -318,7 +203,7 @@ public sealed class SsTrainingWriter(UnifiedDbContext db)
                         await session.ResolveIntAsync("Training", row.Int("TrainingTypeId"), ct)
                         ?? throw new SsReject("MissingTraining");
                     var course = await db.Trainings.SingleAsync(x => x.Id == courseId, ct);
-                    var notes = MappedNotes(row, course);
+                    var notes = SsTrainingRules.MappedNotes(row, course.Code);
                     await db.Database.ExecuteSqlRawAsync(
                         "LOCK TABLE \"UserTrainings\" IN SHARE ROW EXCLUSIVE MODE",
                         ct
@@ -326,31 +211,30 @@ public sealed class SsTrainingWriter(UnifiedDbContext db)
                     var histories = await db
                         .UserTrainings.Where(x => x.UserId == userId && x.TrainingId == courseId)
                         .ToListAsync(ct);
-                    var max = histories.Select(x => (int?)x.Version).Max();
-                    if (max == int.MaxValue)
-                        throw new SsReject("VersionOverflow");
+                    var version = SsTrainingRules.NextVersion(histories.Select(x => (int?)x.Version).Max());
                     var target = session.Stamp(
                         new UserTraining
                         {
                             UserId = userId,
                             TrainingId = courseId,
-                            Version = max is null ? 1 : max.Value + 1,
+                            Version = version,
                             AwardedOn = dates.Start,
                             EndingOn = dates.End,
                             AllDay = false,
                             ExpiryDate = row.Date("TrainingCertificationExpiry"),
                             Notes = notes,
-                            NoticeState = row.Bool("FirstNotice")
-                                ? UserTrainingNoticeStates.Sent
-                                : UserTrainingNoticeStates.None,
+                            NoticeState = SsTrainingRules.NoticeState(row),
                         }
                     );
                     db.UserTrainings.Add(target);
                     // Only Training owns this user field; do not emit user-created/renewal/email signals.
                     // Keep the source keyword when shortening or later cleanup removes it from the target label.
                     if (
-                        course.Code.Contains("Carbine", StringComparison.Ordinal)
-                        || shortenedCarbineCourseIds.Contains(row.Int("TrainingTypeId"))
+                        SsTrainingRules.IsCarbineHistory(
+                            course.Code,
+                            row.Int("TrainingTypeId"),
+                            shortenedCarbineCourseIds
+                        )
                     )
                     {
                         var user = await db.Users.SingleAsync(x => x.Id == userId, ct);
@@ -381,9 +265,7 @@ public sealed class SsTrainingWriter(UnifiedDbContext db)
                         true,
                         ct,
                         "MigratedWithDifference",
-                        row.Text("Timezone") is not null ? "TargetTrainingTimezoneUnavailable"
-                            : older ? "LateOlderHistoryAppended"
-                            : "TargetTrainingAllDayNotInSource"
+                        SsTrainingRules.HistoryLinkReason(row, older)
                     );
                 },
                 ct

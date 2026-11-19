@@ -58,6 +58,8 @@ public static class DataMigrationModule
         services.AddScoped<SsLeaveWriter>();
         services.AddScoped<SsMyTeamWriter>();
         services.AddScoped<SsTrainingWriter>();
+        services.AddScoped<Services.Bulk.SsTrainingBulkWriter>();
+        services.AddScoped<Services.Bulk.SsBulkUndo>();
         services.AddScoped<SsSchedulingWriter>();
         services.AddScoped<IRecurringJob, SsDataMigrationRecurringJob>();
         services.AddScoped<IRecurringJob, SsTrainingRecurringJob>();
