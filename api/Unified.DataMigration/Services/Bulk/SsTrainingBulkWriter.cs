@@ -173,11 +173,24 @@ public sealed class SsTrainingBulkWriter(UnifiedDbContext db, IOptions<AuditReco
                 throw new RowFailure(nameof(DbUpdateException));
         }
 
-        // PostgreSQL varchar(n) counts characters (code points), not UTF-16 code units.
-        private static bool NotesTooLong(string? notes) =>
-            notes is not null
-            && notes.Length > SsTrainingRules.UserTrainingNotesMaxLength
-            && notes.EnumerateRunes().Count() > SsTrainingRules.UserTrainingNotesMaxLength;
+        // PostgreSQL varchar(n) counts characters (code points), not UTF-16 code units, and accepts an
+        // over-length value whose excess characters are all ASCII spaces (stored truncated to n), as PerRow does.
+        private static bool NotesTooLong(string? notes)
+        {
+            const int max = SsTrainingRules.UserTrainingNotesMaxLength;
+            if (notes is null || notes.Length <= max)
+                return false;
+            var count = 0;
+            var index = 0;
+            foreach (var rune in notes.EnumerateRunes())
+            {
+                if (count == max)
+                    break;
+                count++;
+                index += rune.Utf16SequenceLength;
+            }
+            return count == max && notes.AsSpan(index).ContainsAnyExcept(' ');
+        }
 
         // ---------------------------------------------------------------- courses (chunk 0)
 

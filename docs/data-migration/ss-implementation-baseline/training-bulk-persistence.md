@@ -55,7 +55,10 @@ in Bulk mode.
 Raw staging commands and COPY operations inherit the migration command timeout
 (`DataMigration:CommandTimeoutSeconds`, or the target connection string's `Command Timeout`), the same as EF
 commands. A mapped note that exceeds the 2000-character target column (counted in characters, like PostgreSQL
-`varchar`) fails only that row (`TargetWriteFailed:DbUpdateException`, as PerRow does), not the chunk.
+`varchar`) fails only that row (`TargetWriteFailed:DbUpdateException`, as PerRow does), not the chunk. Like
+PostgreSQL, Bulk accepts a longer note when every character past 2000 is an ASCII space; the stored value is
+truncated in both modes. In that case the PerRow audit JSON shows the submitted (untruncated) note, while Bulk
+shows the stored one.
 Save rules (`ISaveRule`) are not invoked. The only relevant rule, `TrainingProfileTypeExistsRule`, checks that a
 requirement's profile type exists. Bulk resolves that profile type from the target, and the foreign key enforces
 the same thing.

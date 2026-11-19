@@ -254,8 +254,27 @@ public sealed class SsTrainingBulkPostgresTests : IAsyncLifetime
                         .Select(x => x.LegacyId + ":" + x.Reason)
                         .ToListAsync(ct);
                     Assert.Equal(
-                        ["1073:TargetWriteFailed:DbUpdateException", "4001:TargetWriteFailed:DbUpdateException"],
+                        [
+                            "1073:TargetWriteFailed:DbUpdateException",
+                            "4001:TargetWriteFailed:DbUpdateException",
+                            "4005:TargetWriteFailed:DbUpdateException",
+                        ],
                         failed.Order(StringComparer.Ordinal).ToArray()
+                    );
+                    // PostgreSQL accepts over-length varchar values whose excess is all spaces (stored
+                    // truncated), so these migrate in both modes; a non-space in the excess (4005) fails.
+                    Assert.Equal(
+                        2,
+                        await CountAsync(
+                            clone,
+                            """
+                            SELECT COUNT(*) FROM "UserTrainings" u JOIN "DataMigrationRecords" r
+                              ON r."TargetKey"=u."Id"::text AND r."EntityType"='SheriffTraining'
+                              AND r."LegacyId" IN ('4003','4004')
+                            WHERE char_length(u."Notes")=2000
+                            """,
+                            ct
+                        )
                     );
                     // The interceptor path is live in both modes: migrated rows carry the System actor.
                     Assert.True(
@@ -1413,7 +1432,16 @@ public sealed class SsTrainingBulkPostgresTests : IAsyncLifetime
             )}',100,'2024-07-01T16:00Z','2024-07-02T00:00Z',NULL,NULL,false,NULL,repeat('y', 2001),NULL,'2025-07-01Z'),
             (4002,'{U(
                 6
-            )}',113,'2024-07-03T16:00Z','2024-07-04T00:00Z',NULL,NULL,false,NULL,repeat(chr(128512), 1001),NULL,'2025-07-01Z');
+            )}',113,'2024-07-03T16:00Z','2024-07-04T00:00Z',NULL,NULL,false,NULL,repeat(chr(128512), 1001),NULL,'2025-07-01Z'),
+            (4003,'{U(
+                6
+            )}',101,'2024-07-05T16:00Z','2024-07-06T00:00Z',NULL,NULL,false,NULL,repeat('z', 1995) || repeat(' ', 10),NULL,'2025-07-01Z'),
+            (4004,'{U(
+                6
+            )}',102,'2024-07-07T16:00Z','2024-07-08T00:00Z',NULL,NULL,false,NULL,repeat(chr(128512), 1999) || '   ',NULL,'2025-07-01Z'),
+            (4005,'{U(
+                6
+            )}',103,'2024-07-09T16:00Z','2024-07-10T00:00Z',NULL,NULL,false,NULL,repeat('q', 2000) || ' x',NULL,'2025-07-01Z');
             """;
 
     private static string RoundTwoSource() =>
