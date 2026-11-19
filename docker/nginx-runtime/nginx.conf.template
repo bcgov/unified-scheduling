@@ -64,6 +64,8 @@ http {
     # Only use a configured public HTTPS authority from X-Forwarded-Server.
     # The header is not proof of proxy provenance; unknown values fall back
     # to the direct route's existing host, scheme, and port handling.
+    # Allow a 253-byte hostname plus an optional five-digit port.
+    map_hash_bucket_size 512;
     map $http_x_forwarded_server $approved_public_host {
         default "";
         %PUBLIC_HOST_RULES%
