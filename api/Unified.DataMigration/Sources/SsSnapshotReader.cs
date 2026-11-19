@@ -168,12 +168,8 @@ public sealed class SsSnapshotReader(IOptions<DataMigrationOptions> options)
     public async Task<IReadOnlyDictionary<string, long>> ReadExcludedCountsAsync(CancellationToken ct)
     {
         var counts = new Dictionary<string, long>(StringComparer.Ordinal);
-        await using var connection = new NpgsqlConnection(
-            new NpgsqlConnectionStringBuilder(options.Value.Sources.SS.ConnectionString)
-            {
-                IncludeErrorDetail = false,
-            }.ConnectionString
-        );
+        var connectionOptions = CreateSourceConnectionOptions();
+        await using var connection = new NpgsqlConnection(connectionOptions.ConnectionString);
         await connection.OpenAsync(ct);
         await using var tx = await connection.BeginTransactionAsync(IsolationLevel.RepeatableRead, ct);
         await using (var readOnly = new NpgsqlCommand("SET TRANSACTION READ ONLY", connection, tx))
@@ -206,10 +202,7 @@ public sealed class SsSnapshotReader(IOptions<DataMigrationOptions> options)
     {
         if (batchSize <= 0)
             throw new ArgumentOutOfRangeException(nameof(batchSize));
-        var builder = new NpgsqlConnectionStringBuilder(options.Value.Sources.SS.ConnectionString)
-        {
-            IncludeErrorDetail = false,
-        };
+        var builder = CreateSourceConnectionOptions();
         await using var connection = new NpgsqlConnection(builder.ConnectionString);
         await connection.OpenAsync(ct);
         await using var tx = await connection.BeginTransactionAsync(IsolationLevel.RepeatableRead, ct);
@@ -313,6 +306,19 @@ public sealed class SsSnapshotReader(IOptions<DataMigrationOptions> options)
         }
         await tx.RollbackAsync(ct);
         return result;
+    }
+
+    private NpgsqlConnectionStringBuilder CreateSourceConnectionOptions()
+    {
+        var builder = new NpgsqlConnectionStringBuilder(options.Value.Sources.SS.ConnectionString)
+        {
+            IncludeErrorDetail = false,
+        };
+        // Preserve an explicitly supplied Npgsql Command Timeout; otherwise scope the
+        // one-hour migration default to this source connection.
+        if (!builder.TryGetValue("Command Timeout", out _) && !builder.TryGetValue("CommandTimeout", out _))
+            builder.CommandTimeout = options.Value.CommandTimeoutSeconds;
+        return builder;
     }
 
     private static async Task<List<SsRow>> ReadUsersWithHistoryAsync(
