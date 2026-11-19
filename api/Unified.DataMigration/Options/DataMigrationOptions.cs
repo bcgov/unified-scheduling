@@ -6,8 +6,12 @@ namespace Unified.DataMigration.Options;
 public sealed class DataMigrationOptions
 {
     public const string SectionName = "DataMigration";
+    public const int DefaultCommandTimeoutSeconds = 3600;
 
     public DataMigrationSourcesOptions Sources { get; set; } = new();
+    // Migration batches can legitimately run longer than the Npgsql/EF defaults. This
+    // timeout is applied only to migration source/target work, never to the global DbContext.
+    public int CommandTimeoutSeconds { get; set; } = DefaultCommandTimeoutSeconds;
 }
 
 public sealed class DataMigrationSourcesOptions
@@ -61,6 +65,8 @@ public sealed class DataMigrationOptionsValidator : IValidateOptions<DataMigrati
     public ValidateOptionsResult Validate(string? name, DataMigrationOptions options)
     {
         var failures = new List<string>();
+        if (options.CommandTimeoutSeconds <= 0)
+            failures.Add("DataMigration:CommandTimeoutSeconds must be greater than zero.");
         ValidateSource("SS", options.Sources.SS, failures);
         ValidateSource("CASS", options.Sources.CASS, failures);
         if (options.Sources.SS.Enabled)

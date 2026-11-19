@@ -52,6 +52,10 @@ var hangfireOptions =
     builder.Configuration.GetSection(HangfireOptions.SectionName).Get<HangfireOptions>() ?? new HangfireOptions();
 
 {
+    // A bounded four-hour drain covers the long SS migration jobs without making shutdown
+    // effectively unbounded. Hangfire uses the same limit so termination escalates once.
+    builder.Services.Configure<HostOptions>(options => options.ShutdownTimeout = TimeSpan.FromHours(4));
+
     // Configure forwarded headers so the app sees the external scheme/host
     // from the nginx reverse proxy. Required for OIDC token exchange to
     // construct the correct redirect_uri.

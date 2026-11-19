@@ -2,6 +2,7 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
+using Npgsql;
 using Unified.DataMigration.FeatureFlags;
 using Unified.DataMigration.Options;
 using Unified.DataMigration.Sources;
@@ -24,11 +25,16 @@ public sealed class SsMigrationExecutor(
     SsRollbackJournal? rollbackJournal = null
 )
 {
-    public Task ExecuteAsync(string job, CancellationToken ct) => ExecuteCoreAsync(job, null, ct);
+    public Task ExecuteAsync(string job, CancellationToken ct)
+    {
+        ConfigureMigrationCommandTimeout();
+        return ExecuteCoreAsync(job, null, ct);
+    }
 
     [Hangfire.AutomaticRetry(Attempts = 0)]
     public async Task ExecuteAcquiredAsync(Guid runId, CancellationToken ct)
     {
+        ConfigureMigrationCommandTimeout();
         await db.Database.OpenConnectionAsync(ct);
         var locked = false;
         try
@@ -45,6 +51,7 @@ public sealed class SsMigrationExecutor(
                 throw new InvalidOperationException("SS run already has an execution owner.");
             await ExecuteOwnedAsync(runId, ct);
         }
+
         finally
         {
             try
@@ -60,6 +67,20 @@ public sealed class SsMigrationExecutor(
                 await db.Database.CloseConnectionAsync();
             }
         }
+    }
+
+    private void ConfigureMigrationCommandTimeout()
+    {
+        var connectionString = configuration["DatabaseConnectionString"];
+        var builder = string.IsNullOrWhiteSpace(connectionString)
+            ? null
+            : new NpgsqlConnectionStringBuilder(connectionString);
+        var timeout =
+            builder is not null
+            && (builder.TryGetValue("Command Timeout", out _) || builder.TryGetValue("CommandTimeout", out _))
+                ? builder.CommandTimeout
+                : options.Value.CommandTimeoutSeconds;
+        db.Database.SetCommandTimeout(timeout);
     }
 
     private async Task ExecuteOwnedAsync(Guid runId, CancellationToken ct)

@@ -80,6 +80,7 @@ public sealed class SsLegacyMigrationSource(
                 IncludeErrorDetail = false,
                 Pooling = false,
             };
+            ApplyMigrationCommandTimeout(connectionOptions);
             await using var connection = _connectionFactory(connectionOptions.ConnectionString);
             await connection.OpenAsync(cancellationToken);
             await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
@@ -138,5 +139,13 @@ public sealed class SsLegacyMigrationSource(
                 "SS schema preflight failed. Verify read-only access and the reference schema."
             );
         }
+    }
+
+    private void ApplyMigrationCommandTimeout(NpgsqlConnectionStringBuilder builder)
+    {
+        // Npgsql connection strings already support Command Timeout. Retain an explicit
+        // operator override; otherwise use the migration-only one-hour durability default.
+        if (!builder.TryGetValue("Command Timeout", out _) && !builder.TryGetValue("CommandTimeout", out _))
+            builder.CommandTimeout = options.Value.CommandTimeoutSeconds;
     }
 }
