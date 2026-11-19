@@ -47,6 +47,10 @@ deployment to the public path prefix, e.g. `/sheriff-scheduling/` behind
 `https://dev.jag.gov.bc.ca/sheriff-scheduling/`. nginx also accepts requests with that prefix stripped,
 so the direct route at `/` keeps working.
 
+Whitespace is removed and repeated slashes are collapsed. After normalization, only ASCII letters,
+digits, `.`, `_`, `-`, and `/` are allowed; in particular, `~` is not supported and causes startup
+to fail with an error.
+
 ## Building the Image
 
 ```bash
