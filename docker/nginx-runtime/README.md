@@ -34,6 +34,7 @@ nginx-runtime/
 - `API_PATH` - API path prefix (default: `/api/`)
 - `USE_SELF_SIGNED_SSL` - Enable self-signed SSL certificates
 - `IncludeSiteminderHeaders` - Allow headers with underscores
+- `PUBLIC_HOST_ALLOWLIST` - Comma-separated approved public hosts, optionally with `:443` (default: empty)
 
 ### Runtime base path (`WEB_BASE_HREF`)
 
@@ -46,6 +47,29 @@ runtime value. If any placeholder is left after the replacement, startup fails. 
 deployment to the public path prefix, e.g. `/sheriff-scheduling/` behind
 `https://dev.jag.gov.bc.ca/sheriff-scheduling/`. nginx also accepts requests with that prefix stripped,
 so the direct route at `/` keeps working.
+
+### Public host and OIDC
+
+Set `PUBLIC_HOST_ALLOWLIST` on the web deployment to the exact, application-controlled public
+authority supplied by the gateway in `X-Forwarded-Server`, for example `dev.jag.gov.bc.ca`.
+This requires a separately approved deployment configuration change; when unset, the direct host
+is retained and the public login host mismatch remains.
+
+Use comma-separated ASCII hostnames, either bare or followed by `:443`, without spaces, wildcards,
+schemes, or paths. Other ports and invalid or duplicate entries fail startup. Hostnames may be up
+to 253 characters. Matching is case-insensitive, but a bare host and its `:443` form are distinct
+entries; list the form actually sent by the gateway. A missing, unlisted, or combined header falls
+back to the direct host with existing direct-route scheme and port handling. For a match, nginx
+forwards HTTPS on port 443. `WEB_BASE_HREF` supplies the public path prefix.
+
+Verify that the gateway sends the matching single authority and routes callbacks to the same
+application. The allowlist does not authenticate the header: a direct client can forge an
+approved host and disrupt its own host-only correlation cookies. Allowlist only origins under
+the application's control; verify trusted proxy/header handling separately.
+
+In Keycloak, register the exact public and direct-route callback URLs, including their base paths
+and any direct-route port: `/api/auth/signin-oidc` under valid redirect URIs and
+`/api/auth/signout-callback-oidc` under valid post-logout redirect URIs.
 
 ## Building the Image
 
