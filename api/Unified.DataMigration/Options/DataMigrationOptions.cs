@@ -6,7 +6,7 @@ namespace Unified.DataMigration.Options;
 public sealed class DataMigrationOptions
 {
     public const string SectionName = "DataMigration";
-    public const int DefaultCommandTimeoutSeconds = 3600;
+    public const int DefaultCommandTimeoutSeconds = 28800;
 
     public DataMigrationSourcesOptions Sources { get; set; } = new();
 

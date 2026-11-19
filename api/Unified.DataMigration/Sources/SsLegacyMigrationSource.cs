@@ -144,7 +144,7 @@ public sealed class SsLegacyMigrationSource(
     private void ApplyMigrationCommandTimeout(NpgsqlConnectionStringBuilder builder)
     {
         // Npgsql connection strings already support Command Timeout. Retain an explicit
-        // operator override; otherwise use the migration-only one-hour durability default.
+        // operator override; otherwise use the migration-only eight-hour durability default.
         if (!builder.ShouldSerialize("Command Timeout"))
             builder.CommandTimeout = options.Value.CommandTimeoutSeconds;
     }
