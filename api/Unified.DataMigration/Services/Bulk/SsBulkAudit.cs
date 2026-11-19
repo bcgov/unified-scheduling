@@ -143,8 +143,14 @@ internal sealed class SsBulkAudit(UnifiedDbContext db)
         rows.Clear();
     }
 
+    // Arrays compare by content, like EF's array value comparers (an equal re-assigned array is not a change).
     private static bool ValueEquals(object? left, object? right) =>
-        left is byte[] a && right is byte[] b ? a.AsSpan().SequenceEqual(b) : Equals(left, right);
+        left switch
+        {
+            byte[] a when right is byte[] b => a.AsSpan().SequenceEqual(b),
+            string[] a when right is string[] b => a.SequenceEqual(b, StringComparer.Ordinal),
+            _ => Equals(left, right),
+        };
 
     private static Task WriteNullableAsync(
         NpgsqlBinaryImporter importer,

@@ -62,11 +62,14 @@ public sealed class MigrationJobOptions
 
     /// <summary>
     /// <see cref="MigrationPersistenceMode.PerRow"/> (default) keeps the per-row writer and rollback journal.
-    /// <see cref="MigrationPersistenceMode.Bulk"/> (Training only) persists set-based per chunk without a journal.
+    /// <see cref="MigrationPersistenceMode.Bulk"/> (Training and Scheduling) persists set-based per chunk without a journal.
     /// </summary>
     public MigrationPersistenceMode PersistenceMode { get; set; } = MigrationPersistenceMode.PerRow;
 
-    /// <summary>Approximate source rows per Bulk chunk transaction (a user's histories are never split).</summary>
+    /// <summary>
+    /// Approximate source rows (Training) or writer units (Scheduling) per Bulk chunk transaction. A user's
+    /// Training histories and a Scheduling unit (merge group, duty graph, series, captured component) are never split.
+    /// </summary>
     public int BulkChunkSize { get; set; } = 2000;
 }
 
@@ -96,8 +99,11 @@ public sealed class DataMigrationOptionsValidator : IValidateOptions<DataMigrati
                 // cannot sit unnoticed and be recorded in trigger evidence later.
                 if (!Enum.IsDefined(settings.PersistenceMode))
                     failures.Add($"SS:{job}:PersistenceMode is invalid.");
-                if (settings.PersistenceMode == MigrationPersistenceMode.Bulk && job != "Training")
-                    failures.Add($"SS:{job}:PersistenceMode Bulk is supported only for Training.");
+                if (
+                    settings.PersistenceMode == MigrationPersistenceMode.Bulk
+                    && job is not ("Training" or "Scheduling")
+                )
+                    failures.Add($"SS:{job}:PersistenceMode Bulk is supported only for Training and Scheduling.");
                 if (!settings.Enabled)
                     continue;
                 if (settings.BatchSize <= 0)

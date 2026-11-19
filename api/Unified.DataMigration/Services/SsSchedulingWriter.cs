@@ -8,8 +8,25 @@ using Unified.Db.Models.Scheduling;
 namespace Unified.DataMigration.Services;
 
 /// <summary>Tracked imports only: never invoke populate/regenerate or bypass target database constraints.</summary>
-public sealed class SsSchedulingWriter(UnifiedDbContext db)
+/// <remarks>
+/// Rule code is shared by PerRow and Bulk: main-path target access goes through
+/// <see cref="ISsSchedulingStore"/> and session semantics through <see cref="ISsSchedulingSession"/>.
+/// Owned-update closures and graph replacement stay EF-only; Bulk rejects or refuses before them.
+/// </remarks>
+public sealed class SsSchedulingWriter
 {
+    private readonly UnifiedDbContext db;
+    private readonly ISsSchedulingStore store;
+
+    public SsSchedulingWriter(UnifiedDbContext db)
+        : this(db, new SsSchedulingEfStore(db)) { }
+
+    internal SsSchedulingWriter(UnifiedDbContext db, ISsSchedulingStore store)
+    {
+        this.db = db;
+        this.store = store;
+    }
+
     public static readonly string[] Tables = ["LookupCode", "Assignment", "Duty", "DutySlot", "Shift"];
 
     private sealed record ShiftCandidate(
@@ -23,9 +40,16 @@ public sealed class SsSchedulingWriter(UnifiedDbContext db)
         bool Cancelled
     );
 
-    public async Task WriteAsync(
+    public Task WriteAsync(
         Dictionary<string, List<SsRow>> rows,
         SsWriteSession session,
+        DateTimeOffset boundary,
+        CancellationToken ct
+    ) => WriteCoreAsync(rows, session, boundary, ct);
+
+    internal async Task WriteCoreAsync(
+        Dictionary<string, List<SsRow>> rows,
+        ISsSchedulingSession session,
         DateTimeOffset boundary,
         CancellationToken ct
     )
@@ -37,13 +61,7 @@ public sealed class SsSchedulingWriter(UnifiedDbContext db)
         // earlier backfill. Reuse that same complete selected universe for
         // proposals, replay and normal writes; do not admit never-applied older
         // rows by globally lowering the boundary against the raw snapshot.
-        var retained = (
-            await db
-                .DataMigrationRecords.AsNoTracking()
-                .Where(x => x.Source == "SS" && x.EntityType == "SchedulingMember")
-                .Select(x => x.LegacyId)
-                .ToListAsync(ct)
-        ).ToHashSet();
+        var retained = (await store.RetainedMemberIdsAsync(ct)).ToHashSet();
         var selected = rows.ToDictionary(
             x => x.Key,
             x =>
@@ -70,11 +88,11 @@ public sealed class SsSchedulingWriter(UnifiedDbContext db)
                 await DefinitionsAsync(selected, session, boundary, ct, proposals);
                 await ShiftsAsync(selected["Shift"], session, boundary, ct, proposals);
                 await DutiesAsync(selected, session, boundary, ct, proposals);
-                await new SsAssignmentSeriesWriter(db).WriteAsync(selected, session, ct, proposals);
+                await new SsAssignmentSeriesWriter(store).WriteAsync(selected, session, ct, proposals);
             },
             ct
         );
-        var graphs = new SsSchedulingGraphReplay(db);
+        var graphs = new SsSchedulingGraphReplay(db, store);
         var remaining = await graphs.ReplayAsync(
             selected,
             session,
@@ -100,7 +118,7 @@ public sealed class SsSchedulingWriter(UnifiedDbContext db)
 
     private async Task WriteGraphAsync(
         Dictionary<string, List<SsRow>> rows,
-        SsWriteSession session,
+        ISsSchedulingSession session,
         DateTimeOffset boundary,
         CancellationToken ct
     )
@@ -108,12 +126,12 @@ public sealed class SsSchedulingWriter(UnifiedDbContext db)
         await DefinitionsAsync(rows, session, boundary, ct);
         await ShiftsAsync(rows["Shift"], session, boundary, ct);
         await DutiesAsync(rows, session, boundary, ct);
-        await new SsAssignmentSeriesWriter(db).WriteAsync(rows, session, ct);
+        await new SsAssignmentSeriesWriter(store).WriteAsync(rows, session, ct, null);
     }
 
     private async Task ClassificationsAsync(
         Dictionary<string, List<SsRow>> rows,
-        SsWriteSession s,
+        ISsSchedulingSession s,
         CancellationToken ct
     )
     {
@@ -145,16 +163,7 @@ public sealed class SsSchedulingWriter(UnifiedDbContext db)
                     );
                     if (await s.ReplayAsync("AssignmentClassification", row, hash, true, ct))
                         return;
-                    if (
-                        !await db.SubCategories.AnyAsync(
-                            x =>
-                                x.Id == subcategory
-                                && x.CategoryId == category
-                                && x.Category != null
-                                && x.Category.GroupId != 3,
-                            ct
-                        )
-                    )
+                    if (!await store.ClassificationExistsAsync(subcategory, category, ct))
                         throw new SsReject("MissingStatsClassification");
                     await s.LinkAsync(
                         "AssignmentClassification",
@@ -172,7 +181,7 @@ public sealed class SsSchedulingWriter(UnifiedDbContext db)
             );
     }
 
-    private async Task RoomsAsync(Dictionary<string, List<SsRow>> rows, SsWriteSession s, CancellationToken ct)
+    private async Task RoomsAsync(Dictionary<string, List<SsRow>> rows, ISsSchedulingSession s, CancellationToken ct)
     {
         foreach (var row in rows["LookupCode"].Where(x => x.Int("Type") == 0))
             await s.RowAsync(
@@ -187,9 +196,7 @@ public sealed class SsSchedulingWriter(UnifiedDbContext db)
                     var hash = SsWriteSession.Hash(new { code, location });
                     if (await s.ReplayAsync("CourtRoom", row, hash, true, ct))
                         return;
-                    var targets = await db
-                        .CourtRooms.Where(x => x.Room == code && x.LocationId == location)
-                        .ToListAsync(ct);
+                    var targets = await store.RoomsAsync(code, location, ct);
                     if (targets.Count > 1)
                         throw new SsReject("AmbiguousRoom");
                     var target = targets.SingleOrDefault();
@@ -214,8 +221,7 @@ public sealed class SsSchedulingWriter(UnifiedDbContext db)
                                 ExpiryDate = row.Date("ExpiryDate"),
                             }
                         );
-                        db.CourtRooms.Add(target);
-                        await db.SaveChangesAsync(ct);
+                        await store.AddRoomAsync(target, ct);
                     }
                     await s.LinkAsync("CourtRoom", row, "CourtRoom", target.Id, hash, created, ct);
                 },
@@ -230,7 +236,7 @@ public sealed class SsSchedulingWriter(UnifiedDbContext db)
 
     private async Task DefinitionsAsync(
         Dictionary<string, List<SsRow>> rows,
-        SsWriteSession s,
+        ISsSchedulingSession s,
         DateTimeOffset boundary,
         CancellationToken ct,
         List<SsSchedulingProposal>? proposals = null
@@ -328,32 +334,16 @@ public sealed class SsSchedulingWriter(UnifiedDbContext db)
                             })
                             .ToArray()
                     );
-                    var existing = await db
-                        .DataMigrationRecords.Where(x =>
-                            x.Source == "SS"
-                            && x.EntityType == "Assignment"
-                            && members.Select(y => y.Row.Id).Contains(x.LegacyId)
-                        )
-                        .ToListAsync(ct);
+                    var existing = await store.RecordsAsync("Assignment", members.Select(y => y.Row.Id).ToArray(), ct);
                     var (category, subcategory, assumed) = Classification(chosen.Code);
-                    if (
-                        !await db.SubCategories.AnyAsync(
-                            x =>
-                                x.Id == subcategory
-                                && x.CategoryId == category
-                                && x.Category != null
-                                && x.Category.GroupId != 3,
-                            ct
-                        )
-                    )
+                    if (!await store.ClassificationExistsAsync(subcategory, category, ct))
                         throw new SsReject("MissingStatsClassification");
                     var existingIds = existing.Select(x => int.Parse(x.TargetKey)).ToArray();
                     if (
-                        await db.AssignmentDefinitions.AnyAsync(
-                            x =>
-                                x.LocationId == group.Key.Location
-                                && x.NormalizedName == name.ToUpperInvariant()
-                                && !existingIds.Contains(x.Id),
+                        await store.DefinitionNameTakenAsync(
+                            group.Key.Location,
+                            name.ToUpperInvariant(),
+                            existingIds,
                             ct
                         )
                     )
@@ -495,8 +485,7 @@ public sealed class SsSchedulingWriter(UnifiedDbContext db)
                         )
                     )
                         return;
-                    db.AssignmentDefinitions.Add(target);
-                    await db.SaveChangesAsync(ct);
+                    await store.AddDefinitionAsync(target, ct);
                     foreach (var member in members)
                         await s.LinkAsync(
                             "Assignment",
@@ -536,7 +525,7 @@ public sealed class SsSchedulingWriter(UnifiedDbContext db)
 
     private async Task ShiftsAsync(
         List<SsRow> source,
-        SsWriteSession s,
+        ISsSchedulingSession s,
         DateTimeOffset boundary,
         CancellationToken ct,
         List<SsSchedulingProposal>? proposals = null
@@ -606,7 +595,7 @@ public sealed class SsSchedulingWriter(UnifiedDbContext db)
                     {
                         if (block.Select(x => x.Zone).Distinct().Count() != 1)
                             throw new SsReject("MixedShiftTimezones");
-                        var user = await db.Users.SingleAsync(x => x.Id == first.User, ct);
+                        var user = await store.UserAsync(first.User, ct);
                         var name = $"{user.FirstName} {user.LastName}".Trim();
                         var start = block.Min(x => x.Start);
                         var end = block.Max(x => x.End);
@@ -704,18 +693,7 @@ public sealed class SsSchedulingWriter(UnifiedDbContext db)
                             var to = new DateTimeOffset(
                                 TimeZoneInfo.ConvertTimeToUtc(first.Day.AddDays(1).ToDateTime(TimeOnly.MinValue), tz)
                             );
-                            if (
-                                await db.ShiftEntries.AnyAsync(
-                                    x =>
-                                        x.Event != null
-                                        && x.Event.LocationId == first.Location
-                                        && x.Event.StatusTypeCode != "cancelled"
-                                        && x.Event.StartAtUtc >= from
-                                        && x.Event.StartAtUtc < to
-                                        && x.Users.Any(y => y.UserId == first.User),
-                                    ct
-                                )
-                            )
+                            if (await store.ShiftOnDayExistsAsync(first.Location, first.User, from, to, ct))
                                 throw new SsReject("FutureShiftConflict");
                         }
                         var targetEvent = s.Stamp(
@@ -747,8 +725,7 @@ public sealed class SsSchedulingWriter(UnifiedDbContext db)
                             }
                         );
                         target.Users.Add(s.Stamp(new ShiftEntryUser { UserId = first.User }));
-                        db.ShiftEntries.Add(target);
-                        await db.SaveChangesAsync(ct);
+                        await store.AddShiftAsync(target, ct);
                         foreach (var item in block)
                             await s.LinkAsync(
                                 "Shift",
@@ -778,7 +755,7 @@ public sealed class SsSchedulingWriter(UnifiedDbContext db)
 
     private async Task DutiesAsync(
         Dictionary<string, List<SsRow>> rows,
-        SsWriteSession s,
+        ISsSchedulingSession s,
         DateTimeOffset boundary,
         CancellationToken ct,
         List<SsSchedulingProposal>? proposals = null
@@ -813,7 +790,7 @@ public sealed class SsSchedulingWriter(UnifiedDbContext db)
                         return;
                     }
                     var definitionId = int.Parse(await s.ResolveAsync("Assignment", sourceAssignment, ct));
-                    var definition = await db.AssignmentDefinitions.SingleAsync(x => x.Id == definitionId, ct);
+                    var definition = await store.DefinitionAsync(definitionId, ct);
                     var dates = SsWriteSession.Dates(row);
                     if (dates.Start == dates.End)
                         throw new SsReject("EmptyInterval");
@@ -851,12 +828,10 @@ public sealed class SsSchedulingWriter(UnifiedDbContext db)
                         )
                         .ToArray();
                     var sourceShiftIds = overlappingSourceShifts.Select(x => x.Id).ToArray();
-                    var resolvedShifts = await db
-                        .DataMigrationRecords.AsNoTracking()
-                        .Where(x => x.Source == "SS" && x.EntityType == "Shift" && sourceShiftIds.Contains(x.LegacyId))
-                        .OrderBy(x => x.LegacyId)
+                    // Keep the anonymous shape: it is part of the serialized source hash.
+                    var resolvedShifts = (await store.ResolvedShiftsAsync(sourceShiftIds, ct))
                         .Select(x => new { x.LegacyId, x.TargetKey })
-                        .ToListAsync(ct);
+                        .ToList();
                     var hash = SsWriteSession.Hash(
                         new
                         {
@@ -1115,8 +1090,7 @@ public sealed class SsSchedulingWriter(UnifiedDbContext db)
                                 SubCategoryId = definition.SubCategoryId,
                             }
                         );
-                        db.AssignmentEntries.Add(entry);
-                        await db.SaveChangesAsync(ct);
+                        await store.AddAssignmentEntryAsync(entry, ct);
                         primaryEntryId ??= entry.Id;
                         entries.Add(
                             (
@@ -1139,16 +1113,7 @@ public sealed class SsSchedulingWriter(UnifiedDbContext db)
                             var user = Guid.Parse(await s.ResolveAsync("User", sheriff.ToString(), ct));
                             var slotStart = slot.Date("StartDate")!.Value;
                             var slotEnd = slot.Date("EndDate")!.Value;
-                            var shifts = await db
-                                .ShiftEntries.Where(x =>
-                                    x.Event != null
-                                    && x.Event.LocationId == location
-                                    && x.Event.StatusTypeCode != "cancelled"
-                                    && x.Event.StartAtUtc < slotEnd
-                                    && x.Event.EndAtUtc > slotStart
-                                    && x.Users.Any(y => y.UserId == user)
-                                )
-                                .ToListAsync(ct);
+                            var shifts = await store.OverlappingShiftsAsync(location, user, slotStart, slotEnd, ct);
                             if (shifts.Count == 0)
                             {
                                 slotOutcomes[slot.Id] = ("DroppedBadData", "NoOverlappingShiftUserLinkDropped");
@@ -1172,27 +1137,18 @@ public sealed class SsSchedulingWriter(UnifiedDbContext db)
                                         )
                                     );
                                     if (
-                                        await db.ShiftAssignmentEntryUsers.AnyAsync(
-                                            x =>
-                                                x.UserId == user
-                                                && x.ShiftAssignmentEntry!.AssignmentEntryId != entry.Id
-                                                && x.ShiftAssignmentEntry.AssignmentEntry!.AssignmentDefinitionId
-                                                    == definitionId
-                                                && x.ShiftAssignmentEntry.AssignmentEntry.Event!.StatusTypeCode
-                                                    != "cancelled"
-                                                && x.ShiftAssignmentEntry.AssignmentEntry.Event.StartAtUtc >= from
-                                                && x.ShiftAssignmentEntry.AssignmentEntry.Event.StartAtUtc < to,
+                                        await store.FutureAssignmentConflictAsync(
+                                            user,
+                                            entry.Id,
+                                            definitionId,
+                                            from,
+                                            to,
                                             ct
                                         )
                                     )
                                         throw new SsReject("FutureAssignmentUniquenessConflict");
                                 }
-                                var link = await db
-                                    .ShiftAssignmentEntries.Include(x => x.Users)
-                                    .SingleOrDefaultAsync(
-                                        x => x.ShiftEntryId == shift.Id && x.AssignmentEntryId == entry.Id,
-                                        ct
-                                    );
+                                var link = await store.ShiftAssignmentAsync(shift.Id, entry.Id, ct);
                                 if (link is null)
                                 {
                                     link = s.Stamp(
@@ -1202,17 +1158,19 @@ public sealed class SsSchedulingWriter(UnifiedDbContext db)
                                             AssignmentEntryId = entry.Id,
                                         }
                                     );
-                                    db.ShiftAssignmentEntries.Add(link);
+                                    store.AddShiftAssignment(link);
                                 }
                                 if (!link.Users.Any(x => x.UserId == user))
-                                    link.Users.Add(s.Stamp(new ShiftAssignmentEntryUser { UserId = user }));
-                                await db.SaveChangesAsync(ct);
+                                    store.AddShiftAssignmentUser(
+                                        link,
+                                        s.Stamp(new ShiftAssignmentEntryUser { UserId = user })
+                                    );
+                                await store.SaveAsync(ct);
                             }
-                            var containing = await db.ShiftEntries.AnyAsync(
-                                x =>
-                                    shifts.Select(y => y.Id).Contains(x.Id)
-                                    && x.Event!.StartAtUtc <= slotStart
-                                    && x.Event.EndAtUtc >= slotEnd,
+                            var containing = await store.AnyContainingShiftAsync(
+                                shifts.Select(y => y.Id).ToArray(),
+                                slotStart,
+                                slotEnd,
                                 ct
                             );
                             slotOutcomes[slot.Id] = containing
@@ -1245,10 +1203,7 @@ public sealed class SsSchedulingWriter(UnifiedDbContext db)
                     {
                         if (
                             !s.Rebinding.Contains(("DutySlot", slot.Id))
-                            && await db.DataMigrationRecords.AnyAsync(
-                                x => x.Source == "SS" && x.EntityType == "DutySlot" && x.LegacyId == slot.Id,
-                                ct
-                            )
+                            && await store.RecordExistsAsync("DutySlot", slot.Id, ct)
                         )
                             continue;
                         await s.LinkAsync(
@@ -1337,16 +1292,10 @@ public sealed class SsSchedulingWriter(UnifiedDbContext db)
                 s.Outcome("DutySlot", slot.Id, "Rejected", "MissingDuty");
             else
             {
-                var record = await db.DataMigrationRecords.SingleOrDefaultAsync(
-                    x => x.Source == "SS" && x.EntityType == "DutySlot" && x.LegacyId == slot.Id,
-                    ct
-                );
+                var record = await store.RecordAsync("DutySlot", slot.Id, ct);
                 var prior = record is null
                     ? null
-                    : await db.DataMigrationOutcomes.SingleOrDefaultAsync(
-                        x => x.RunId == record.LastAppliedRunId && x.EntityType == "DutySlot" && x.LegacyId == slot.Id,
-                        ct
-                    );
+                    : await store.PriorOutcomeAsync(record.LastAppliedRunId, "DutySlot", slot.Id, ct);
                 s.Outcome(
                     "DutySlot",
                     slot.Id,
@@ -1357,7 +1306,7 @@ public sealed class SsSchedulingWriter(UnifiedDbContext db)
         }
     }
 
-    internal static void CompleteGroupOutcomes(SsWriteSession s, string type, IEnumerable<SsRow> members)
+    internal static void CompleteGroupOutcomes(ISsSchedulingSession s, string type, IEnumerable<SsRow> members)
     {
         var list = members.ToList();
         // Outcome keys are unique, so the last matching outcome is the member outcome with the

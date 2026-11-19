@@ -10,8 +10,11 @@ namespace Unified.DataMigration.Services;
 /// Old and proposed memberships form the atomic boundary. Every physical root
 /// must have an original ownership/hash receipt; unknown dependents fail closed.
 /// </summary>
-internal sealed class SsSchedulingGraphReplay(UnifiedDbContext db)
+internal sealed class SsSchedulingGraphReplay(UnifiedDbContext db, ISsSchedulingStore store)
 {
+    internal SsSchedulingGraphReplay(UnifiedDbContext db)
+        : this(db, new SsSchedulingEfStore(db)) { }
+
     private static readonly string[] RootTypes =
     [
         "Assignment",
@@ -244,16 +247,14 @@ internal sealed class SsSchedulingGraphReplay(UnifiedDbContext db)
 
     internal async Task<Dictionary<string, List<SsRow>>> ReplayAsync(
         Dictionary<string, List<SsRow>> rows,
-        SsWriteSession s,
+        ISsSchedulingSession s,
         DateTimeOffset boundary,
         Func<Dictionary<string, List<SsRow>>, Task> write,
         CancellationToken ct,
         List<SsSchedulingProposal> proposals
     )
     {
-        var members = await db
-            .DataMigrationRecords.Where(x => x.Source == "SS" && x.EntityType == "SchedulingMember")
-            .ToListAsync(ct);
+        var members = await store.SchedulingMembersAsync(ct);
         var proposed = Plan(rows, boundary, members.Select(x => x.LegacyId).ToHashSet());
         var old = members.GroupBy(x => (x.TargetType, x.TargetKey)).ToList();
         var componentKeys = proposed.Select(x => (IReadOnlyList<string>)x.Nodes.Select(n => n.Key).ToList()).ToList();
@@ -285,6 +286,10 @@ internal sealed class SsSchedulingGraphReplay(UnifiedDbContext db)
                 {
                     if (oldMembers.Any(m => !nodes.Any(n => n.Key == m.LegacyId)))
                         throw new SsReject("GraphMissingFullSourceMembership");
+                    // Bulk does not reproduce graph replacement (deletes + rebinding): it refuses the run
+                    // here, before the journal check, so a Bulk run never reports a rejection PerRow
+                    // (which captures an inverse journal) would not.
+                    s.BeforeGraphReplacement();
                     if (s.Run.RollbackJournalKeyId is null)
                         throw new SsReject("GraphReplacementRequiresInverseJournal");
                     var records = await SelectRecordsAsync(nodes, ct);
@@ -387,22 +392,13 @@ internal sealed class SsSchedulingGraphReplay(UnifiedDbContext db)
 
     internal async Task CaptureAsync(
         Dictionary<string, List<SsRow>> rows,
-        SsWriteSession s,
+        ISsSchedulingSession s,
         DateTimeOffset boundary,
         CancellationToken ct
     )
     {
-        var retained = await db
-            .DataMigrationRecords.Where(x => x.Source == "SS" && x.EntityType == "SchedulingMember")
-            .Select(x => x.LegacyId)
-            .ToListAsync(ct);
-        var rootIndex = new SsSchedulingRecordIndex(
-            await db
-                .DataMigrationRecords.TagWith("SS migration initial capture root index")
-                .AsNoTracking()
-                .Where(x => x.Source == "SS" && RootTypes.Contains(x.EntityType))
-                .ToListAsync(ct)
-        );
+        var retained = await store.RetainedMemberIdsAsync(ct);
+        var rootIndex = new SsSchedulingRecordIndex(await store.RootRecordsAsync(RootTypes, ct));
         foreach (var component in Plan(rows, boundary, retained.ToHashSet()))
         {
             // Each key has at most one outcome, so look the component's own keys up directly.
@@ -413,12 +409,7 @@ internal sealed class SsSchedulingGraphReplay(UnifiedDbContext db)
                 )
             )
                 continue;
-            if (
-                await db.DataMigrationRecords.AnyAsync(
-                    x => x.Source == "SS" && x.EntityType == "SchedulingMember" && x.LegacyId == component.Nodes[0].Key,
-                    ct
-                )
-            )
+            if (await store.RecordExistsAsync("SchedulingMember", component.Nodes[0].Key, ct))
                 continue;
             // A missing/drifted initial proof is a primary failure, not an
             // ignorable synthetic metric. Persist all member failures before
@@ -454,7 +445,7 @@ internal sealed class SsSchedulingGraphReplay(UnifiedDbContext db)
 
     private async Task CaptureOneAsync(
         Component component,
-        SsWriteSession s,
+        ISsSchedulingSession s,
         CancellationToken ct,
         SsSchedulingRecordIndex? rootIndex = null
     )
@@ -464,11 +455,7 @@ internal sealed class SsSchedulingGraphReplay(UnifiedDbContext db)
         // transaction before the existing live target/version/dependent guards.
         var records = ids is null
             ? await SelectRecordsAsync(component.Nodes, ct)
-            : await db
-                .DataMigrationRecords.TagWith("SS migration capture selected roots")
-                .Where(x => x.Source == "SS" && ids.Contains(x.Id))
-                .OrderBy(x => x.Id)
-                .ToListAsync(ct);
+            : await store.RecordsByIdAsync(ids, ct);
         if (ids is not null && records.Count != ids.Length)
             throw new SsReject("GraphMissingFullSourceMembership");
         if (records.Count == 0)
@@ -478,7 +465,7 @@ internal sealed class SsSchedulingGraphReplay(UnifiedDbContext db)
         var root = records.First(x => x.CreatedByRunId is not null);
         // Guards hold database row locks, not EF tracking leases. All these
         // records are read-only here; detaching does not release a lock/savepoint.
-        db.ChangeTracker.Clear();
+        store.Detach();
         await s.LinkAsync(
             "SchedulingComponent",
             Synthetic(component.Nodes[0].Key),
@@ -504,8 +491,7 @@ internal sealed class SsSchedulingGraphReplay(UnifiedDbContext db)
             {
                 // LinkAsync leaves its final mutation pending. Flush it BEFORE
                 // detaching; the entire component still shares the outer savepoint.
-                await db.SaveChangesAsync(ct);
-                db.ChangeTracker.Clear();
+                await store.FlushAndDetachAsync(ct);
             }
         }
     }
@@ -518,27 +504,7 @@ internal sealed class SsSchedulingGraphReplay(UnifiedDbContext db)
         var shifts = Ids("ShiftEntry");
         var entries = Ids("AssignmentEntry");
         var series = Ids("AssignmentSeries");
-        if (
-            await db.AssignmentEntries.AnyAsync(
-                x =>
-                    (
-                        definitions.Contains(x.AssignmentDefinitionId)
-                        || x.AssignmentSeriesId != null && series.Contains(x.AssignmentSeriesId.Value)
-                    ) && !entries.Contains(x.Id),
-                ct
-            )
-            || await db.AssignmentSeries.AnyAsync(
-                x => definitions.Contains(x.AssignmentDefinitionId) && !series.Contains(x.Id),
-                ct
-            )
-            || await db.ShiftAssignmentEntries.AnyAsync(
-                x =>
-                    (shifts.Contains(x.ShiftEntryId) && !entries.Contains(x.AssignmentEntryId))
-                    || (entries.Contains(x.AssignmentEntryId) && !shifts.Contains(x.ShiftEntryId)),
-                ct
-            )
-            || await db.ShiftAssignmentSeriesLinks.AnyAsync(x => series.Contains(x.AssignmentSeriesId), ct)
-        )
+        if (await store.HasUnownedDependentsAsync(definitions, shifts, entries, series, ct))
             throw new SsReject("UnownedGraphDependent");
     }
 
@@ -614,7 +580,7 @@ internal sealed class SsSchedulingGraphReplay(UnifiedDbContext db)
     private async Task DetachChangedSeriesAsync(
         List<DataMigrationRecord> records,
         HashSet<(string Type, string Key)> keep,
-        SsWriteSession s,
+        ISsSchedulingSession s,
         CancellationToken ct
     )
     {
