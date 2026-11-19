@@ -56,6 +56,8 @@ public static class HangfireModule
                     {
                         SchemaName = "hangfire",
                         QueuePollInterval = TimeSpan.FromSeconds(15),
+                        // Keep long-running jobs alive without delaying recovery after a worker crash.
+                        UseSlidingInvisibilityTimeout = true,
                         JobExpirationCheckInterval = TimeSpan.FromMinutes(30),
                         CountersAggregateInterval = TimeSpan.FromMinutes(5),
                         PrepareSchemaIfNecessary = hangfireOptions.PrepareSchemaIfNecessary,
@@ -79,6 +81,9 @@ public static class HangfireModule
             {
                 options.WorkerCount = Math.Max(1, Environment.ProcessorCount / 4);
                 options.SchedulePollingInterval = TimeSpan.FromSeconds(30);
+                // Let migration jobs finish during planned rolling termination. The host is
+                // configured with the same bounded drain period below.
+                options.ShutdownTimeout = TimeSpan.FromHours(4);
             });
         }
 

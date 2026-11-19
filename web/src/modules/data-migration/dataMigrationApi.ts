@@ -17,13 +17,13 @@ export function getMigrationRuns(offset: number) {
   );
 }
 
-export function startMigration(job: MigrationJob) {
+export function startMigration(job: MigrationJob, dryRun = true) {
   return useFetchAPI<MigrationAccepted>(
     {
       url: `/api/data-migration/SS/jobs/${job}/runs`,
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      data: { dryRun: false },
+      data: { dryRun },
     },
     { options: { immediate: false }, fetchOptions: { credentials: 'same-origin' } },
   );

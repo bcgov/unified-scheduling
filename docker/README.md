@@ -59,6 +59,18 @@ developers have upgraded their local databases to PostgreSQL 18.
 ./manage debug
 ```
 
+## Data migration UI
+
+The local `.env.template` enables the Data Migration feature and selects its permission dataset. The
+development user receives seeded permissions at startup. After applying `.env` changes, recreate the API
+container and visit `http://localhost:8080/data-migration` as an authenticated, registered user with
+`DataMigrationOperate`. Disable the feature and remove the dataset setting together when not needed.
+`SeedData__DataSets__10` assumes the ten datasets in `appsettings.Development.json` remain at indexes 0-9.
+
+The SS and CASS sources remain disabled by default; enabling a source requires its own configuration.
+Migration actions default to dry runs. Checking **Run apply job** and confirming the warning sends an
+apply request that commits changes to the configured target database.
+
 ## CHES configuration
 
 The API container maps CHES settings from Docker Compose variables into the .NET `Ches` configuration section. CHES remains disabled when `ChesEnabled` by default.

@@ -9,6 +9,7 @@ using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Configuration;
 using Npgsql;
 using NpgsqlTypes;
+using Unified.DataMigration.Options;
 using Unified.Db;
 using Unified.Db.Models.DataMigration;
 
@@ -90,6 +91,7 @@ public sealed class SsRollbackService(UnifiedDbContext db, SsRollbackJournal cry
         CancellationToken ct
     )
     {
+        ConfigureMigrationCommandTimeout();
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
         var plan = await BuildPlanAsync(runId, ct);
         var export = await ExportAsync(plan, ct);
@@ -99,6 +101,7 @@ public sealed class SsRollbackService(UnifiedDbContext db, SsRollbackJournal cry
 
     public async Task<Guid> ApplyAsync(Guid runId, string confirmation, CancellationToken ct)
     {
+        ConfigureMigrationCommandTimeout();
         try
         {
             return await ApplyCoreAsync(runId, confirmation, ct);
@@ -135,6 +138,7 @@ public sealed class SsRollbackService(UnifiedDbContext db, SsRollbackJournal cry
     // Rebuild/revalidate the exact run-bound plan; never accept an arbitrary server file path.
     public async Task<byte[]> ReadImpactAsync(Guid runId, string digest, CancellationToken ct)
     {
+        ConfigureMigrationCommandTimeout();
         if (!DataMigrationOperations.ValidDigest(digest))
             throw new InvalidOperationException("Invalid rollback impact digest.");
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
@@ -710,9 +714,28 @@ public sealed class SsRollbackService(UnifiedDbContext db, SsRollbackJournal cry
             sql,
             (NpgsqlConnection)db.Database.GetDbConnection(),
             (NpgsqlTransaction?)db.Database.CurrentTransaction?.GetDbTransaction()
-        );
+        )
+        {
+            CommandTimeout = db.Database.GetCommandTimeout() ?? DataMigrationOptions.DefaultCommandTimeoutSeconds,
+        };
         command.Parameters.AddRange(parameters);
         return command;
+    }
+
+    private void ConfigureMigrationCommandTimeout()
+    {
+        var connectionString = configuration["DatabaseConnectionString"];
+        var builder = string.IsNullOrWhiteSpace(connectionString)
+            ? null
+            : new NpgsqlConnectionStringBuilder(connectionString);
+        var timeout =
+            builder is not null && builder.ShouldSerialize("Command Timeout")
+                ? builder.CommandTimeout
+                : configuration.GetValue(
+                    $"{DataMigrationOptions.SectionName}:{nameof(DataMigrationOptions.CommandTimeoutSeconds)}",
+                    DataMigrationOptions.DefaultCommandTimeoutSeconds
+                );
+        db.Database.SetCommandTimeout(timeout);
     }
 
     private async Task CommandAsync(string sql, CancellationToken ct, params NpgsqlParameter[] parameters)

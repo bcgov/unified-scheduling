@@ -19,6 +19,7 @@ const allowed = computed(() => canOperateDataMigration(access));
 const known = ref(false);
 const runs = ref<MigrationRun[]>([]);
 const pending = ref<Partial<Record<MigrationJob, boolean>>>({});
+const applyJobs = ref<Partial<Record<MigrationJob, boolean>>>({});
 const accepted = ref<Partial<Record<MigrationJob, MigrationRun>>>({});
 let disposed = false;
 let timer: ReturnType<typeof setTimeout> | undefined;
@@ -90,16 +91,14 @@ async function loadRuns() {
 
 async function start(job: MigrationJob, label: string) {
   if (disabled(job)) return;
-  if (
-    !window.confirm(`Start ${label}? This applies migration writes to the configured target database (not a dry run).`)
-  )
-    return;
+  const dryRun = !applyJobs.value[job];
+  if (!dryRun && !window.confirm(`Start ${label} apply job? This commits changes to the target database.`)) return;
   pending.value[job] = true;
   try {
     // Recheck server state immediately before submitting; the server still arbitrates races.
     if (!(await refresh()) || !allowed.value || disposed) return;
     if (runs.value.some((run) => run.job === job && run.status === 'Running')) return;
-    const request = startMigration(job);
+    const request = startMigration(job, dryRun);
     await request.execute();
     if (request.error.value || request.response.value?.status !== 202 || !request.data.value?.runId) {
       const status = request.response.value?.status;
@@ -153,11 +152,22 @@ onUnmounted(() => {
   <UaPageHeader title="Data Migration" />
   <p v-if="!allowed">DataMigration feature and DataMigrationOperate permission are required.</p>
   <template v-else>
-    <p>These actions apply writes to the configured target database. They are not dry runs.</p>
+    <p>Jobs run as dry runs by default. An apply job commits changes to the target database.</p>
     <p v-if="!known">Run state unavailable or refreshing. Starts are disabled.</p>
     <div v-for="{ job, label } in migrationJobs" :key="job" class="mb-4">
       <UaBtn :disabled="!!disabled(job)" @click="start(job, label)">Start {{ label }}</UaBtn>
+      <label class="apply-job-control">
+        <input v-model="applyJobs[job]" type="checkbox" :disabled="!known || !!pending[job]" />
+        Run apply job — warning: commits changes to database
+      </label>
       <p v-if="latest(job)">Run ID: {{ latest(job)?.id }} — {{ latest(job)?.status }}</p>
     </div>
   </template>
 </template>
+
+<style scoped>
+.apply-job-control {
+  display: block;
+  margin-top: 0.5rem;
+}
+</style>
