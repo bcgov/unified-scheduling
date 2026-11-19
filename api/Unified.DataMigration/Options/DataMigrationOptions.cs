@@ -9,6 +9,7 @@ public sealed class DataMigrationOptions
     public const int DefaultCommandTimeoutSeconds = 3600;
 
     public DataMigrationSourcesOptions Sources { get; set; } = new();
+
     // Migration batches can legitimately run longer than the Npgsql/EF defaults. This
     // timeout is applied only to migration source/target work, never to the global DbContext.
     public int CommandTimeoutSeconds { get; set; } = DefaultCommandTimeoutSeconds;

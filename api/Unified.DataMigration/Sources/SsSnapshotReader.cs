@@ -316,7 +316,7 @@ public sealed class SsSnapshotReader(IOptions<DataMigrationOptions> options)
         };
         // Preserve an explicitly supplied Npgsql Command Timeout; otherwise scope the
         // one-hour migration default to this source connection.
-        if (!builder.TryGetValue("Command Timeout", out _) && !builder.TryGetValue("CommandTimeout", out _))
+        if (!builder.ShouldSerialize("Command Timeout"))
             builder.CommandTimeout = options.Value.CommandTimeoutSeconds;
         return builder;
     }

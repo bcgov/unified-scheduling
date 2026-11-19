@@ -51,7 +51,6 @@ public sealed class SsMigrationExecutor(
                 throw new InvalidOperationException("SS run already has an execution owner.");
             await ExecuteOwnedAsync(runId, ct);
         }
-
         finally
         {
             try
@@ -76,8 +75,7 @@ public sealed class SsMigrationExecutor(
             ? null
             : new NpgsqlConnectionStringBuilder(connectionString);
         var timeout =
-            builder is not null
-            && (builder.TryGetValue("Command Timeout", out _) || builder.TryGetValue("CommandTimeout", out _))
+            builder is not null && builder.ShouldSerialize("Command Timeout")
                 ? builder.CommandTimeout
                 : options.Value.CommandTimeoutSeconds;
         db.Database.SetCommandTimeout(timeout);

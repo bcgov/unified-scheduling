@@ -729,8 +729,7 @@ public sealed class SsRollbackService(UnifiedDbContext db, SsRollbackJournal cry
             ? null
             : new NpgsqlConnectionStringBuilder(connectionString);
         var timeout =
-            builder is not null
-            && (builder.TryGetValue("Command Timeout", out _) || builder.TryGetValue("CommandTimeout", out _))
+            builder is not null && builder.ShouldSerialize("Command Timeout")
                 ? builder.CommandTimeout
                 : configuration.GetValue(
                     $"{DataMigrationOptions.SectionName}:{nameof(DataMigrationOptions.CommandTimeoutSeconds)}",

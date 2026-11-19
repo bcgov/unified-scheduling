@@ -406,8 +406,7 @@ internal sealed class SsDryRunSimulation(
         await using var cmd = db.Database.GetDbConnection().CreateCommand();
         cmd.Transaction = db.Database.CurrentTransaction!.GetDbTransaction();
         cmd.CommandText = sql;
-        cmd.CommandTimeout =
-            db.Database.GetCommandTimeout() ?? DataMigrationOptions.DefaultCommandTimeoutSeconds;
+        cmd.CommandTimeout = db.Database.GetCommandTimeout() ?? DataMigrationOptions.DefaultCommandTimeoutSeconds;
         return (string)(await cmd.ExecuteScalarAsync(ct))!;
     }
 
@@ -416,8 +415,7 @@ internal sealed class SsDryRunSimulation(
         await using var cmd = db.Database.GetDbConnection().CreateCommand();
         cmd.Transaction = db.Database.CurrentTransaction!.GetDbTransaction();
         cmd.CommandText = sql;
-        cmd.CommandTimeout =
-            db.Database.GetCommandTimeout() ?? DataMigrationOptions.DefaultCommandTimeoutSeconds;
+        cmd.CommandTimeout = db.Database.GetCommandTimeout() ?? DataMigrationOptions.DefaultCommandTimeoutSeconds;
         await cmd.ExecuteNonQueryAsync(ct);
     }
 

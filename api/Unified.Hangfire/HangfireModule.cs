@@ -56,8 +56,7 @@ public static class HangfireModule
                     {
                         SchemaName = "hangfire",
                         QueuePollInterval = TimeSpan.FromSeconds(15),
-                        // Prevent long-running jobs from being redelivered while still executing.
-                        InvisibilityTimeout = TimeSpan.FromHours(24),
+                        // Keep long-running jobs alive without delaying recovery after a worker crash.
                         UseSlidingInvisibilityTimeout = true,
                         JobExpirationCheckInterval = TimeSpan.FromMinutes(30),
                         CountersAggregateInterval = TimeSpan.FromMinutes(5),
