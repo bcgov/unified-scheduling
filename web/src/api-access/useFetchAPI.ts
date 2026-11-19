@@ -116,12 +116,47 @@ const buildFetchError = (payload: unknown, fallback: unknown) => {
   return new Error(typeof fallback === 'string' && fallback ? fallback : 'Request failed.');
 };
 
+const getApplicationBasePath = () => {
+  const base = import.meta.env.BASE_URL || '/';
+  const withLeadingSlash = base.startsWith('/') ? base : `/${base}`;
+  return withLeadingSlash.endsWith('/') ? withLeadingSlash : `${withLeadingSlash}/`;
+};
+
+/**
+ * Resolve root-relative request URLs (e.g. `/api/config`) against the deployed application base
+ * (`import.meta.env.BASE_URL`) so requests stay under the public path prefix when served behind a
+ * reverse proxy (e.g. `/sheriff-scheduling/api/config`). Absolute and protocol-relative URLs, relative
+ * URLs, and URLs already carrying the base prefix are returned unchanged.
+ */
+export const resolveApiUrl = (url: string) => {
+  if (!url.startsWith('/') || url.startsWith('//')) {
+    return url;
+  }
+
+  const basePath = getApplicationBasePath();
+  if (basePath === '/' || url.startsWith(basePath) || url === basePath.slice(0, -1)) {
+    return url;
+  }
+
+  return `${basePath}${url.slice(1)}`;
+};
+
+/** Strip the application base prefix from a pathname so it can be compared against root-relative routes. */
+const stripApplicationBasePath = (pathname: string) => {
+  const basePath = getApplicationBasePath();
+  if (basePath === '/' || !pathname.startsWith(basePath)) {
+    return pathname;
+  }
+
+  return `/${pathname.slice(basePath.length)}`;
+};
+
 const redirectToLoginForUnauthorizedApiRequest = (requestUrl: string, status?: number) => {
   if (status !== 401 || authenticationRedirectInProgress) {
     return;
   }
 
-  const requestPath = new URL(requestUrl, window.location.origin).pathname;
+  const requestPath = stripApplicationBasePath(new URL(requestUrl, window.location.origin).pathname);
   const isApiRequest = requestPath === '/api' || requestPath.startsWith('/api/');
   const isAuthRequest = requestPath === '/api/auth' || requestPath.startsWith('/api/auth/');
   if (!isApiRequest || isAuthRequest) {
@@ -198,10 +233,12 @@ export const useFetchAPI = <T>(
       ? Object.fromEntries(Object.entries(headers ?? {}).filter(([key]) => key.toLowerCase() !== 'content-type'))
       : headers;
 
+  const resolvedUrl = resolveApiUrl(url);
+
   // Build reactive URL with query params
   const reactiveUrl = computed(() => {
     const queryString = buildQueryString(unref(params));
-    return `${url}${queryString}`;
+    return `${resolvedUrl}${queryString}`;
   });
 
   const request = fetchAPI<T>(
@@ -212,7 +249,7 @@ export const useFetchAPI = <T>(
       headers: resolvedHeaders,
       body: body as BodyInit,
     },
-    buildUseFetchOptions(url, options),
+    buildUseFetchOptions(resolvedUrl, options),
   );
 
   return request.text() as ReturnType<typeof request.json<T>>;

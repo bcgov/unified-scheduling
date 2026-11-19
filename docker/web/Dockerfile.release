@@ -1,5 +1,9 @@
 # Define ARG at the top level
 ARG NODE_VERSION=22
+# Deprecated / ignored: the web bundle is now built with a fixed placeholder base
+# (/__WEB_BASE_HREF__/) that is replaced at container start from the runtime
+# WEB_BASE_HREF env var (see vue-on-nginx/s2i/bin/fix-base-url). Kept so existing
+# `--build-arg WEB_BASE_HREF=...` invocations in CI continue to work.
 ARG WEB_BASE_HREF=/
 ARG NGINX_RUNTIME_SRC=./nginx-runtime
 ARG VUE_ON_NGINX_SRC=./vue-on-nginx
@@ -79,7 +83,11 @@ RUN npm ci ${NPM_INSTALL_ARGS} --ignore-scripts
 # Copy the rest of the code
 COPY ${WEB_SRC} .
 
-RUN npm run build 
+# Build with a fixed placeholder base path. The real base path differs per
+# tenant/environment (it depends on the public reverse-proxy prefix), so it is
+# substituted at container start by fix-base-url from the WEB_BASE_HREF env var.
+ENV WEB_BASE_HREF=/__WEB_BASE_HREF__/
+RUN npm run build
 
 ###################################################################################
 # 3. Build web image
@@ -87,17 +95,24 @@ RUN npm run build
 FROM runtime
 ARG VUE_ON_NGINX_SRC
 
-# Copy the build artifacts from the 'builder' image
-# to the distribution folder on the runtime image.
-COPY --from=artifacts /opt/app-root/src/dist/. /tmp/app/dist/
+# Copy the build artifacts (built with the /__WEB_BASE_HREF__/ placeholder base)
+# from the 'artifacts' image into an immutable template directory. At startup
+# fix-base-url regenerates the runtime-writable /tmp/app/dist from this template,
+# substituting the runtime WEB_BASE_HREF.
+COPY --from=artifacts /opt/app-root/src/dist/. /opt/app/dist-template/
 
 # # Ensure S2I script copied over is runnable.
 COPY ${VUE_ON_NGINX_SRC}/s2i/bin/fix-base-url /usr/libexec/s2i/fix-base-url
 
 # Fix permissions.
+# - Template is read-only for everyone (works for UID 104 and OpenShift random UID / gid 0).
+# - /tmp/app must be writable by UID 104 and gid 0 so /tmp/app/dist can be recreated at start.
 USER root
-RUN chmod 674 /usr/libexec/s2i/fix-base-url
-RUN chmod -R 674 /tmp/app/dist/
+RUN chmod 775 /usr/libexec/s2i/fix-base-url && \
+    chmod -R a+rX,go-w /opt/app/dist-template && \
+    mkdir -p /tmp/app && \
+    chown 104:0 /tmp/app && \
+    chmod 775 /tmp/app
 
 # From nginx-runtime.
 USER 104
@@ -106,4 +121,4 @@ USER 104
 # short circuit the s2i lifecycle.
 # The runtime image "loses" its s2i runtime voodoo when it 
 # is used in a dockerSrategy, which is why the explicit `CMD` is necessary
-CMD  /usr/libexec/s2i/fix-base-url
+CMD ["/usr/libexec/s2i/fix-base-url"]
