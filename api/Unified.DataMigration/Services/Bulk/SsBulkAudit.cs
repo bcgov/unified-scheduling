@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using NpgsqlTypes;
 using Unified.Db;
+using Unified.Db.Models.Abstract;
 using Unified.Db.Models.UserManagement;
 
 namespace Unified.DataMigration.Services.Bulk;
@@ -18,6 +19,16 @@ namespace Unified.DataMigration.Services.Bulk;
 internal sealed class SsBulkAudit(UnifiedDbContext db)
 {
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
+
+    /// <summary>
+    /// Columns <c>AuditableEntityInterceptor</c> stamps on modified rows. Audit.NET snapshots the change set
+    /// before EF runs save interceptors, so a stamped <c>UpdatedById</c> never appears in PerRow Modified
+    /// records (<c>UpdatedOn</c> is added back by <c>AuditRecordEntityAction</c> and stays included).
+    /// </summary>
+    private static readonly HashSet<string> InterceptorStampedColumns = new(StringComparer.Ordinal)
+    {
+        nameof(BaseEntity.UpdatedById),
+    };
 
     private sealed record Row(
         string Action,
@@ -63,7 +74,10 @@ internal sealed class SsBulkAudit(UnifiedDbContext db)
         )
             return;
         var columns = after
-            .AuditValues.Where(x => !ValueEquals(before.AuditValues.GetValueOrDefault(x.Key), x.Value))
+            .AuditValues.Where(x =>
+                !InterceptorStampedColumns.Contains(x.Key)
+                && !ValueEquals(before.AuditValues.GetValueOrDefault(x.Key), x.Value)
+            )
             .Select(x => x.Key)
             .ToList();
         // Every changed column excluded: keep the operation (actor, key) with no values, like Audit.NET.

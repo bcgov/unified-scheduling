@@ -46,6 +46,9 @@ Business-table `AuditRecords` are written by COPY with the same shape as Audit.N
 actor, and the column exclusions configured in `AuditRecord:ExcludedPropertyNames` (applied through
 `AuditPropertyExclusion`, like the live pipeline). A modified row whose changed columns are all excluded
 still gets a metadata-only `Modified` record (no old/new values or changed columns), matching Audit.NET.
+When the context has `AuditableEntityInterceptor` (production), Bulk stamps `CreatedById`/`UpdatedById` with
+the System user like background PerRow saves. Like Audit.NET, which snapshots changes before interceptors
+run, the stamped `UpdatedById` is left out of Modified audit columns.
 Migration ledger tables (`DataMigration*`) are not audited
 in Bulk mode.
 

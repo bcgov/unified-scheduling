@@ -105,6 +105,17 @@ public sealed class SsTrainingBulkPostgresTests : IAsyncLifetime
         await using (var db = Db(target))
         {
             await db.Database.MigrateAsync(ct);
+            // Production seeds the platform System user (PlatformSystemUserSeedData); background saves stamp it.
+            db.Users.Add(
+                new User
+                {
+                    Id = User.SystemUser,
+                    IdirName = "SYSTEM",
+                    IsEnabled = false,
+                    FirstName = "System",
+                    LastName = "System",
+                }
+            );
             db.TrainingProfileTypes.Add(
                 new TrainingProfileType
                 {
@@ -245,6 +256,21 @@ public sealed class SsTrainingBulkPostgresTests : IAsyncLifetime
                     Assert.Equal(
                         ["1073:TargetWriteFailed:DbUpdateException", "4001:TargetWriteFailed:DbUpdateException"],
                         failed.Order(StringComparer.Ordinal).ToArray()
+                    );
+                    // The interceptor path is live in both modes: migrated rows carry the System actor.
+                    Assert.True(
+                        await CountAsync(
+                            clone,
+                            $"""SELECT COUNT(*) FROM "UserTrainings" WHERE "CreatedById"='{User.SystemUser}'""",
+                            ct
+                        ) > 0
+                    );
+                    Assert.True(
+                        await CountAsync(
+                            clone,
+                            $"""SELECT COUNT(*) FROM "UserTrainings" WHERE "UpdatedById"='{User.SystemUser}'""",
+                            ct
+                        ) > 0
                     );
                     // 1001 astral characters (2002 UTF-16 units) fit varchar(2000) and migrate in both modes.
                     Assert.Equal(
@@ -711,8 +737,15 @@ public sealed class SsTrainingBulkPostgresTests : IAsyncLifetime
         /// <summary>Highest AuditRecords id after clone setup (MyTeam); later audits belong to Training runs.</summary>
         public long AuditFloor { get; set; }
 
+        // Production contexts stamp CreatedById/UpdatedById through AuditableEntityInterceptor (background
+        // saves resolve to the System user); include it so the Bulk stamping path is compared too.
         public UnifiedDbContext Db() =>
-            new(new DbContextOptionsBuilder<UnifiedDbContext>().UseNpgsql(connectionString).Options);
+            new(
+                new DbContextOptionsBuilder<UnifiedDbContext>()
+                    .UseNpgsql(connectionString)
+                    .AddInterceptors(new AuditableEntityInterceptor(new SystemActor()))
+                    .Options
+            );
     }
 
     private static UnifiedDbContext Db(string connectionString) =>
@@ -1219,13 +1252,15 @@ public sealed class SsTrainingBulkPostgresTests : IAsyncLifetime
                 SELECT "TableName","EntityType","Action","ChangedColumns","ActorUserId","ActorName",
                     (SELECT string_agg(k, ',' ORDER BY k) FROM jsonb_object_keys("NewValues") k),
                     (SELECT string_agg(k, ',' ORDER BY k) FROM jsonb_object_keys("OldValues") k)
-                    ,"EntityPK"
+                    ,"EntityPK",
+                    "NewValues"->>'CreatedById' IS NULL,"NewValues"->>'UpdatedById' IS NULL,
+                    "OldValues"->>'UpdatedById' IS NULL
                 FROM "AuditRecords"
                 WHERE "TableName" IN ('Trainings','TrainingCategories','TrainingMandatoryTrainingProfiles',
                     'UserTrainings','Users')
                 AND "Id" > {clone.AuditFloor}
                 """,
-                x => [.. x[..8], AuditKey((string)x[0]!, (string)x[8]!)]
+                x => [.. x[..8], AuditKey((string)x[0]!, (string)x[8]!), .. x[9..]]
             ),
         };
     }
