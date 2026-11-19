@@ -514,7 +514,7 @@ internal sealed class SsSchedulingSim : ISsSessionBackend, ISsSchedulingStore, I
             principalKeys[principal] = keys;
             // Migration ledger tables are fenced by the SS advisory lock and written by the run itself.
             if (!owner.GetTableName()!.StartsWith("DataMigration", StringComparison.Ordinal))
-                principalColumns.Add((owner.GetTableName()!, column));
+                principalColumns.Add((owner.GetTableName()!, column!));
         }
     }
 
@@ -1554,6 +1554,72 @@ internal sealed class SsSchedulingSim : ISsSessionBackend, ISsSchedulingStore, I
 
     // ------------------------------------------------------------------ chunk persistence
 
+    /// <summary>Upper bound for one chunk's lock acquisition before the chunk fails (the run stays resumable).</summary>
+    internal static TimeSpan LockWaitLimit { get; set; } = TimeSpan.FromMinutes(10);
+
+    /// <summary>
+    /// Takes the chunk's table locks without ever becoming a deadlock participant that PostgreSQL resolves by
+    /// aborting someone else. Read-only rule inputs are locked first (SHARE), then the written tables (SHARE
+    /// ROW EXCLUSIVE): the same order a concurrent Training chunk or an application transaction uses (users before
+    /// crosswalks / scheduling rows). Each attempt is bounded well below <c>deadlock_timeout</c> and then rolls
+    /// back to a savepoint, releasing every lock it took, so in any wait cycle this run backs off first.
+    /// </summary>
+    private async Task LockAsync(NpgsqlConnection connection, CancellationToken ct)
+    {
+        var sql =
+            "LOCK TABLE "
+            + string.Join(", ", ReadSetTables.Select(x => $"\"{x}\""))
+            + " IN SHARE MODE; LOCK TABLE "
+            + string.Join(", ", FencedTables.Where(x => x != "SubCategories").Select(x => $"\"{x}\""))
+            + ", \"DataMigrationMutations\" IN SHARE ROW EXCLUSIVE MODE";
+        var deadlockMs = (
+            await SsBulkStaging.QueryAsync(
+                connection,
+                "SELECT (extract(epoch FROM current_setting('deadlock_timeout')::interval) * 1000)::int",
+                reader => reader.GetInt32(0),
+                ct
+            )
+        ).Single();
+        // Two statements per attempt, each bounded by a quarter of deadlock_timeout.
+        var attemptMs = Math.Max(10, deadlockMs / 4);
+        var deadline = DateTimeOffset.UtcNow + LockWaitLimit;
+        for (var attempt = 0; ; attempt++)
+        {
+            await SsBulkStaging.ExecuteAsync(
+                connection,
+                $"SAVEPOINT ss_bulk_lock; SET LOCAL statement_timeout = {attemptMs}",
+                ct
+            );
+            try
+            {
+                await SsBulkStaging.ExecuteAsync(connection, sql, ct);
+                await SsBulkStaging.ExecuteAsync(
+                    connection,
+                    "SET LOCAL statement_timeout = DEFAULT; RELEASE SAVEPOINT ss_bulk_lock",
+                    ct
+                );
+                return;
+            }
+            catch (PostgresException error)
+                when (error.SqlState is PostgresErrorCodes.QueryCanceled or PostgresErrorCodes.LockNotAvailable
+                    && !ct.IsCancellationRequested
+                    && DateTimeOffset.UtcNow < deadline
+                )
+            {
+                // Rolling back to the savepoint releases the locks of this attempt and the timeout setting.
+                await SsBulkStaging.ExecuteAsync(
+                    connection,
+                    "ROLLBACK TO SAVEPOINT ss_bulk_lock; RELEASE SAVEPOINT ss_bulk_lock",
+                    ct
+                );
+                await Task.Delay(
+                    TimeSpan.FromMilliseconds(Random.Shared.Next(20, 100 + 20 * Math.Min(attempt, 20))),
+                    ct
+                );
+            }
+        }
+    }
+
     /// <summary>
     /// Persists every row saved since the previous flush, inside the open chunk transaction, and returns
     /// the chunk xid. Refuses (throws) when the modelled target changed outside this run since the
@@ -1563,15 +1629,7 @@ internal sealed class SsSchedulingSim : ISsSessionBackend, ISsSchedulingStore, I
     {
         if (savepoints.Count > 0)
             throw new InvalidOperationException("Bulk chunk flush inside an open unit.");
-        await SsBulkStaging.ExecuteAsync(
-            connection,
-            "LOCK TABLE "
-                + string.Join(", ", FencedTables.Where(x => x != "SubCategories").Select(x => $"\"{x}\""))
-                + ", \"DataMigrationMutations\" IN SHARE ROW EXCLUSIVE MODE; LOCK TABLE "
-                + string.Join(", ", ReadSetTables.Select(x => $"\"{x}\""))
-                + " IN SHARE MODE",
-            ct
-        );
+        await LockAsync(connection, ct);
         if (await DigestAsync(connection, ct) != expectedDigest)
             throw new SsBulkRefusal("TargetChangedDuringBulkRun");
         var xid = (

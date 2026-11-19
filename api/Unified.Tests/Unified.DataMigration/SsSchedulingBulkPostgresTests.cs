@@ -744,6 +744,97 @@ public sealed class SsSchedulingBulkPostgresTests : IAsyncLifetime
         await AssertNoTechnicalFailureAsync(moved, afterMoved, ct);
         await AssertNotRefusedAsync(moved, afterMoved, ct);
         await AssertNoDuplicatesOrOrphansAsync(moved, ct);
+
+        // Lock cycle: another transaction holds ROW EXCLUSIVE on Users (as a Training compose chunk does) and, once
+        // this run is waiting for its chunk locks, needs a scheduling table (as a crosswalk insert or an
+        // application write does). The bulk chunk must back off instead of PostgreSQL aborting either side.
+        var cycle = await CloneAsync(fixture, "sf_cycle", MigrationPersistenceMode.Bulk, ct, chunk: 3, batch: 3);
+        var holding = new TaskCompletionSource();
+        Task? other = null;
+        await using (var context = cycle.Db())
+        {
+            var accepted = await Operations(context, cycle.Options).TriggerAsync("SS", "Scheduling", false, actor, ct);
+            await using var worker = cycle.Db();
+            var writer = new SsSchedulingBulkWriter(worker, MsOptions.Create(AuditOptions))
+            {
+                AfterPreflightAsync = async token =>
+                {
+                    other = Task.Run(
+                        async () =>
+                        {
+                            await using var connection = new NpgsqlConnection(cycle.ConnectionString);
+                            await connection.OpenAsync(ct);
+                            await using var tx = await connection.BeginTransactionAsync(ct);
+                            await using (
+                                var update = new NpgsqlCommand(
+                                    "UPDATE \"Users\" SET \"UpdatedOn\" = \"UpdatedOn\" WHERE \"Id\" = (SELECT min(\"Id\"::text)::uuid FROM \"Users\")",
+                                    connection,
+                                    tx
+                                )
+                            )
+                                await update.ExecuteNonQueryAsync(ct);
+                            holding.SetResult();
+                            var waited = Stopwatch.StartNew();
+                            while (waited.Elapsed < TimeSpan.FromSeconds(30))
+                            {
+                                await using var probe = new NpgsqlCommand(
+                                    "SELECT count(*) FROM pg_locks WHERE NOT granted AND pid <> pg_backend_pid() AND database = (SELECT oid FROM pg_database WHERE datname = current_database())",
+                                    connection,
+                                    tx
+                                );
+                                if ((long)(await probe.ExecuteScalarAsync(ct))! > 0)
+                                    break;
+                                await Task.Delay(10, ct);
+                            }
+                            Assert.True(waited.Elapsed < TimeSpan.FromSeconds(30), "bulk chunk never waited");
+                            await using (
+                                var write = new NpgsqlCommand(
+                                    "LOCK TABLE \"ShiftEntries\" IN ROW EXCLUSIVE MODE",
+                                    connection,
+                                    tx
+                                )
+                            )
+                                await write.ExecuteNonQueryAsync(ct);
+                            await tx.CommitAsync(ct);
+                        },
+                        ct
+                    );
+                    await holding.Task.WaitAsync(token);
+                },
+            };
+            await Executor(worker, cycle.Options, writer).ExecuteAcquiredAsync(accepted.RunId, ct);
+            await other!;
+            await AssertNoTechnicalFailureAsync(cycle, accepted.RunId, ct);
+            await AssertNotRefusedAsync(cycle, accepted.RunId, ct);
+        }
+        await AssertNoDuplicatesOrOrphansAsync(cycle, ct);
+        AssertEquivalent(expected, await SnapshotAsync(cycle, true, ct), BusinessSections, "lock cycle");
+
+        // A Training run in progress refuses Bulk before any business write (they fence the same tables).
+        var training = await CloneAsync(fixture, "sf_training", MigrationPersistenceMode.Bulk, ct, chunk: 3, batch: 3);
+        var beforeTraining = await SnapshotAsync(training, true, ct);
+        await ExecuteAsync(
+            training.ConnectionString,
+            """
+            CREATE TEMP TABLE fake AS SELECT * FROM "DataMigrationRuns" WHERE "Job"='MyTeam' LIMIT 1;
+            UPDATE fake SET "Id"=gen_random_uuid(), "Job"='Training', "Status"='Running', "CompletedOn"=NULL;
+            INSERT INTO "DataMigrationRuns" SELECT * FROM fake;
+            """,
+            ct
+        );
+        var refusedTraining = await RunAsync(training, ct);
+        await using (var context = training.Db())
+        {
+            Assert.Equal(
+                "BulkRequiresPerRow:TrainingRunInProgress",
+                (
+                    await context
+                        .DataMigrationOutcomes.AsNoTracking()
+                        .SingleAsync(x => x.RunId == refusedTraining && x.EntityType == "SchedulingBulk", ct)
+                ).Reason
+            );
+        }
+        AssertEquivalent(beforeTraining, await SnapshotAsync(training, true, ct), BusinessSections, "training running");
     }
 
     [Fact(Skip = TemplatesSkipReason, SkipUnless = nameof(AreTemplatesConfigured))]

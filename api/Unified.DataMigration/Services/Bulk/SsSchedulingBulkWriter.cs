@@ -68,6 +68,16 @@ public sealed class SsSchedulingBulkWriter(UnifiedDbContext db, IOptions<AuditRe
             // findings cannot be reproduced against the uncommitted in-memory image.
             if (validatorsRegistered)
                 throw new SsBulkRefusal("SchedulingBusinessValidatorsRegistered");
+            // A Training run writes Users and crosswalks while Bulk fences those tables; run them one after the
+            // other (a Training run started later stops this run at its next chunk with TargetChangedDuringBulkRun).
+            var trainingRunning = await SsBulkStaging.QueryAsync(
+                SsBulkStaging.Connection(db),
+                "SELECT count(*)::int FROM \"DataMigrationRuns\" WHERE \"Source\"='SS' AND \"Job\"='Training' AND \"Status\"='Running'",
+                reader => reader.GetInt32(0),
+                ct
+            );
+            if (trainingRunning.Single() > 0)
+                throw new SsBulkRefusal("TrainingRunInProgress");
             string validated;
             using (var preflight = await SsSchedulingSim.LoadAsync(db, run, audit, ct))
             {

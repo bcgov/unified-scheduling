@@ -206,10 +206,15 @@ validated, so a refusal can never surface after earlier chunks committed. The re
 one transaction through `SsBulkChunkRunner`:
 
 1. Fence: the run is still `Running`, with no pause or abort for `SS` or `SS:Scheduling`.
-2. Lock the modelled tables (`SHARE ROW EXCLUSIVE`) and the read-only rule inputs (`SHARE`: `Users`, `StatCategories`,
-   `SubCategories`, `ShiftAssignmentSeriesLinks` and the principal tables referenced by foreign keys). Refuse with
-   `TargetChangedDuringBulkRun` if anything outside this run changed them since the snapshot or the previous
-   chunk (digest check). The read-only inputs are digested by content (user names and IDIR, stat-category groups,
+2. Lock the read-only rule inputs (`SHARE`: `Users`, `StatCategories`, `SubCategories`,
+   `ShiftAssignmentSeriesLinks` and the principal tables referenced by foreign keys), then the modelled tables,
+   `DataMigrationRecords` and `DataMigrationMutations` (`SHARE ROW EXCLUSIVE`). This is the order a Training
+   chunk or an application transaction uses (users before crosswalks or scheduling rows). Each attempt is bounded
+   below `deadlock_timeout` and then rolls back to a savepoint, releasing its locks, and retries after a short
+   back-off (up to 10 minutes; then the chunk fails and the run is resumable). In any lock wait cycle the Bulk
+   run therefore yields; PostgreSQL never aborts the other transaction. Refuse with `TargetChangedDuringBulkRun`
+   if anything outside this run changed them since the snapshot or the previous chunk (digest check). The
+   read-only inputs are digested by content (user names and IDIR, stat-category groups,
    series links, principal keys), so unrelated column updates elsewhere do not refuse the run. The `SHARE` locks
    block application writes to those tables only for the duration of each chunk transaction.
 3. Binary COPY of new rows: `CourtRooms`, `AssignmentDefinitions`, `EventSeries`, `Events`, `AssignmentSeries`,
@@ -231,6 +236,7 @@ Crosswalk uniqueness (`Source, EntityType, LegacyId`) is the idempotency fence. 
 | `GraphReplacement` | A changed or extended scheduling component requires deleting and rebinding an existing graph. This covers a source change to an existing shift and a new future duty joining an existing recurrence component. PerRow without a rollback journal rejects these as `GraphReplacementRequiresInverseJournal`, so Bulk refuses the whole run instead of reporting a different per-row outcome. |
 | `SchedulingBusinessValidatorsRegistered` | An `ISsMigrationBusinessValidator` is registered. Validators read the committed EF target inside the PerRow transaction, which the in-memory image cannot reproduce. |
 | `TargetChangedDuringBulkRun` | Someone wrote the modelled target tables during the run. |
+| `TrainingRunInProgress` | An SS Training run is `Running` when the Scheduling Bulk run starts. Both write `Users`/crosswalks; run them one after the other. A Training run started *during* a Scheduling Bulk run stops it at the next chunk with `TargetChangedDuringBulkRun` (committed chunks are complete; rerun Scheduling afterwards). |
 | `Delete:*`, `MutationUpdate`, `Unmodelled*`, `Unsupported*`, `NonUtcOffset`, � | Schema or rule paths the simulation does not model. These guard against future rule or schema changes. |
 
 **In short, Bulk is for loading new Scheduling rows and resuming.** It covers:
@@ -291,6 +297,11 @@ Scheduling-specific blockers (nothing is changed):
 - No rollback journal. Bulk runs are refused by `SsRollbackService` (`MissingOriginalRollbackJournal`); use
   `SsBulkUndo`.
 - `TEMP` privilege is required (see above).
+- **Quiet target required.** Each chunk transaction blocks application writes to the Scheduling tables (and
+  `SHARE`-locks users, stat categories and FK principal tables) for its duration, typically seconds. Any
+  application write to the modelled Scheduling tables during the run stops it with `TargetChangedDuringBulkRun`
+  (safe and resumable, but the remaining rows are not loaded). Run Scheduling Bulk in the cutover window with
+  application writes to scheduling paused; otherwise use PerRow.
 - `ISsMigrationBusinessValidator` is not registered in this pipeline. Both modes therefore record
   `SchedulingValidation: NeedsAction ActualSchedulingReadValidatorUnavailable`. Working-hours, conflict and
   publication validation is **not** performed by the migration in either mode. This remains a documented no-go
