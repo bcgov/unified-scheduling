@@ -230,6 +230,19 @@ public sealed class SsTrainingBulkPostgresTests : IAsyncLifetime
                         ["1073:TargetWriteFailed:DbUpdateException", "4001:TargetWriteFailed:DbUpdateException"],
                         failed.Order(StringComparer.Ordinal).ToArray()
                     );
+                    // 1001 astral characters (2002 UTF-16 units) fit varchar(2000) and migrate in both modes.
+                    Assert.Equal(
+                        1,
+                        await CountAsync(
+                            clone,
+                            """
+                            SELECT COUNT(*) FROM "UserTrainings" u JOIN "DataMigrationRecords" r
+                              ON r."TargetKey"=u."Id"::text AND r."EntityType"='SheriffTraining' AND r."LegacyId"='4002'
+                            WHERE char_length(u."Notes")=1001
+                            """,
+                            ct
+                        )
+                    );
                 }
             }
 
@@ -360,6 +373,13 @@ public sealed class SsTrainingBulkPostgresTests : IAsyncLifetime
                             Executor(duplicate, crash.Options).ExecuteAcquiredAsync(first.RunId, token)
                         );
                         Assert.Contains("execution owner", owner.Message);
+                        // Undo during an active chunk is refused before taking table locks (no lock wait or
+                        // deadlock with the chunk transaction).
+                        await using var undoContext = crash.Db();
+                        var undo = await new SsBulkUndo(undoContext)
+                            .UndoAsync(first.RunId, token)
+                            .WaitAsync(TimeSpan.FromSeconds(30), token);
+                        Assert.Equal(["SourceJobRunning"], undo.Blockers);
                         probed = true;
                     }
                     if (index == 2)
@@ -1324,7 +1344,10 @@ public sealed class SsTrainingBulkPostgresTests : IAsyncLifetime
                 "TrainingCertificationExpiry","FirstNotice","Comment","Note","Timezone","CreatedOn") VALUES
             (4001,'{U(
                 6
-            )}',100,'2024-07-01T16:00Z','2024-07-02T00:00Z',NULL,NULL,false,NULL,repeat('y', 2001),NULL,'2025-07-01Z');
+            )}',100,'2024-07-01T16:00Z','2024-07-02T00:00Z',NULL,NULL,false,NULL,repeat('y', 2001),NULL,'2025-07-01Z'),
+            (4002,'{U(
+                6
+            )}',113,'2024-07-03T16:00Z','2024-07-04T00:00Z',NULL,NULL,false,NULL,repeat(chr(128512), 1001),NULL,'2025-07-01Z');
             """;
 
     private static string RoundTwoSource() =>

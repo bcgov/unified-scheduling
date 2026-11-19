@@ -169,9 +169,15 @@ public sealed class SsTrainingBulkWriter(UnifiedDbContext db, IOptions<AuditReco
         /// </summary>
         private static void EnsureNotesFit(string? notes)
         {
-            if (notes?.Length > SsTrainingRules.UserTrainingNotesMaxLength)
+            if (NotesTooLong(notes))
                 throw new RowFailure(nameof(DbUpdateException));
         }
+
+        // PostgreSQL varchar(n) counts characters (code points), not UTF-16 code units.
+        private static bool NotesTooLong(string? notes) =>
+            notes is not null
+            && notes.Length > SsTrainingRules.UserTrainingNotesMaxLength
+            && notes.EnumerateRunes().Count() > SsTrainingRules.UserTrainingNotesMaxLength;
 
         // ---------------------------------------------------------------- courses (chunk 0)
 
@@ -968,7 +974,7 @@ public sealed class SsTrainingBulkWriter(UnifiedDbContext db, IOptions<AuditReco
             var newIds = await SsBulkStaging.AllocateIdsAsync(connection, "UserTrainings", inserts.Count, ct);
             for (var i = 0; i < inserts.Count; i++)
                 inserts[i].State.Id = (int)newIds[i];
-            if (writes.Any(x => x.Notes?.Length > SsTrainingRules.UserTrainingNotesMaxLength))
+            if (writes.Any(x => NotesTooLong(x.Notes)))
                 throw new InvalidOperationException("SS bulk training notes exceed the target column.");
             var actorParameter = new Func<NpgsqlParameter>(() =>
                 new NpgsqlParameter("actor", NpgsqlDbType.Uuid) { Value = (object?)actor ?? DBNull.Value }

@@ -49,8 +49,8 @@ in Bulk mode.
 
 Raw staging commands and COPY operations inherit the migration command timeout
 (`DataMigration:CommandTimeoutSeconds`, or the target connection string's `Command Timeout`), the same as EF
-commands. A mapped note that exceeds the 2000-character target column fails only that row
-(`TargetWriteFailed:DbUpdateException`, as PerRow does), not the chunk.
+commands. A mapped note that exceeds the 2000-character target column (counted in characters, like PostgreSQL
+`varchar`) fails only that row (`TargetWriteFailed:DbUpdateException`, as PerRow does), not the chunk.
 Save rules (`ISaveRule`) are not invoked. The only relevant rule, `TrainingProfileTypeExistsRule`, checks that a
 requirement's profile type exists. Bulk resolves that profile type from the target, and the foreign key enforces
 the same thing.
@@ -80,7 +80,8 @@ var result = await new SsBulkUndo(dbContext).UndoAsync(runId, ct);
 `SsBulkUndo` runs in one transaction under the migration advisory lock (`872,1`) with share-row-exclusive locks
 on the affected tables. It **refuses with blockers and changes nothing** when any of these apply:
 
-- another SS run is `Running`;
+- another SS run is `Running` (checked right after the advisory lock and before any table lock, so undo never
+  waits on an active chunk);
 - the run is not Training;
 - the run is a dry run, already rolled back, or still running;
 - the run has a journal, or its trigger evidence did not bind `PersistenceMode=Bulk`;

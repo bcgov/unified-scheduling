@@ -35,6 +35,20 @@ public sealed class SsBulkUndo(UnifiedDbContext db, IOptions<AuditRecordOptions>
             await using var tx = await db.Database.BeginTransactionAsync(ct);
             var connection = SsBulkStaging.Connection(db);
             await SsBulkStaging.ExecuteAsync(connection, "SELECT pg_advisory_xact_lock(872,1)", ct);
+            // Run acquisition also takes (872,1), so once it is held no new run can start. Refuse while a run is
+            // active *before* taking table locks: an active Bulk chunk locks these tables in a different order,
+            // and waiting on it here could deadlock and abort the migration.
+            var running = await SsBulkStaging.QueryAsync(
+                connection,
+                "SELECT EXISTS (SELECT 1 FROM \"DataMigrationRuns\" WHERE \"Source\"='SS' AND \"Status\"='Running')",
+                x => x.GetBoolean(0),
+                ct
+            );
+            if (running.Single())
+            {
+                await tx.RollbackAsync(ct);
+                return new(null, ["SourceJobRunning"]);
+            }
             foreach (
                 var table in new[]
                 {
