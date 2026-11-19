@@ -61,25 +61,28 @@ http {
     # ======================================================
     # Set variables for API proxy
     # ------------------------------------------------------
-    # Ensure the original scheme is forwarded correctly
-    map $http_x_forwarded_proto $proxy_scheme {
-        default $scheme;
-        https "https";
+    # Only use a configured public HTTPS authority from X-Forwarded-Server.
+    # The header is not proof of proxy provenance; unknown values fall back
+    # to the direct route's existing host, scheme, and port handling.
+    # Allow a 253-byte hostname plus an optional :443 port.
+    map_hash_bucket_size 512;
+    map $http_x_forwarded_server $approved_public_host {
+        default "";
+        %PUBLIC_HOST_RULES%
     }
-    # Ensure the original port is forwarded correctly
-    map $http_x_forwarded_port $proxy_port {
-        default $http_x_forwarded_port;
-        '' $server_port;
+    # Send the approved port separately for the API's URL builder.
+    map $approved_public_host $proxy_host {
+        default $approved_public_host;
+        "" $host;
+        ~^(?<approved_public_hostname>[^:]+):443$ $approved_public_hostname;
     }
-    # Ensure the original host is forwarded correctly:
-    # - When the application is hosted on OpenShift and sitting behind 
-    #   a second proxy layer such as a jag of justice proxy
-    #   X-Forwarded-Host gets overwritten with the Hostname defined by the route 
-    #   at the OpenShift layer.  X-Forwarded-Server contains the original Hostname
-    #   that needs to be passed along to the various application components.
-    map $http_x_forwarded_server $proxy_host {
-        default $http_x_forwarded_server;
-        '' $host;
+    map $approved_public_host $proxy_scheme {
+        default https;
+        "" $http_x_forwarded_proto;
+    }
+    map $approved_public_host $proxy_port {
+        default 443;
+        "" $http_x_forwarded_port;
     }
     # ======================================================
 
