@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { flushPromises, mount } from '@vue/test-utils';
+import { VImg } from 'vuetify/components';
 
 import { getGetApiUsersIdMockHandler, getGetApiUsersIdResponseMock } from '@/api-access/generated/users/users.msw';
 import UserProfile from '@/modules/myteam/views/UserProfile.vue';
@@ -7,6 +8,32 @@ import { server } from '../../mocks/server';
 import { createTestApp } from '../../helpers/createTestApp';
 
 describe('UserProfile', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('renders the prefixed photo URL with the encoded cache-busting timestamp', async () => {
+    vi.stubEnv('BASE_URL', '/sheriff-scheduling/');
+    const app = await createTestApp();
+    const user = getGetApiUsersIdResponseMock({
+      id: 'photo-user',
+      photoUrl: '/api/users/photo-user/photo',
+      lastPhotoUpdate: '2026-11-19T12:34:56+00:00',
+    });
+    server.use(getGetApiUsersIdMockHandler(user));
+
+    const wrapper = mount(UserProfile, {
+      props: { userId: 'photo-user' },
+      global: { plugins: app.mountPlugins },
+    });
+    await flushPromises();
+
+    expect(wrapper.findComponent(VImg).props('src')).toBe(
+      '/sheriff-scheduling/api/users/photo-user/photo?v=2026-11-19T12%3A34%3A56%2B00%3A00',
+    );
+    wrapper.unmount();
+  });
+
   it('fetches the user by prop userId and renders profile data with badge when feature flag is enabled', async () => {
     const app = await createTestApp({
       featureFlags: { UserManagement: { enabled: true, userBadgeNumber: { enabled: true } } },

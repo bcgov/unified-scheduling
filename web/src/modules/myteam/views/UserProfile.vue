@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { getApiUsersId } from '@/api-access/generated/users/users';
+import { resolveApiUrl } from '@/api-access/useFetchAPI';
 import { useAccessControl } from '@/composables/useAccessControl';
 import UaBtn from '@/shared/components/UaBtn.vue';
 import UaPageHeader from '@/shared/components/UaPageHeader.vue';
@@ -30,7 +31,7 @@ const showEditUserModal = ref(false);
 const photoSrc = computed(() => {
   if (!data.value?.photoUrl) return null;
   const bust = data.value.lastPhotoUpdate ?? data.value.id;
-  return `${data.value.photoUrl}?v=${encodeURIComponent(bust)}`;
+  return `${resolveApiUrl(data.value.photoUrl)}?v=${encodeURIComponent(bust)}`;
 });
 const avatarInitials = computed(() => `${data.value?.firstName?.[0] ?? ''}${data.value?.lastName?.[0] ?? ''}`);
 

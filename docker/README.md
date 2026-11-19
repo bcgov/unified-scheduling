@@ -141,6 +141,129 @@ For OpenShift, build the API with Docker strategy using `docker/api/Dockerfile.r
 ./manage rm
 ```
 
+## Optional production-prefix reproduction
+
+Use `http://localhost:3000/sheriff-scheduling/` to investigate photo requests through
+browser -> outer Nginx -> release web/Nginx -> existing development API -> existing
+database. The override's `proxy-repro` profile adds only `web-release` and `proxy`,
+using `unified-scheduling-dev`. Normal `./manage start` does not start these services;
+the Vite workflow remains at `http://localhost:8080/`.
+
+From the repository root, use your configured Docker development environment. Build
+development images with `./manage build` first if needed. Keep your normal Compose
+project name (default `unified-scheduling`) to reuse containers and database volumes:
+
+```bash
+cd docker
+./manage start -d
+./manage proxy pull web-release proxy
+./manage proxy up -d --no-deps web-release proxy
+```
+
+`./manage proxy` loads the usual development configuration and forwards its arguments
+to Docker Compose with both files and the `proxy-repro` profile. It requires a Compose
+version that supports profiles. Use normal Compose command/option syntax after `proxy`;
+set image overrides in the environment rather than adding `NAME=value` arguments.
+
+The normal stack must be running: `--no-deps` starts only the added services. The
+outer proxy is bound to `127.0.0.1:3000`; the release web app is also available
+directly at `http://localhost:9080/sheriff-scheduling/`, bound to `127.0.0.1:9080`.
+Use the proxy on port 3000 for login and reproduction so forwarded headers describe
+the browser's connection. Both containers still listen internally on port 8080.
+The normal application's `WEB_BASE_HREF` is unchanged.
+
+The proxy's expected login callback is now
+`http://localhost:3000/sheriff-scheduling/api/auth/signin-oidc`; the development
+Keycloak client must allow that exact URI. Existing redirect entries are retained.
+
+The default image is GitOps production's `ghcr.io/bcgov/unified-scheduling/web:1.3.4`
+(release `v1.3.4`, image tag without `v`); no release-web build is needed. Registry
+access, image availability, and the live deployment's digest are unverified. Resolve
+a failed pull before starting. Select another compatible image or deployed digest
+with `PROXY_WEB_IMAGE`, then repeat pull/start:
+
+```bash
+export PROXY_WEB_IMAGE='ghcr.io/bcgov/unified-scheduling/web:1.3.4'
+```
+
+The [v1.3.4 release runtime](https://github.com/bcgov/unified-scheduling/blob/v1.3.4/docker/vue-on-nginx/s2i/bin/fix-base-url)
+substitutes frontend base-path placeholders at startup. This checkout's `fix-base-url`
+only starts Nginx; its release Dockerfile does not apply `WEB_BASE_HREF` to Vite.
+Local builds from this checkout are therefore unsupported substitutes. Alternative
+images must support runtime base substitution; record their version/digest and
+distinguish results from production `1.3.4`. The API always remains this checkout's
+development API.
+
+Production settings verified from `tenant-gitops-cb6495/services/unified-scheduling/`
+are `WEB_BASE_HREF=/sheriff-scheduling/`, `API_PATH=/api/`,
+`API_URL=http://unified-scheduling-api:8080/api/`, and
+`API_SERVICE_NAME=unified-scheduling-api`. Locally the API is `http://api:5000/api/`,
+without Kubernetes discovery. The production web service uses port 8080; its route
+is `sheriff-unified-web-cb6495-prod.apps.emerald.devops.gov.bc.ca`, with edge TLS and
+HTTP-to-HTTPS redirection.
+
+The outer proxy preserves the prefix. The existing release runtime removes it,
+routes `/api`, sends `X-Base-Href: /sheriff-scheduling/`, and rewrites cookie paths
+from `/api/auth` to `/sheriff-scheduling/api/auth`. All paths outside the prefix,
+including `/api/*` and `/`, receive an outer 404 without forwarding or SPA fallback.
+
+GitOps configures `PUBLIC_HOST_ALLOWLIST` with `jag.gov.bc.ca` and the production
+route hostname. In the [v1.3.4 Nginx configuration](https://github.com/bcgov/unified-scheduling/blob/v1.3.4/docker/nginx-runtime/nginx.conf.template),
+approved `X-Forwarded-Server` values select HTTPS/443; otherwise the runtime uses the
+request host and forwarded protocol/port. Locally the allowlist is empty and that
+header is cleared. The proxy forwards the browser host, `X-Real-IP`,
+`X-Forwarded-For`, `X-Forwarded-Host`, `X-Forwarded-Proto: http`, and port `3000`.
+
+The outer proxy matches the release runtime's bounded header buffers: incoming
+headers use `large_client_header_buffers 4 32k`, and upstream responses use
+`proxy_buffer_size 128k`, `proxy_buffers 4 256k`, and `proxy_busy_buffers_size 256k`.
+This prevents large response headers, such as renewed session cookies, from causing
+an outer-proxy 502 (`upstream sent too big header`) after the API returns 200.
+
+External justice proxy rewrite rules, headers, and cookie handling are absent from
+GitOps. Trusted-proxy IP settings are secret references and were not read. TLS,
+SiteMinder, public-host mapping, and trusted client-IP behavior are not reproduced.
+Production's rejection behavior and incident cause remain unproven. All `.env*`
+files, including `docker/.env.template`, were left unread under project instructions.
+
+Inspect the generated runtime, assets, and logs with:
+
+```bash
+./manage proxy exec web-release cat /etc/nginx/nginx.conf
+./manage proxy exec web-release cat /tmp/app/dist/index.html
+./manage proxy exec web-release sh -c 'if grep -rlF /__WEB_BASE_HREF__/ /tmp/app/dist; then echo "ERROR: unresolved frontend base placeholder"; exit 1; fi'
+./manage proxy logs -f proxy web-release api
+```
+
+Manual validation for the developer (no builds, startup, or validation were run):
+
+1. Load `/sheriff-scheduling/` and reload a nested route. Confirm JS, CSS, dynamic
+   imports, and images load under the prefix, with no unresolved base placeholder.
+2. Confirm `/` and `/api/users/{id}/photo` return 404 with `upstream_status=-` and
+   `upstream_addr=-` in outer logs, proving no forwarding.
+3. Confirm `/sheriff-scheduling/api/users/{id}/photo` reaches the API using logs;
+   authorization and missing-photo responses are valid routing outcomes.
+4. Upload a valid small photo through a user profile. Inspect the POST to
+   `/sheriff-scheduling/api/users/{id}/upload-photo` and subsequent image GET in
+   browser Network. Record whether upload succeeds but the GET uses `/api/...`
+   and is rejected by the outer proxy. Preserve existing photo behavior.
+5. If the local auth flow sets a cookie, inspect its Path for
+   `/sheriff-scheduling/api/auth` and redirects for HTTP/localhost:3000. Record
+   unexpected authentication behavior without changing auth configuration.
+6. Confirm the normal `http://localhost:8080/` development workflow still works.
+
+Stop and optionally remove only the added containers, retaining the normal stack
+and all database volumes:
+
+```bash
+./manage proxy stop proxy web-release
+./manage proxy rm -f proxy web-release
+```
+
+Continue normal development at `http://localhost:8080/`; repeat the optional start
+commands to resume reproduction. Use the commands above instead of `./manage down`
+or `./manage rm`, which delete project volumes.
+
 # Dev Container
 
 The VS Code devcontainer starts through `.devcontainer/docker-compose.yaml`. Docker Compose creates the
