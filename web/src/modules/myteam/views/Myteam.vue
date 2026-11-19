@@ -4,7 +4,7 @@ import { getApiUsers } from '@/api-access/generated/users/users';
 import UaBtn from '@/shared/components/UaBtn.vue';
 import UaPageHeader from '@/shared/components/UaPageHeader.vue';
 import UaTextField from '@/shared/components/UaTextField.vue';
-import { mdiMagnify, mdiPlus } from '@mdi/js';
+import { mdiPlus } from '@mdi/js';
 import { computed, ref, watch } from 'vue';
 import UserCard from '../components/UserCard.vue';
 import UserFormModal from '../components/UserFormModal.vue';
@@ -90,7 +90,6 @@ const handleCreateModalClose = () => {
         hide-details="auto"
         v-model="searchText"
         class="my-team-search-input"
-        :prepend-inner-icon="mdiMagnify"
         clearable
         density="comfortable"
         variant="outlined"
