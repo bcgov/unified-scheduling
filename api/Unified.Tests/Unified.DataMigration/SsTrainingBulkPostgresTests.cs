@@ -191,7 +191,7 @@ public sealed class SsTrainingBulkPostgresTests : IAsyncLifetime
         var bulk = await CloneAsync("b", MigrationPersistenceMode.Bulk, ct);
 
         var timings = new List<string>();
-        for (var round = 1; round <= 3; round++)
+        for (var round = 1; round <= 4; round++)
         {
             if (round == 2)
             {
@@ -199,6 +199,8 @@ public sealed class SsTrainingBulkPostgresTests : IAsyncLifetime
                 foreach (var clone in new[] { perRow, bulk })
                     await EditTargetsAsync(clone, ct);
             }
+            if (round == 4)
+                await ExecuteAsync(sourceConnection, RoundFourSource(), ct);
             var watch = Stopwatch.StartNew();
             var perRowRun = await RunAsync(perRow, "Training", ct);
             var perRowElapsed = watch.Elapsed;
@@ -207,8 +209,29 @@ public sealed class SsTrainingBulkPostgresTests : IAsyncLifetime
             timings.Add(
                 $"round {round}: PerRow {perRowElapsed.TotalMilliseconds:F0} ms, Bulk {watch.ElapsedMilliseconds} ms"
             );
-            await AssertCleanAsync(perRow, perRowRun, ct);
-            await AssertCleanAsync(bulk, bulkRun, ct);
+            if (round < 4)
+            {
+                await AssertCleanAsync(perRow, perRowRun, ct);
+                await AssertCleanAsync(bulk, bulkRun, ct);
+            }
+            else
+            {
+                // Oversized mapped notes fail only their own row (PerRow: failed save rolled back to the
+                // row savepoint), never the whole Bulk chunk.
+                foreach (var (clone, id) in new[] { (perRow, perRowRun), (bulk, bulkRun) })
+                {
+                    await using var check = clone.Db();
+                    var failed = await check
+                        .DataMigrationOutcomes.AsNoTracking()
+                        .Where(x => x.RunId == id && x.Outcome == "Failed")
+                        .Select(x => x.LegacyId + ":" + x.Reason)
+                        .ToListAsync(ct);
+                    Assert.Equal(
+                        ["1073:TargetWriteFailed:DbUpdateException", "4001:TargetWriteFailed:DbUpdateException"],
+                        failed.Order(StringComparer.Ordinal).ToArray()
+                    );
+                }
+            }
 
             var expected = await SnapshotAsync(perRow, false, ct);
             var actual = await SnapshotAsync(bulk, false, ct);
@@ -535,6 +558,39 @@ public sealed class SsTrainingBulkPostgresTests : IAsyncLifetime
             var run = await context.DataMigrationRuns.AsNoTracking().SingleAsync(x => x.Id == reapplied, ct);
             Assert.True(run.InsertedCount > 0);
         }
+
+        // Receipt-less rows the run created (categories, carbine requirements) are xmin-checked: a later
+        // edit to either blocks undo and nothing changes.
+        var started = $"(SELECT \"StartedOn\" FROM \"DataMigrationRuns\" WHERE \"Id\"='{reapplied}')";
+        Assert.True(
+            await CountAsync(clone, $"SELECT COUNT(*) FROM \"TrainingCategories\" WHERE \"CreatedOn\"={started}", ct)
+                > 0
+        );
+        Assert.True(
+            await CountAsync(
+                clone,
+                $"SELECT COUNT(*) FROM \"TrainingMandatoryTrainingProfiles\" WHERE \"CreatedOn\"={started}",
+                ct
+            ) > 0
+        );
+        await ExecuteAsync(
+            clone.ConnectionString,
+            $"""
+            UPDATE "TrainingCategories" SET "Description"='edited in Unified', "UpdatedOn"=now()
+            WHERE "CreatedOn"={started};
+            UPDATE "TrainingMandatoryTrainingProfiles" SET "UpdatedOn"=now() WHERE "CreatedOn"={started};
+            """,
+            ct
+        );
+        var edited = await SnapshotAsync(clone, true, ct);
+        await using (var context = clone.Db())
+        {
+            var blocked = await new SsBulkUndo(context).UndoAsync(reapplied, ct);
+            Assert.Null(blocked.ReceiptRunId);
+            Assert.Contains("CreatedCategoryChanged", blocked.Blockers);
+            Assert.Contains("CreatedCourseRequirementsChanged", blocked.Blockers);
+        }
+        AssertEquivalent(edited, await SnapshotAsync(clone, true, ct), BusinessSections, "blocked undo");
     }
 
     // Benchmark (opt-in): UNIFIED_MIGRATION_BULK_BENCHMARK_HISTORIES=<n> extra synthetic histories.
@@ -1259,6 +1315,17 @@ public sealed class SsTrainingBulkPostgresTests : IAsyncLifetime
             INSERT INTO "SheriffStandardTraining" ("Id","TrainingTypeId","CreatedOn") VALUES (1,100,'2024-01-01Z');
             """;
     }
+
+    private static string RoundFourSource() =>
+        $"""
+            ALTER TABLE "SheriffTraining" ALTER COLUMN "Note" TYPE text;
+            UPDATE "SheriffTraining" SET "Note"=repeat('x', 2001), "UpdatedOn"='2025-07-01Z' WHERE "Id"=1073;
+            INSERT INTO "SheriffTraining" ("Id","SheriffId","TrainingTypeId","StartDate","EndDate","ExpiryDate",
+                "TrainingCertificationExpiry","FirstNotice","Comment","Note","Timezone","CreatedOn") VALUES
+            (4001,'{U(
+                6
+            )}',100,'2024-07-01T16:00Z','2024-07-02T00:00Z',NULL,NULL,false,NULL,repeat('y', 2001),NULL,'2025-07-01Z');
+            """;
 
     private static string RoundTwoSource() =>
         $"""

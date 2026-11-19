@@ -34,7 +34,7 @@ internal sealed class SsBulkChunkRunner(
         {
             await fence(ct);
             db.ChangeTracker.Clear();
-            await body((NpgsqlConnection)db.Database.GetDbConnection(), ct);
+            await body(SsBulkStaging.Connection(db), ct);
             db.ChangeTracker.Clear();
             await fence(ct);
             await ledger.FlushAsync(final, ct);

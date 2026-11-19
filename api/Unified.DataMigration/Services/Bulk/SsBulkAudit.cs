@@ -82,11 +82,12 @@ internal sealed class SsBulkAudit(UnifiedDbContext db)
     {
         if (rows.Count == 0)
             return;
-        var connection = (NpgsqlConnection)db.Database.GetDbConnection();
+        var connection = SsBulkStaging.Connection(db);
         var now = DateTimeOffset.UtcNow;
         var correlation = Activity.Current?.TraceId.ToString();
         await using (
-            var importer = await connection.BeginBinaryImportAsync(
+            var importer = await SsBulkStaging.ImportAsync(
+                connection,
                 """
                 COPY "AuditRecords" ("OccurredOn","ActorUserId","ActorName","Action","EntityType","EntityPK",
                 "TableName","OldValues","NewValues","ChangedColumns","CorrelationId") FROM STDIN (FORMAT BINARY)

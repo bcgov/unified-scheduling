@@ -1,6 +1,9 @@
+using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
+using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using NpgsqlTypes;
+using Unified.DataMigration.Options;
 
 namespace Unified.DataMigration.Services.Bulk;
 
@@ -19,6 +22,45 @@ internal static partial class SsBulkStaging
     [GeneratedRegex("^[a-z_][a-z0-9_]{0,62}$")]
     private static partial Regex SafeName();
 
+    private static readonly ConditionalWeakTable<NpgsqlConnection, StrongBox<int>> Timeouts = new();
+
+    /// <summary>
+    /// Returns the context's Npgsql connection and binds the context command timeout to it so raw
+    /// commands and COPY operations issued by the bulk helpers inherit the migration timeout
+    /// instead of Npgsql's connection-string default.
+    /// </summary>
+    internal static NpgsqlConnection Connection(DbContext db)
+    {
+        var connection = (NpgsqlConnection)db.Database.GetDbConnection();
+        var seconds = db.Database.GetCommandTimeout() ?? DataMigrationOptions.DefaultCommandTimeoutSeconds;
+        Timeouts.AddOrUpdate(connection, new StrongBox<int>(seconds));
+        return connection;
+    }
+
+    /// <summary>Command timeout (seconds) bound to <paramref name="connection"/> via <see cref="Connection"/>.</summary>
+    internal static int? CommandTimeout(NpgsqlConnection connection) =>
+        Timeouts.TryGetValue(connection, out var box) ? box.Value : null;
+
+    internal static NpgsqlCommand Command(NpgsqlConnection connection, string sql)
+    {
+        var command = new NpgsqlCommand(sql, connection);
+        if (CommandTimeout(connection) is { } seconds)
+            command.CommandTimeout = seconds;
+        return command;
+    }
+
+    internal static async Task<NpgsqlBinaryImporter> ImportAsync(
+        NpgsqlConnection connection,
+        string copy,
+        CancellationToken ct
+    )
+    {
+        var importer = await connection.BeginBinaryImportAsync(copy, ct);
+        if (CommandTimeout(connection) is { } seconds)
+            importer.Timeout = TimeSpan.FromSeconds(seconds);
+        return importer;
+    }
+
     internal static async Task CreateAsync<T>(
         NpgsqlConnection connection,
         string table,
@@ -30,9 +72,9 @@ internal static partial class SsBulkStaging
         foreach (var column in columns)
             Guard(column.Name);
         var definition = string.Join(", ", columns.Select(x => $"{x.Name} {x.SqlType}"));
-        await using var command = new NpgsqlCommand(
-            $"DROP TABLE IF EXISTS pg_temp.{table}; CREATE TEMP TABLE {table} ({definition}) ON COMMIT DROP",
-            connection
+        await using var command = Command(
+            connection,
+            $"DROP TABLE IF EXISTS pg_temp.{table}; CREATE TEMP TABLE {table} ({definition}) ON COMMIT DROP"
         );
         await command.ExecuteNonQueryAsync(ct);
     }
@@ -47,7 +89,8 @@ internal static partial class SsBulkStaging
     )
     {
         await CreateAsync(connection, table, columns, ct);
-        await using var importer = await connection.BeginBinaryImportAsync(
+        await using var importer = await ImportAsync(
+            connection,
             $"COPY {table} ({string.Join(", ", columns.Select(x => x.Name))}) FROM STDIN (FORMAT BINARY)",
             ct
         );
@@ -73,7 +116,7 @@ internal static partial class SsBulkStaging
         params NpgsqlParameter[] parameters
     )
     {
-        await using var command = new NpgsqlCommand(sql, connection);
+        await using var command = Command(connection, sql);
         command.Parameters.AddRange(parameters);
         return await command.ExecuteNonQueryAsync(ct);
     }
@@ -86,7 +129,7 @@ internal static partial class SsBulkStaging
         params NpgsqlParameter[] parameters
     )
     {
-        await using var command = new NpgsqlCommand(sql, connection);
+        await using var command = Command(connection, sql);
         command.Parameters.AddRange(parameters);
         await using var reader = await command.ExecuteReaderAsync(ct);
         var result = new List<TResult>();

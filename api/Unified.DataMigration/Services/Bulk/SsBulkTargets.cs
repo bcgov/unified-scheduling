@@ -1,10 +1,11 @@
 using System.Globalization;
-using System.Reflection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Npgsql;
+using Unified.Audit;
+using Unified.Audit.Options;
 using Unified.Db;
 using Unified.Db.Models.UserManagement;
 
@@ -109,17 +110,16 @@ internal static class SsBulkTargets
         "RecurrenceRule",
     };
 
-    // Default Unified.Audit exclusions (AuditRecordOptions.ExcludedPropertyNames); byte[] and
-    // [AuditIgnore] properties are excluded as in AuditPropertyExclusion.
-    private static readonly string[] AuditExcludedNames = ["xmin", "ConcurrencyToken", "IdirId", "KeyCloakId"];
-
     /// <summary>
     /// Loads <paramref name="keys"/> of <typeparamref name="TEntity"/> and returns their post-images.
+    /// Audited column values honour the configured <see cref="AuditRecordOptions"/> through
+    /// <see cref="AuditPropertyExclusion"/>, exactly like the live Audit.NET pipeline.
     /// Uses a short-lived tracking query and clears the change tracker afterwards.
     /// </summary>
     internal static async Task<Dictionary<string, SsBulkTargetImage>> ImagesAsync<TEntity, TKey>(
         UnifiedDbContext db,
         IReadOnlyCollection<TKey> keys,
+        AuditRecordOptions auditOptions,
         CancellationToken ct
     )
         where TEntity : class
@@ -149,7 +149,7 @@ internal static class SsBulkTargets
                 var audit = new Dictionary<string, object?>(StringComparer.Ordinal);
                 var table = StoreObjectIdentifier.Table(metadata.GetTableName()!, metadata.GetSchema());
                 foreach (var property in entry.Properties)
-                    if (!AuditExcluded(property.Metadata))
+                    if (!AuditPropertyExclusion.ShouldExclude(property.Metadata, auditOptions))
                         audit[property.Metadata.GetColumnName(table) ?? property.Metadata.Name] = property.CurrentValue;
                 result[key] = new(
                     key,
@@ -177,7 +177,7 @@ internal static class SsBulkTargets
             return result;
         var pk = metadata.FindPrimaryKey()!.Properties.Single();
         var table = $"\"{metadata.GetSchema() ?? "public"}\".\"{metadata.GetTableName()}\"";
-        var connection = (NpgsqlConnection)db.Database.GetDbConnection();
+        var connection = SsBulkStaging.Connection(db);
         var array =
             pk.ClrType == typeof(Guid)
                 ? (object)
@@ -211,11 +211,6 @@ internal static class SsBulkTargets
 
     internal static bool AuditEnabled(UnifiedDbContext db) =>
         !global::Audit.Core.Configuration.AuditDisabled && !db.AuditDisabled;
-
-    private static bool AuditExcluded(IProperty property) =>
-        property.ClrType == typeof(byte[])
-        || property.PropertyInfo?.GetCustomAttribute<global::Audit.EntityFramework.AuditIgnoreAttribute>() is not null
-        || AuditExcludedNames.Any(x => string.Equals(x, property.Name, StringComparison.OrdinalIgnoreCase));
 
     private static void Guard(IEntityType metadata)
     {

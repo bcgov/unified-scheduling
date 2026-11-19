@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Npgsql;
+using Unified.Audit.Options;
 using Unified.Db;
 using Unified.Db.Models.DataMigration;
 using Unified.Db.Models.UserManagement;
@@ -16,8 +18,11 @@ namespace Unified.DataMigration.Services.Bulk;
 /// is refused with blockers and nothing is changed. Run outcomes, work items and checkpoints are kept as
 /// evidence. <c>Users.UpdatedOn/UpdatedById</c> of composed users cannot be restored (no before-image).
 /// </summary>
-public sealed class SsBulkUndo(UnifiedDbContext db)
+public sealed class SsBulkUndo(UnifiedDbContext db, IOptions<AuditRecordOptions>? auditOptionsAccessor = null)
 {
+    private readonly IOptions<AuditRecordOptions> auditOptions =
+        auditOptionsAccessor ?? Microsoft.Extensions.Options.Options.Create(new AuditRecordOptions());
+
     private static readonly string[] AllowedOperations = ["Insert", "Link", "Compose"];
 
     public sealed record Result(Guid? ReceiptRunId, IReadOnlyList<string> Blockers);
@@ -28,7 +33,7 @@ public sealed class SsBulkUndo(UnifiedDbContext db)
         try
         {
             await using var tx = await db.Database.BeginTransactionAsync(ct);
-            var connection = (NpgsqlConnection)db.Database.GetDbConnection();
+            var connection = SsBulkStaging.Connection(db);
             await SsBulkStaging.ExecuteAsync(connection, "SELECT pg_advisory_xact_lock(872,1)", ct);
             foreach (
                 var table in new[]
@@ -193,6 +198,43 @@ public sealed class SsBulkUndo(UnifiedDbContext db)
             );
             if (foreign.Single() > 0)
                 blockers.Add("CreatedCourseHasLaterDependents");
+            // Categories and carbine requirements carry no receipt. The run inserts them in the same chunk
+            // transaction as its courses, so their xmin equals the course receipts' version; any other xmin
+            // means the row was added or edited after the run and must not be deleted blindly.
+            var courseVersions = trainings.Select(x => x.Version).OfType<string>().Distinct().ToArray();
+            var changedRequirements = await SsBulkStaging.QueryAsync(
+                connection,
+                """
+                SELECT count(*) FROM "TrainingMandatoryTrainingProfiles"
+                WHERE "TrainingId" = ANY(@trainings) AND NOT (xmin::text = ANY(@versions))
+                """,
+                x => x.GetInt64(0),
+                ct,
+                new NpgsqlParameter("trainings", trainingIds),
+                new NpgsqlParameter("versions", courseVersions)
+            );
+            if (changedRequirements.Single() > 0)
+                blockers.Add("CreatedCourseRequirementsChanged");
+            var categories = await SsBulkStaging.QueryAsync(
+                connection,
+                """
+                SELECT c."Id", c.xmin::text = ANY(@versions) AND c."UpdatedOn" IS NULL AS unchanged,
+                  EXISTS (SELECT 1 FROM "Trainings" o WHERE o."TrainingCategoryId"=c."Id"
+                    AND NOT (o."Id" = ANY(@trainings))) AS shared
+                FROM "TrainingCategories" c
+                WHERE c."CreatedOn"=@started
+                  AND c."Id" IN (SELECT t."TrainingCategoryId" FROM "Trainings" t WHERE t."Id" = ANY(@trainings))
+                """,
+                x => (Id: x.GetInt32(0), Unchanged: x.GetBoolean(1), Shared: x.GetBoolean(2)),
+                ct,
+                new NpgsqlParameter("trainings", trainingIds),
+                new NpgsqlParameter("versions", courseVersions),
+                new NpgsqlParameter("started", run.StartedOn!.Value)
+            );
+            if (categories.Any(x => !x.Unchanged))
+                blockers.Add("CreatedCategoryChanged");
+            if (categories.Any(x => x.Shared))
+                blockers.Add("CreatedCategoryHasLaterDependents");
             if (blockers.Count > 0)
             {
                 await tx.RollbackAsync(ct);
@@ -224,16 +266,13 @@ public sealed class SsBulkUndo(UnifiedDbContext db)
                 ct,
                 new NpgsqlParameter("ids", trainingIds)
             );
-            // Categories carry no receipt; the run stamps CreatedOn with its StartedOn, so only
-            // now-unreferenced categories created at exactly that instant are removed.
-            var categories = await SsBulkStaging.ExecuteAsync(
+            // Only categories this run created (verified unchanged and unshared above) are removed.
+            var categoryIds = categories.Select(x => x.Id).ToArray();
+            await SsBulkStaging.ExecuteAsync(
                 connection,
-                """
-                DELETE FROM "TrainingCategories" c WHERE c."CreatedOn"=@started
-                AND NOT EXISTS (SELECT 1 FROM "Trainings" t WHERE t."TrainingCategoryId"=c."Id")
-                """,
+                "DELETE FROM \"TrainingCategories\" WHERE \"Id\" = ANY(@ids)",
                 ct,
-                new NpgsqlParameter("started", run.StartedOn!.Value)
+                new NpgsqlParameter("ids", categoryIds)
             );
             await SsBulkStaging.ExecuteAsync(
                 connection,
@@ -265,7 +304,7 @@ public sealed class SsBulkUndo(UnifiedDbContext db)
             await db.SaveChangesAsync(ct);
             // Clearing a composed profile changes xmin. Refresh the MyTeam User receipts at the restored
             // version, but only when the mapped fingerprint still equals the receipt (no unrelated edit).
-            var images = await SsBulkTargets.ImagesAsync<User, Guid>(db, composedUsers, ct);
+            var images = await SsBulkTargets.ImagesAsync<User, Guid>(db, composedUsers, auditOptions.Value, ct);
             var userRecords = await db
                 .DataMigrationRecords.AsNoTracking()
                 .Where(x => x.Source == "SS" && x.TargetType == "User")
@@ -291,7 +330,7 @@ public sealed class SsBulkUndo(UnifiedDbContext db)
                     Outcome = "Migrated",
                     Reason =
                         $"BulkCrosswalkUndo:Histories={historyIds.Length}:Courses={trainingIds.Length}"
-                        + $":Categories={categories}:Composed={composedUsers.Length}:Records={linkedRecords.Length}",
+                        + $":Categories={categoryIds.Length}:Composed={composedUsers.Length}:Records={linkedRecords.Length}",
                 }
             );
             await db.SaveChangesAsync(ct);

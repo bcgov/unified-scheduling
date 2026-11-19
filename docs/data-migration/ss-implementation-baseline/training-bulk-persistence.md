@@ -43,7 +43,14 @@ same reasons and evidence tables as PerRow. A failure inside a chunk rolls back 
 ledger changes; earlier chunks stay committed and the next approved run resumes from the crosswalk.
 
 Business-table `AuditRecords` are written by COPY with the same shape as Audit.NET: Added/Modified, the System
-actor, and the same column exclusions. Migration ledger tables (`DataMigration*`) are not audited in Bulk mode.
+actor, and the column exclusions configured in `AuditRecord:ExcludedPropertyNames` (applied through
+`AuditPropertyExclusion`, like the live pipeline). Migration ledger tables (`DataMigration*`) are not audited
+in Bulk mode.
+
+Raw staging commands and COPY operations inherit the migration command timeout
+(`DataMigration:CommandTimeoutSeconds`, or the target connection string's `Command Timeout`), the same as EF
+commands. A mapped note that exceeds the 2000-character target column fails only that row
+(`TargetWriteFailed:DbUpdateException`, as PerRow does), not the chunk.
 Save rules (`ISaveRule`) are not invoked. The only relevant rule, `TrainingProfileTypeExistsRule`, checks that a
 requirement's profile type exists. Bulk resolves that profile type from the target, and the foreign key enforces
 the same thing.
@@ -81,13 +88,21 @@ on the affected tables. It **refuses with blockers and changes nothing** when an
 - the run recorded anything other than `Insert`/`Link`/`Compose` receipts;
 - it updated pre-existing crosswalks;
 - any inserted or composed target changed since the run (its `xmin` differs from the receipt version);
-- another history references a course the run created.
+- another history references a course the run created;
+- a profile requirement on a run-created course was added or edited after the run
+  (`CreatedCourseRequirementsChanged`);
+- a category the run created was edited after the run (`CreatedCategoryChanged`) or is now used by another
+  course (`CreatedCategoryHasLaterDependents`).
+
+Categories and requirements carry no receipt. The run inserts them in the same chunk transaction as its
+courses, so a row is treated as run-created and unchanged only when its `xmin` equals the course receipts'
+version.
 
 Otherwise it:
 
 1. clears `Users.TrainingProfileId` for users the run composed;
 2. deletes the `UserTrainings` and `Trainings` (with their profile requirements) the run inserted, plus
-   categories created at the run start that are now unreferenced;
+   the verified categories the run created for those courses;
 3. deletes the run's mutations and the crosswalk rows it created or linked;
 4. marks the run `RolledBack` and writes a `Rollback` receipt run, a `RollbackProof` outcome, and
    `RollbackRefresh` receipts for the restored MyTeam user versions.
@@ -111,11 +126,13 @@ DELETE FROM "UserTrainings"
   WHERE "Id"::text IN (SELECT "TargetKey" FROM undo_m WHERE "Operation" = 'Insert' AND "TargetType" = 'UserTraining');
 DELETE FROM "TrainingMandatoryTrainingProfiles"
   WHERE "TrainingId"::text IN (SELECT "TargetKey" FROM undo_m WHERE "Operation" = 'Insert' AND "TargetType" = 'Training');
+CREATE TEMP TABLE undo_c ON COMMIT DROP AS
+  SELECT DISTINCT c."Id" FROM "TrainingCategories" c JOIN "Trainings" t ON t."TrainingCategoryId" = c."Id"
+  WHERE c."CreatedOn" = (SELECT "StartedOn" FROM "DataMigrationRuns" WHERE "Id" = :run)
+    AND t."Id"::text IN (SELECT "TargetKey" FROM undo_m WHERE "Operation" = 'Insert' AND "TargetType" = 'Training');
 DELETE FROM "Trainings"
   WHERE "Id"::text IN (SELECT "TargetKey" FROM undo_m WHERE "Operation" = 'Insert' AND "TargetType" = 'Training');
-DELETE FROM "TrainingCategories" c
-  WHERE c."CreatedOn" = (SELECT "StartedOn" FROM "DataMigrationRuns" WHERE "Id" = :run)
-  AND NOT EXISTS (SELECT 1 FROM "Trainings" t WHERE t."TrainingCategoryId" = c."Id");
+DELETE FROM "TrainingCategories" WHERE "Id" IN (SELECT "Id" FROM undo_c);
 DELETE FROM "DataMigrationMutations" WHERE "RunId" = :run;
 DELETE FROM "DataMigrationRecords"
   WHERE "Id" IN (SELECT record_id FROM undo_m WHERE "Operation" IN ('Insert','Link'));
@@ -128,11 +145,12 @@ COMMIT;
 `Unified.Tests.DataMigration.SsTrainingBulkPostgresTests` is gated by
 `UNIFIED_MIGRATION_ISOLATED_TEST_CONNECTION_STRING` and the local source schema evidence. It covers:
 
-- PerRow-vs-Bulk parity over three adverse rounds on template clones, after real MyTeam runs. The comparison is
+- PerRow-vs-Bulk parity over four adverse rounds on template clones, after real MyTeam runs (round 4 adds
+  oversized-note row failures). The comparison is
   normalized through crosswalks and covers outcomes, reasons, failures, business rows, crosswalks, receipts and
   audit rows.
 - Concurrency, terminal-run, crash, abort and cancel resume.
-- Dry run, mode binding and undo-to-baseline.
+- Dry run, mode binding, undo-to-baseline, and undo blocked by edited categories/requirements.
 - An opt-in benchmark: `UNIFIED_MIGRATION_BULK_BENCHMARK_HISTORIES=<n>`.
 
 Local benchmark: .NET 10 SDK container against a PostgreSQL 16 container on one developer workstation, with

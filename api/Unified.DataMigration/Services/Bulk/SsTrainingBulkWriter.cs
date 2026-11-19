@@ -1,7 +1,9 @@
 using System.Globalization;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Npgsql;
 using NpgsqlTypes;
+using Unified.Audit.Options;
 using Unified.DataMigration.Sources;
 using Unified.Db;
 using Unified.Db.Models.DataMigration;
@@ -18,7 +20,7 @@ namespace Unified.DataMigration.Services.Bulk;
 /// per-user version numbering, compose and drift decisions match the PerRow writer.
 /// No rollback journal is captured; see <see cref="SsBulkUndo"/>.
 /// </summary>
-public sealed class SsTrainingBulkWriter(UnifiedDbContext db)
+public sealed class SsTrainingBulkWriter(UnifiedDbContext db, IOptions<AuditRecordOptions>? auditOptions = null)
 {
     private const string SystemUserKey = "00000000-0000-0000-0000-000000000001";
 
@@ -86,7 +88,7 @@ public sealed class SsTrainingBulkWriter(UnifiedDbContext db)
             throw new InvalidOperationException("SS Training bulk chunk size must be positive.");
         var ledger = new SsBulkLedger(db, run, rows, history, OwnedType);
         var runner = new SsBulkChunkRunner(db, ledger, fence, BeforeChunkCommitAsync);
-        var context = new Context(db, run, rows, boundary, ledger);
+        var context = new Context(db, run, rows, boundary, ledger, auditOptions?.Value ?? new AuditRecordOptions());
         await runner.RunAsync((connection, token) => context.WriteCoursesAsync(connection, token), ct);
         foreach (var chunk in await context.PlanHistoryChunksAsync(chunkSize, ct))
             await runner.RunAsync((connection, token) => context.WriteHistoriesAsync(connection, chunk, token), ct);
@@ -112,7 +114,8 @@ public sealed class SsTrainingBulkWriter(UnifiedDbContext db)
         DataMigrationRun run,
         Dictionary<string, List<SsRow>> rows,
         DateTimeOffset boundary,
-        SsBulkLedger ledger
+        SsBulkLedger ledger,
+        AuditRecordOptions auditOptions
     )
     {
         private readonly DateTimeOffset now = run.StartedOn!.Value;
@@ -120,7 +123,7 @@ public sealed class SsTrainingBulkWriter(UnifiedDbContext db)
         private readonly Dictionary<string, SsRow> users = rows["User"].ToDictionary(x => x.Id);
         private readonly HashSet<int?> shortenedCarbine = SsTrainingRules.ShortenedCarbineCourseIds(rows["LookupCode"]);
 
-        private NpgsqlConnection Connection => (NpgsqlConnection)db.Database.GetDbConnection();
+        private NpgsqlConnection Connection => SsBulkStaging.Connection(db);
 
         private Task<List<T>> QueryAsync<T>(
             string sql,
@@ -157,6 +160,17 @@ public sealed class SsTrainingBulkWriter(UnifiedDbContext db)
             {
                 ledger.Outcome(type, row.Id, "Failed", $"TargetWriteFailed:{failure.Message}");
             }
+        }
+
+        /// <summary>
+        /// PerRow surfaces an oversized mapped note as a failed save of that row (savepoint rolled back,
+        /// <c>TargetWriteFailed:DbUpdateException</c>); Bulk reports the same row-level outcome instead of
+        /// failing the whole chunk at COPY time.
+        /// </summary>
+        private static void EnsureNotesFit(string? notes)
+        {
+            if (notes?.Length > SsTrainingRules.UserTrainingNotesMaxLength)
+                throw new RowFailure(nameof(DbUpdateException));
         }
 
         // ---------------------------------------------------------------- courses (chunk 0)
@@ -410,7 +424,7 @@ public sealed class SsTrainingBulkWriter(UnifiedDbContext db)
             );
 
             var linkedIds = links.Select(x => x.Created is { } c ? ids[c] : x.Existing!.Value).ToList();
-            var images = await SsBulkTargets.ImagesAsync<Training, int>(db, linkedIds, ct);
+            var images = await SsBulkTargets.ImagesAsync<Training, int>(db, linkedIds, auditOptions, ct);
             await SsBulkCrosswalk.InsertLinksAsync(
                 connection,
                 run.Id,
@@ -453,13 +467,20 @@ public sealed class SsTrainingBulkWriter(UnifiedDbContext db)
             audit.Added(
                 nameof(TrainingCategory),
                 "TrainingCategories",
-                (await SsBulkTargets.ImagesAsync<TrainingCategory, int>(db, categoryIds, ct)).Values
+                (await SsBulkTargets.ImagesAsync<TrainingCategory, int>(db, categoryIds, auditOptions, ct)).Values
             );
             audit.Added(nameof(Training), "Trainings", trainingIds.Select(x => images[Key(x)]));
             audit.Added(
                 nameof(TrainingProfileRequirement),
                 "TrainingMandatoryTrainingProfiles",
-                (await SsBulkTargets.ImagesAsync<TrainingProfileRequirement, int>(db, requirementIds, ct)).Values
+                (
+                    await SsBulkTargets.ImagesAsync<TrainingProfileRequirement, int>(
+                        db,
+                        requirementIds,
+                        auditOptions,
+                        ct
+                    )
+                ).Values
             );
             await audit.FlushAsync(ct);
             foreach (var item in events)
@@ -707,8 +728,23 @@ public sealed class SsTrainingBulkWriter(UnifiedDbContext db)
                 ct,
                 forUpdate: true
             );
-            var ownedBefore = await SsBulkTargets.ImagesAsync<UserTraining, int>(db, driftCandidates, ct);
-            var usersBefore = await SsBulkTargets.ImagesAsync<User, Guid>(db, composeCandidates, ct);
+            var ownedBefore = await SsBulkTargets.ImagesAsync<UserTraining, int>(db, driftCandidates, auditOptions, ct);
+            var usersBefore = await SsBulkTargets.ImagesAsync<User, Guid>(db, composeCandidates, auditOptions, ct);
+            // Compose decisions must use the state read under the row lock, not the earlier unlocked read.
+            foreach (
+                var locked in await QueryAsync(
+                    "SELECT \"Id\",\"TrainingProfileId\",xmin::text FROM \"Users\" WHERE \"Id\" = ANY(@users)",
+                    x =>
+                        (
+                            Id: x.GetGuid(0),
+                            Profile: x.IsDBNull(1) ? (int?)null : x.GetInt32(1),
+                            Version: x.GetString(2)
+                        ),
+                    ct,
+                    new NpgsqlParameter("users", composeCandidates.ToArray())
+                )
+            )
+                userState[locked.Id] = (locked.Profile, locked.Version);
             var profiles = await ActiveCarbineProfilesAsync(ct);
 
             var writes = new List<HistoryWrite>();
@@ -802,6 +838,7 @@ public sealed class SsTrainingBulkWriter(UnifiedDbContext db)
                             var notes = SsTrainingRules.MappedNotes(row, code);
                             if (owned.UserId != resolvedUser && !userState.ContainsKey(resolvedUser))
                                 throw new RowFailure(nameof(DbUpdateException));
+                            EnsureNotesFit(notes);
                             touched.Add(ownedId);
                             if (rebind)
                             {
@@ -861,6 +898,7 @@ public sealed class SsTrainingBulkWriter(UnifiedDbContext db)
                                         prior is null
                                         || targetState.Version != prior
                                         || !usersBefore.TryGetValue(owner.TargetKey, out var image)
+                                        || image.Version != prior
                                         || image.Fingerprint != owner.AfterHash
                                     )
                                         throw new SsReject("OwnedTargetDrift");
@@ -870,6 +908,7 @@ public sealed class SsTrainingBulkWriter(UnifiedDbContext db)
                         }
                         else if (!userState.ContainsKey(userId))
                             throw new RowFailure(nameof(DbUpdateException));
+                        EnsureNotesFit(mappedNotes);
                         var older = histories.Any(x => x.EndingOn > dates.End);
                         if (composeProfile is { } profile)
                         {
@@ -929,7 +968,7 @@ public sealed class SsTrainingBulkWriter(UnifiedDbContext db)
             var newIds = await SsBulkStaging.AllocateIdsAsync(connection, "UserTrainings", inserts.Count, ct);
             for (var i = 0; i < inserts.Count; i++)
                 inserts[i].State.Id = (int)newIds[i];
-            if (inserts.Any(x => x.Notes?.Length > SsTrainingRules.UserTrainingNotesMaxLength))
+            if (writes.Any(x => x.Notes?.Length > SsTrainingRules.UserTrainingNotesMaxLength))
                 throw new InvalidOperationException("SS bulk training notes exceed the target column.");
             var actorParameter = new Func<NpgsqlParameter>(() =>
                 new NpgsqlParameter("actor", NpgsqlDbType.Uuid) { Value = (object?)actor ?? DBNull.Value }
@@ -1021,9 +1060,15 @@ public sealed class SsTrainingBulkWriter(UnifiedDbContext db)
             var historyAfter = await SsBulkTargets.ImagesAsync<UserTraining, int>(
                 db,
                 writes.Select(x => x.State.Id).ToList(),
+                auditOptions,
                 ct
             );
-            var usersAfter = await SsBulkTargets.ImagesAsync<User, Guid>(db, composes.Select(x => x.User).ToList(), ct);
+            var usersAfter = await SsBulkTargets.ImagesAsync<User, Guid>(
+                db,
+                composes.Select(x => x.User).ToList(),
+                auditOptions,
+                ct
+            );
             foreach (var compose in composes)
             {
                 var key = compose.User.ToString("D");

@@ -170,7 +170,7 @@ internal sealed class SsBulkLedger
     /// </summary>
     internal async Task FlushAsync(bool final, CancellationToken ct)
     {
-        var connection = (NpgsqlConnection)db.Database.GetDbConnection();
+        var connection = SsBulkStaging.Connection(db);
         var stream = SsBatchProgress.Stream(history);
         var staged = order
             .Where(x => x.Flushed != $"{x.Outcome}:{x.Reason}")
