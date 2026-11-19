@@ -42,10 +42,11 @@ normalizeBaseHref() {
 WEB_BASE_HREF="$(normalizeBaseHref "${WEB_BASE_HREF:-/}")"
 
 # Only allow URL-path-safe characters; this also keeps the value safe to embed
-# in the sed replacement below and in the generated nginx config.
+# in the sed replacements below and in the nginx run script (which uses ~ as
+# its sed delimiter), and in the generated nginx config.
 case "${WEB_BASE_HREF}" in
-  *[!A-Za-z0-9._~/-]*)
-    echo "---> ERROR: WEB_BASE_HREF '${WEB_BASE_HREF}' contains unsupported characters (allowed: A-Z a-z 0-9 . _ ~ / -)" >&2
+  *[!A-Za-z0-9._/-]*)
+    echo "---> ERROR: WEB_BASE_HREF '${WEB_BASE_HREF}' contains unsupported characters (allowed: A-Z a-z 0-9 . _ / -; '~' is not supported)" >&2
     exit 1
     ;;
 esac
