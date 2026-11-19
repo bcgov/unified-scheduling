@@ -50,20 +50,41 @@ public sealed class SsBulkUndo(UnifiedDbContext db, IOptions<AuditRecordOptions>
                 await tx.RollbackAsync(ct);
                 return new(null, ["SourceJobRunning"]);
             }
-            foreach (
-                var table in new string[]
-                {
-                    "DataMigrationRuns",
-                    "DataMigrationRecords",
-                    "DataMigrationMutations",
-                    "Users",
-                    "TrainingCategories",
-                    "Trainings",
-                    "TrainingMandatoryTrainingProfiles",
-                    "UserTrainings",
-                }.Concat(SchedulingTables.Select(x => x.Table))
-            )
-                await SsBulkStaging.ExecuteAsync(connection, $"LOCK TABLE \"{table}\" IN SHARE ROW EXCLUSIVE MODE", ct);
+            // Lock only the undone job's tables, parents before children (the order chunks and application
+            // writers use), through the bounded back-off acquisition so undo never aborts a concurrent writer
+            // as a deadlock victim; it waits/retries instead and fails cleanly after LockWaitLimit.
+            var job = (
+                await SsBulkStaging.QueryAsync(
+                    connection,
+                    "SELECT \"Job\" FROM \"DataMigrationRuns\" WHERE \"Id\"=@run AND \"Source\"='SS'",
+                    x => x.GetString(0),
+                    ct,
+                    new NpgsqlParameter("run", runId)
+                )
+            ).SingleOrDefault();
+            IEnumerable<string> lockTables =
+                job == "Scheduling"
+                    ? SchedulingTables.Select(x => x.Table).Reverse()
+                    :
+                    [
+                        "Users",
+                        "TrainingCategories",
+                        "Trainings",
+                        "TrainingMandatoryTrainingProfiles",
+                        "UserTrainings",
+                    ];
+            await SsBulkStaging.LockTablesAsync(
+                connection,
+                "LOCK TABLE "
+                    + string.Join(
+                        ", ",
+                        new[] { "DataMigrationRuns", "DataMigrationRecords", "DataMigrationMutations" }
+                            .Concat(lockTables)
+                            .Select(x => $"\"{x}\"")
+                    )
+                    + " IN SHARE ROW EXCLUSIVE MODE",
+                ct
+            );
             var blockers = new List<string>();
             var runs = await db.DataMigrationRuns.AsNoTracking().Where(x => x.Source == "SS").ToListAsync(ct);
             var run =

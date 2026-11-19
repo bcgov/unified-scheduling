@@ -215,6 +215,17 @@ internal sealed class SsSchedulingSim : ISsSessionBackend, ISsSchedulingStore, I
     private Index seriesByDefinition = null!;
     private Index definitionByName = null!;
     private Index roomByCode = null!;
+    private Index shiftByEvent = null!;
+    private Index assignmentByEvent = null!;
+    private Index assignmentSeriesByEventSeries = null!;
+
+    // Mirrors of Unified.Scheduling.SchedulingConstants (not referenced by this project; pinned by a unit test).
+    internal const string SchedulingSourceModule = "scheduling";
+    internal const string ShiftEventTypeCode = "shift";
+    internal const string AssignmentEventTypeCode = "assignment";
+
+    /// <summary>True when the target context runs Unified.Scheduling's SchedulingConcurrencyInterceptor.</summary>
+    private readonly bool propagateRoots;
 
     private SsSchedulingSim(UnifiedDbContext db, DataMigrationRun run, AuditRecordOptions auditOptions)
     {
@@ -222,6 +233,7 @@ internal sealed class SsSchedulingSim : ISsSessionBackend, ISsSchedulingStore, I
         this.run = run;
         this.auditOptions = auditOptions;
         actor = SsBulkTargets.StampActor(db);
+        propagateRoots = SsBulkTargets.PropagatesSchedulingRoots(db);
         ctx = new UnifiedDbContext((DbContextOptions<UnifiedDbContext>)db.GetService<IDbContextOptions>());
         ctx.AuditDisabled = true;
         ctx.ChangeTracker.AutoDetectChangesEnabled = false;
@@ -379,6 +391,9 @@ internal sealed class SsSchedulingSim : ISsSessionBackend, ISsSchedulingStore, I
             tables[typeof(CourtRoom)],
             x => (((CourtRoom)x).Room, ((CourtRoom)x).LocationId ?? (object)DBNull.Value)
         );
+        shiftByEvent = Add(tables[typeof(ShiftEntry)], x => ((ShiftEntry)x).EventId);
+        assignmentByEvent = Add(tables[typeof(AssignmentEntry)], x => ((AssignmentEntry)x).EventId);
+        assignmentSeriesByEventSeries = Add(tables[typeof(AssignmentSeries)], x => ((AssignmentSeries)x).EventSeriesId);
     }
 
     private static NpgsqlDbType DbType(IProperty property) =>
@@ -718,6 +733,12 @@ internal sealed class SsSchedulingSim : ISsSessionBackend, ISsSchedulingStore, I
             if (!tables.TryGetValue(entry.Metadata.ClrType, out var table) || !table.Writable)
                 throw new SsBulkRefusal($"UnmodelledWrite:{entry.Metadata.ClrType.Name}");
         }
+        var touchedRoots = propagateRoots ? PropagateRootVersions(entries) : [];
+        if (touchedRoots.Count > 0)
+            entries = ctx
+                .ChangeTracker.Entries()
+                .Where(x => x.State is EntityState.Added or EntityState.Modified or EntityState.Deleted)
+                .ToList();
         // Interceptor stamps (AuditableEntityInterceptor) before keys, exactly as SaveChanges.
         if (actor is { } stamp)
             foreach (var entry in entries.Where(x => x.Entity is Unified.Db.Models.Abstract.BaseEntity))
@@ -840,7 +861,7 @@ internal sealed class SsSchedulingSim : ISsSessionBackend, ISsSchedulingStore, I
 
         // Audit images exactly as Audit.NET sees the change set (pre-save original/current values).
         var auditEvents = images
-            .Where(x => x.Table.Meta.ClrType != typeof(DataMigrationRecord))
+            .Where(x => x.Table.Meta.ClrType != typeof(DataMigrationRecord) && !touchedRoots.Contains(x.Entry.Entity))
             .Select(x =>
                 (
                     x.Table,
@@ -898,6 +919,182 @@ internal sealed class SsSchedulingSim : ISsSessionBackend, ISsSchedulingStore, I
         ctx.ChangeTracker.AcceptAllChanges();
         foreach (var (entry, table, key, _, _) in images)
             tracked[(table, key)] = entry.Entity;
+    }
+
+    /// <summary>
+    /// Mirrors Unified.Scheduling's SchedulingConcurrencyInterceptor: a save that changes a scheduling child
+    /// (link, link user, shift user, entry, scheduling event) bumps the owning roots' versions, so unchanged
+    /// tracked/saved roots become Modified with a fresh UpdatedOn (and are then stamped and audited like any
+    /// update, but not audited: Audit.NET snapshots the change set before SavingChanges interceptors run). Returns the touched roots. Roots the simulation does not model (shift series and
+    /// series links) are refused rather than approximated.
+    /// </summary>
+    private HashSet<object> PropagateRootVersions(List<EntityEntry> entries)
+    {
+        HashSet<int> shiftIds = [],
+            assignmentIds = [],
+            shiftSeriesIds = [],
+            assignmentSeriesIds = [],
+            entryLinkIds = [],
+            shiftEventIds = [],
+            assignmentEventIds = [],
+            shiftEventSeriesIds = [],
+            assignmentEventSeriesIds = [];
+        foreach (var entry in entries.Where(RootChange))
+        {
+            switch (entry.Entity)
+            {
+                case ShiftAssignmentEntry:
+                    RootIds(entry, nameof(ShiftAssignmentEntry.Id), entryLinkIds);
+                    RootIds(entry, nameof(ShiftAssignmentEntry.ShiftEntryId), shiftIds);
+                    RootIds(entry, nameof(ShiftAssignmentEntry.AssignmentEntryId), assignmentIds);
+                    break;
+                case ShiftAssignmentEntryUser:
+                    RootIds(entry, nameof(ShiftAssignmentEntryUser.ShiftAssignmentEntryId), entryLinkIds);
+                    break;
+                case ShiftEntryUser:
+                    RootIds(entry, nameof(ShiftEntryUser.ShiftEntryId), shiftIds);
+                    break;
+                case ShiftEntry:
+                    RootIds(entry, nameof(ShiftEntry.Id), shiftIds);
+                    RootIds(entry, nameof(ShiftEntry.ShiftSeriesId), shiftSeriesIds);
+                    break;
+                case AssignmentEntry:
+                    RootIds(entry, nameof(AssignmentEntry.Id), assignmentIds);
+                    RootIds(entry, nameof(AssignmentEntry.AssignmentSeriesId), assignmentSeriesIds);
+                    break;
+                case Event when entry.State != EntityState.Added:
+                    EventRootIds(entry, shiftEventIds, assignmentEventIds);
+                    break;
+                case EventSeries when entry.State != EntityState.Added:
+                    EventRootIds(entry, shiftEventSeriesIds, assignmentEventSeriesIds);
+                    break;
+            }
+        }
+
+        if (entryLinkIds.Count > 0)
+        {
+            var linkTable = tables[typeof(ShiftAssignmentEntry)];
+            foreach (var id in entryLinkIds.Where(x => linkTable.Rows.ContainsKey(x)).ToList())
+                Track<ShiftAssignmentEntry>(linkTable, id);
+            foreach (var entry in ctx.ChangeTracker.Entries<ShiftAssignmentEntry>().ToList())
+            {
+                if (!entryLinkIds.Contains(entry.Entity.Id))
+                    continue;
+                RootIds(entry, nameof(ShiftAssignmentEntry.ShiftEntryId), shiftIds);
+                RootIds(entry, nameof(ShiftAssignmentEntry.AssignmentEntryId), assignmentIds);
+            }
+        }
+
+        var touched = new HashSet<object>(ReferenceEqualityComparer.Instance);
+        if (shiftIds.Count > 0 || shiftEventIds.Count > 0)
+        {
+            var table = tables[typeof(ShiftEntry)];
+            foreach (
+                var id in shiftIds
+                    .Concat(shiftEventIds.SelectMany(x => shiftByEvent.Get(x)).Cast<int>())
+                    .Where(x => table.Rows.ContainsKey(x))
+                    .Distinct()
+                    .ToList()
+            )
+                Track<ShiftEntry>(table, id);
+            foreach (var entry in ctx.ChangeTracker.Entries<ShiftEntry>().ToList())
+            {
+                if (!shiftIds.Contains(entry.Entity.Id) && !shiftEventIds.Contains(entry.Entity.EventId))
+                    continue;
+                RootIds(entry, nameof(ShiftEntry.ShiftSeriesId), shiftSeriesIds);
+                Touch(entry);
+            }
+        }
+        if (assignmentIds.Count > 0 || assignmentEventIds.Count > 0)
+        {
+            var table = tables[typeof(AssignmentEntry)];
+            foreach (
+                var id in assignmentIds
+                    .Concat(assignmentEventIds.SelectMany(x => assignmentByEvent.Get(x)).Cast<int>())
+                    .Where(x => table.Rows.ContainsKey(x))
+                    .Distinct()
+                    .ToList()
+            )
+                Track<AssignmentEntry>(table, id);
+            foreach (var entry in ctx.ChangeTracker.Entries<AssignmentEntry>().ToList())
+            {
+                if (!assignmentIds.Contains(entry.Entity.Id) && !assignmentEventIds.Contains(entry.Entity.EventId))
+                    continue;
+                RootIds(entry, nameof(AssignmentEntry.AssignmentSeriesId), assignmentSeriesIds);
+                Touch(entry);
+            }
+        }
+        // Shift series are not modelled; PerRow would bump them, so Bulk cannot reproduce the write.
+        if (shiftSeriesIds.Count > 0 || shiftEventSeriesIds.Count > 0)
+            throw new SsBulkRefusal("UnmodelledConcurrencyRoot:ShiftSeries");
+        if (assignmentSeriesIds.Count > 0 || assignmentEventSeriesIds.Count > 0)
+        {
+            var table = tables[typeof(AssignmentSeries)];
+            foreach (
+                var id in assignmentSeriesIds
+                    .Concat(assignmentEventSeriesIds.SelectMany(x => assignmentSeriesByEventSeries.Get(x)).Cast<int>())
+                    .Where(x => table.Rows.ContainsKey(x))
+                    .Distinct()
+                    .ToList()
+            )
+                Touch(ctx.Entry(Track<AssignmentSeries>(table, id)));
+        }
+        return touched;
+
+        void Touch(EntityEntry entry)
+        {
+            if (entry.State != EntityState.Unchanged)
+                return;
+            touched.Add(entry.Entity);
+            var updatedOn = entry.Property(nameof(Unified.Db.Models.Abstract.BaseEntity.UpdatedOn));
+            updatedOn.CurrentValue = DateTimeOffset.UtcNow;
+            updatedOn.IsModified = true;
+        }
+    }
+
+    private static bool RootChange(EntityEntry entry) =>
+        entry.State is EntityState.Added or EntityState.Deleted
+        || (
+            entry.State == EntityState.Modified
+            && entry.Properties.Any(property =>
+                property.IsModified
+                && property.Metadata.Name
+                    is not (
+                        nameof(Unified.Db.Models.Abstract.BaseEntity.UpdatedOn)
+                        or nameof(Unified.Db.Models.Abstract.BaseEntity.UpdatedById)
+                        or nameof(Unified.Db.Models.Abstract.BaseEntity.CreatedOn)
+                        or nameof(Unified.Db.Models.Abstract.BaseEntity.CreatedById)
+                        or nameof(Unified.Db.Models.Abstract.BaseEntity.ConcurrencyToken)
+                    )
+                && !Equals(property.OriginalValue, property.CurrentValue)
+            )
+        );
+
+    private static void RootIds(EntityEntry entry, string propertyName, HashSet<int> ids)
+    {
+        var property = entry.Property(propertyName);
+        if (entry.State != EntityState.Added && property.OriginalValue is int original && original > 0)
+            ids.Add(original);
+        if (entry.State != EntityState.Deleted && property.CurrentValue is int current && current > 0)
+            ids.Add(current);
+    }
+
+    private static void EventRootIds(EntityEntry entry, HashSet<int> shiftIds, HashSet<int> assignmentIds)
+    {
+        var type = entry.Property(nameof(Event.EventTypeCode));
+        var source = entry.Entity is Event ? entry.Property(nameof(Event.SourceModule)) : null;
+        if (source is null || Equals(source.OriginalValue, SchedulingSourceModule))
+            Owned(type.OriginalValue);
+        if (source is null || Equals(source.CurrentValue, SchedulingSourceModule))
+            Owned(type.CurrentValue);
+
+        void Owned(object? code)
+        {
+            if (Equals(code, ShiftEventTypeCode))
+                RootIds(entry, nameof(Event.Id), shiftIds);
+            if (Equals(code, AssignmentEventTypeCode))
+                RootIds(entry, nameof(Event.Id), assignmentIds);
+        }
     }
 
     private SsBulkTargetImage AuditImage(Table table, object key, EntityEntry entry, bool current)
@@ -1554,71 +1751,22 @@ internal sealed class SsSchedulingSim : ISsSessionBackend, ISsSchedulingStore, I
 
     // ------------------------------------------------------------------ chunk persistence
 
-    /// <summary>Upper bound for one chunk's lock acquisition before the chunk fails (the run stays resumable).</summary>
-    internal static TimeSpan LockWaitLimit { get; set; } = TimeSpan.FromMinutes(10);
-
     /// <summary>
-    /// Takes the chunk's table locks without ever becoming a deadlock participant that PostgreSQL resolves by
-    /// aborting someone else. Read-only rule inputs are locked first (SHARE), then the written tables (SHARE
-    /// ROW EXCLUSIVE): the same order a concurrent Training chunk or an application transaction uses (users before
-    /// crosswalks / scheduling rows). Each attempt is bounded well below <c>deadlock_timeout</c> and then rolls
-    /// back to a savepoint, releasing every lock it took, so in any wait cycle this run backs off first.
+    /// Takes the chunk's table locks: read-only rule inputs first (SHARE), then the written tables (SHARE ROW
+    /// EXCLUSIVE), the same order a concurrent Training chunk or an application transaction uses (users before
+    /// crosswalks / scheduling rows), through the bounded, back-off-first acquisition of
+    /// <see cref="SsBulkStaging.LockTablesAsync"/>.
     /// </summary>
-    private async Task LockAsync(NpgsqlConnection connection, CancellationToken ct)
-    {
-        var sql =
+    private Task LockAsync(NpgsqlConnection connection, CancellationToken ct) =>
+        SsBulkStaging.LockTablesAsync(
+            connection,
             "LOCK TABLE "
-            + string.Join(", ", ReadSetTables.Select(x => $"\"{x}\""))
-            + " IN SHARE MODE; LOCK TABLE "
-            + string.Join(", ", FencedTables.Where(x => x != "SubCategories").Select(x => $"\"{x}\""))
-            + ", \"DataMigrationMutations\" IN SHARE ROW EXCLUSIVE MODE";
-        var deadlockMs = (
-            await SsBulkStaging.QueryAsync(
-                connection,
-                "SELECT (extract(epoch FROM current_setting('deadlock_timeout')::interval) * 1000)::int",
-                reader => reader.GetInt32(0),
-                ct
-            )
-        ).Single();
-        // Two statements per attempt, each bounded by a quarter of deadlock_timeout.
-        var attemptMs = Math.Max(10, deadlockMs / 4);
-        var deadline = DateTimeOffset.UtcNow + LockWaitLimit;
-        for (var attempt = 0; ; attempt++)
-        {
-            await SsBulkStaging.ExecuteAsync(
-                connection,
-                $"SAVEPOINT ss_bulk_lock; SET LOCAL statement_timeout = {attemptMs}",
-                ct
-            );
-            try
-            {
-                await SsBulkStaging.ExecuteAsync(connection, sql, ct);
-                await SsBulkStaging.ExecuteAsync(
-                    connection,
-                    "SET LOCAL statement_timeout = DEFAULT; RELEASE SAVEPOINT ss_bulk_lock",
-                    ct
-                );
-                return;
-            }
-            catch (PostgresException error)
-                when (error.SqlState is PostgresErrorCodes.QueryCanceled or PostgresErrorCodes.LockNotAvailable
-                    && !ct.IsCancellationRequested
-                    && DateTimeOffset.UtcNow < deadline
-                )
-            {
-                // Rolling back to the savepoint releases the locks of this attempt and the timeout setting.
-                await SsBulkStaging.ExecuteAsync(
-                    connection,
-                    "ROLLBACK TO SAVEPOINT ss_bulk_lock; RELEASE SAVEPOINT ss_bulk_lock",
-                    ct
-                );
-                await Task.Delay(
-                    TimeSpan.FromMilliseconds(Random.Shared.Next(20, 100 + 20 * Math.Min(attempt, 20))),
-                    ct
-                );
-            }
-        }
-    }
+                + string.Join(", ", ReadSetTables.Select(x => $"\"{x}\""))
+                + " IN SHARE MODE; LOCK TABLE "
+                + string.Join(", ", FencedTables.Where(x => x != "SubCategories").Select(x => $"\"{x}\""))
+                + ", \"DataMigrationMutations\" IN SHARE ROW EXCLUSIVE MODE",
+            ct
+        );
 
     /// <summary>
     /// Persists every row saved since the previous flush, inside the open chunk transaction, and returns

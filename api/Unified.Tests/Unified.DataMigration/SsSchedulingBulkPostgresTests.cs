@@ -33,6 +33,7 @@ using Unified.Db.Models.Scheduling;
 using Unified.Db.Models.UserManagement;
 using Unified.Leave.Seeders;
 using Unified.LoanOut.Seeders;
+using Unified.Scheduling.Interceptors;
 using Unified.Scheduling.Seeders;
 using Unified.Stats.Seeders;
 using Unified.UserManagement;
@@ -917,6 +918,70 @@ public sealed class SsSchedulingBulkPostgresTests : IAsyncLifetime
         await AssertNoDuplicatesOrOrphansAsync(clone, ct);
         AssertEquivalent(appliedState, await SnapshotAsync(clone, true, ct), BusinessSections, "re-apply after undo");
 
+        // Undo lock cycles: an application transaction holds one scheduling table and, once undo waits for its
+        // table locks, needs another that undo may already hold (in both directions, so the cycle exists whatever
+        // order undo locks in). Undo's bounded acquisition backs off so PostgreSQL never aborts either side; the
+        // writer commits and undo then completes.
+        foreach (var (first, second) in new[] { ("AssignmentEntries", "Events"), ("Events", "AssignmentEntries") })
+        {
+            var undoCycle = await CopyAsync(
+                clone,
+                $"undo_cycle_{first.ToLowerInvariant()}",
+                MigrationPersistenceMode.Bulk,
+                ct
+            );
+            var appHolding = new TaskCompletionSource();
+            var app = Task.Run(
+                async () =>
+                {
+                    await using var connection = new NpgsqlConnection(undoCycle.ConnectionString);
+                    await connection.OpenAsync(ct);
+                    await using var tx = await connection.BeginTransactionAsync(ct);
+                    await using (
+                        var lockFirst = new NpgsqlCommand(
+                            $"LOCK TABLE \"{first}\" IN ROW EXCLUSIVE MODE",
+                            connection,
+                            tx
+                        )
+                    )
+                        await lockFirst.ExecuteNonQueryAsync(ct);
+                    appHolding.SetResult();
+                    var waited = Stopwatch.StartNew();
+                    while (waited.Elapsed < TimeSpan.FromSeconds(30))
+                    {
+                        await using var probe = new NpgsqlCommand(
+                            "SELECT count(*) FROM pg_locks WHERE NOT granted AND pid <> pg_backend_pid() AND database = (SELECT oid FROM pg_database WHERE datname = current_database())",
+                            connection,
+                            tx
+                        );
+                        if ((long)(await probe.ExecuteScalarAsync(ct))! > 0)
+                            break;
+                        await Task.Delay(10, ct);
+                    }
+                    Assert.True(waited.Elapsed < TimeSpan.FromSeconds(30), "undo never waited");
+                    await using (
+                        var lockSecond = new NpgsqlCommand(
+                            $"LOCK TABLE \"{second}\" IN ROW EXCLUSIVE MODE",
+                            connection,
+                            tx
+                        )
+                    )
+                        await lockSecond.ExecuteNonQueryAsync(ct);
+                    await tx.CommitAsync(ct);
+                },
+                ct
+            );
+            await appHolding.Task.WaitAsync(TimeSpan.FromSeconds(60), ct);
+            await using (var context = undoCycle.Db())
+            {
+                var result = await new SsBulkUndo(context).UndoAsync(reapplied, ct);
+                Assert.Empty(result.Blockers);
+                Assert.NotNull(result.ReceiptRunId);
+            }
+            await app;
+            AssertEquivalent(baseline, await SnapshotAsync(undoCycle, true, ct), compared, $"undo lock cycle {first}");
+        }
+
         // A later Unified row referencing an owned row (a new user on a migrated shift) blocks undo.
         await ExecuteAsync(
             clone.ConnectionString,
@@ -994,6 +1059,26 @@ public sealed class SsSchedulingBulkPostgresTests : IAsyncLifetime
             Assert.Equal(["OwnedTargetDrift"], blocked.Blockers);
         }
         AssertEquivalent(edited, await SnapshotAsync(clone, true, ct), compared, "blocked undo (drift)");
+    }
+
+    // The Bulk simulation mirrors SchedulingConcurrencyInterceptor without referencing Unified.Scheduling; pin the
+    // interceptor name it detects and the event vocabulary it copies so a rename cannot silently break parity.
+    [Fact]
+    public void BulkSimulation_MirrorsSchedulingConcurrencyInterceptorVocabulary()
+    {
+        Assert.Equal("SchedulingConcurrencyInterceptor", typeof(SchedulingConcurrencyInterceptor).Name);
+        Assert.Equal(
+            global::Unified.Scheduling.SchedulingConstants.SourceModule,
+            SsSchedulingSim.SchedulingSourceModule
+        );
+        Assert.Equal(
+            global::Unified.Scheduling.SchedulingConstants.ShiftEventTypeCode,
+            SsSchedulingSim.ShiftEventTypeCode
+        );
+        Assert.Equal(
+            global::Unified.Scheduling.SchedulingConstants.AssignmentEventTypeCode,
+            SsSchedulingSim.AssignmentEventTypeCode
+        );
     }
 
     // Benchmark (opt-in): UNIFIED_MIGRATION_SCHEDULING_BENCHMARK_TEMPLATE=<frozen source database>.
@@ -1322,7 +1407,13 @@ public sealed class SsSchedulingBulkPostgresTests : IAsyncLifetime
             new(
                 new DbContextOptionsBuilder<UnifiedDbContext>()
                     .UseNpgsql(connectionString)
-                    .AddInterceptors([new AuditableEntityInterceptor(new SystemActor()), .. extra])
+                    // Production order: SchedulingModule registers its concurrency interceptor before
+                    // AddInterceptors() adds the auditable-entity stamper (SaveRules/PostSave have no Scheduling work).
+                    .AddInterceptors([
+                        new SchedulingConcurrencyInterceptor(),
+                        new AuditableEntityInterceptor(new SystemActor()),
+                        .. extra,
+                    ])
                     .Options
             );
     }

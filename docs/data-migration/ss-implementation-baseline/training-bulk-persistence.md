@@ -88,8 +88,12 @@ var result = await new SsBulkUndo(dbContext).UndoAsync(runId, ct);
 // result.Blockers empty => result.ReceiptRunId is the new "Rollback" receipt run.
 ```
 
-`SsBulkUndo` runs in one transaction under the migration advisory lock (`872,1`) with share-row-exclusive locks
-on the affected tables. It **refuses with blockers and changes nothing** when any of these apply:
+`SsBulkUndo` runs in one transaction under the migration advisory lock (`872,1`). It then takes
+share-row-exclusive locks on the crosswalk tables and the undone job's tables only (Training: users and training
+tables; Scheduling: scheduling tables, parents first), through the same bounded, back-off-first acquisition as
+Scheduling chunks: each attempt is cut off below `deadlock_timeout` and retried, so an application transaction
+that waits on undo is never aborted as a deadlock victim. It **refuses with blockers and changes nothing** when
+any of these apply:
 
 - another SS run is `Running` (checked right after the advisory lock and before any table lock, so undo never
   waits on an active chunk);
@@ -190,6 +194,11 @@ interfaces (`ISsSessionBackend`, `ISsSchedulingStore`):
   the database for the same rules:
   - real ids from the table sequences;
   - the audit interceptor's actor stamps;
+  - the `SchedulingConcurrencyInterceptor` root version bumps: a save that adds or changes a shift user, link,
+    link user or scheduling event touches the owning unchanged `ShiftEntry`/`AssignmentEntry`/`AssignmentSeries`
+    (`UpdatedOn`/`UpdatedById` updated, version advanced, no audit row because Audit.NET snapshots the change set
+    before interceptors run). It applies only when the context has that interceptor (production does), and a
+    touch of an unmodelled `ShiftSeries` is refused (`UnmodelledConcurrencyRoot:ShiftSeries`);
   - PostgreSQL value normalisation;
   - not-null, varchar length, unique-index, foreign-key and named check constraints;
   - savepoint rollback of rejected units.
@@ -238,6 +247,8 @@ Crosswalk uniqueness (`Source, EntityType, LegacyId`) is the idempotency fence. 
 | `TargetChangedDuringBulkRun` | Someone wrote the modelled target tables during the run. |
 | `TrainingRunInProgress` | An SS Training run is `Running` when the Scheduling Bulk run starts. Both write `Users`/crosswalks; run them one after the other. A Training run started *during* a Scheduling Bulk run stops it at the next chunk with `TargetChangedDuringBulkRun` (committed chunks are complete; rerun Scheduling afterwards). |
 | `Delete:*`, `MutationUpdate`, `Unmodelled*`, `Unsupported*`, `NonUtcOffset`, � | Schema or rule paths the simulation does not model. These guard against future rule or schema changes. |
+
+The findings API and CSV show the `SchedulingBulk` outcome and these reasons as-is (compiled vocabulary in `MigrationDiagnostics`); any detail after the reason (an EF type or index name) is shown only as an opaque `sha256:` key.
 
 **In short, Bulk is for loading new Scheduling rows and resuming.** It covers:
 
@@ -341,10 +352,16 @@ Tests:
 - **Safety**:
   - duplicate trigger and duplicate execute refused;
   - undo during a live chunk refused within 30 s;
+  - a lock cycle with a concurrent writer (Users then a scheduling table) on a chunk: Bulk backs off, nobody is aborted (fails with the old lock order: verified negative control);
+  - a Training run in progress refuses Bulk; a mid-run target change refuses with nothing written;
   - crash, abort and cancel between chunks, each resuming to the reference;
   - terminal run ids refused;
   - rerun inserts 0.
-- **Dry run**, mode binding, undo to baseline, re-apply, and undo refused after drift or a later shift user.
+- **Dry run**, mode binding, undo to baseline, re-apply, and undo refused after drift, a later shift user or a
+  deleted owned link. Undo completes under lock cycles with an application writer in both table orders (the
+  previous unbounded child-first locking deadlocked: verified negative control).
+- All Scheduling PostgreSQL tests use the production interceptor chain (`SchedulingConcurrencyInterceptor`,
+  then `AuditableEntityInterceptor`).
 - **Mixed-mode resume** (above).
 - **Opt-in benchmark**: `UNIFIED_MIGRATION_SCHEDULING_BENCHMARK_TEMPLATE=<source db>` (and
   `UNIFIED_MIGRATION_SCHEDULING_BENCHMARK_PERROW=false` to skip the PerRow leg).
