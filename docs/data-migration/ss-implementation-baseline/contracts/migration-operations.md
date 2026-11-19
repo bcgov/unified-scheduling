@@ -55,6 +55,10 @@ whole-lineage ownership. Link-only existing targets and unrelated new work remai
 Confirmed rollback may overwrite later migrated-target edits only after protected export.
 Revalidate impact before apply; state changes invalidate stale confirmation.
 
+Training may opt in to `PersistenceMode=Bulk` (bound into the trigger audit, set-based chunks,
+no rollback journal, crosswalk-scoped `SsBulkUndo`, target role needs `TEMP`); see
+[Training bulk persistence](../training-bulk-persistence.md).
+
 ## Data Protection
 
 Ordinary responses/findings/logs expose only safe keys, classes, counts and metrics.

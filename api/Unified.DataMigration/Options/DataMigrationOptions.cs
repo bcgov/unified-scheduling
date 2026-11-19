@@ -59,6 +59,21 @@ public sealed class MigrationJobOptions
     public bool DryRun { get; set; } = true;
     public bool AllowMigrationApply { get; set; }
     public int BatchSize { get; set; } = 100;
+
+    /// <summary>
+    /// <see cref="MigrationPersistenceMode.PerRow"/> (default) keeps the per-row writer and rollback journal.
+    /// <see cref="MigrationPersistenceMode.Bulk"/> (Training only) persists set-based per chunk without a journal.
+    /// </summary>
+    public MigrationPersistenceMode PersistenceMode { get; set; } = MigrationPersistenceMode.PerRow;
+
+    /// <summary>Approximate source rows per Bulk chunk transaction (a user's histories are never split).</summary>
+    public int BulkChunkSize { get; set; } = 2000;
+}
+
+public enum MigrationPersistenceMode
+{
+    PerRow,
+    Bulk,
 }
 
 public sealed class DataMigrationOptionsValidator : IValidateOptions<DataMigrationOptions>
@@ -77,10 +92,18 @@ public sealed class DataMigrationOptionsValidator : IValidateOptions<DataMigrati
             foreach (var job in new[] { "MyTeam", "Training", "Scheduling", "Report" })
             {
                 var settings = options.Sources.SS.Jobs.For(job);
+                // Persistence mode is checked even for disabled jobs so an unsupported Bulk setting
+                // cannot sit unnoticed and be recorded in trigger evidence later.
+                if (!Enum.IsDefined(settings.PersistenceMode))
+                    failures.Add($"SS:{job}:PersistenceMode is invalid.");
+                if (settings.PersistenceMode == MigrationPersistenceMode.Bulk && job != "Training")
+                    failures.Add($"SS:{job}:PersistenceMode Bulk is supported only for Training.");
                 if (!settings.Enabled)
                     continue;
                 if (settings.BatchSize <= 0)
                     failures.Add($"SS:{job}:BatchSize must be positive.");
+                if (settings.BulkChunkSize <= 0)
+                    failures.Add($"SS:{job}:BulkChunkSize must be positive.");
                 if (
                     !string.IsNullOrWhiteSpace(settings.CronSchedule)
                     && !settings.CronSchedule.Equals("disabled", StringComparison.OrdinalIgnoreCase)

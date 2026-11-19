@@ -217,7 +217,16 @@ public sealed class DataMigrationOperations(
             ?? throw new MigrationOperationException(409, "JobBusyPausedOrLineageNotReady");
         try
         {
-            await AuditAsync(source, job, run.Id, actor, "Trigger", ct, dryRun);
+            await AuditAsync(
+                source,
+                job,
+                run.Id,
+                actor,
+                "Trigger",
+                ct,
+                dryRun,
+                settings.Jobs.For(job).PersistenceMode.ToString()
+            );
             dispatcher.Enqueue(run.Id);
         }
         catch
@@ -387,9 +396,30 @@ public sealed class DataMigrationOperations(
         Guid actor,
         string action,
         CancellationToken ct,
-        bool? dryRun = null
+        bool? dryRun = null,
+        string? persistenceMode = null
     )
     {
+        // The configured persistence mode is bound to the audited trigger; the executor refuses
+        // a queued apply run whose configured mode changed after acquisition.
+        object values = persistenceMode is null
+            ? new
+            {
+                Source = source,
+                Job = job,
+                RunId = id,
+                Operation = action,
+                DryRun = dryRun,
+            }
+            : new
+            {
+                Source = source,
+                Job = job,
+                RunId = id,
+                Operation = action,
+                DryRun = dryRun,
+                PersistenceMode = persistenceMode,
+            };
         db.AuditRecords.Add(
             new AuditRecord
             {
@@ -399,16 +429,7 @@ public sealed class DataMigrationOperations(
                 EntityType = "DataMigrationOperation",
                 EntityPK = id?.ToString("D") ?? (job is null ? source : $"{source}:{job}"),
                 TableName = "DataMigrationRuns",
-                NewValues = JsonSerializer.Serialize(
-                    new
-                    {
-                        Source = source,
-                        Job = job,
-                        RunId = id,
-                        Operation = action,
-                        DryRun = dryRun,
-                    }
-                ),
+                NewValues = JsonSerializer.Serialize(values),
             }
         );
         await db.SaveChangesAsync(ct);
