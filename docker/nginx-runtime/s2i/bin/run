@@ -30,9 +30,9 @@ getApiProxyConfigSection() {
             proxy_set_header Host               \$host;
             proxy_set_header X-Real-IP          \$remote_addr;
             proxy_set_header X-Forwarded-For    \$proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Host   \$host;
-            proxy_set_header X-Forwarded-Proto  \$http_x_forwarded_proto;
-            proxy_set_header X-Forwarded-Port   \$http_x_forwarded_port;
+            proxy_set_header X-Forwarded-Host   \$proxy_host;
+            proxy_set_header X-Forwarded-Proto  \$proxy_scheme;
+            proxy_set_header X-Forwarded-Port   \$proxy_port;
             proxy_set_header X-Base-Href        ${WEB_BASE_HREF};
             proxy_pass_request_headers on;
             proxy_pass_header Authorization;
@@ -52,9 +52,9 @@ getApiProxyConfigSection() {
             proxy_set_header Host               \$host;
             proxy_set_header X-Real-IP          \$remote_addr;
             proxy_set_header X-Forwarded-For    \$proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Host   \$host;
-            proxy_set_header X-Forwarded-Proto  \$http_x_forwarded_proto;
-            proxy_set_header X-Forwarded-Port   \$http_x_forwarded_port;
+            proxy_set_header X-Forwarded-Host   \$proxy_host;
+            proxy_set_header X-Forwarded-Proto  \$proxy_scheme;
+            proxy_set_header X-Forwarded-Port   \$proxy_port;
             proxy_set_header X-Base-Href        ${WEB_BASE_HREF};
             proxy_pass_request_headers on;
             proxy_pass_header Authorization;
@@ -100,6 +100,50 @@ getRemoveBaseHref() {
   fi
 }
 
+getPublicHostRules() {
+  local hosts="${PUBLIC_HOST_ALLOWLIST:-}"
+  local authority hostname port key
+  local hostnamePattern='^[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*$'
+  local -a entries
+  local -A seen=()
+
+  [ -n "$hosts" ] || return 0
+  if [[ "$hosts" == ,* || "$hosts" == *, || "$hosts" == *,,* || "$hosts" == *$'\n'* || "$hosts" == *$'\r'* ]]; then
+    echo "Invalid PUBLIC_HOST_ALLOWLIST: expected comma-separated host[:port] values" >&2
+    return 1
+  fi
+
+  IFS=',' read -r -a entries <<< "$hosts"
+  for authority in "${entries[@]}"; do
+    hostname="${authority%%:*}"
+    if [[ ${#hostname} -gt 253 || ! "$hostname" =~ $hostnamePattern ]]; then
+      echo "Invalid PUBLIC_HOST_ALLOWLIST hostname" >&2
+      return 1
+    fi
+    if [[ "$authority" == *:* ]]; then
+      port="${authority#*:}"
+      if [[ ! "$port" =~ ^[0-9]{1,5}$ ]] || (( 10#$port < 1 || 10#$port > 65535 )); then
+        echo "Invalid PUBLIC_HOST_ALLOWLIST port" >&2
+        return 1
+      fi
+    fi
+
+    key="${authority,,}"
+    case "$key" in
+      default|hostnames|include|volatile)
+        echo "Invalid PUBLIC_HOST_ALLOWLIST hostname" >&2
+        return 1
+        ;;
+    esac
+    if [[ -n "${seen[$key]:-}" ]]; then
+      echo "Duplicate PUBLIC_HOST_ALLOWLIST entry" >&2
+      return 1
+    fi
+    seen["$key"]=1
+    printf '        %s %s;\n' "$key" "$key"
+  done
+}
+
 escapeForSedReplacement() {
   sed ':a;N;$!ba;s/\n/\\n/g; s/\$/\\$/g'
 }
@@ -118,6 +162,8 @@ export WEB_BASE_HREF="${WEB_BASE_HREF:-/}"
 export RealIpFrom="${RealIpFrom:-172.51.0.0/16}"
 export REMOVE_BASE_HREF
 REMOVE_BASE_HREF="$(getRemoveBaseHref "${WEB_BASE_HREF}")"
+export PUBLIC_HOST_RULES
+PUBLIC_HOST_RULES="$(getPublicHostRules | escapeForSedReplacement)"
 
 if [ -n "${HTTP_BASIC_USERNAME:-}" ] && [ -n "${HTTP_BASIC_PASSWORD:-}" ]; then
   echo "---> Generating .htpasswd file"
@@ -148,7 +194,7 @@ export LISTEN_CONFIG_SECTION
 LISTEN_CONFIG_SECTION="$(getListenConfigSection | escapeForSedReplacement)"
 
 echo "---> Replacing nginx configuration"
-sed "$(makeReplacementPattern RealIpFrom IpFilterRules AdditionalRealIpFromRules IgnoreInvalidHeaders HTTP_BASIC WEB_BASE_HREF REMOVE_BASE_HREF API_CONFIG_SECTION LISTEN_CONFIG_SECTION)" /tmp/nginx.conf.template > /etc/nginx/nginx.conf
+sed "$(makeReplacementPattern RealIpFrom IpFilterRules AdditionalRealIpFromRules IgnoreInvalidHeaders HTTP_BASIC WEB_BASE_HREF REMOVE_BASE_HREF PUBLIC_HOST_RULES API_CONFIG_SECTION LISTEN_CONFIG_SECTION)" /tmp/nginx.conf.template > /etc/nginx/nginx.conf
 
 if [ -n "${USE_SELF_SIGNED_SSL:-}" ] && [ ! -r /var/run/nginx-selfsigned.crt ]; then
   echo "---> Generating self-signed SSL certificate"
