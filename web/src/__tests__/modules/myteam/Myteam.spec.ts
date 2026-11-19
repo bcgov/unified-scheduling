@@ -3,6 +3,7 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { HttpResponse, http } from 'msw';
 
 import { getGetApiUsersMockHandler, getGetApiUsersResponseMock } from '@/api-access/generated/users/users.msw';
+import { mdiMagnify } from '@mdi/js';
 import Myteam from '@/modules/myteam/views/Myteam.vue';
 import UserCard from '@/modules/myteam/components/UserCard.vue';
 import { createTestApp } from '../../helpers/createTestApp';
@@ -85,7 +86,7 @@ describe('Myteam', () => {
 
     const searchField = wrapper.findComponent({ name: 'VTextField' });
     expect(wrapper.get('label[for="team-search"]').text()).toBe('Search');
-    expect(searchField.props('prependInnerIcon')).toBe('mdi-magnify');
+    expect(searchField.props('prependInnerIcon')).toBe(mdiMagnify);
     expect(searchField.props('density')).toBe('comfortable');
     expect(searchField.props('variant')).toBe('outlined');
 
