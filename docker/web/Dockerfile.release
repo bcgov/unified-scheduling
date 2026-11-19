@@ -10,7 +10,7 @@ ARG NPM_INSTALL_ARGS=""
 # 1. Build web-runtime
 ###################################################################################
 # Use the offical nginx (based on debian)
-FROM nginx:stable AS runtime
+FROM nginx:1.30.7-trixie@sha256:7fad6c0dff97965adbddf28027d934b111fc0221a554315dc274712f3fba24d3 AS runtime
 ARG NGINX_RUNTIME_SRC
 ARG VUE_ON_NGINX_SRC
 
