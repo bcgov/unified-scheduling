@@ -127,6 +127,7 @@ const emit = defineEmits<{
   align-content: start;
   display: grid;
   gap: var(--ua-spacing-sm);
+  grid-auto-rows: max-content;
   min-height: 0;
   overflow-y: auto;
 }
