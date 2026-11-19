@@ -275,6 +275,7 @@ var app = builder.Build();
             "/hangfire",
             new DashboardOptions
             {
+                PrefixPath = builder.Configuration["Hangfire:DashboardPrefixPath"]?.TrimEnd('/') ?? string.Empty,
                 Authorization = [new HangfireDashboardAuthorizationFilter()],
                 DisplayStorageConnectionString = false,
             }
