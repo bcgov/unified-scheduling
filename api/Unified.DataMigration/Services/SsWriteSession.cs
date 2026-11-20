@@ -12,9 +12,47 @@ namespace Unified.DataMigration.Services;
 public sealed class SsReject(string code) : Exception(code);
 
 /// <summary>One job transaction; failed rows use savepoints, never poison independent rows.</summary>
-public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run)
+public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run) : ISsSchedulingSession
 {
+    /// <summary>Same session logic over a different storage backend (Scheduling Bulk simulation).</summary>
+    internal SsWriteSession(UnifiedDbContext db, DataMigrationRun run, ISsSessionBackend backend)
+        : this(db, run) => this.backend = backend;
+
+    private ISsSessionBackend? backend;
+    private ISsSessionBackend Store => backend ??= new SsEfSessionBackend(db, this);
+
+    /// <summary>The storage backend (EF for PerRow).</summary>
+    internal ISsSessionBackend Backend => Store;
+
+    internal static IReadOnlySet<string> TargetFields => SafeTargetFields;
+
     public List<DataMigrationOutcome> Outcomes { get; } = [];
+
+    // Internal members cannot implicitly implement the (internal) rules interface.
+    HashSet<(string Type, string Id)> ISsSchedulingSession.Rebinding => Rebinding;
+
+    DataMigrationOutcome? ISsSchedulingSession.FindOutcome(string type, string id) => FindOutcome(type, id);
+
+    int ISsSchedulingSession.OutcomePosition(string type, string id) => OutcomePosition(type, id);
+
+    Task ISsSchedulingSession.AtomicGraphAsync(
+        string type,
+        SsRow source,
+        Func<Task> write,
+        CancellationToken ct,
+        IReadOnlyList<(string Type, string Id)>? members
+    ) => AtomicGraphAsync(type, source, write, ct, members);
+
+    Task ISsSchedulingSession.GuardGraphAsync(IReadOnlyCollection<DataMigrationRecord> records, CancellationToken ct) =>
+        GuardGraphAsync(records, ct);
+
+    Task ISsSchedulingSession.SealNewDutyEntriesAsync(IReadOnlyCollection<int> ids, CancellationToken ct) =>
+        SealNewDutyEntriesAsync(ids, ct);
+
+    Task ISsSchedulingSession.PlanGraphAsync(Func<Task> plan, CancellationToken ct) => PlanGraphAsync(plan, ct);
+
+    void ISsSchedulingSession.BeforeGraphReplacement() => Store.BeforeOwnedUpdate("GraphReplacement");
+
     private static readonly HashSet<string> PrimaryTypes =
     [
         "Region",
@@ -51,6 +89,9 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run)
         private readonly List<string> journal = [];
         public int Count => journal.Count;
 
+        /// <summary>Keys in first-add order (the committed prefix is stable between unit boundaries).</summary>
+        public IReadOnlyList<string> Journal => journal;
+
         public void Add(string key)
         {
             if (members.Add(key))
@@ -73,6 +114,12 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run)
     private readonly TargetCounter updatedTargets = new();
     public int Inserted => insertedTargets.Count;
     public int Updated => updatedTargets.Count;
+
+    /// <summary>Distinct inserted target keys in first-insert order (Bulk chunk accounting).</summary>
+    internal IReadOnlyList<string> InsertedKeys => insertedTargets.Journal;
+
+    /// <summary>Distinct updated target keys in first-update order (Bulk chunk accounting).</summary>
+    internal IReadOnlyList<string> UpdatedKeys => updatedTargets.Journal;
     public int Linked { get; private set; }
     public Func<CancellationToken, Task>? AfterUnitAsync { get; set; }
 
@@ -157,30 +204,10 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run)
             if (!group.Any(x => x.CreatedByRunId is not null))
                 throw new SsReject("GraphRequiresOriginalOwnedTarget");
             foreach (var record in group)
-                if (
-                    !await db.DataMigrationMutations.AnyAsync(
-                        x => x.DataMigrationRecordId == record.Id && x.Version != null,
-                        ct
-                    )
-                )
+                if (!await Store.HasVersionedMutationAsync(record.Id, ct))
                     throw new SsReject("MissingOriginalTargetVersionProof");
             await TargetVersionAsync(group.Key.TargetType, group.Key.TargetKey, true, ct);
-            if (group.Key.TargetType == "ShiftEntry")
-                await db.Database.ExecuteSqlInterpolatedAsync(
-                    $"SELECT \"Id\" FROM \"ShiftEntryUsers\" WHERE \"ShiftEntryId\"={int.Parse(group.Key.TargetKey)} FOR UPDATE",
-                    ct
-                );
-            if (group.Key.TargetType == "AssignmentEntry")
-            {
-                await db.Database.ExecuteSqlInterpolatedAsync(
-                    $"SELECT l.\"Id\" FROM \"ShiftAssignmentEntries\" l WHERE l.\"AssignmentEntryId\"={int.Parse(group.Key.TargetKey)} FOR UPDATE",
-                    ct
-                );
-                await db.Database.ExecuteSqlInterpolatedAsync(
-                    $"SELECT u.\"Id\" FROM \"ShiftAssignmentEntryUsers\" u JOIN \"ShiftAssignmentEntries\" l ON l.\"Id\"=u.\"ShiftAssignmentEntryId\" WHERE l.\"AssignmentEntryId\"={int.Parse(group.Key.TargetKey)} FOR UPDATE OF u",
-                    ct
-                );
-            }
+            await Store.LockGraphChildrenAsync(group.Key.TargetType, group.Key.TargetKey, ct);
             var actual = await TargetFingerprintAsync(group.Key.TargetType, group.Key.TargetKey, ct);
             if (group.Any(x => x.AfterHash != actual))
                 throw new SsReject("OwnedTargetDrift");
@@ -192,38 +219,27 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run)
         foreach (var id in ids)
         {
             var key = id.ToString(CultureInfo.InvariantCulture);
-            var aliases = await db
-                .DataMigrationRecords.Where(x =>
-                    x.Source == "SS" && x.TargetType == "AssignmentEntry" && x.TargetKey == key
-                )
-                .ToListAsync(ct);
+            var aliases = await Store.AliasesAsync("AssignmentEntry", key, null, ct);
             if (!aliases.Any(x => x.EntityType == "DutyEntry" && x.CreatedByRunId == run.Id))
                 throw new SsReject("GraphSealRequiresNewOwnedEntry");
             var hash = await TargetFingerprintAsync("AssignmentEntry", key, ct);
             foreach (var alias in aliases)
             {
                 alias.AfterHash = hash;
-                db.DataMigrationMutations.Add(
+                Store.AddMutation(
                     new DataMigrationMutation
                     {
                         RunId = run.Id,
                         DataMigrationRecordId = alias.Id,
-                        Sequence =
-                            (
-                                await db
-                                    .DataMigrationMutations.Where(x => x.RunId == run.Id)
-                                    .Select(x => (long?)x.Sequence)
-                                    .MaxAsync(ct)
-                                ?? 0
-                            ) + 1,
+                        Sequence = await Store.NextSequenceAsync(run.Id, ct),
                         Operation = "SealNewGraph",
                         AfterHash = hash,
                         Version = await TargetVersionAsync("AssignmentEntry", key, false, ct),
                     }
                 );
-                await db.SaveChangesAsync(ct);
+                await Store.SaveAsync(ct);
             }
-            await db.SaveChangesAsync(ct);
+            await Store.SaveAsync(ct);
         }
     }
 
@@ -234,8 +250,7 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run)
         var inserted = insertedTargets.Count;
         var updated = updatedTargets.Count;
         var linked = Linked;
-        var tx = db.Database.CurrentTransaction!;
-        await tx.CreateSavepointAsync("ss_graph_plan", ct);
+        await Store.CreateSavepointAsync("ss_graph_plan", ct);
         AfterUnitAsync = null;
         try
         {
@@ -243,9 +258,8 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run)
         }
         finally
         {
-            await tx.RollbackToSavepointAsync("ss_graph_plan", CancellationToken.None);
-            await tx.ReleaseSavepointAsync("ss_graph_plan", CancellationToken.None);
-            db.ChangeTracker.Clear();
+            await Store.RollbackSavepointAsync("ss_graph_plan");
+            Store.ClearTracker();
             Outcomes.Clear();
             outcomeIndex.Clear();
             foreach (var item in prior)
@@ -362,7 +376,7 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run)
 
     public async Task RowAsync(string type, SsRow source, Func<Task> write, CancellationToken ct)
     {
-        var tx = db.Database.CurrentTransaction ?? throw new InvalidOperationException("Job transaction required.");
+        Store.EnsureTransaction();
         var checkpoint = Outcomes.Count;
         var inserted = insertedTargets.Count;
         var updated = updatedTargets.Count;
@@ -370,12 +384,12 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run)
         var parentChanges = outcomeChanges;
         var changes = new Dictionary<DataMigrationOutcome, (string Outcome, string? Reason)>();
         outcomeChanges = changes;
-        await tx.CreateSavepointAsync("ss_row", ct);
+        await Store.CreateSavepointAsync("ss_row", ct);
         try
         {
             await write();
-            await db.SaveChangesAsync(ct);
-            await tx.ReleaseSavepointAsync("ss_row", ct);
+            await Store.SaveAsync(ct);
+            await Store.ReleaseSavepointAsync("ss_row", ct);
             // A successful inner savepoint is still provisional until its
             // enclosing graph commits. Preserve the earliest outcome image
             // so a later sibling failure restores pre-graph counters too.
@@ -387,11 +401,15 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run)
         {
             throw;
         }
+        catch (SsBulkRefusal)
+        {
+            // Bulk cannot reproduce this path exactly; abort the whole simulation.
+            throw;
+        }
         catch (Exception ex)
         {
-            await tx.RollbackToSavepointAsync("ss_row", CancellationToken.None);
-            await tx.ReleaseSavepointAsync("ss_row", CancellationToken.None);
-            db.ChangeTracker.Clear();
+            await Store.RollbackSavepointAsync("ss_row");
+            Store.ClearTracker();
             // Keys are unique, so dropping the removed tail from the index is the same as
             // rebuilding it from the surviving prefix (whose positions do not move).
             for (var i = checkpoint; i < Outcomes.Count; i++)
@@ -407,7 +425,8 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run)
             updatedTargets.Rollback(updated);
             Linked = linked;
             if (
-                Environment.GetEnvironmentVariable("DataMigrationRehearsal__SafeStack") == "true"
+                Store.PerRowDiagnostics
+                && Environment.GetEnvironmentVariable("DataMigrationRehearsal__SafeStack") == "true"
                 && db.Database.GetDbConnection().Database == "unified_ss_rehearsal_repartition_v4"
             )
             {
@@ -451,15 +470,11 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run)
             throw new SsReject("MissingParent");
         if (type == "User" && id == "00000000-0000-0000-0000-000000000001")
         {
-            if (await db.Users.AnyAsync(x => x.Id == new Guid(id), ct))
+            if (await Store.UserExistsAsync(new Guid(id), ct))
                 return id;
             throw new SsReject("MissingUnifiedSystemUser");
         }
-        return await db
-                .DataMigrationRecords.Where(x => x.Source == "SS" && x.EntityType == type && x.LegacyId == id)
-                .Select(x => x.TargetKey)
-                .SingleOrDefaultAsync(ct)
-            ?? throw new SsReject("MissingParent");
+        return await Store.TargetKeyAsync(type, id, ct) ?? throw new SsReject("MissingParent");
     }
 
     public async Task<int?> ResolveIntAsync(string type, int? id, CancellationToken ct) =>
@@ -482,10 +497,7 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run)
         if (Rebinding.Contains((type, source.Id)))
             return false;
         sourceHash = MappedSourceHash(type, source, sourceHash);
-        var record = await db.DataMigrationRecords.SingleOrDefaultAsync(
-            x => x.Source == "SS" && x.EntityType == type && x.LegacyId == source.Id,
-            ct
-        );
+        var record = await Store.RecordAsync(type, source.Id, ct);
         if (record is null)
             return false;
         // References are add/link-only, including retired rows. Never refresh linked business rows.
@@ -508,10 +520,7 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run)
                 throw new SsReject("LinkedOnlyTargetCannotUpdate");
             if (applyOwnedUpdate is null)
                 throw new SsReject("OwnedUpdateRequiresReview");
-            var prior = await db
-                .DataMigrationMutations.Where(x => x.DataMigrationRecordId == record.Id)
-                .OrderByDescending(x => x.Id)
-                .FirstOrDefaultAsync(ct);
+            var prior = await Store.LatestMutationAsync(record.Id, ct);
             if (prior?.Version is null)
                 throw new SsReject("MissingOriginalTargetVersionProof");
             var version = await TargetVersionAsync(record.TargetType, record.TargetKey, true, ct);
@@ -524,61 +533,41 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run)
                 || record.AfterHash != await TargetFingerprintAsync(record.TargetType, record.TargetKey, ct)
             )
                 throw new SsReject("OwnedTargetDrift");
+            Store.BeforeOwnedUpdate($"OwnedUpdate:{type}");
             await applyOwnedUpdate();
-            await db.SaveChangesAsync(ct);
+            await Store.SaveAsync(ct);
             record.PayloadHash = sourceHash;
             record.AfterHash = await TargetFingerprintAsync(record.TargetType, record.TargetKey, ct);
             record.SourceUpdatedAtUtc = source.Date("UpdatedOn") ?? source.Date("CreatedOn");
             record.LastAppliedRunId = run.Id;
-            db.DataMigrationMutations.Add(
+            Store.AddMutation(
                 new DataMigrationMutation
                 {
                     RunId = run.Id,
                     DataMigrationRecordId = record.Id,
-                    Sequence =
-                        (
-                            await db
-                                .DataMigrationMutations.Where(x => x.RunId == run.Id)
-                                .Select(x => (long?)x.Sequence)
-                                .MaxAsync(ct)
-                            ?? 0
-                        ) + 1,
+                    Sequence = await Store.NextSequenceAsync(run.Id, ct),
                     Operation = "Update",
                     AfterHash = record.AfterHash,
                     Version = await TargetVersionAsync(record.TargetType, record.TargetKey, false, ct),
                 }
             );
-            await db.SaveChangesAsync(ct);
-            var aliases = await db
-                .DataMigrationRecords.Where(x =>
-                    x.Source == "SS"
-                    && x.Id != record.Id
-                    && x.TargetType == record.TargetType
-                    && x.TargetKey == record.TargetKey
-                )
-                .ToListAsync(ct);
+            await Store.SaveAsync(ct);
+            var aliases = await Store.AliasesAsync(record.TargetType, record.TargetKey, record.Id, ct);
             foreach (var alias in aliases)
             {
                 alias.AfterHash = record.AfterHash;
-                db.DataMigrationMutations.Add(
+                Store.AddMutation(
                     new DataMigrationMutation
                     {
                         RunId = run.Id,
                         DataMigrationRecordId = alias.Id,
-                        Sequence =
-                            (
-                                await db
-                                    .DataMigrationMutations.Where(x => x.RunId == run.Id)
-                                    .Select(x => (long?)x.Sequence)
-                                    .MaxAsync(ct)
-                                ?? 0
-                            ) + 1,
+                        Sequence = await Store.NextSequenceAsync(run.Id, ct),
                         Operation = "GraphRefresh",
                         AfterHash = record.AfterHash!,
                         Version = await TargetVersionAsync(record.TargetType, record.TargetKey, false, ct),
                     }
                 );
-                await db.SaveChangesAsync(ct);
+                await Store.SaveAsync(ct);
             }
             updatedTargets.Add($"{record.TargetType}:{record.TargetKey}");
             Outcome(type, source.Id, "Migrated", "OwnedMappedUpdate");
@@ -629,10 +618,7 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run)
             throw new SsReject("EntityOwnershipViolation");
         var afterHash = await TargetFingerprintAsync(targetType, targetId, ct);
         var record = Rebinding.Contains((type, source.Id))
-            ? await db.DataMigrationRecords.SingleAsync(
-                x => x.Source == "SS" && x.EntityType == type && x.LegacyId == source.Id,
-                ct
-            )
+            ? await Store.RequiredRecordAsync(type, source.Id, ct)
             : null;
         var rebinding = record is not null;
         record ??= new DataMigrationRecord
@@ -660,20 +646,14 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run)
             Rebinding.Remove((type, source.Id));
         }
         else
-            db.DataMigrationRecords.Add(record);
-        await db.SaveChangesAsync(ct);
-        db.DataMigrationMutations.Add(
+            Store.AddRecord(record);
+        await Store.SaveAsync(ct);
+        Store.AddMutation(
             new DataMigrationMutation
             {
                 RunId = run.Id,
                 DataMigrationRecordId = record.Id,
-                Sequence = await db
-                    .DataMigrationMutations.Where(x => x.RunId == run.Id)
-                    .Select(x => (long?)x.Sequence)
-                    .MaxAsync(ct)
-                    is { } sequence
-                    ? sequence + 1
-                    : 1,
+                Sequence = await Store.NextSequenceAsync(run.Id, ct),
                 Operation =
                     rebinding ? "Repartition"
                     : created ? "Insert"
@@ -700,9 +680,7 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run)
         var ids = members.Select(x => x.Id).ToArray();
         if (ids.Any(id => Rebinding.Contains((type, id))))
             return false;
-        var records = await db
-            .DataMigrationRecords.Where(x => x.Source == "SS" && x.EntityType == type && ids.Contains(x.LegacyId))
-            .ToListAsync(ct);
+        var records = await Store.RecordsAsync(type, ids, ct);
         if (records.Count == 0)
             return false;
         if (records.Select(x => x.TargetKey).Distinct().Count() != 1)
@@ -716,21 +694,9 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run)
         }
         if (records.Any(x => x.CreatedByRunId is null))
             throw new SsReject("LinkedOnlyTargetCannotUpdate");
-        if (
-            await db.DataMigrationRecords.AnyAsync(
-                x =>
-                    x.Source == "SS"
-                    && x.EntityType == type
-                    && x.TargetKey == owner.TargetKey
-                    && !ids.Contains(x.LegacyId),
-                ct
-            )
-        )
+        if (await Store.GroupHasOtherMemberAsync(type, owner.TargetKey, ids, ct))
             throw new SsReject("GroupSplitRequiresMultiTargetRepartition");
-        var prior = await db
-            .DataMigrationMutations.Where(x => x.DataMigrationRecordId == owner.Id)
-            .OrderByDescending(x => x.Id)
-            .FirstOrDefaultAsync(ct);
+        var prior = await Store.LatestMutationAsync(owner.Id, ct);
         if (prior?.Version is null)
             throw new SsReject("MissingOriginalTargetVersionProof");
         var version = await TargetVersionAsync(owner.TargetType, owner.TargetKey, true, ct);
@@ -740,8 +706,9 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run)
             || records.Any(x => x.AfterHash != owner.AfterHash)
         )
             throw new SsReject("OwnedTargetDrift");
+        Store.BeforeOwnedUpdate($"OwnedGroupUpdate:{type}");
         await update(owner.TargetKey);
-        await db.SaveChangesAsync(ct);
+        await Store.SaveAsync(ct);
         var afterHash = await TargetFingerprintAsync(owner.TargetType, owner.TargetKey, ct);
         var afterVersion = await TargetVersionAsync(owner.TargetType, owner.TargetKey, false, ct);
         foreach (var member in members)
@@ -750,35 +717,25 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run)
             if (record is null)
             {
                 await LinkAsync(type, member, owner.TargetType, owner.TargetKey, sourceHash, false, ct);
-                record = await db.DataMigrationRecords.SingleAsync(
-                    x => x.Source == "SS" && x.EntityType == type && x.LegacyId == member.Id,
-                    ct
-                );
+                record = await Store.RequiredRecordAsync(type, member.Id, ct);
                 record.CreatedByRunId = owner.CreatedByRunId;
             }
             record.PayloadHash = sourceHash;
             record.AfterHash = afterHash;
             record.SourceUpdatedAtUtc = member.Date("UpdatedOn") ?? member.Date("CreatedOn");
             record.LastAppliedRunId = run.Id;
-            db.DataMigrationMutations.Add(
+            Store.AddMutation(
                 new DataMigrationMutation
                 {
                     RunId = run.Id,
                     DataMigrationRecordId = record.Id,
-                    Sequence =
-                        (
-                            await db
-                                .DataMigrationMutations.Where(x => x.RunId == run.Id)
-                                .Select(x => (long?)x.Sequence)
-                                .MaxAsync(ct)
-                            ?? 0
-                        ) + 1,
+                    Sequence = await Store.NextSequenceAsync(run.Id, ct),
                     Operation = "UpdateGroup",
                     AfterHash = afterHash,
                     Version = afterVersion,
                 }
             );
-            await db.SaveChangesAsync(ct);
+            await Store.SaveAsync(ct);
             Outcome(type, member.Id, members.Count > 1 ? "Merged" : "Migrated", "OwnedFullGroupUpdate");
         }
         updatedTargets.Add($"{owner.TargetType}:{owner.TargetKey}");
@@ -794,17 +751,12 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run)
     {
         if (!(run.Job == "Scheduling" && type == "Duty" || run.Job == "Training" && type == "User"))
             throw new SsReject("EntityOwnershipViolation");
-        var records = await db
-            .DataMigrationRecords.Where(x => x.Source == "SS" && x.EntityType == type && ids.Contains(x.LegacyId))
-            .ToListAsync(ct);
+        var records = await Store.RecordsAsync(type, ids, ct);
         if (records.Count != ids.Distinct().Count() || records.Any(x => x.CreatedByRunId is null))
             throw new SsReject("CompositionRequiresOwnedTargets");
         foreach (var record in records.OrderBy(x => x.TargetKey, StringComparer.Ordinal))
         {
-            var prior = await db
-                .DataMigrationMutations.Where(x => x.DataMigrationRecordId == record.Id)
-                .OrderByDescending(x => x.Id)
-                .FirstOrDefaultAsync(ct);
+            var prior = await Store.LatestMutationAsync(record.Id, ct);
             var version = await TargetVersionAsync(record.TargetType, record.TargetKey, true, ct);
             if (
                 prior?.Version is null
@@ -815,40 +767,29 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run)
         }
 
         await compose();
-        await db.SaveChangesAsync(ct);
+        await Store.SaveAsync(ct);
         foreach (var record in records)
         {
             var hash = await TargetFingerprintAsync(record.TargetType, record.TargetKey, ct);
             if (type == "User" && hash != record.AfterHash)
                 throw new SsReject("TrainingCannotChangeMyTeamMappedFields");
             var version = await TargetVersionAsync(record.TargetType, record.TargetKey, false, ct);
-            var aliases = await db
-                .DataMigrationRecords.Where(x =>
-                    x.Source == "SS" && x.TargetType == record.TargetType && x.TargetKey == record.TargetKey
-                )
-                .ToListAsync(ct);
+            var aliases = await Store.AliasesAsync(record.TargetType, record.TargetKey, null, ct);
             foreach (var alias in aliases)
             {
                 alias.AfterHash = hash;
-                db.DataMigrationMutations.Add(
+                Store.AddMutation(
                     new DataMigrationMutation
                     {
                         RunId = run.Id,
                         DataMigrationRecordId = alias.Id,
-                        Sequence =
-                            (
-                                await db
-                                    .DataMigrationMutations.Where(x => x.RunId == run.Id)
-                                    .Select(x => (long?)x.Sequence)
-                                    .MaxAsync(ct)
-                                ?? 0
-                            ) + 1,
+                        Sequence = await Store.NextSequenceAsync(run.Id, ct),
                         Operation = "Compose",
                         AfterHash = hash,
                         Version = version,
                     }
                 );
-                await db.SaveChangesAsync(ct);
+                await Store.SaveAsync(ct);
             }
         }
     }
@@ -967,101 +908,11 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run)
         "RecurrenceRule",
     ];
 
-    // PostgreSQL row versions additionally protect private photos without hashing/copying
-    // them into migration evidence. Graph event edits are fenced too. Conservatively treats edits
-    // to other owners' columns as drift rather than overwriting them.
-    private async Task<string> TargetVersionAsync(string targetType, object targetId, bool locked, CancellationToken ct)
-    {
-        var metadata =
-            db.Model.GetEntityTypes().SingleOrDefault(x => x.ClrType.Name == targetType)
-            ?? throw new SsReject("UnknownTargetType");
-        var pk = metadata.FindPrimaryKey()!.Properties.Single();
-        var key =
-            pk.ClrType == typeof(Guid)
-                ? (object)Guid.Parse(Convert.ToString(targetId, CultureInfo.InvariantCulture)!)
-                : Convert.ChangeType(targetId, pk.ClrType, CultureInfo.InvariantCulture);
-        var table = $"\"{SimulationSchema ?? metadata.GetSchema() ?? "public"}\".\"{metadata.GetTableName()}\"";
-        var sql =
-            $"SELECT xmin::text AS \"Value\" FROM {table} WHERE \"{pk.Name}\" = @key{(locked ? " FOR UPDATE" : "")}";
-        var version =
-            await db.Database.SqlQueryRaw<string>(sql, new NpgsqlParameter("key", key)).SingleOrDefaultAsync(ct)
-            ?? throw new SsReject("MissingCrosswalkTarget");
-        var target = await db.FindAsync(metadata.ClrType, [key], ct) ?? throw new SsReject("MissingCrosswalkTarget");
-        if (locked)
-            await db.Entry(target).ReloadAsync(ct);
-        foreach (
-            var eventReference in db.Entry(target).References.Where(x => x.Metadata.Name is "Event" or "EventSeries")
-        )
-        {
-            await eventReference.LoadAsync(ct);
-            if (eventReference.CurrentValue is { } targetEvent)
-            {
-                var eventId = db.Entry(targetEvent).Property("Id").CurrentValue!;
-                var eventTable = eventReference.Metadata.Name == "Event" ? "\"Events\"" : "\"EventSeries\"";
-                var eventSql =
-                    $"SELECT xmin::text AS \"Value\" FROM {eventTable} WHERE \"Id\" = @key{(locked ? " FOR UPDATE" : "")}";
-                version +=
-                    ":"
-                    + await db
-                        .Database.SqlQueryRaw<string>(eventSql, new NpgsqlParameter("key", eventId))
-                        .SingleAsync(ct);
-                if (locked)
-                    await db.Entry(targetEvent).ReloadAsync(ct);
-            }
-        }
-        return version;
-    }
+    private Task<string> TargetVersionAsync(string targetType, object targetId, bool locked, CancellationToken ct) =>
+        Store.TargetVersionAsync(targetType, targetId, locked, ct);
 
-    // Canonical mapped target digest is deliberately independent of the source shape.
-    // Text/SSO values are hashed in memory, never stored/emitted as audit evidence.
-    // Photo bytes are excluded; their private copy is additionally fenced by row versions.
-    private async Task<string> TargetFingerprintAsync(string targetType, object targetId, CancellationToken ct)
-    {
-        var metadata =
-            db.Model.GetEntityTypes().SingleOrDefault(x => x.ClrType.Name == targetType)
-            ?? throw new SsReject("UnknownTargetType");
-        var pkType = metadata.FindPrimaryKey()!.Properties.Single().ClrType;
-        var key =
-            pkType == typeof(Guid)
-                ? (object)Guid.Parse(Convert.ToString(targetId, CultureInfo.InvariantCulture)!)
-                : Convert.ChangeType(targetId, pkType, CultureInfo.InvariantCulture);
-        var target = await db.FindAsync(metadata.ClrType, [key], ct) ?? throw new SsReject("MissingCrosswalkTarget");
-        var entry = db.Entry(target);
-        var fields = new SortedDictionary<string, object?>(StringComparer.Ordinal);
-        foreach (var property in entry.Properties.Where(x => SafeTargetFields.Contains(x.Metadata.Name)))
-            fields[property.Metadata.Name] = property.CurrentValue;
-        foreach (var collection in entry.Collections.Where(x => x.Metadata.Name == "Users"))
-        {
-            await collection.LoadAsync(ct);
-            fields["Users"] = collection
-                .CurrentValue!.Cast<object>()
-                .Select(x =>
-                    Convert.ToString(db.Entry(x).Property("UserId").CurrentValue, CultureInfo.InvariantCulture)
-                )
-                .OrderBy(x => x, StringComparer.Ordinal)
-                .ToArray();
-        }
-        if (target is Unified.Db.Models.Scheduling.AssignmentEntry assignmentEntry)
-        {
-            var links = await db
-                .ShiftAssignmentEntries.AsNoTracking()
-                .Include(x => x.Users)
-                .Where(x => x.AssignmentEntryId == assignmentEntry.Id)
-                .OrderBy(x => x.ShiftEntryId)
-                .ToListAsync(ct);
-            fields["AssignedShiftUsers"] = links
-                .Select(x => new { x.ShiftEntryId, Users = x.Users.Select(y => y.UserId).OrderBy(y => y).ToArray() })
-                .ToArray();
-        }
-        foreach (var eventReference in entry.References.Where(x => x.Metadata.Name is "Event" or "EventSeries"))
-        {
-            await eventReference.LoadAsync(ct);
-            if (eventReference.TargetEntry is { } eventEntry)
-                foreach (var property in eventEntry.Properties.Where(x => SafeTargetFields.Contains(x.Metadata.Name)))
-                    fields[$"{eventReference.Metadata.Name}.{property.Metadata.Name}"] = property.CurrentValue;
-        }
-        return Hash(new { targetType, fields });
-    }
+    private Task<string> TargetFingerprintAsync(string targetType, object targetId, CancellationToken ct) =>
+        Store.TargetFingerprintAsync(targetType, targetId, ct);
 
     public static string? Timezone(SsRow source, bool required)
     {

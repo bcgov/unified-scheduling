@@ -39,15 +39,17 @@ public sealed class SsTrainingBulkUnitTests
         Assert.Equal(2000, job.BulkChunkSize);
     }
 
-    [Fact]
-    public void Validate_BulkTraining_Succeeds()
+    [Theory]
+    [InlineData("Training")]
+    [InlineData("Scheduling")]
+    public void Validate_BulkTrainingOrScheduling_Succeeds(string job)
     {
         var result = _validator.Validate(
             null,
             Enabled(jobs =>
             {
-                jobs.Training.Enabled = true;
-                jobs.Training.PersistenceMode = MigrationPersistenceMode.Bulk;
+                jobs.For(job).Enabled = true;
+                jobs.For(job).PersistenceMode = MigrationPersistenceMode.Bulk;
             })
         );
 
@@ -56,9 +58,9 @@ public sealed class SsTrainingBulkUnitTests
 
     [Theory]
     [InlineData("MyTeam", true)]
-    [InlineData("Scheduling", true)]
+    [InlineData("MyTeam", false)]
     [InlineData("Report", false)]
-    public void Validate_BulkOnNonTrainingJob_FailsEvenWhenDisabled(string job, bool enabled)
+    public void Validate_BulkOnUnsupportedJob_FailsEvenWhenDisabled(string job, bool enabled)
     {
         var result = _validator.Validate(
             null,

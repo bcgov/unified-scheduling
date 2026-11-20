@@ -60,7 +60,7 @@ public static class MigrationDiagnostics
         Training SheriffTraining SheriffStandardTraining TrainingCategory CourtRoom AssignmentClassification Assignment Duty DutySlot Shift
         AssignmentSeries DutyEntry SchedulingComponent SchedulingMember ExcludedTableMetric RetryQueueValidation SourceOracleValidation
         SimulationNamespace SimulationValidation SchedulingValidation SchedulingReadValidation AwayAvailabilityValidation
-        AdverseCounterValidation AdverseGraphValidation BusinessQueryValidation Operations
+        AdverseCounterValidation AdverseGraphValidation BusinessQueryValidation Operations SchedulingBulk
         """.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).ToHashSet(StringComparer.Ordinal);
 
     private static readonly HashSet<string> Outcomes = """
@@ -78,7 +78,32 @@ public static class MigrationDiagnostics
     public static string Code(string? text) =>
         text is null ? ""
         : Codes.Contains(text) ? text
-        : Opaque(text);
+        : BulkRefusal(text) ?? Opaque(text);
+
+    // Bulk Scheduling refusals ("BulkRequiresPerRow:<reason>[:<model detail>]"). The reason is matched against
+    // this compiled vocabulary; any detail after it (an EF type/index name) is kept only as an opaque key.
+    private const string BulkRefusalPrefix = "BulkRequiresPerRow:";
+
+    private static readonly HashSet<string> BulkRefusalCodes = """
+        SchedulingBusinessValidatorsRegistered TrainingRunInProgress TargetChangedDuringBulkRun GraphReplacement
+        OwnedUpdate OwnedGroupUpdate UnmappedType UnsupportedSchema ShadowProperty AuditedConcurrencyToken
+        UnknownCheckConstraint UnsupportedUniqueIndex UnsupportedColumnType CompositeForeignKey AlternateKeyReference
+        UnmodelledType Delete MutationUpdate UnmodelledWrite UnmodelledConcurrencyRoot ConvertedProperty NonUtcOffset
+        UnmodelledValue UnmodelledPrincipal ForeignRunSequence UnmodelledTarget NonNumericShiftLegacyId
+        PriorOutcomeOfCurrentRun
+        """.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).ToHashSet(StringComparer.Ordinal);
+
+    private static string? BulkRefusal(string text)
+    {
+        if (!text.StartsWith(BulkRefusalPrefix, StringComparison.Ordinal))
+            return null;
+        var reason = text[BulkRefusalPrefix.Length..];
+        var separator = reason.IndexOf(':', StringComparison.Ordinal);
+        var code = separator < 0 ? reason : reason[..separator];
+        if (!BulkRefusalCodes.Contains(code))
+            return null;
+        return separator < 0 ? text : BulkRefusalPrefix + code + ":" + Opaque(reason[(separator + 1)..]);
+    }
 
     public static string Entity(string? text) => text is not null && Entities.Contains(text) ? text : Opaque(text);
 

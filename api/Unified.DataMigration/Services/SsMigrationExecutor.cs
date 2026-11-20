@@ -24,7 +24,8 @@ public sealed class SsMigrationExecutor(
     SsSchedulingWriter scheduling,
     IEnumerable<ISsMigrationBusinessValidator>? businessValidators = null,
     SsRollbackJournal? rollbackJournal = null,
-    SsTrainingBulkWriter? trainingBulk = null
+    SsTrainingBulkWriter? trainingBulk = null,
+    SsSchedulingBulkWriter? schedulingBulk = null
 )
 {
     public Task ExecuteAsync(string job, CancellationToken ct)
@@ -340,6 +341,26 @@ public sealed class SsMigrationExecutor(
                     boundary,
                     source.HistoryStartDate,
                     settings.BulkChunkSize,
+                    token => FenceAsync(run, token, captureJournal: false),
+                    ct
+                );
+                return;
+            }
+            if (job == "Scheduling" && settings.PersistenceMode == MigrationPersistenceMode.Bulk)
+            {
+                // Same rules as PerRow over an in-memory target image; same acquisition, lineage,
+                // run lock, fence and counters; no rollback journal (undo: SsBulkUndo).
+                await (
+                    schedulingBulk
+                    ?? throw new InvalidOperationException("SS Scheduling bulk writer is not registered.")
+                ).ExecuteAsync(
+                    run,
+                    rows,
+                    boundary,
+                    source.HistoryStartDate,
+                    settings.BatchSize,
+                    settings.BulkChunkSize,
+                    (businessValidators ?? []).Any(),
                     token => FenceAsync(run, token, captureJournal: false),
                     ct
                 );

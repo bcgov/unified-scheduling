@@ -1,5 +1,4 @@
 using System.Globalization;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Unified.Calendar.Options;
 using Unified.Calendar.Services;
@@ -12,8 +11,15 @@ using Unified.Db.Models.Scheduling;
 namespace Unified.DataMigration.Services;
 
 /// <summary>G10 links existing migrated duties only; it never materializes or regenerates events.</summary>
-public sealed class SsAssignmentSeriesWriter(UnifiedDbContext db)
+public sealed class SsAssignmentSeriesWriter
 {
+    private readonly ISsSchedulingStore store;
+
+    public SsAssignmentSeriesWriter(UnifiedDbContext db)
+        : this(new SsSchedulingEfStore(db)) { }
+
+    internal SsAssignmentSeriesWriter(ISsSchedulingStore store) => this.store = store;
+
     private static readonly DateOnly Cutover = new(2026, 12, 1);
     private static readonly string[] Days =
     [
@@ -28,11 +34,11 @@ public sealed class SsAssignmentSeriesWriter(UnifiedDbContext db)
     private static readonly string[] DayCodes = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"];
 
     public async Task WriteAsync(Dictionary<string, List<SsRow>> rows, SsWriteSession s, CancellationToken ct) =>
-        await WriteAsync(rows, s, ct, null);
+        await WriteAsync(rows, (ISsSchedulingSession)s, ct, null);
 
     internal async Task WriteAsync(
         Dictionary<string, List<SsRow>> rows,
-        SsWriteSession s,
+        ISsSchedulingSession s,
         CancellationToken ct,
         List<SsSchedulingProposal>? proposals
     )
@@ -173,16 +179,13 @@ public sealed class SsAssignmentSeriesWriter(UnifiedDbContext db)
                             await s.ResolveAsync("Duty", duty.Id, ct),
                             CultureInfo.InvariantCulture
                         );
-                        var owner = await db.DataMigrationRecords.SingleAsync(
-                            x => x.Source == "SS" && x.EntityType == "Duty" && x.LegacyId == duty.Id,
-                            ct
-                        );
+                        var owner =
+                            await store.RecordAsync("Duty", duty.Id, ct)
+                            ?? throw new InvalidOperationException("Sequence contains no matching element");
                         if (owner.CreatedByRunId is null)
                             throw new SsReject("SeriesCannotChangeLinkedOnlyEntry");
                         owners.Add(owner);
-                        var entry = await db
-                            .AssignmentEntries.Include(x => x.Event)
-                            .SingleAsync(x => x.Id == targetId, ct);
+                        var entry = await store.AssignmentEntryWithEventAsync(targetId, ct);
                         if (
                             entry.AssignmentSeriesId != null
                             || entry.Event!.EventSeriesId != null
@@ -277,8 +280,7 @@ public sealed class SsAssignmentSeriesWriter(UnifiedDbContext db)
                                 entry.Event.SeriesStartAtUtc = entry.Event.StartAtUtc;
                                 entry.Event.SeriesEndAtUtc = entry.Event.EndAtUtc;
                             }
-                            db.AssignmentSeries.Add(series);
-                            await db.SaveChangesAsync(ct);
+                            await store.AddSeriesAsync(series, entries, ct);
                         },
                         ct
                     );

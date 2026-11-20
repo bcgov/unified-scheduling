@@ -221,6 +221,15 @@ internal static class SsBulkTargets
             ? User.SystemUser
             : null;
 
+    /// <summary>
+    /// True when the context runs Unified.Scheduling's SchedulingConcurrencyInterceptor, which bumps owning
+    /// scheduling roots when their children change. Bulk Scheduling mirrors it so row images stay identical.
+    /// </summary>
+    internal static bool PropagatesSchedulingRoots(UnifiedDbContext db) =>
+        db.GetService<IDbContextOptions>()
+            .FindExtension<CoreOptionsExtension>()
+            ?.Interceptors?.Any(x => x.GetType().Name == "SchedulingConcurrencyInterceptor") == true;
+
     internal static bool AuditEnabled(UnifiedDbContext db) =>
         !global::Audit.Core.Configuration.AuditDisabled && !db.AuditDisabled;
 

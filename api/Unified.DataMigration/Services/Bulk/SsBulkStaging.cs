@@ -24,6 +24,62 @@ internal static partial class SsBulkStaging
 
     private static readonly ConditionalWeakTable<NpgsqlConnection, StrongBox<int>> Timeouts = new();
 
+    /// <summary>Upper bound for one bulk lock acquisition (chunk or undo) before it gives up.</summary>
+    internal static TimeSpan LockWaitLimit { get; set; } = TimeSpan.FromMinutes(10);
+
+    /// <summary>
+    /// Runs <paramref name="lockSql"/> (one or more <c>LOCK TABLE</c> statements, in the caller's order) inside the
+    /// open transaction without ever becoming a deadlock participant that PostgreSQL resolves by aborting someone
+    /// else. Each attempt is bounded well below <c>deadlock_timeout</c> and then rolls back to a savepoint,
+    /// releasing every lock it took, so in any wait cycle the bulk caller backs off first and retries with jitter
+    /// until <see cref="LockWaitLimit"/> elapses; then the last timeout error propagates.
+    /// </summary>
+    internal static async Task LockTablesAsync(NpgsqlConnection connection, string lockSql, CancellationToken ct)
+    {
+        var deadlockMs = (
+            await QueryAsync(
+                connection,
+                "SELECT (extract(epoch FROM current_setting('deadlock_timeout')::interval) * 1000)::int",
+                reader => reader.GetInt32(0),
+                ct
+            )
+        ).Single();
+        // Up to a few statements per attempt, each bounded by a quarter of deadlock_timeout.
+        var attemptMs = Math.Max(10, deadlockMs / 4);
+        var deadline = DateTimeOffset.UtcNow + LockWaitLimit;
+        for (var attempt = 0; ; attempt++)
+        {
+            await ExecuteAsync(connection, $"SAVEPOINT ss_bulk_lock; SET LOCAL statement_timeout = {attemptMs}", ct);
+            try
+            {
+                await ExecuteAsync(connection, lockSql, ct);
+                await ExecuteAsync(
+                    connection,
+                    "SET LOCAL statement_timeout = DEFAULT; RELEASE SAVEPOINT ss_bulk_lock",
+                    ct
+                );
+                return;
+            }
+            catch (PostgresException error)
+                when (error.SqlState is PostgresErrorCodes.QueryCanceled or PostgresErrorCodes.LockNotAvailable
+                    && !ct.IsCancellationRequested
+                    && DateTimeOffset.UtcNow < deadline
+                )
+            {
+                // Rolling back to the savepoint releases the locks of this attempt and the timeout setting.
+                await ExecuteAsync(
+                    connection,
+                    "ROLLBACK TO SAVEPOINT ss_bulk_lock; RELEASE SAVEPOINT ss_bulk_lock",
+                    ct
+                );
+                await Task.Delay(
+                    TimeSpan.FromMilliseconds(Random.Shared.Next(20, 100 + 20 * Math.Min(attempt, 20))),
+                    ct
+                );
+            }
+        }
+    }
+
     /// <summary>
     /// Returns the context's Npgsql connection and binds the context command timeout to it so raw
     /// commands and COPY operations issued by the bulk helpers inherit the migration timeout

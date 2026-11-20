@@ -9,7 +9,7 @@ using Unified.Db.Models.UserManagement;
 namespace Unified.DataMigration.Services.Bulk;
 
 /// <summary>
-/// Run-scoped undo for a Bulk Training run (Bulk captures no rollback journal, so
+/// Run-scoped undo for a Bulk Training or Scheduling run (Bulk captures no rollback journal, so
 /// <see cref="SsRollbackService"/> refuses it with <c>MissingOriginalRollbackJournal</c>).
 /// The crosswalk is the undo ledger: business rows the run inserted (receipt <c>Insert</c>), carbine
 /// profiles it composed (receipt <c>Compose</c>) and crosswalk rows it created/linked are removed, then the
@@ -17,6 +17,7 @@ namespace Unified.DataMigration.Services.Bulk;
 /// whose targets are unchanged since the run (xmin equals the receipt version) are eligible; anything else
 /// is refused with blockers and nothing is changed. Run outcomes, work items and checkpoints are kept as
 /// evidence. <c>Users.UpdatedOn/UpdatedById</c> of composed users cannot be restored (no before-image).
+/// Scheduling: see <see cref="SchedulingAsync"/>.
 /// </summary>
 public sealed class SsBulkUndo(UnifiedDbContext db, IOptions<AuditRecordOptions>? auditOptionsAccessor = null)
 {
@@ -49,20 +50,41 @@ public sealed class SsBulkUndo(UnifiedDbContext db, IOptions<AuditRecordOptions>
                 await tx.RollbackAsync(ct);
                 return new(null, ["SourceJobRunning"]);
             }
-            foreach (
-                var table in new[]
-                {
-                    "DataMigrationRuns",
-                    "DataMigrationRecords",
-                    "DataMigrationMutations",
-                    "Users",
-                    "TrainingCategories",
-                    "Trainings",
-                    "TrainingMandatoryTrainingProfiles",
-                    "UserTrainings",
-                }
-            )
-                await SsBulkStaging.ExecuteAsync(connection, $"LOCK TABLE \"{table}\" IN SHARE ROW EXCLUSIVE MODE", ct);
+            // Lock only the undone job's tables, parents before children (the order chunks and application
+            // writers use), through the bounded back-off acquisition so undo never aborts a concurrent writer
+            // as a deadlock victim; it waits/retries instead and fails cleanly after LockWaitLimit.
+            var job = (
+                await SsBulkStaging.QueryAsync(
+                    connection,
+                    "SELECT \"Job\" FROM \"DataMigrationRuns\" WHERE \"Id\"=@run AND \"Source\"='SS'",
+                    x => x.GetString(0),
+                    ct,
+                    new NpgsqlParameter("run", runId)
+                )
+            ).SingleOrDefault();
+            IEnumerable<string> lockTables =
+                job == "Scheduling"
+                    ? SchedulingTables.Select(x => x.Table).Reverse()
+                    :
+                    [
+                        "Users",
+                        "TrainingCategories",
+                        "Trainings",
+                        "TrainingMandatoryTrainingProfiles",
+                        "UserTrainings",
+                    ];
+            await SsBulkStaging.LockTablesAsync(
+                connection,
+                "LOCK TABLE "
+                    + string.Join(
+                        ", ",
+                        new[] { "DataMigrationRuns", "DataMigrationRecords", "DataMigrationMutations" }
+                            .Concat(lockTables)
+                            .Select(x => $"\"{x}\"")
+                    )
+                    + " IN SHARE ROW EXCLUSIVE MODE",
+                ct
+            );
             var blockers = new List<string>();
             var runs = await db.DataMigrationRuns.AsNoTracking().Where(x => x.Source == "SS").ToListAsync(ct);
             var run =
@@ -70,8 +92,8 @@ public sealed class SsBulkUndo(UnifiedDbContext db, IOptions<AuditRecordOptions>
                 ?? throw new InvalidOperationException("SS bulk undo run was not found.");
             if (runs.Any(x => x.Status == "Running"))
                 blockers.Add("SourceJobRunning");
-            if (run.Job != "Training")
-                blockers.Add("BulkUndoSupportsTrainingOnly");
+            if (run.Job is not ("Training" or "Scheduling"))
+                blockers.Add("BulkUndoSupportsTrainingAndSchedulingOnly");
             if (run.DryRun || run.Status is "RolledBack" or "Running")
                 blockers.Add("RunNotApplied");
             if (run.RollbackJournalKeyId is not null)
@@ -125,6 +147,24 @@ public sealed class SsBulkUndo(UnifiedDbContext db, IOptions<AuditRecordOptions>
                 ct,
                 new NpgsqlParameter("run", runId)
             );
+            if (run.Job == "Scheduling")
+                return await SchedulingAsync(
+                    connection,
+                    tx,
+                    run,
+                    mutations
+                        .Select(x => new Receipt(
+                            x.Record,
+                            x.Operation,
+                            x.Version,
+                            x.TargetType,
+                            x.TargetKey,
+                            x.CreatedBy
+                        ))
+                        .ToList(),
+                    blockers,
+                    ct
+                );
             if (mutations.Any(x => !AllowedOperations.Contains(x.Operation)))
                 blockers.Add("BulkUndoRequiresInsertLinkComposeOnlyRun");
             var inserted = mutations.Where(x => x.Operation == "Insert").ToList();
@@ -356,5 +396,368 @@ public sealed class SsBulkUndo(UnifiedDbContext db, IOptions<AuditRecordOptions>
             db.ChangeTracker.Clear();
             await db.Database.CloseConnectionAsync();
         }
+    }
+
+    private sealed record Receipt(
+        long Record,
+        string Operation,
+        string? Version,
+        string TargetType,
+        string TargetKey,
+        Guid? CreatedBy
+    );
+
+    /// <summary>True when an owned crosswalked target no longer produces its recorded graph fingerprint.</summary>
+    private async Task<bool> OwnedFingerprintDriftAsync(
+        long[] records,
+        HashSet<(string Type, string Key)> ownedRows,
+        CancellationToken ct
+    )
+    {
+        var crosswalks = await db
+            .DataMigrationRecords.AsNoTracking()
+            .Where(x => records.Contains(x.Id))
+            .Select(x => new
+            {
+                x.TargetType,
+                x.TargetKey,
+                x.AfterHash,
+            })
+            .ToListAsync(ct);
+        try
+        {
+            foreach (
+                var target in crosswalks
+                    .Where(x => ownedRows.Contains((x.TargetType, x.TargetKey)))
+                    .GroupBy(x => (x.TargetType, x.TargetKey))
+            )
+            {
+                var actual = await SsEfSessionBackend.FingerprintAsync(
+                    db,
+                    target.Key.TargetType,
+                    target.Key.TargetKey,
+                    ct
+                );
+                db.ChangeTracker.Clear();
+                if (target.Any(x => x.AfterHash != actual))
+                    return true;
+            }
+            return false;
+        }
+        catch (SsReject)
+        {
+            return true;
+        }
+        finally
+        {
+            db.ChangeTracker.Clear();
+        }
+    }
+
+    // Scheduling graph tables in delete order (children first).
+    private static readonly (string Table, string Type)[] SchedulingTables =
+    [
+        ("ShiftAssignmentEntryUsers", "ShiftAssignmentEntryUser"),
+        ("ShiftAssignmentEntries", "ShiftAssignmentEntry"),
+        ("ShiftEntryUsers", "ShiftEntryUser"),
+        ("AssignmentEntries", "AssignmentEntry"),
+        ("ShiftEntries", "ShiftEntry"),
+        ("Events", "Event"),
+        ("AssignmentSeries", "AssignmentSeries"),
+        ("EventSeries", "EventSeries"),
+        ("AssignmentDefinitions", "AssignmentDefinition"),
+        ("CourtRooms", "CourtRoom"),
+    ];
+
+    private static readonly string[] SchedulingOperations =
+    [
+        "Insert",
+        "Link",
+        "Compose",
+        "SealNewGraph",
+        "Repartition",
+    ];
+
+    private static readonly string[] SchedulingInsertedTypes =
+    [
+        "CourtRoom",
+        "AssignmentDefinition",
+        "AssignmentSeries",
+        "ShiftEntry",
+        "AssignmentEntry",
+    ];
+
+    /// <summary>
+    /// Scheduling undo. Every crosswalk row the run touched must have been created by it (no receipt from any
+    /// other run), so the run's receipts are the complete ledger. Owned rows are the targets it inserted plus
+    /// their structural children (shift/entry events, series event series and occurrences, shift users,
+    /// shift-entry links and link users). Bulk writes each chunk in one transaction and stamps receipts with
+    /// that transaction's id, so every owned row must still carry one of the run's chunk versions (xmin), and
+    /// no row outside the owned set may carry one (the run modified something it does not own). Later
+    /// dependents (rows referencing owned rows that are not owned, including set-null references that would
+    /// silently detach them) refuse the undo. Deletes are raw SQL (no audit rows), like Training undo.
+    /// </summary>
+    private async Task<Result> SchedulingAsync(
+        NpgsqlConnection connection,
+        Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction tx,
+        DataMigrationRun run,
+        List<Receipt> mutations,
+        List<string> blockers,
+        CancellationToken ct
+    )
+    {
+        var runId = run.Id;
+        if (mutations.Any(x => !SchedulingOperations.Contains(x.Operation)))
+            blockers.Add("BulkUndoRequiresInsertLinkComposeOnlyRun");
+        var inserted = mutations.Where(x => x.Operation == "Insert").ToList();
+        if (inserted.Any(x => x.CreatedBy != runId))
+            blockers.Add("InsertReceiptNotOwnedByRun");
+        // A record rebound within the run to a target the run created is owned like an insert (receipts carry
+        // the record's current target, so a superseded target that still exists is caught by the xmin scan).
+        inserted.AddRange(mutations.Where(x => x.Operation == "Repartition" && x.CreatedBy == runId));
+        if (inserted.Any(x => !SchedulingInsertedTypes.Contains(x.TargetType)))
+            blockers.Add("UnsupportedInsertedTargetType");
+        var records = mutations.Select(x => x.Record).Distinct().ToArray();
+        var foreignReceipts = await SsBulkStaging.QueryAsync(
+            connection,
+            """
+            SELECT count(*) FROM "DataMigrationMutations"
+            WHERE "DataMigrationRecordId" = ANY(@records) AND "RunId" <> @run
+            """,
+            x => x.GetInt64(0),
+            ct,
+            new NpgsqlParameter("records", records),
+            new NpgsqlParameter("run", runId)
+        );
+        if (foreignReceipts.Single() > 0)
+            blockers.Add("RunTouchedPreExistingCrosswalk");
+        var stamped = await SsBulkStaging.QueryAsync(
+            connection,
+            """
+            SELECT count(*) FROM "DataMigrationRecords"
+            WHERE "LastAppliedRunId"=@run AND NOT ("Id" = ANY(@records))
+            """,
+            x => x.GetInt64(0),
+            ct,
+            new NpgsqlParameter("run", runId),
+            new NpgsqlParameter("records", records)
+        );
+        if (stamped.Single() > 0)
+            blockers.Add("RunUpdatedPreExistingCrosswalk");
+        long[] Keys(string type) =>
+            inserted
+                .Where(x => x.TargetType == type)
+                .Select(x => long.Parse(x.TargetKey, System.Globalization.CultureInfo.InvariantCulture))
+                .Distinct()
+                .ToArray();
+        var owned = SchedulingInsertedTypes.ToDictionary(x => x, Keys, StringComparer.Ordinal);
+        // Graph-shaping receipts may only target rows the run itself inserted.
+        var insertedKeys = inserted.Select(x => (x.TargetType, x.TargetKey)).ToHashSet();
+        if (
+            mutations.Any(x =>
+                x.Operation is "Compose" or "SealNewGraph" or "Repartition"
+                && !insertedKeys.Contains((x.TargetType, x.TargetKey))
+            )
+        )
+            blockers.Add("RunModifiedPreExistingTarget");
+
+        async Task<long[]> Ids(string sql, params NpgsqlParameter[] parameters) =>
+            (
+                await SsBulkStaging.QueryAsync(
+                    connection,
+                    sql,
+                    x => Convert.ToInt64(x.GetValue(0), System.Globalization.CultureInfo.InvariantCulture),
+                    ct,
+                    parameters
+                )
+            )
+                .Distinct()
+                .ToArray();
+        var found = new Dictionary<string, long[]>(StringComparer.Ordinal);
+        foreach (var (table, type) in SchedulingTables.Where(x => owned.ContainsKey(x.Type)))
+            found[type] = await Ids(
+                $"SELECT \"Id\" FROM \"{table}\" WHERE \"Id\" = ANY(@ids)",
+                new NpgsqlParameter("ids", owned[type])
+            );
+        if (owned.Any(x => found[x.Key].Length != x.Value.Length))
+            blockers.Add("InsertedTargetMissing");
+        var shifts = owned["ShiftEntry"];
+        var entries = owned["AssignmentEntry"];
+        var eventSeries = await Ids(
+            "SELECT \"EventSeriesId\" FROM \"AssignmentSeries\" WHERE \"Id\" = ANY(@ids)",
+            new NpgsqlParameter("ids", owned["AssignmentSeries"])
+        );
+        var events = await Ids(
+            """
+            SELECT "EventId" FROM "ShiftEntries" WHERE "Id" = ANY(@shifts)
+            UNION SELECT "EventId" FROM "AssignmentEntries" WHERE "Id" = ANY(@entries)
+            UNION SELECT "Id" FROM "Events" WHERE "EventSeriesId" = ANY(@series)
+            """,
+            new NpgsqlParameter("shifts", shifts),
+            new NpgsqlParameter("entries", entries),
+            new NpgsqlParameter("series", eventSeries)
+        );
+        var shiftUsers = await Ids(
+            "SELECT \"Id\" FROM \"ShiftEntryUsers\" WHERE \"ShiftEntryId\" = ANY(@shifts)",
+            new NpgsqlParameter("shifts", shifts)
+        );
+        var links = await Ids(
+            """
+            SELECT "Id" FROM "ShiftAssignmentEntries"
+            WHERE "ShiftEntryId" = ANY(@shifts) OR "AssignmentEntryId" = ANY(@entries)
+            """,
+            new NpgsqlParameter("shifts", shifts),
+            new NpgsqlParameter("entries", entries)
+        );
+        var linkUsers = await Ids(
+            "SELECT \"Id\" FROM \"ShiftAssignmentEntryUsers\" WHERE \"ShiftAssignmentEntryId\" = ANY(@links)",
+            new NpgsqlParameter("links", links)
+        );
+        var delete = new Dictionary<string, long[]>(StringComparer.Ordinal)
+        {
+            ["ShiftAssignmentEntryUser"] = linkUsers,
+            ["ShiftAssignmentEntry"] = links,
+            ["ShiftEntryUser"] = shiftUsers,
+            ["AssignmentEntry"] = entries,
+            ["ShiftEntry"] = shifts,
+            ["Event"] = events,
+            ["AssignmentSeries"] = owned["AssignmentSeries"],
+            ["EventSeries"] = eventSeries,
+            ["AssignmentDefinition"] = owned["AssignmentDefinition"],
+            ["CourtRoom"] = owned["CourtRoom"],
+        };
+        // Versions of receipts on rows the run owns are its chunk transactions. A Link to a pre-existing target
+        // (a Scheduling row or a lookup such as a SubCategory) records that target's own earlier version, which
+        // is not a run write and must not be scanned for.
+        var ownedRows = SchedulingTables
+            .SelectMany(t =>
+                delete[t.Type].Select(id => (t.Type, id.ToString(System.Globalization.CultureInfo.InvariantCulture)))
+            )
+            .ToHashSet();
+        var versions = mutations
+            .Where(x => x.Operation != "Link" || ownedRows.Contains((x.TargetType, x.TargetKey)))
+            .Select(x => x.Version)
+            .OfType<string>()
+            .SelectMany(x => x.Split(':', StringSplitOptions.RemoveEmptyEntries))
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+        long drifted = 0,
+            foreign = 0;
+        foreach (var (table, type) in SchedulingTables)
+        {
+            // Owned rows still at one of the run's chunk versions; nothing else carries one.
+            var counts = await SsBulkStaging.QueryAsync(
+                connection,
+                $"""
+                SELECT count(*) FILTER (WHERE "Id" = ANY(@ids) AND NOT (xmin::text = ANY(@versions))),
+                       count(*) FILTER (WHERE NOT ("Id" = ANY(@ids)) AND xmin::text = ANY(@versions))
+                FROM "{table}"
+                """,
+                x => (x.GetInt64(0), x.GetInt64(1)),
+                ct,
+                new NpgsqlParameter("ids", delete[type]),
+                new NpgsqlParameter("versions", versions)
+            );
+            drifted += counts.Single().Item1;
+            foreign += counts.Single().Item2;
+        }
+        if (drifted > 0)
+            blockers.Add("OwnedTargetDrift");
+        if (foreign > 0)
+            blockers.Add("RunModifiedPreExistingTarget");
+        // Row versions cannot reveal a later DELETE of an owned child (a shift user, a shift-entry link or its
+        // users) because the parents are not rewritten. The run's crosswalks carry the canonical graph
+        // fingerprint PerRow uses as its drift oracle (GuardGraphAsync), so every owned crosswalked target must
+        // still produce exactly that fingerprint.
+        if (!blockers.Contains("InsertedTargetMissing") && await OwnedFingerprintDriftAsync(records, ownedRows, ct))
+            blockers.Add("OwnedTargetDrift");
+        // Set-null references would silently detach later rows from an owned series.
+        var detached = await SsBulkStaging.QueryAsync(
+            connection,
+            """
+            SELECT (SELECT count(*) FROM "AssignmentEntries"
+                    WHERE "AssignmentSeriesId" = ANY(@series) AND NOT ("Id" = ANY(@entries)))
+                 + (SELECT count(*) FROM "Events" WHERE "EventSeriesId" = ANY(@eventSeries) AND NOT ("Id" = ANY(@events)))
+            """,
+            x => x.GetInt64(0),
+            ct,
+            new NpgsqlParameter("series", owned["AssignmentSeries"]),
+            new NpgsqlParameter("entries", entries),
+            new NpgsqlParameter("eventSeries", eventSeries),
+            new NpgsqlParameter("events", events)
+        );
+        if (detached.Single() > 0)
+            blockers.Add("InsertedTargetHasLaterDependents");
+        if (blockers.Count > 0)
+        {
+            await tx.RollbackAsync(ct);
+            return new(null, blockers.Distinct().ToList());
+        }
+
+        try
+        {
+            foreach (var (table, type) in SchedulingTables)
+                await SsBulkStaging.ExecuteAsync(
+                    connection,
+                    $"DELETE FROM \"{table}\" WHERE \"Id\" = ANY(@ids)",
+                    ct,
+                    new NpgsqlParameter("ids", delete[type])
+                );
+        }
+        catch (PostgresException error) when (error.SqlState == PostgresErrorCodes.ForeignKeyViolation)
+        {
+            // A restrict reference from outside the owned graph (for example a leave entry on an owned event).
+            await tx.RollbackAsync(ct);
+            return new(null, ["InsertedTargetHasLaterDependents"]);
+        }
+        await SsBulkStaging.ExecuteAsync(
+            connection,
+            "DELETE FROM \"DataMigrationMutations\" WHERE \"RunId\"=@run",
+            ct,
+            new NpgsqlParameter("run", runId)
+        );
+        await SsBulkStaging.ExecuteAsync(
+            connection,
+            "DELETE FROM \"DataMigrationRecords\" WHERE \"Id\" = ANY(@ids)",
+            ct,
+            new NpgsqlParameter("ids", records)
+        );
+        var receipt = new DataMigrationRun
+        {
+            Source = "SS",
+            Job = "Rollback",
+            DryRun = false,
+            Status = "Completed",
+            StartedOn = DateTimeOffset.UtcNow,
+            CompletedOn = DateTimeOffset.UtcNow,
+            RollbackOfRunId = runId,
+            CutoverDate = run.CutoverDate,
+            ScannedCount = mutations.Count,
+        };
+        db.DataMigrationRuns.Add(receipt);
+        await db.SaveChangesAsync(ct);
+        var target = await db.DataMigrationRuns.SingleAsync(x => x.Id == runId, ct);
+        target.Status = "RolledBack";
+        db.DataMigrationOutcomes.Add(
+            new DataMigrationOutcome
+            {
+                RunId = receipt.Id,
+                EntityType = "RollbackProof",
+                LegacyId = runId.ToString(),
+                Outcome = "Migrated",
+                // Compact (varchar 128): R=rooms D=definitions ES/AS=event/assignment series E=events S=shifts
+                // AE=assignment entries SU=shift users L=shift-entry links LU=link users Rec=crosswalks.
+                Reason =
+                    $"BulkCrosswalkUndo:R={delete["CourtRoom"].Length}:D={delete["AssignmentDefinition"].Length}"
+                    + $":ES={delete["EventSeries"].Length}:AS={delete["AssignmentSeries"].Length}"
+                    + $":E={delete["Event"].Length}:S={delete["ShiftEntry"].Length}"
+                    + $":AE={delete["AssignmentEntry"].Length}:SU={delete["ShiftEntryUser"].Length}"
+                    + $":L={delete["ShiftAssignmentEntry"].Length}:LU={delete["ShiftAssignmentEntryUser"].Length}"
+                    + $":Rec={records.Length}",
+            }
+        );
+        await db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
+        return new(receipt.Id, []);
     }
 }
