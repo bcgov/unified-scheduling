@@ -14,7 +14,9 @@ describe('UserProfile', () => {
 
   it('renders the prefixed photo URL with the encoded cache-busting timestamp', async () => {
     vi.stubEnv('BASE_URL', '/sheriff-scheduling/');
-    const app = await createTestApp();
+    const app = await createTestApp({
+      featureFlags: { UserManagement: { enabled: true } },
+    });
     const user = getGetApiUsersIdResponseMock({
       id: 'photo-user',
       photoUrl: '/api/users/photo-user/photo',
