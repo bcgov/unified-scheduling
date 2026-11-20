@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Options;
 using Unified.Audit;
 using Unified.Audit.Options;
+using Unified.DataMigration.Services;
 using Unified.Db;
 using Unified.Db.Models;
 using Unified.Db.Models.Training;
@@ -58,6 +59,45 @@ public sealed class AuditPipelineTests : IAsyncLifetime
         global::Audit.Core.Configuration.AuditDisabled = true;
         global::Audit.Core.Configuration.IncludeActivityTrace = false;
         return ValueTask.CompletedTask;
+    }
+
+    [Fact]
+    public async Task MigrationAuditScope_Should_IsolateBypass_And_ResumeAuditOnDisposal()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var (migrationConnection, migration) = await CreateSqliteDbContextAsync();
+        await using var _ = migrationConnection;
+        await using var __ = migration;
+        var (appConnection, app) = await CreateSqliteDbContextAsync();
+        await using var ___ = appConnection;
+        await using var ____ = app;
+
+        var migrated = new Region { Name = "Migrated" };
+        var ordinary = new Region { Name = "App" };
+        using (new SsMigrationAuditScope(migration, requireClean: true))
+        {
+            migration.Regions.Add(migrated);
+            await migration.SaveChangesAsync(ct);
+            Assert.Empty(await migration.AuditRecords.ToListAsync(ct));
+            Assert.Equal("Migrated", (await migration.Regions.AsNoTracking().SingleAsync(ct)).Name);
+
+            app.Regions.Add(ordinary);
+            await app.SaveChangesAsync(ct);
+            var appAudit = Assert.Single(await app.AuditRecords.ToListAsync(ct));
+            Assert.Equal("Added", appAudit.Action);
+            Assert.Equal(ordinary.Id.ToString(), appAudit.EntityPK);
+            Assert.Equal(_actorId, appAudit.ActorUserId);
+            Assert.Contains("App", appAudit.NewValues);
+        }
+
+        migrated.Name = "Normal edit";
+        await migration.SaveChangesAsync(ct);
+        var resumedAudit = Assert.Single(await migration.AuditRecords.ToListAsync(ct));
+        Assert.Equal("Modified", resumedAudit.Action);
+        Assert.Equal(migrated.Id.ToString(), resumedAudit.EntityPK);
+        Assert.Equal(_actorId, resumedAudit.ActorUserId);
+        Assert.Contains("Migrated", resumedAudit.OldValues);
+        Assert.Contains("Normal edit", resumedAudit.NewValues);
     }
 
     [Fact]

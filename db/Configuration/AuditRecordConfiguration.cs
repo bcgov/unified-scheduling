@@ -29,6 +29,13 @@ public class AuditRecordConfiguration : IEntityTypeConfiguration<AuditRecord>
         builder.HasKey(b => b.Id);
 
         builder.HasIndex(b => new { b.EntityType, b.EntityPK }).HasDatabaseName("ix_audit_entity");
+        // A terminal migration transition and its summary commit together. This index
+        // additionally prevents a second summary even if a future caller omits the run fence.
+        builder
+            .HasIndex(b => new { b.EntityType, b.EntityPK }, "ux_audit_migration_run_summary")
+            .IsUnique()
+            .HasFilter("\"EntityType\" = 'DataMigrationRunSummary'")
+            .HasDatabaseName("ux_audit_migration_run_summary");
         builder
             .HasIndex(b => new { b.ActorUserId, b.OccurredOn })
             .IsDescending(false, true)

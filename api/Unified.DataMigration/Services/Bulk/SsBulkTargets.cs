@@ -14,7 +14,7 @@ namespace Unified.DataMigration.Services.Bulk;
 /// <summary>
 /// Post-image of one target row: migration fingerprint, row version and audited column values.
 /// <see cref="PersistedValues"/> holds every persisted column except concurrency tokens, so change detection
-/// sees edits to audit-excluded columns too (Audit.NET still records such an update, with no values).
+/// sees edits to audit-excluded columns too (when enabled, Audit.NET records such an update without values).
 /// </summary>
 internal sealed record SsBulkTargetImage(
     string Key,

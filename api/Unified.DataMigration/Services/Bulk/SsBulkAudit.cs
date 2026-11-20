@@ -10,11 +10,11 @@ using Unified.Db.Models.UserManagement;
 namespace Unified.DataMigration.Services.Bulk;
 
 /// <summary>
-/// Business-table audit rows for bulk writes. PerRow saves are audited by Audit.NET through
-/// <c>SaveChanges</c>; bulk SQL bypasses it, so equivalent <c>AuditRecords</c> (Added / Modified,
-/// background "System" actor, same column exclusions and JSON shape) are written by binary COPY.
-/// Migration ledger tables (DataMigration*) are not audited in Bulk mode.
-/// No-op when auditing is disabled (tests and contexts with <c>AuditDisabled</c>).
+/// Optional business-table audit rows for bulk writes. Bulk SQL bypasses Audit.NET, so when
+/// auditing is enabled these <c>AuditRecords</c> are written by binary COPY. SS migration
+/// execution disables auditing only on its dedicated context; consequently its bulk writes
+/// produce no per-row audit records and are represented by the explicit terminal run summary.
+/// Migration ledger tables (DataMigration*) are not audited here.
 /// </summary>
 internal sealed class SsBulkAudit(UnifiedDbContext db)
 {

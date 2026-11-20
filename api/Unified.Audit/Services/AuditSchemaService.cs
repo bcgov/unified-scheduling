@@ -55,6 +55,11 @@ public sealed partial class AuditSchemaService(
             map[name] = new AuditEntityFieldsResponse { EntityType = name, Fields = fields };
         }
 
+        // Run summaries are explicit audit records, not EF entity changes. They are
+        // Added records with no ChangedColumns, so no changed-field filters apply.
+        const string migrationRunSummary = "DataMigrationRunSummary";
+        map[migrationRunSummary] = new AuditEntityFieldsResponse { EntityType = migrationRunSummary, Fields = [] };
+
         return map;
     }
 

@@ -28,15 +28,17 @@ public sealed class SsMigrationExecutor(
     SsSchedulingBulkWriter? schedulingBulk = null
 )
 {
-    public Task ExecuteAsync(string job, CancellationToken ct)
+    public async Task ExecuteAsync(string job, CancellationToken ct)
     {
+        using var auditScope = new SsMigrationAuditScope(db, requireClean: true);
         ConfigureMigrationCommandTimeout();
-        return ExecuteCoreAsync(job, null, ct);
+        await ExecuteCoreAsync(job, null, ct);
     }
 
     [Hangfire.AutomaticRetry(Attempts = 0)]
     public async Task ExecuteAcquiredAsync(Guid runId, CancellationToken ct)
     {
+        using var auditScope = new SsMigrationAuditScope(db, requireClean: true);
         ConfigureMigrationCommandTimeout();
         await db.Database.OpenConnectionAsync(ct);
         var locked = false;
@@ -97,19 +99,24 @@ public sealed class SsMigrationExecutor(
         {
             await ExecuteCoreAsync(run.Job, run, ct);
         }
+        catch (SsMigrationTerminalizationException)
+        {
+            throw;
+        }
         catch
         {
-            db.ChangeTracker.Clear();
-            var current = await db.DataMigrationRuns.SingleAsync(x => x.Id == runId, CancellationToken.None);
-            if (current.Status == "Running")
+            try
             {
-                MigrationTechnicalFailure.Record(
+                await SsMigrationRunAudit.FailAsync(
                     db,
-                    current,
+                    runId,
                     "QueuedExecutionRefused",
                     "Queued execution refused; inspect migration configuration and controls."
                 );
-                await db.SaveChangesAsync(CancellationToken.None);
+            }
+            catch
+            {
+                throw new SsMigrationTerminalizationException();
             }
             throw new InvalidOperationException("SS queued execution failed; inspect migration-only evidence.");
         }
@@ -253,7 +260,22 @@ public sealed class SsMigrationExecutor(
                     training,
                     scheduling,
                     businessValidators ?? []
-                ).ExecuteAsync(run, session, source, settings.BatchSize, token => FenceAsync(run, token), ct);
+                ).ExecuteAsync(
+                    run,
+                    session,
+                    source,
+                    settings.BatchSize,
+                    token => FenceAsync(run, token),
+                    (snapshot, token) =>
+                        SsMigrationRunAudit.RememberSourceAsync(
+                            db,
+                            run.Id,
+                            snapshot,
+                            fenceToken => FenceAsync(run, fenceToken, captureJournal: false),
+                            token
+                        ),
+                    ct
+                );
                 session = result.Session;
                 await using var simulationReceiptTx = await db.Database.BeginTransactionAsync(ct);
                 await FenceAsync(run, ct);
@@ -264,6 +286,7 @@ public sealed class SsMigrationExecutor(
                     db.DataMigrationSimulations.Add(result.Manifest);
                     await db.SaveChangesAsync(ct);
                 }
+                await SsMigrationRunAudit.WriteAsync(db, run.Id, ct);
                 await simulationReceiptTx.CommitAsync(ct);
                 return;
             }
@@ -276,6 +299,13 @@ public sealed class SsMigrationExecutor(
                         .Distinct()
                         .ToArray(),
                     settings.BatchSize,
+                    ct
+                );
+                await SsMigrationRunAudit.RememberSourceAsync(
+                    db,
+                    run.Id,
+                    reportRows,
+                    token => FenceAsync(run, token, captureJournal: false),
                     ct
                 );
                 await using var reportTx = await db.Database.BeginTransactionAsync(ct);
@@ -312,6 +342,7 @@ public sealed class SsMigrationExecutor(
                         "IndependentO1ToO5CaptureComparisonRequired"
                     );
                 await PersistAsync(run, session, ct);
+                await SsMigrationRunAudit.WriteAsync(db, run.Id, ct);
                 await reportTx.CommitAsync(ct);
                 return;
             }
@@ -329,6 +360,13 @@ public sealed class SsMigrationExecutor(
                 )
             );
             var rows = await reader.ReadAsync(tables, settings.BatchSize, ct, job == "MyTeam" ? boundary : null);
+            await SsMigrationRunAudit.RememberSourceAsync(
+                db,
+                run.Id,
+                rows,
+                token => FenceAsync(run, token, captureJournal: false),
+                ct
+            );
             if (job == "Training" && settings.PersistenceMode == MigrationPersistenceMode.Bulk)
             {
                 // Same acquisition, lineage, run lock, fence and counters; no rollback journal is
@@ -411,28 +449,25 @@ public sealed class SsMigrationExecutor(
                         $"SafeFrame={frame.GetMethod()?.DeclaringType?.Name}.{frame.GetMethod()?.Name}:{frame.GetFileLineNumber()}"
                     );
             }
-            db.ChangeTracker.Clear();
-            var persisted = await db.DataMigrationRuns.SingleAsync(x => x.Id == run.Id, CancellationToken.None);
-            if (persisted.Status != "Running")
-                throw new InvalidOperationException("SS migration stopped after its run fence was revoked.");
-            if (job == "Report" && session.Outcomes.Count > 0)
+            bool failed;
+            try
             {
-                // The report transaction rolled back, but already discovered validation failures
-                // must not be hidden by a later technical error.
-                foreach (var outcome in session.Outcomes)
-                    await SsBatchProgress.UpsertOutcomeAsync(db, outcome, CancellationToken.None);
-                persisted.FailedCount = session.Outcomes.Count(x => x.Outcome == "Failed");
-                persisted.RejectedCount = session.Outcomes.Count(x => x.Outcome == "Rejected");
+                failed = await SsMigrationRunAudit.FailAsync(
+                    db,
+                    run.Id,
+                    ex is OperationCanceledException ? "Canceled" : "ExecutionFailed",
+                    job == "Report"
+                        ? "SS report did not complete; inspect migration-only evidence."
+                        : "SS job failed; current batch rolled back. Earlier committed batches and retry/progress evidence are retained.",
+                    job == "Report" ? session.Outcomes : null
+                );
             }
-            MigrationTechnicalFailure.Record(
-                db,
-                persisted,
-                ex is OperationCanceledException ? "Canceled" : "ExecutionFailed",
-                job == "Report"
-                    ? "SS report did not complete; inspect migration-only evidence."
-                    : "SS job failed; current batch rolled back. Earlier committed batches and retry/progress evidence are retained."
-            );
-            await db.SaveChangesAsync(CancellationToken.None);
+            catch
+            {
+                throw new SsMigrationTerminalizationException();
+            }
+            if (!failed)
+                throw new InvalidOperationException("SS migration stopped after its run fence was revoked.");
             throw new InvalidOperationException("SS migration failed; inspect migration-only run evidence.");
         }
     }

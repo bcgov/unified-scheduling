@@ -2,6 +2,7 @@ using System.Reflection;
 using Unified.DataMigration.Options;
 using Unified.DataMigration.Services;
 using Unified.DataMigration.Services.Bulk;
+using Unified.DataMigration.Sources;
 using Unified.Db.Models.DataMigration;
 
 namespace Unified.Tests.DataMigration;
@@ -9,6 +10,59 @@ namespace Unified.Tests.DataMigration;
 public sealed class SsTrainingBulkUnitTests
 {
     private readonly DataMigrationOptionsValidator _validator = new();
+
+    [Fact]
+    public void SourceFingerprint_IsOrderIndependent_AndTracksProjectedInput_NotPhotoBytes()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var first = new SsRow(
+            new Dictionary<string, object?>
+            {
+                ["Id"] = "1",
+                ["FirstName"] = "One",
+                ["Photo"] = new byte[] { 1 },
+            }
+        );
+        var second = new SsRow(new Dictionary<string, object?> { ["Id"] = "2", ["FirstName"] = "Two" });
+        var course = new SsRow(new Dictionary<string, object?> { ["Id"] = "3", ["Code"] = "Course" });
+        var snapshot = new Dictionary<string, List<SsRow>> { ["User"] = [first, second], ["LookupCode"] = [course] };
+        var original = SsMigrationFingerprints.Source(snapshot, ct);
+        var reordered = new Dictionary<string, List<SsRow>>
+        {
+            ["LookupCode"] = [course],
+            ["User"] =
+            [
+                second,
+                new SsRow(
+                    new Dictionary<string, object?>
+                    {
+                        ["Photo"] = new byte[] { 2, 3 },
+                        ["FirstName"] = "One",
+                        ["Id"] = "1",
+                    }
+                ),
+            ],
+        };
+        Assert.Equal(original, SsMigrationFingerprints.Source(reordered, ct));
+        Assert.Equal(3, original.Rows);
+        Assert.Matches("^[A-F0-9]{64}$", original.Value);
+
+        reordered["LookupCode"] =
+        [
+            new SsRow(new Dictionary<string, object?> { ["Id"] = "3", ["Code"] = "Changed course" }),
+        ];
+        Assert.NotEqual(original.Value, SsMigrationFingerprints.Source(reordered, ct).Value);
+        reordered["LookupCode"] = [course];
+        reordered["User"][1] = new SsRow(
+            new Dictionary<string, object?>
+            {
+                ["Id"] = "1",
+                ["FirstName"] = "One",
+                ["Photo"] = null,
+            }
+        );
+        Assert.NotEqual(original.Value, SsMigrationFingerprints.Source(reordered, ct).Value);
+    }
 
     private static DataMigrationOptions Enabled(Action<SsJobOptions> configure)
     {

@@ -173,6 +173,9 @@ public sealed class DataMigrationRunConfiguration : IEntityTypeConfiguration<Dat
         builder.Property(entity => entity.Source).HasMaxLength(16).IsRequired();
         builder.Property(entity => entity.Job).HasMaxLength(32).IsRequired();
         builder.Property(entity => entity.Status).HasMaxLength(16).IsRequired();
+        builder.Property(entity => entity.InitiationKind).HasMaxLength(16);
+        builder.Property(entity => entity.PersistenceMode).HasMaxLength(16);
+        builder.Property(entity => entity.AuditSourceFingerprint).HasMaxLength(128);
         builder
             .HasIndex(entity => new { entity.Source, entity.Job })
             .IsUnique()

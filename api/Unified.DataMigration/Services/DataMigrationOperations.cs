@@ -231,15 +231,19 @@ public sealed class DataMigrationOperations(
         }
         catch
         {
-            db.ChangeTracker.Clear();
-            var failed = await db.DataMigrationRuns.SingleAsync(x => x.Id == run.Id, CancellationToken.None);
-            MigrationTechnicalFailure.Record(
-                db,
-                failed,
-                "DispatchFailed",
-                "Job dispatch failed before business execution."
-            );
-            await db.SaveChangesAsync(CancellationToken.None);
+            try
+            {
+                await SsMigrationRunAudit.FailAsync(
+                    db,
+                    run.Id,
+                    "DispatchFailed",
+                    "Job dispatch failed before business execution."
+                );
+            }
+            catch
+            {
+                throw new SsMigrationTerminalizationException();
+            }
             throw new MigrationOperationException(503, "JobDispatchFailed");
         }
         return new(run.Id, source, job, dryRun);
