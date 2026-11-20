@@ -9,6 +9,7 @@ import {
 import { getApiTrainingProfileTypes } from '@/api-access/generated/training/training';
 import { postApiUsers, postApiUsersIdUploadPhoto, putApiUsersId } from '@/api-access/generated/users/users';
 import { PostApiUsersBody } from '@/api-access/generated/users/users.zod';
+import { resolveApiUrl } from '@/api-access/useFetchAPI';
 import UaAlert from '@/shared/components/UaAlert.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
 import UaFormGrid from '@/shared/components/UaFormGrid.vue';
@@ -123,7 +124,9 @@ const photoFile = ref<File | null>(null);
 const localPhotoPreviewUrl = ref<string | null>(null);
 const fileInputRef = ref<HTMLInputElement | null>(null);
 
-const photoPreviewUrl = computed(() => localPhotoPreviewUrl.value ?? currentUser.value?.photoUrl ?? null);
+const photoPreviewUrl = computed(
+  () => localPhotoPreviewUrl.value ?? (currentUser.value?.photoUrl ? resolveApiUrl(currentUser.value.photoUrl) : null),
+);
 
 const photoInitials = computed(() => {
   const f = (formData.value.firstName?.[0] ?? '').toUpperCase();

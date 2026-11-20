@@ -19,7 +19,7 @@ export COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME-unified-scheduling}"
 usage() {
   cat <<-EOF
 
-  Usage: $0 {start|debug|stop|build|upgrade-db-16-18|rm|down}
+  Usage: $0 {start|start-proxy|debug|debug-proxy|stop|build|proxy|upgrade-db-16-18|rm|down}
 
   Options:
 
@@ -51,8 +51,20 @@ usage() {
           Example:
             $0 debug
 
+  start-proxy | debug-proxy - Use the same startup paths with Nginx in front of Vite.
+          Application: http://localhost:8080/sheriff-scheduling/
+          Direct start/debug application: http://localhost:8080/
+          Proxy mode requires Docker Compose 2.24.4 or newer.
+
   stop - Stops the services.  This is a non-destructive process.  The containers
          are not deleted so they will be reused the next time you run start.
+
+  proxy - Runs a Docker Compose maintenance command with the frontend proxy
+          override and profile. Use start-proxy/debug-proxy to start or switch modes.
+          Examples:
+            $0 proxy logs -f proxy web api
+            $0 proxy ps
+          Application: http://localhost:8080/sheriff-scheduling/
 
   upgrade-db-16-18 - Backs up the running PostgreSQL 16 database, replaces its
                      container with PostgreSQL 18, and restores the backup.
@@ -130,10 +142,10 @@ configureEnvironment () {
     source .env
   fi
 
-  for arg in $@; do
+  for arg in "$@"; do
     case "$arg" in
       *=*)
-        export ${arg}
+        export "${arg}"
         ;;
     esac
   done
@@ -159,30 +171,131 @@ configureEnvironment () {
 }
 
 getStartupParams() {
-  CONTAINERS=""
-  ARGS=""
+  CONTAINERS=()
+  ARGS=()
 
-  for arg in $@; do
+  for arg in "$@"; do
     case "$arg" in
       *=*)
         # Skip it
         ;;
      -*)
-        ARGS+=" $arg";;
+        ARGS+=("$arg");;
       *)
-        CONTAINERS+=" $arg";;
+        CONTAINERS+=("$arg");;
     esac
   done
 
-  if [ -z "$CONTAINERS" ]; then
+  if [ "${#CONTAINERS[@]}" -eq 0 ]; then
       if [ -z "$DEBUG_MODE" ]; then
-        CONTAINERS="$RUNTIME_CONTAINERS"
+        read -r -a CONTAINERS <<< "$RUNTIME_CONTAINERS"
       else
-        CONTAINERS="$DEBUG_CONTAINERS"
+        read -r -a CONTAINERS <<< "$DEBUG_CONTAINERS"
       fi
   fi
+}
 
-  echo ${ARGS} ${CONTAINERS}
+configureCompose() {
+  if docker compose version >/dev/null 2>&1; then
+    COMPOSE=(docker compose)
+  else
+    COMPOSE=(docker-compose)
+  fi
+}
+
+requireProxyCompose() {
+  local version major minor patch
+  version=$("${COMPOSE[@]}" version --short)
+  version=${version#v}
+  IFS=. read -r major minor patch <<< "${version%%[-+]*}"
+  if [[ ! "$major" =~ ^[0-9]+$ || ! "$minor" =~ ^[0-9]+$ || ! "$patch" =~ ^[0-9]+$ ]] ||
+     (( major < 2 || (major == 2 && (minor < 24 || (minor == 24 && patch < 4))) )); then
+    echo "Proxy mode requires Docker Compose 2.24.4+ for !override; found $version." >&2
+    exit 1
+  fi
+}
+
+proxyCompose() {
+  "${COMPOSE[@]}" -f docker-compose.yaml -f docker-compose.proxy.yaml --profile proxy-repro "$@"
+}
+
+configureFrontend() {
+  export WEB_BASE_HREF=/
+  if [ -n "$FRONTEND_PROXY_MODE" ]; then
+    export WEB_BASE_HREF=/sheriff-scheduling/
+  fi
+}
+
+optionalFrontends() {
+  local action="$1" service ids
+  # Labels also find a proxy from a previous mode and the retired release frontend.
+  for service in proxy web-release; do
+    ids=$(docker ps --all --quiet \
+      --filter "label=com.docker.compose.project=$COMPOSE_PROJECT_NAME" \
+      --filter "label=com.docker.compose.service=$service")
+    if [ -n "$ids" ]; then
+      if [ "$action" = remove ]; then
+        docker rm --force $ids
+      else
+        docker stop $ids
+      fi
+    fi
+  done
+}
+
+prepareWebContainer() {
+  local ids id details name mode desiredMode=direct
+  if [ -n "$FRONTEND_PROXY_MODE" ]; then
+    desiredMode=proxy
+  fi
+
+  ids=$(docker ps --all --quiet \
+    --filter "label=com.docker.compose.project=$COMPOSE_PROJECT_NAME" \
+    --filter "label=com.docker.compose.service=web" \
+    --filter "label=com.docker.compose.oneoff=False")
+  for id in $ids; do
+    details=$(docker inspect --format '{{.Name}} {{if index .HostConfig.PortBindings "8080/tcp"}}direct{{else}}proxy{{end}}' "$id")
+    read -r name mode <<< "$details"
+    # Create fresh on mode changes instead of carrying a Compose replacement name.
+    # Also repair a temporary name retained by an earlier recreation.
+    if [ "$mode" != "$desiredMode" ] ||
+       [[ "$name" =~ ^/[[:xdigit:]]{12}_"$COMPOSE_PROJECT_NAME"[-_]web[-_][0-9]+$ ]]; then
+      docker rm --force "$id"
+    fi
+  done
+}
+
+startServices() {
+  local service startFrontend=
+  getStartupParams "$@"
+  configureEnvironment "$@"
+  configureFrontend
+  configureCompose
+
+  if [ -n "$FRONTEND_PROXY_MODE" ]; then
+    requireProxyCompose
+  fi
+
+  for service in "${CONTAINERS[@]}"; do
+    if [ "$service" = web ]; then
+      startFrontend=1
+    fi
+  done
+  if [ -n "$startFrontend" ]; then
+    # Release 8080 before direct startup; restart Nginx after Vite gets a new IP.
+    # Removing these optional containers never removes their volumes or the API/db.
+    optionalFrontends remove
+    prepareWebContainer
+    if [ -n "$FRONTEND_PROXY_MODE" ]; then
+      CONTAINERS+=(proxy)
+    fi
+  fi
+
+  if [ -n "$FRONTEND_PROXY_MODE" ]; then
+    proxyCompose up "${ARGS[@]}" "${CONTAINERS[@]}"
+  else
+    "${COMPOSE[@]}" up "${ARGS[@]}" "${CONTAINERS[@]}"
+  fi
 }
 
 toLower() {
@@ -203,7 +316,9 @@ deleteVolumes() {
   _projectName=${COMPOSE_PROJECT_NAME:-docker}
 
   echo "Stopping and removing any running containers ..."
-  docker-compose down -v
+  configureCompose
+  optionalFrontends remove
+  "${COMPOSE[@]}" down -v
 
   _pattern="^${_projectName}_\|^docker_"
   _volumes=$(docker volume ls -q | grep ${_pattern} | cat)
@@ -228,22 +343,38 @@ COMMAND=$(toLower ${1})
 shift
 
 case "$COMMAND" in
-  start)
-    _startupParams=$(getStartupParams $@)
-    configureEnvironment $@
-    docker-compose up ${_startupParams}
-    ;;
-  debug)
-    export DEBUG_MODE=1
-    _startupParams=$(getStartupParams $@)
-    configureEnvironment $@
-    docker-compose up ${_startupParams}
+  start|start-proxy|debug|debug-proxy)
+    FRONTEND_PROXY_MODE=
+    case "$COMMAND" in
+      *-proxy) FRONTEND_PROXY_MODE=1 ;;
+    esac
+    case "$COMMAND" in
+      debug*) export DEBUG_MODE=1 ;;
+    esac
+    startServices "$@"
     ;;
   stop)
-    docker-compose stop
+    configureEnvironment
+    configureCompose
+    optionalFrontends stop
+    "${COMPOSE[@]}" stop
+    ;;
+  proxy)
+    if [ "$#" -eq 0 ]; then
+      usage
+    fi
+    configureEnvironment
+    FRONTEND_PROXY_MODE=1
+    configureFrontend
+    configureCompose
+    requireProxyCompose
+    proxyCompose "$@"
     ;;
   upgrade-db-16-18)
     configureEnvironment
+    FRONTEND_PROXY_MODE=
+    configureFrontend
+    optionalFrontends stop
     bash ./upgrade-postgres-16-to-18.sh
     ;;
   rm|down)

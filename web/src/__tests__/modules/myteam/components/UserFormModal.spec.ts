@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushPromises, mount } from '@vue/test-utils';
 import { HttpResponse, http } from 'msw';
 import { ref } from 'vue';
+import { VImg } from 'vuetify/components';
 import UserFormModal from '@/modules/myteam/components/UserFormModal.vue';
 import {
   getPostApiUsersMockHandler,
@@ -35,6 +36,7 @@ vi.mock('@/api-access/generated/training/training', () => ({
 afterEach(() => {
   document.body.innerHTML = '';
   vi.restoreAllMocks();
+  vi.unstubAllEnvs();
   getApiTrainingProfileTypesMock.mockReset();
 });
 
@@ -178,7 +180,8 @@ describe('UserFormModal — photo upload', () => {
     wrapper.unmount();
   });
 
-  it('shows current photo in edit mode when user has a photoUrl', async () => {
+  it('resolves the current photo against the application prefix and preserves local blob previews', async () => {
+    vi.stubEnv('BASE_URL', '/sheriff-scheduling/');
     setupTrainingProfileLookupMock();
     const app = await createTestApp();
     const userWithPhoto: UserResponse = { ...baseUser, photoUrl: '/api/users/user-123/photo' };
@@ -191,9 +194,17 @@ describe('UserFormModal — photo upload', () => {
 
     await flushPromises();
 
-    // photoPreviewUrl should reflect the user's existing photo URL
-    const vm = wrapper.vm as unknown as { photoPreviewUrl: string | null };
-    expect(vm.photoPreviewUrl).toBe('/api/users/user-123/photo');
+    const image = wrapper.findComponent(VImg);
+    expect(image.props('src')).toBe('/sheriff-scheduling/api/users/user-123/photo');
+
+    const vm = wrapper.vm as unknown as { localPhotoPreviewUrl: string | null };
+    vm.localPhotoPreviewUrl = 'blob:http://localhost/local-photo';
+    await flushPromises();
+    expect(image.props('src')).toBe('blob:http://localhost/local-photo');
+
+    vm.localPhotoPreviewUrl = null;
+    await flushPromises();
+    expect(image.props('src')).toBe('/sheriff-scheduling/api/users/user-123/photo');
 
     wrapper.unmount();
   });

@@ -1,5 +1,6 @@
-import { describe, it, expect } from 'vitest';
+import { afterEach, describe, it, expect, vi } from 'vitest';
 import { flushPromises, mount } from '@vue/test-utils';
+import { VImg } from 'vuetify/components';
 import { http, HttpResponse } from 'msw';
 import { server } from '../../../mocks/server';
 
@@ -8,6 +9,31 @@ import UserCard from '@/modules/myteam/components/UserCard.vue';
 import { createTestApp } from '../../../helpers/createTestApp';
 
 describe('UserCard', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it.each([
+    ['2026-11-19T12:34:56+00:00', '2026-11-19T12:34:56+00:00'],
+    [null, 'photo-user'],
+  ])('renders the prefixed photo URL and preserves cache-busting for %s', async (lastPhotoUpdate, cacheKey) => {
+    vi.stubEnv('BASE_URL', '/sheriff-scheduling/');
+    const app = await createTestApp();
+    const user = getGetApiUsersIdResponseMock({
+      id: 'photo-user',
+      photoUrl: '/api/users/photo-user/photo',
+      lastPhotoUpdate,
+    });
+
+    const wrapper = mount(UserCard, { props: { user }, global: { plugins: app.mountPlugins } });
+    await flushPromises();
+
+    expect(wrapper.findComponent(VImg).props('src')).toBe(
+      `/sheriff-scheduling/api/users/photo-user/photo?t=${cacheKey}`,
+    );
+    wrapper.unmount();
+  });
+
   it('keeps user details visible when the position lookup fails', async () => {
     server.use(http.get('*/api/lookup/PositionTypes', () => new HttpResponse(null, { status: 500 })));
     const app = await createTestApp();

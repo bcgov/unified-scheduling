@@ -1,0 +1,18 @@
+# Requires Docker Compose 2.24.4+ for !override (an ordinary empty list is merged).
+services:
+  web:
+    environment:
+      WEB_BASE_HREF: /sheriff-scheduling/
+    # Keep Vite internal; only the proxy publishes the browser's port.
+    ports: !override []
+
+  proxy:
+    image: nginx:stable
+    profiles: [proxy-repro]
+    ports:
+      - '127.0.0.1:8080:8080'
+    volumes:
+      - './nginx-proxy/default.conf:/etc/nginx/conf.d/default.conf:ro'
+    depends_on:
+      - web
+    restart: unless-stopped
