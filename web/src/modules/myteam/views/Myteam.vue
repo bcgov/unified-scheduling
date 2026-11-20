@@ -42,6 +42,11 @@ watch(
   () => execute(),
 );
 
+const handleClearSearch = async () => {
+  searchText.value = '';
+  await execute();
+};
+
 const showCreateUserModal = ref(false);
 
 const handleAddMember = () => {
@@ -80,8 +85,15 @@ const handleCreateModalClose = () => {
       <UaTextField
         id="team-search"
         label="Search"
+        hint="Type your search, then press Enter."
+        persistent-hint
+        hide-details="auto"
         v-model="searchText"
         class="my-team-search-input"
+        clearable
+        density="comfortable"
+        variant="outlined"
+        @click:clear="handleClearSearch"
         @keydown.enter="() => execute()"
       />
     </div>
@@ -112,17 +124,21 @@ const handleCreateModalClose = () => {
   padding: var(--ua-spacing-xl);
   background-color: rgb(var(--v-theme-surface));
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
   gap: var(--ua-spacing-md);
 }
 
 .my-team-search-wrapper {
-  width: 320px;
+  flex: 1 1 20rem;
+  min-width: min(100%, 20rem);
+  max-width: 30rem;
 }
 
 .my-team-search-input {
-  max-width: 400px;
+  width: 100%;
+  max-width: none;
 }
 
 .my-team-filter-row {

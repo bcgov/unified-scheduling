@@ -41,15 +41,14 @@ public sealed class UserService(
 
         if (queryParams?.Search?.Trim() is { Length: > 0 } searchText)
         {
-            query = featureFlags.Value.UserBadgeNumber switch
-            {
-                { Enabled: true } => query.Where(x =>
-                    x.FirstName.Contains(searchText)
-                    || x.LastName.Contains(searchText)
-                    || (x.BadgeNumber ?? string.Empty).Contains(searchText)
-                ),
-                _ => query.Where(x => x.FirstName.Contains(searchText) || x.LastName.Contains(searchText)),
-            };
+            var normalizedSearchText = searchText.ToLowerInvariant();
+            var searchByBadgeNumber = featureFlags.Value.UserBadgeNumber is { Enabled: true };
+
+            query = query.Where(user =>
+                user.FirstName.ToLower().Contains(normalizedSearchText)
+                || user.LastName.ToLower().Contains(normalizedSearchText)
+                || (searchByBadgeNumber && (user.BadgeNumber ?? string.Empty).ToLower().Contains(normalizedSearchText))
+            );
         }
 
         if (queryParams?.LocationId is int locationId)

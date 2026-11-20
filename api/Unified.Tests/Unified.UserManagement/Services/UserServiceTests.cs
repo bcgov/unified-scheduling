@@ -202,6 +202,29 @@ public class UserServiceTests : IAsyncLifetime
         Assert.Equal("Doe", result.First().LastName);
     }
 
+    [Theory]
+    [InlineData("jane", false, 1)]
+    [InlineData("doe", false, 1)]
+    [InlineData("john", false, 2)]
+    [InlineData("badge-002", true, 1)]
+    public async Task GetAllAsync_Should_Match_Search_CaseInsensitively(
+        string search,
+        bool userBadgeNumberEnabled,
+        int expectedCount
+    )
+    {
+        // Arrange
+        await SeedTestData();
+        var userService = CreateUserService(userBadgeNumberEnabled);
+        var queryParams = new UserQueryParams { Search = search };
+
+        // Act
+        var result = await userService.GetAllAsync(queryParams, TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.Equal(expectedCount, result.Count);
+    }
+
     [Fact]
     public async Task GetAllAsync_Should_Handle_Partial_Search_Match_On_FirstName()
     {

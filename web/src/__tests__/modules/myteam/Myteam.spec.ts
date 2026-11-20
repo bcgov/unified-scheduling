@@ -64,6 +64,44 @@ describe('Myteam', () => {
     expect(wrapper.text()).toContain('Error:');
   });
 
+  it('clears the search and reloads users when the clear button is clicked', async () => {
+    const app = await createTestApp();
+    const capturedSearchTerms: Array<string | null> = [];
+
+    server.use(
+      getGetApiUsersMockHandler((info) => {
+        capturedSearchTerms.push(new URL(info.request.url).searchParams.get('Search'));
+        return getGetApiUsersResponseMock();
+      }),
+    );
+
+    const wrapper = mount(Myteam, {
+      global: {
+        plugins: app.mountPlugins,
+      },
+    });
+
+    await flushPromises();
+
+    const searchField = wrapper.findComponent({ name: 'VTextField' });
+    expect(wrapper.get('label[for="team-search"]').text()).toBe('Search');
+    expect(searchField.props('prependInnerIcon')).toBeUndefined();
+    expect(searchField.props('density')).toBe('comfortable');
+    expect(searchField.props('variant')).toBe('outlined');
+
+    const searchInput = wrapper.get('#team-search');
+    await searchInput.setValue('Doe');
+    await searchInput.trigger('keydown.enter');
+    await flushPromises();
+
+    expect(capturedSearchTerms.at(-1)).toBe('Doe');
+
+    await wrapper.get('.v-field__clearable [role="button"]').trigger('click');
+    await flushPromises();
+
+    expect(capturedSearchTerms.at(-1)).toBeNull();
+  });
+
   it('sends LocationId query param when a location is selected', async () => {
     const app = await createTestApp();
     const locationsStore = useLocationsStore(app.pinia);
