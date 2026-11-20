@@ -36,6 +36,7 @@ internal sealed class SsDryRunSimulation(
         DataMigrationSourceOptions source,
         int batchSize,
         Func<CancellationToken, Task> fence,
+        Func<Dictionary<string, List<SsRow>>, CancellationToken, Task> rememberSource,
         CancellationToken ct
     )
     {
@@ -70,6 +71,7 @@ internal sealed class SsDryRunSimulation(
             ct,
             boundary
         );
+        await rememberSource(rows, ct);
         var connection = new NpgsqlConnectionStringBuilder(source.ConnectionString);
         var inputHash = SsWriteSession.Hash(
             new

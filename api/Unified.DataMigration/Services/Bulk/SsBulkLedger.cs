@@ -285,6 +285,8 @@ internal sealed class SsBulkLedger
             persisted.CompletedOn = DateTimeOffset.UtcNow;
         }
         await db.SaveChangesAsync(ct);
+        if (final)
+            await SsMigrationRunAudit.WriteAsync(db, run.Id, ct);
         db.ChangeTracker.Clear();
         pendingPositions = newPositions;
     }

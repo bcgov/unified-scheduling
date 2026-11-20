@@ -197,6 +197,8 @@ internal sealed class SsBatchProgress(
             run.CompletedOn = DateTimeOffset.UtcNow;
         }
         await db.SaveChangesAsync(ct);
+        if (final)
+            await SsMigrationRunAudit.WriteAsync(db, run.Id, ct);
         await transaction!.CommitAsync(ct);
         await transaction.DisposeAsync();
         transaction = null;

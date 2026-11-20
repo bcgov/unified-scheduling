@@ -1,16 +1,43 @@
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Npgsql;
+using Unified.Audit;
+using Unified.DataMigration.Options;
 using Unified.Db;
 using Unified.Db.Models.DataMigration;
 
 namespace Unified.DataMigration.Services;
 
-public sealed class DataMigrationControlService(UnifiedDbContext dbContext) : IMigrationRunCoordinator
+public sealed class DataMigrationControlService : IMigrationRunCoordinator
 {
+    private readonly UnifiedDbContext dbContext;
+    private readonly ICurrentActorResolver? actors;
+    private readonly IHttpContextAccessor? httpContext;
+    private readonly IOptions<DataMigrationOptions>? options;
+
+    // Kept for legacy callers. Without request services, existing trigger evidence is
+    // used for attribution; an unidentifiable historical initiator remains unknown.
+    public DataMigrationControlService(UnifiedDbContext dbContext) => this.dbContext = dbContext;
+
+    public DataMigrationControlService(
+        UnifiedDbContext dbContext,
+        ICurrentActorResolver actors,
+        IHttpContextAccessor httpContext,
+        IOptions<DataMigrationOptions> options
+    )
+    {
+        this.dbContext = dbContext;
+        this.actors = actors;
+        this.httpContext = httpContext;
+        this.options = options;
+    }
+
     public async Task<bool> RecoverStaleRunAsync(Guid runId, DateTimeOffset staleBefore, CancellationToken ct)
     {
         if (staleBefore >= DateTimeOffset.UtcNow)
             throw new InvalidOperationException("Recovery requires an explicit past stale boundary.");
+        using var auditScope = new SsMigrationAuditScope(dbContext, requireClean: true);
         await using var tx = await dbContext.Database.BeginTransactionAsync(ct);
         await dbContext.Database.ExecuteSqlRawAsync("SELECT pg_advisory_xact_lock(872, 1)", ct);
         // NOWAIT refuses recovery while the worker holds its business transaction fence.
@@ -24,8 +51,19 @@ public sealed class DataMigrationControlService(UnifiedDbContext dbContext) : IM
             return false;
         run.Status = "Abandoned";
         run.CompletedOn = DateTimeOffset.UtcNow;
-        await dbContext.SaveChangesAsync(ct);
-        await tx.CommitAsync(ct);
+        try
+        {
+            await dbContext.SaveChangesAsync(ct);
+            await SsMigrationRunAudit.WriteAsync(dbContext, run.Id, ct);
+            await tx.CommitAsync(ct);
+        }
+        catch
+        {
+            // A rolled-back SaveChanges still leaves accepted values in EF's tracker.
+            // Do not let a reused context later persist a phantom terminal state.
+            dbContext.ChangeTracker.Clear();
+            throw;
+        }
         return true;
     }
 
@@ -41,6 +79,10 @@ public sealed class DataMigrationControlService(UnifiedDbContext dbContext) : IM
             throw new ArgumentOutOfRangeException(nameof(job));
         if (cutover != new DateOnly(2026, 12, 1))
             throw new InvalidOperationException("Invalid SS cutover.");
+        var actor = actors?.Resolve();
+        if (actors is not null && (actor?.ActorUserId is null || actor.ActorUserId == Guid.Empty))
+            throw new InvalidOperationException("SS migration acquisition requires a resolved initiator.");
+        using var auditScope = new SsMigrationAuditScope(dbContext, requireClean: true);
         await using var tx = await dbContext.Database.BeginTransactionAsync(cancellationToken);
         // All dependency checks and the insertion share this transaction-scoped, source-wide lock.
         await dbContext.Database.ExecuteSqlRawAsync("SELECT pg_advisory_xact_lock(872, 1)", cancellationToken);
@@ -113,6 +155,12 @@ public sealed class DataMigrationControlService(UnifiedDbContext dbContext) : IM
             MyTeamRunId = parent?.Id,
             HistoryStartDate = history,
             HeartbeatOn = DateTimeOffset.UtcNow,
+            InitiatedByUserId = actor?.ActorUserId,
+            InitiationKind =
+                actor is null ? null
+                : httpContext?.HttpContext is null ? "Scheduled"
+                : "Operator",
+            PersistenceMode = options?.Value.Sources.SS.Jobs.For(job).PersistenceMode.ToString(),
         };
         dbContext.DataMigrationRuns.Add(run);
         await dbContext.SaveChangesAsync(cancellationToken);

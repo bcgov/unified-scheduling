@@ -45,23 +45,21 @@ Invalid rows and their dependants are rejected in memory before any accepted row
 same reasons and evidence tables as PerRow. A failure inside a chunk rolls back the whole chunk, including its
 ledger changes; earlier chunks stay committed and the next approved run resumes from the crosswalk.
 
-Business-table `AuditRecords` are written by COPY with the same shape as Audit.NET: Added/Modified, the System
-actor, and the column exclusions configured in `AuditRecord:ExcludedPropertyNames` (applied through
-`AuditPropertyExclusion`, like the live pipeline). A modified row whose changed columns are all excluded
-still gets a metadata-only `Modified` record (no old/new values or changed columns), matching Audit.NET.
-When the context has `AuditableEntityInterceptor` (production), Bulk stamps `CreatedById`/`UpdatedById` with
-the System user like background PerRow saves. Like Audit.NET, which snapshots changes before interceptors
-run, the stamped `UpdatedById` is left out of Modified audit columns.
-Migration ledger tables (`DataMigration*`) are not audited
-in Bulk mode.
+Migration execution intentionally does **not** create a general `AuditRecord` for each business or
+bookkeeping row, in either mode. The Bulk COPY audit path observes the migration context's disabled flag.
+One terminal run summary is written instead, in addition to the separate operator-action audits. This is
+an accepted loss of granular general audit, not per-row audit parity. Ordinary application saves remain
+audited. See the [run summary contract](contracts/migration-operations.md#run-audit-summary) for the exact
+fingerprints and their limitations. Per-record outcomes, crosswalks, mutations, controls and PerRow rollback
+journals are unchanged. When the context has `AuditableEntityInterceptor` (production), Bulk still stamps
+`CreatedById`/`UpdatedById` with the System user like background PerRow saves.
 
 Raw staging commands and COPY operations inherit the migration command timeout
 (`DataMigration:CommandTimeoutSeconds`, or the target connection string's `Command Timeout`), the same as EF
 commands. A mapped note that exceeds the 2000-character target column (counted in characters, like PostgreSQL
 `varchar`) fails only that row (`TargetWriteFailed:DbUpdateException`, as PerRow does), not the chunk. Like
 PostgreSQL, Bulk accepts a longer note when every character past 2000 is an ASCII space; the stored value is
-truncated in both modes. In that case the PerRow audit JSON shows the submitted (untruncated) note, while Bulk
-shows the stored one.
+truncated in both modes.
 Save rules (`ISaveRule`) are not invoked. The only relevant rule, `TrainingProfileTypeExistsRule`, checks that a
 requirement's profile type exists. Bulk resolves that profile type from the target, and the foreign key enforces
 the same thing.
@@ -161,10 +159,10 @@ COMMIT;
 `Unified.Tests.DataMigration.SsTrainingBulkPostgresTests` is gated by
 `UNIFIED_MIGRATION_ISOLATED_TEST_CONNECTION_STRING` and the local source schema evidence. It covers:
 
-- PerRow-vs-Bulk parity over four adverse rounds on template clones, after real MyTeam runs (round 4 adds
-  oversized-note row failures). The comparison is
-  normalized through crosswalks and covers outcomes, reasons, failures, business rows, crosswalks, receipts and
-  audit rows.
+- Existing PerRow-vs-Bulk comparisons exercise four adverse rounds on template clones, after real MyTeam runs
+  (round 4 adds oversized-note row failures). Business rows, outcomes, reasons, failures, crosswalks and
+  receipts remain comparison surfaces. Assertions expecting per-row migration audit must be updated for the
+  deliberately different run-summary contract; they do not establish granular audit parity.
 - Concurrency, terminal-run, crash, abort and cancel resume.
 - Dry run, mode binding, undo-to-baseline, and undo blocked by edited categories/requirements.
 - An opt-in benchmark: `UNIFIED_MIGRATION_BULK_BENCHMARK_HISTORIES=<n>`.

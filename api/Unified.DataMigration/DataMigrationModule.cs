@@ -1,6 +1,8 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
+using Unified.Audit;
 using Unified.Authorization;
 using Unified.Common.FeatureFlags;
 using Unified.Common.Jobs;
@@ -42,9 +44,12 @@ public static class DataMigrationModule
         services.AddSingleton<IValidateOptions<DataMigrationOptions>, DataMigrationOptionsValidator>();
 
         services.AddScoped<DataMigrationOrchestrator>();
+        services.AddHttpContextAccessor();
+        services.TryAddSingleton<ICurrentActorResolver, HttpContextActorResolver>();
+        // Acquisition must persist the actual request/scheduler actor before the
+        // separate trigger audit and dispatch, including if either subsequently fails.
         services.AddScoped<DataMigrationControlService>();
         services.AddScoped<IMigrationRunCoordinator>(sp => sp.GetRequiredService<DataMigrationControlService>());
-        services.AddHttpContextAccessor();
         services.AddScoped<DataMigrationOperations>();
         services.AddScoped<IMigrationJobDispatcher, MigrationJobDispatcher>();
         services

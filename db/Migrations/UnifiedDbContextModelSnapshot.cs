@@ -95,6 +95,11 @@ namespace Unified.Db.Migrations
                     b.HasIndex("EntityType", "EntityPK")
                         .HasDatabaseName("ix_audit_entity");
 
+                    b.HasIndex(new[] { "EntityType", "EntityPK" }, "ux_audit_migration_run_summary")
+                        .IsUnique()
+                        .HasDatabaseName("ux_audit_migration_run_summary")
+                        .HasFilter("\"EntityType\" = 'DataMigrationRunSummary'");
+
                     b.ToTable("AuditRecords");
                 });
 
@@ -822,6 +827,13 @@ namespace Unified.Db.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<string>("AuditSourceFingerprint")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<long?>("AuditSourceRowCount")
+                        .HasColumnType("bigint");
+
                     b.Property<int>("CommittedBatchCount")
                         .HasColumnType("integer");
 
@@ -843,6 +855,13 @@ namespace Unified.Db.Migrations
                     b.Property<DateOnly?>("HistoryStartDate")
                         .HasColumnType("date");
 
+                    b.Property<Guid?>("InitiatedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("InitiationKind")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
                     b.Property<int>("InsertedCount")
                         .HasColumnType("integer");
 
@@ -853,6 +872,10 @@ namespace Unified.Db.Migrations
 
                     b.Property<Guid?>("MyTeamRunId")
                         .HasColumnType("uuid");
+
+                    b.Property<string>("PersistenceMode")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
 
                     b.Property<int>("RejectedCount")
                         .HasColumnType("integer");

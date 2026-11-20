@@ -25,6 +25,17 @@ public sealed class DataMigrationRun
     public int SkippedCount { get; set; }
     public int RejectedCount { get; set; }
     public Guid? RollbackOfRunId { get; set; }
+
+    // Recorded at acquisition so recovery can attribute a run even if dispatch never
+    // reaches the separate operator-action audit record. Nulls identify older runs.
+    public Guid? InitiatedByUserId { get; set; }
+    public string? InitiationKind { get; set; }
+    public string? PersistenceMode { get; set; }
+
+    // A fingerprint of the reader's selected projection, not the entire source database.
+    // The value carries its format version; a special value marks differing retry snapshots.
+    public string? AuditSourceFingerprint { get; set; }
+    public long? AuditSourceRowCount { get; set; }
     public ICollection<DataMigrationFailure> Failures { get; set; } = [];
     public ICollection<DataMigrationMutation> Mutations { get; set; } = [];
 }

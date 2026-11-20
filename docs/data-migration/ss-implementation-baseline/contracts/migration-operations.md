@@ -60,6 +60,94 @@ chunks, no rollback journal, crosswalk-scoped `SsBulkUndo`, target role needs `T
 refuses (`BulkRequiresPerRow:*`) any path it cannot reproduce exactly, including updates of already
 migrated rows; see [bulk persistence](../training-bulk-persistence.md).
 
+## Run Audit Summary
+
+For SS MyTeam, Training, Scheduling and Report, including simulation, the migration worker disables
+Audit.NET **only on its own DbContext**, restores the previous flag on exit, and writes no general
+`AuditRecord` per migrated business or bookkeeping row. The Bulk COPY audit path respects that same
+context flag. The acquisition/recovery bookkeeping uses a similarly bounded scope and refuses a context
+with pending changes. No process-wide audit switch or global entity exclusion is changed; concurrent
+application contexts retain ordinary CRUD audit, EF stamp/save-rule/concurrency interceptors still run,
+and Bulk retains its existing stamp and save-rule behavior.
+
+The older source-agnostic `TryStartRunAsync` and `DataMigrationOrchestrator.ExecuteBatchAsync` helpers have
+no callers in the current SS jobs. They are not an SS worker scope: a future SS caller using them for
+business writes could still produce per-row audit records and must be adapted before use.
+
+This deliberately loses granular general audit. It does **not** remove or replace per-record outcomes,
+crosswalks, mutations, checkpoints, retry work items, controls or the existing PerRow rollback journals.
+Bulk remains without a journal as before. Explicit `DataMigrationOperation` records for trigger,
+pause/resume/abort, recovery, rollback preview/confirmation/impact download and findings export remain
+separate from the summary. They are not suppressed; the existing apply trigger-evidence check remains.
+Rollback is a separate operator action/receipt, not a second summary or a revision of the original summary.
+
+Each terminal migration run gets one `AuditRecord` with `EntityType=DataMigrationRunSummary`,
+`EntityPK=<run UUID>`, `TableName=DataMigrationRuns` and `Action=Added`. It contains the initiator ID
+(operator at acquisition, or the system user for a scheduled run), source, job, persistence mode at
+acquisition, dry-run flag, terminal status, safe completion cause where known, the persisted run counters,
+start/completion/heartbeat timestamps and the cutover/history dates. A `Completed` loader is not business
+acceptance. Older runs without acquisition metadata use matching trigger evidence where available;
+otherwise their initiator/mode are reported as unknown, not invented.
+
+The terminal status, its counters, final-batch evidence and summary commit together under the run-row fence;
+earlier committed batches remain durable. A filtered unique index prevents a second summary for that UUID.
+A summary insertion failure rolls back the terminal transition and is surfaced. If the process crashes before any terminal transaction commits, there is no
+summary yet: the run remains `Running` with only the previously committed progress/trigger evidence.
+An authorized stale-run recovery fences the worker, records `Abandoned` plus one summary atomically, and
+keeps its existing recovery-action audits. No automatic summary is backfilled for already-terminal historical
+runs. A retry of the same running UUID that observes different source snapshots marks the source projection
+fingerprint unavailable rather than claiming either one describes the whole run.
+If cancellation prevents a queued worker from acquiring the run, the existing recovery path is required
+to terminalize it and create the summary; this change does not alter cancellation behavior.
+
+### Fingerprints, version 1
+
+These are SHA-256 digests, in uppercase hexadecimal, of the specified source projection captured before
+business writes and evidence read during the terminal transaction. They are not signatures or
+complete-source or complete-target hashes. The summary explicitly
+reports `FullSource` and `FullTarget` as unavailable. Reproducing a digest requires retaining the same
+inputs: crosswalks can later change or be removed by rollback, and the source snapshot itself is not retained
+by the summary. An unkeyed digest can reveal equality and may be guessable for small or low-entropy datasets;
+it is not anonymization. Restrict audit access and protect retained source/evidence accordingly.
+
+* `SourceProjection` (`ss-source-projection-v1`) covers every row actually fetched by `SsSnapshotReader`
+  for that execution, including rows later accepted, rejected or excluded, and dependency rows. The selected
+  tables are the writer's `Tables` arrays: MyTeam reads Region, Location, LookupCode, LookupSortOrder, Role,
+  User, UserRole, SheriffActingRank, SheriffAwayLocation and SheriffLeave; Training reads LookupCode, User,
+  SheriffTraining and SheriffStandardTraining; Scheduling reads LookupCode, Assignment, Duty, DutySlot and
+  Shift. Applied Report reads their union. Every dry run reads the union. MyTeam and all dry runs also include
+  the derived `__UsersWithHistory` ID-only result. Each regular row covers the reader's `Id`, `CreatedOn`,
+  `UpdatedOn` and precisely the table-specific `Fields` projection in `SsSnapshotReader`; it excludes photo
+  bytes, replacing them with `HasPhoto`, and excludes Region.Code. It does not cover unselected tables,
+  columns, rows not returned by the reader, independent oracle captures, or photo contents. It is not a
+  hash of the whole source. It is unavailable if no complete reader result was recorded, or if attempts
+  for one run fetched differing projections.
+* `OutcomeEvidence` (`ss-outcome-evidence-v1`) covers every persisted `DataMigrationOutcomes` row for this
+  run, as `(EntityType, LegacyId, Outcome, Reason)`, including accepted, rejected, excluded and auxiliary
+  outcomes. It fingerprints those classifications, not the underlying source or target payloads.
+* `AppliedCrosswalkEvidence` (`ss-applied-crosswalk-evidence-v1`) covers the SS `DataMigrationRecords` whose
+  `LastAppliedRunId` equals this run, as `(EntityType, LegacyId, TargetType, TargetKey, PayloadHash,
+  AfterHash, IsDeleted)`. The existing payload/after hashes cover their respective mapped/allowed fields;
+  they do not cover every source or target column or photo bytes. Unchanged existing crosswalks not assigned
+  to this run, rejected/excluded rows without crosswalks, and mutation-only alias refreshes may be absent.
+  An empty digest means no matching persisted crosswalks, not an empty source or target. It is not applicable
+  to dry runs.
+* `SimulationCandidates`, when a completed simulation manifest exists, is the existing manifest's
+  `CandidateHash` and `CandidateCount` (manifest format version 2). It hashes the JSON array of
+  `(EntityType, LegacyId, TargetType, TargetKey, PayloadHash)` candidates in .NET ordinal entity/key order,
+  using SHA-256. Candidates are simulated mappings, not applied business rows or a target-content digest.
+  Failed/incomplete simulations and simulation Report may have no manifest, in which case it is unavailable.
+
+For the first three digests, the byte stream starts with the UTF-8 format name as a field. A field is a
+signed 32-bit big-endian byte length followed by UTF-8 bytes; null is length -1. Counts are signed 64-bit
+big-endian. Source tables and row IDs use .NET ordinal ordering: after the table count, each table name,
+row count, and each row ID and `System.Text.Json`-serialized `SsRow.SimulationInput` are framed in that
+order. Its projected dictionary keys use .NET ordinal order, with native JSON value types and no Unicode
+normalization. Outcome and crosswalk rows use PostgreSQL `C`/UTF-8 byte order on `(EntityType, LegacyId)`;
+their listed fields are framed in order (IsDeleted is `1` or `0`), followed by the total row count.
+Empty tables and empty evidence therefore have defined digests. These formats must be versioned if the
+projection, ordering, serialization or framing changes.
+
 ## Data Protection
 
 Ordinary responses/findings/logs expose only safe keys, classes, counts and metrics.
