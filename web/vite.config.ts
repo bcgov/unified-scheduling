@@ -47,7 +47,7 @@ export default defineConfig({
     // The API container renders the print route through the Docker Compose web service.
     allowedHosts: ['web'],
     proxy: {
-      [`^${proxyPrefix}/api|^/hangfire`]: {
+      [`^${proxyPrefix}/(api|hangfire)`]: {
         target: 'http://api:5000',
         changeOrigin: true,
         secure: false,

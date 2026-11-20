@@ -1,5 +1,9 @@
 # Requires Docker Compose 2.24.4+ for !override (an ordinary empty list is merged).
 services:
+  api:
+    environment:
+      Hangfire__DashboardPrefixPath: /sheriff-scheduling
+
   web:
     environment:
       WEB_BASE_HREF: /sheriff-scheduling/

@@ -160,18 +160,32 @@ Direct mode publishes Vite on port 8080. The manager sets `WEB_BASE_HREF` to `/`
 or `/sheriff-scheduling/` for the selected mode. The proxy suffix is independent
 of debug mode; both debug commands retain the existing API hot reload and debugger.
 
-Nginx preserves the prefix and WebSocket upgrades; Vite removes the API prefix
+Nginx preserves the prefix and WebSocket upgrades; Vite removes the API/Hangfire prefix
 before forwarding to `api:5000`. Unprefixed application requests receive 404.
 `./manage proxy` remains available for Compose inspection commands such as logs.
 The previous `web-release` service and `PROXY_WEB_IMAGE` override are retired.
 
 To switch, invoke any startup command above; add `-d` to detach. Keep the same
 `COMPOSE_PROJECT_NAME` to reuse the API, database, and volumes. Switching removes
-the optional proxy and recreates only Vite when its frontend mode changes, keeping
-its normal name (`unified-scheduling-web-1` by default). Existing temporary names
+the optional proxy and recreates Vite when its frontend mode changes, keeping
+its normal name (`unified-scheduling-web-1` by default). The API is also recreated
+to apply or remove the Hangfire dashboard prefix. Existing temporary names
 are repaired on the next startup. Repeated starts reuse unchanged Vite/API/database
 containers. Use the default service list or include `web` for frontend switching.
 `./manage stop` includes the proxy and preserves volumes; `down`/`rm` delete volumes.
+
+Both proxy commands set `Hangfire:DashboardPrefixPath=/sheriff-scheduling` through
+the local Compose override; direct mode retains an empty prefix. To enable the
+dashboard without starting the background job server:
+
+```bash
+./manage start-proxy -d HangfireEnabled=true HangfireDashboardEnabled=true HangfireServerEnabled=false
+# Or use debug-proxy with the same flags.
+```
+
+Open `http://localhost:8080/sheriff-scheduling/hangfire` as an authorized user and
+check dashboard navigation, styles, scripts, and polling. Repeat the flags on each
+startup unless they are already configured in your local environment.
 
 The identity-provider client must allow
 `http://localhost:8080/sheriff-scheduling/api/auth/signin-oidc` and the corresponding
@@ -196,7 +210,7 @@ curl -i 'http://localhost:8080/api/users/11111111-1111-1111-1111-111111111111/ph
 In both proxy modes, check nested routes, frontend hot reload, photo uploads and
 prefixed image GETs with an authorized user, and login/logout redirects. In both
 debug modes, verify backend hot reload and debugger attachment. After switching,
-check container names, port 8080 ownership, unchanged API/database container IDs,
+check container names, port 8080 ownership, an unchanged database container ID,
 and persisted data. For schedule PDF rendering through the proxy, set
 `ScheduleDistributionFrontendBaseUrl=http://web:8080/sheriff-scheduling/`.
 
