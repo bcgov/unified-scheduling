@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.Security.Claims;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using Audit.Core;
 using Microsoft.AspNetCore.Authorization;
@@ -218,8 +219,7 @@ public sealed class SsTrainingBulkPostgresTests : IAsyncLifetime
             if (round == 4)
             {
                 await ExecuteAsync(sourceConnection, RoundFourSource(), ct);
-                // A note-only owned update with every changed column excluded must still be audited
-                // (metadata-only Modified record) in both modes.
+                // Even metadata-only migration edits bypass per-row audit in both modes.
                 AuditOptions.ExcludedPropertyNames =
                 [
                     .. AuditOptions.ExcludedPropertyNames,
@@ -228,6 +228,12 @@ public sealed class SsTrainingBulkPostgresTests : IAsyncLifetime
                     "UpdatedById",
                 ];
             }
+            var perRowAuditFloor = await CountAsync(
+                perRow,
+                """SELECT COALESCE(MAX("Id"),0) FROM "AuditRecords" """,
+                ct
+            );
+            var bulkAuditFloor = await CountAsync(bulk, """SELECT COALESCE(MAX("Id"),0) FROM "AuditRecords" """, ct);
             var watch = Stopwatch.StartNew();
             var perRowRun = await RunAsync(perRow, "Training", ct);
             var perRowElapsed = watch.Elapsed;
@@ -236,6 +242,25 @@ public sealed class SsTrainingBulkPostgresTests : IAsyncLifetime
             timings.Add(
                 $"round {round}: PerRow {perRowElapsed.TotalMilliseconds:F0} ms, Bulk {watch.ElapsedMilliseconds} ms"
             );
+            await AssertRunAuditAsync(perRow, perRowRun, perRowAuditFloor, ct);
+            await AssertRunAuditAsync(bulk, bulkRun, bulkAuditFloor, ct);
+            if (round == 4)
+            {
+                foreach (
+                    var (clone, id, floor) in new[]
+                    {
+                        (perRow, perRowRun, perRowAuditFloor),
+                        (bulk, bulkRun, bulkAuditFloor),
+                    }
+                )
+                {
+                    await using var terminal = clone.Db();
+                    await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                        Executor(terminal, clone.Options).ExecuteAcquiredAsync(id, ct)
+                    );
+                    await AssertRunAuditAsync(clone, id, floor, ct);
+                }
+            }
             if (round < 4)
             {
                 await AssertCleanAsync(perRow, perRowRun, ct);
@@ -305,7 +330,7 @@ public sealed class SsTrainingBulkPostgresTests : IAsyncLifetime
                         )
                     );
                     Assert.Equal(
-                        1,
+                        0, // Migration bypass also suppresses metadata-only Modified audits.
                         await CountAsync(
                             clone,
                             $"""
@@ -912,6 +937,104 @@ public sealed class SsTrainingBulkPostgresTests : IAsyncLifetime
         Assert.NotNull(run.CompletedOn);
         Assert.Equal(0, run.FailedCount);
         Assert.Equal(run.RejectedCount > 0 ? "Failed" : "Completed", run.Status);
+    }
+
+    private async Task AssertRunAuditAsync(Clone clone, Guid runId, long auditFloor, CancellationToken ct)
+    {
+        await using var db = clone.Db();
+        var run = await db.DataMigrationRuns.AsNoTracking().SingleAsync(x => x.Id == runId, ct);
+        var audits = await db.AuditRecords.AsNoTracking().Where(x => x.Id > auditFloor).ToListAsync(ct);
+        // No business entity or bookkeeping audit may leak from either executor path.
+        Assert.Equal(2, audits.Count);
+        var trigger = Assert.Single(audits, x => x.EntityType == "DataMigrationOperation");
+        var summary = Assert.Single(audits, x => x.EntityType == "DataMigrationRunSummary");
+        Assert.Equal(actor, trigger.ActorUserId);
+        Assert.Equal(trigger.ActorUserId, summary.ActorUserId);
+        Assert.Equal(runId.ToString("D"), summary.EntityPK);
+        Assert.Equal("DataMigrationRuns", summary.TableName);
+        Assert.Equal("Added", summary.Action);
+        Assert.Equal(
+            await db.DataMigrationRuns.CountAsync(ct),
+            await db.AuditRecords.CountAsync(x => x.EntityType == "DataMigrationRunSummary", ct)
+        );
+
+        using var document = JsonDocument.Parse(summary.NewValues!);
+        var values = document.RootElement;
+        Assert.Equal(runId, values.GetProperty("RunId").GetGuid());
+        Assert.Equal(run.Source, values.GetProperty("Source").GetString());
+        Assert.Equal(run.Job, values.GetProperty("Job").GetString());
+        Assert.Equal(
+            clone.Options.Sources.SS.Jobs.Training.PersistenceMode.ToString(),
+            values.GetProperty("PersistenceMode").GetString()
+        );
+        Assert.Equal(run.Status, values.GetProperty("Status").GetString());
+        Assert.Equal(run.DryRun, values.GetProperty("DryRun").GetBoolean());
+        Assert.Equal(actor, values.GetProperty("Initiator").GetProperty("UserId").GetGuid());
+        Assert.Equal("Operator", values.GetProperty("Initiator").GetProperty("Kind").GetString());
+        var counts = values.GetProperty("Counts");
+        foreach (
+            var (name, expected) in new[]
+            {
+                (nameof(run.ScannedCount), run.ScannedCount),
+                (nameof(run.InsertedCount), run.InsertedCount),
+                (nameof(run.UpdatedCount), run.UpdatedCount),
+                (nameof(run.UnchangedCount), run.UnchangedCount),
+                (nameof(run.SkippedCount), run.SkippedCount),
+                (nameof(run.RejectedCount), run.RejectedCount),
+                (nameof(run.FailedCount), run.FailedCount),
+                (nameof(run.CommittedBatchCount), run.CommittedBatchCount),
+            }
+        )
+            Assert.Equal(expected, counts.GetProperty(name).GetInt32());
+
+        var fingerprints = values.GetProperty("Fingerprints");
+        var source = fingerprints.GetProperty("SourceProjection");
+        Assert.Equal("Available", source.GetProperty("Status").GetString());
+        var snapshot = await new SsSnapshotReader(Options.Create(clone.Options)).ReadAsync(
+            SsTrainingWriter.Tables,
+            clone.Options.Sources.SS.Jobs.Training.BatchSize,
+            ct
+        );
+        var sourceDigest = SsMigrationFingerprints.Source(snapshot, ct);
+        Assert.Equal(snapshot.Values.Sum(x => (long)x.Count), source.GetProperty("Rows").GetInt64());
+        Assert.Equal(run.AuditSourceRowCount, source.GetProperty("Rows").GetInt64());
+        Assert.Equal(
+            run.AuditSourceFingerprint,
+            "ss-source-projection-v1:sha256:" + source.GetProperty("Value").GetString()
+        );
+        AssertFingerprint(source, sourceDigest, "ss-source-projection-v1");
+        var outcomes = fingerprints.GetProperty("OutcomeEvidence");
+        Assert.Equal(
+            await db.DataMigrationOutcomes.LongCountAsync(x => x.RunId == runId, ct),
+            outcomes.GetProperty("Rows").GetInt64()
+        );
+        AssertFingerprint(
+            outcomes,
+            await SsMigrationFingerprints.OutcomesAsync(db, runId, ct),
+            "ss-outcome-evidence-v1"
+        );
+        var crosswalks = fingerprints.GetProperty("AppliedCrosswalkEvidence");
+        Assert.Equal("Available", fingerprints.GetProperty("AppliedCrosswalkStatus").GetString());
+        Assert.Equal(
+            await db.DataMigrationRecords.LongCountAsync(x => x.Source == "SS" && x.LastAppliedRunId == runId, ct),
+            crosswalks.GetProperty("Rows").GetInt64()
+        );
+        AssertFingerprint(
+            crosswalks,
+            await SsMigrationFingerprints.CrosswalksAsync(db, runId, ct),
+            "ss-applied-crosswalk-evidence-v1"
+        );
+        Assert.Equal("UnavailableNotCaptured", fingerprints.GetProperty("FullSource").GetString());
+        Assert.Equal("UnavailableNotCaptured", fingerprints.GetProperty("FullTarget").GetString());
+    }
+
+    private static void AssertFingerprint(JsonElement value, SsMigrationFingerprints.Digest expected, string format)
+    {
+        Assert.Equal(format, value.GetProperty("Format").GetString());
+        Assert.Equal("SHA-256", value.GetProperty("Algorithm").GetString());
+        Assert.Matches("^[A-F0-9]{64}$", value.GetProperty("Value").GetString()!);
+        Assert.Equal(expected.Value, value.GetProperty("Value").GetString());
+        Assert.Equal(expected.Rows, value.GetProperty("Rows").GetInt64());
     }
 
     private static async Task AssertRunAsync(Clone clone, Guid runId, string status, CancellationToken ct)
