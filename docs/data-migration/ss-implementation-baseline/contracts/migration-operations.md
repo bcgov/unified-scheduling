@@ -93,6 +93,8 @@ The terminal status, its counters, final-batch evidence and summary commit toget
 earlier committed batches remain durable. A filtered unique index prevents a second summary for that UUID.
 A summary insertion failure rolls back the terminal transition and is surfaced. If the process crashes before any terminal transaction commits, there is no
 summary yet: the run remains `Running` with only the previously committed progress/trigger evidence.
+Authorized audit-history readers can query `EntityType=DataMigrationRunSummary` and the run UUID; its field
+schema is empty because summaries are `Added` records without changed-column filters.
 An authorized stale-run recovery fences the worker, records `Abandoned` plus one summary atomically, and
 keeps its existing recovery-action audits. No automatic summary is backfilled for already-terminal historical
 runs. A retry of the same running UUID that observes different source snapshots marks the source projection
