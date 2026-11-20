@@ -58,8 +58,7 @@ export default defineConfig({
           'X-Forwarded-Proto': 'http',
           ...(basePrefix ? { 'X-Base-Href': base } : {}),
         },
-        rewrite: (path) =>
-          basePrefix && path.startsWith(`${basePrefix}/`) ? path.slice(basePrefix.length) : path,
+        rewrite: (path) => (basePrefix && path.startsWith(`${basePrefix}/`) ? path.slice(basePrefix.length) : path),
         cookiePathRewrite: basePrefix ? { '/api/auth': `${basePrefix}/api/auth` } : undefined,
       },
     },
