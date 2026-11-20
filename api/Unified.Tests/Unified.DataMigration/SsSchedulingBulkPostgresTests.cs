@@ -155,6 +155,7 @@ public sealed class SsSchedulingBulkPostgresTests : IAsyncLifetime
             await AssertNoTechnicalFailureAsync(perRow, perRowRun, ct);
             await AssertNoTechnicalFailureAsync(bulk, bulkRun, ct);
             await AssertNotRefusedAsync(bulk, bulkRun, ct);
+            await AssertBulkRunSummaryOnlyAsync(bulk, bulkRun, ct);
             var expected = await SnapshotAsync(perRow, false, ct);
             AssertEquivalent(expected, await SnapshotAsync(bulk, false, ct), expected.Keys, $"{template} round 1");
             output?.WriteLine(
@@ -1547,6 +1548,31 @@ public sealed class SsSchedulingBulkPostgresTests : IAsyncLifetime
     }
 
     // ------------------------------------------------------------------ assertions
+
+    // Bulk writes no per-row audits; the run leaves only its trigger record and one run summary.
+    private async Task AssertBulkRunSummaryOnlyAsync(Clone clone, Guid runId, CancellationToken ct)
+    {
+        await using var db = clone.Db();
+        var run = await db.DataMigrationRuns.AsNoTracking().SingleAsync(x => x.Id == runId, ct);
+        var audits = await db.AuditRecords.AsNoTracking().Where(x => x.Id > clone.AuditFloor).ToListAsync(ct);
+        Assert.DoesNotContain(audits, x => x.EntityType is not ("DataMigrationOperation" or "DataMigrationRunSummary"));
+        Assert.Single(audits, x => x.EntityType == "DataMigrationOperation");
+        var summary = Assert.Single(audits, x => x.EntityType == "DataMigrationRunSummary");
+        Assert.Equal(runId.ToString("D"), summary.EntityPK);
+        Assert.Equal(actor, summary.ActorUserId);
+
+        using var document = JsonDocument.Parse(summary.NewValues!);
+        var values = document.RootElement;
+        Assert.Equal(runId, values.GetProperty("RunId").GetGuid());
+        Assert.Equal("Scheduling", values.GetProperty("Job").GetString());
+        Assert.Equal(nameof(MigrationPersistenceMode.Bulk), values.GetProperty("PersistenceMode").GetString());
+        var counts = values.GetProperty("Counts");
+        Assert.Equal(run.ScannedCount, counts.GetProperty(nameof(run.ScannedCount)).GetInt32());
+        Assert.Equal(run.InsertedCount, counts.GetProperty(nameof(run.InsertedCount)).GetInt32());
+        Assert.Equal(run.CommittedBatchCount, counts.GetProperty(nameof(run.CommittedBatchCount)).GetInt32());
+        Assert.True(run.ScannedCount > 0, "Scheduling Bulk summary has zero scanned rows");
+        Assert.True(run.InsertedCount > 0, "Scheduling Bulk summary has zero inserted rows");
+    }
 
     private static async Task AssertNoTechnicalFailureAsync(Clone clone, Guid runId, CancellationToken ct)
     {

@@ -161,8 +161,8 @@ COMMIT;
 
 - Existing PerRow-vs-Bulk comparisons exercise four adverse rounds on template clones, after real MyTeam runs
   (round 4 adds oversized-note row failures). Business rows, outcomes, reasons, failures, crosswalks and
-  receipts remain comparison surfaces. Assertions expecting per-row migration audit must be updated for the
-  deliberately different run-summary contract; they do not establish granular audit parity.
+  receipts remain comparison surfaces. Audit assertions check the separate trigger, one terminal summary
+  per run and the absence of per-row migration audit; they do not establish granular audit parity.
 - Concurrency, terminal-run, crash, abort and cancel resume.
 - Dry run, mode binding, undo-to-baseline, and undo blocked by edited categories/requirements.
 - An opt-in benchmark: `UNIFIED_MIGRATION_BULK_BENCHMARK_HISTORIES=<n>`.
@@ -187,15 +187,17 @@ Bulk does not re-implement Scheduling. The unchanged rule code (`SsSchedulingWri
 interfaces (`ISsSessionBackend`, `ISsSchedulingStore`):
 
 - **PerRow:** `SsSchedulingEfStore`/`SsEfSessionBackend` keep the original EF queries, `SaveChanges`,
-  savepoints and rollback journal. The PerRow path is behaviourally unchanged.
+  savepoints and rollback journal. Business writes are unchanged; general per-row migration audit is
+  replaced by the run summary described above.
 - **Bulk:** `SsSchedulingSim` loads one consistent snapshot of the modelled target tables into memory and plays
   the database for the same rules:
   - real ids from the table sequences;
   - the audit interceptor's actor stamps;
   - the `SchedulingConcurrencyInterceptor` root version bumps: a save that adds or changes a shift user, link,
     link user or scheduling event touches the owning unchanged `ShiftEntry`/`AssignmentEntry`/`AssignmentSeries`
-    (`UpdatedOn`/`UpdatedById` updated, version advanced, no audit row because Audit.NET snapshots the change set
-    before interceptors run). It applies only when the context has that interceptor (production does), and a
+    (`UpdatedOn`/`UpdatedById` updated, version advanced). In an audited context an interceptor-only touch
+    is not audited because Audit.NET snapshots the change set before interceptors run; SS migration emits
+    no per-row audit in either case. It applies only when the context has that interceptor (production does), and a
     touch of an unmodelled `ShiftSeries` is refused (`UnmodelledConcurrencyRoot:ShiftSeries`);
   - PostgreSQL value normalisation;
   - not-null, varchar length, unique-index, foreign-key and named check constraints;
@@ -229,7 +231,8 @@ one transaction through `SsBulkChunkRunner`:
    and `DataMigrationRecords`. Ids are pre-allocated and mapped by key, never by `RETURNING` order.
    Same-chunk updates are applied through temp staging tables.
 4. Receipts (`DataMigrationMutations`, stamped with the chunk transaction id as the target version), outcomes,
-   work items, checkpoints, counters, heartbeat and audit rows (`SsBulkAudit`, same shape as Audit.NET).
+   work items, checkpoints, counters and heartbeat. Per-row general audit is disabled for migration execution;
+   the run summary is committed with terminal state.
 5. Fence again, then commit.
 
 Crosswalk uniqueness (`Source, EntityType, LegacyId`) is the idempotency fence. Committed crosswalks are
@@ -330,7 +333,8 @@ PerRow and Bulk on separate clones, and diffs both ways with ids normalised thro
 - runs/counters, outcomes and reasons, work items, checkpoints;
 - crosswalks and receipts, failures;
 - every Scheduling business table (shifts, events, series, assignment entries, links, users);
-- audit rows.
+- business-table audit slices; the retained-template test also asserts that a Bulk run writes no per-row audits and
+  exactly one `DataMigrationRunSummary` audit (`EntityPK` = run id) with nonzero counts.
 
 Tests:
 
