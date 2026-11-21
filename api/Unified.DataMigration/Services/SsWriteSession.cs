@@ -157,6 +157,7 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run) : 
         prefetch.Dispose();
         prefetch = null;
     }
+
     internal Guid? SimulationNamespace { get; set; }
     internal string? SimulationSchema { get; set; }
 
@@ -529,7 +530,8 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run) : 
         }
         if (entries.Count == 0)
             return false;
-        return entries.Count == members.Count
+        return
+            entries.Count == members.Count
             && entries.All(x => x.PayloadHash == sourceHash && x.TargetKey == entries[0].TargetKey)
             ? true
             : null;

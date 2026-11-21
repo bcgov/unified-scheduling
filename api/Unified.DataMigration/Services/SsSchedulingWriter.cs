@@ -108,9 +108,7 @@ public sealed class SsSchedulingWriter
         var proposals = new List<SsSchedulingProposal>();
         // Proposals are read only when a captured family is replaced. Planners read across components
         // (day groups, definition groups), so a partial plan is unsafe: plan all or nothing.
-        var prepared = session.PlanReplacementFamiliesOnly
-            ? await graphs.PrepareAsync(selected, boundary, ct)
-            : null;
+        var prepared = session.PlanReplacementFamiliesOnly ? await graphs.PrepareAsync(selected, boundary, ct) : null;
         if (prepared is { Families.Count: 0 })
         {
             await session.PlanGraphAsync(() => Task.CompletedTask, ct);

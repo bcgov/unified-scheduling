@@ -1345,8 +1345,7 @@ public sealed class SsSchedulingBulkPostgresTests : IAsyncLifetime
         VALUES (910041,'2026-11-16T15:00Z','2026-11-16T18:00Z',900000,'2026-11-22Z','11111111-1111-4111-8111-111111111111','Etc/UTC',0,'round 4 overlap');
         """;
 
-    private static async Task<Dictionary<string, string>> TargetKeysAsync(Clone clone, CancellationToken ct) =>
-        (
+    private static async Task<Dictionary<string, string>> TargetKeysAsync(Clone clone, CancellationToken ct) => (
             await TextRowsAsync(
                 clone,
                 """
@@ -1356,9 +1355,7 @@ public sealed class SsSchedulingBulkPostgresTests : IAsyncLifetime
                 """,
                 ct
             )
-        )
-            .Select(x => x.Split('|'))
-            .ToDictionary(x => x[0], x => x[1]);
+        ).Select(x => x.Split('|')).ToDictionary(x => x[0], x => x[1]);
 
     // Legacy rows that existed before the round and now point at a different (or no) target.
     private static List<string> Rebound(Dictionary<string, string> before, Dictionary<string, string> after) =>
@@ -1384,10 +1381,16 @@ public sealed class SsSchedulingBulkPostgresTests : IAsyncLifetime
         const string absent = "999999999";
         var rows = new Dictionary<string, List<SsRow>>
         {
-            ["Shift"] = [.. ids.Append(absent).Select(id => new SsRow(new Dictionary<string, object?> { ["Id"] = id }))],
+            ["Shift"] =
+            [
+                .. ids.Append(absent).Select(id => new SsRow(new Dictionary<string, object?> { ["Id"] = id })),
+            ],
         };
         Task<global::Unified.Db.Models.DataMigration.DataMigrationRecord> Tracked(string id) =>
-            db.DataMigrationRecords.SingleAsync(x => x.Source == "SS" && x.EntityType == "Shift" && x.LegacyId == id, ct);
+            db.DataMigrationRecords.SingleAsync(
+                x => x.Source == "SS" && x.EntityType == "Shift" && x.LegacyId == id,
+                ct
+            );
         await Tracked(preTracked);
 
         using var prefetch = new SsReplayPrefetch(db, rows);

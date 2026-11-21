@@ -249,7 +249,11 @@ internal sealed class SsSchedulingGraphReplay(UnifiedDbContext db, ISsScheduling
     internal sealed class ReplacementPlan
     {
         internal required List<Component> Proposed { get; init; }
-        internal required List<(List<int> Family, HashSet<string> Keys, List<DataMigrationRecord> OldMembers)> Families { get; init; }
+        internal required List<(
+            List<int> Family,
+            HashSet<string> Keys,
+            List<DataMigrationRecord> OldMembers
+        )> Families { get; init; }
     }
 
     internal async Task<ReplacementPlan> PrepareAsync(
