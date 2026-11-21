@@ -88,7 +88,7 @@ public sealed class SsSchedulingBulkPostgresTests : IAsyncLifetime
     private readonly IOptions<DataMigrationFeatureFlags> flags = MsOptions.Create(
         new DataMigrationFeatureFlags { Enabled = true }
     );
-    private readonly IConfiguration configuration = new ConfigurationBuilder()
+    private IConfiguration configuration = new ConfigurationBuilder()
         .AddInMemoryCollection(
             new Dictionary<string, string?>
             {
@@ -98,6 +98,19 @@ public sealed class SsSchedulingBulkPostgresTests : IAsyncLifetime
             }
         )
         .Build();
+
+    // PerRow graph replacement needs the inverse journal; without it, replacements are rejected before any delete.
+    private void EnableRollbackJournal() =>
+        configuration = new ConfigurationBuilder()
+            .AddConfiguration(configuration)
+            .AddInMemoryCollection(
+                new Dictionary<string, string?>
+                {
+                    ["DataMigrationRollback:EncryptionKey"] = Convert.ToBase64String(new byte[32]),
+                    ["DataMigrationRollback:KeyId"] = "6c3f0f8e-2b1a-4d5e-9f00-000000000a12",
+                }
+            )
+            .Build();
 
     public ValueTask InitializeAsync()
     {
@@ -1234,6 +1247,122 @@ public sealed class SsSchedulingBulkPostgresTests : IAsyncLifetime
     }
 
     private static bool PlanSkipped(Guid run) => SkippedPlans.ContainsKey(run);
+
+    // Every rerun speed-up switch. A switch may only skip work whose result is already proven, so turning
+    // them all on must leave the migrated state identical to the full path.
+    private static void EnableRerunOptimisations(DataMigrationOptions options)
+    {
+        options.Sources.SS.Jobs.Scheduling.PlanReplacementFamiliesOnly = true;
+        options.Sources.SS.Jobs.Scheduling.PrefetchReplayRecords = true;
+    }
+
+    // Simulates a crash after the write commit and before capture: two components lose their receipts.
+    private const string DropTwoComponentReceipts = """
+        WITH lost AS (
+          SELECT "TargetType","TargetKey" FROM "DataMigrationRecords"
+          WHERE "Source"='SS' AND "EntityType"='SchedulingComponent'
+          ORDER BY "TargetType","TargetKey" LIMIT 2),
+        gone AS (
+          SELECT r."Id" FROM "DataMigrationRecords" r JOIN lost l
+            ON l."TargetType"=r."TargetType" AND l."TargetKey"=r."TargetKey"
+          WHERE r."Source"='SS' AND r."EntityType" IN ('SchedulingComponent','SchedulingMember'))
+        , m AS (DELETE FROM "DataMigrationMutations" WHERE "DataMigrationRecordId" IN (SELECT "Id" FROM gone))
+        DELETE FROM "DataMigrationRecords" WHERE "Id" IN (SELECT "Id" FROM gone);
+        """;
+
+    [Fact(Skip = TemplatesSkipReason, SkipUnless = nameof(AreTemplatesConfigured))]
+    public async Task RerunOptimisations_LeaveStateIdenticalToFullPath_AcrossRounds()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        EnableAudit();
+        EnableRollbackJournal();
+        SsPhaseLog.Observer = ObservePhase;
+        var fixture = await AdverseFixtureAsync(ct);
+        var full = await CloneAsync(fixture, "eq_full", MigrationPersistenceMode.PerRow, ct, chunk: 7, batch: 5);
+        var fast = await CloneAsync(fixture, "eq_fast", MigrationPersistenceMode.PerRow, ct, chunk: 7, batch: 5);
+        var bulkFull = await CloneAsync(fixture, "eq_bfull", MigrationPersistenceMode.Bulk, ct, chunk: 7, batch: 5);
+        var bulkFast = await CloneAsync(fixture, "eq_bfast", MigrationPersistenceMode.Bulk, ct, chunk: 7, batch: 5);
+        EnableRerunOptimisations(fast.Options);
+        EnableRerunOptimisations(bulkFast.Options);
+
+        async Task<Guid> RoundAsync(Clone expected, Clone actual, string label)
+        {
+            var expectedBefore = await TargetKeysAsync(expected, ct);
+            var actualBefore = await TargetKeysAsync(actual, ct);
+            var expectedRun = await RunAsync(expected, ct);
+            var actualRun = await RunAsync(actual, ct);
+            await AssertNoTechnicalFailureAsync(expected, expectedRun, ct);
+            await AssertNoTechnicalFailureAsync(actual, actualRun, ct);
+            var snapshot = await SnapshotAsync(expected, true, ct);
+            AssertEquivalent(snapshot, await SnapshotAsync(actual, true, ct), snapshot.Keys, label);
+            // Snapshots normalise target IDs, so also prove the same targets were kept (not deleted and re-inserted).
+            var expectedRebound = Rebound(expectedBefore, await TargetKeysAsync(expected, ct));
+            Assert.Equal(expectedRebound, Rebound(actualBefore, await TargetKeysAsync(actual, ct)));
+            // Rebinding only happens in graph replacement, which reads the plan: it must never have been skipped.
+            if (expectedRebound.Count > 0)
+                Assert.False(PlanSkipped(actualRun), $"{label}: planning skipped although a graph was replaced");
+            return actualRun;
+        }
+
+        // Bulk never reads the switches; it must stay identical with them set.
+        await AssertNotRefusedAsync(bulkFast, await RoundAsync(bulkFull, bulkFast, "bulk first apply"), ct);
+
+        await RoundAsync(full, fast, "first apply");
+        await RoundAsync(full, fast, "no-change rerun");
+        await ExecuteAsync(full.ConnectionString, DropTwoComponentReceipts, ct);
+        await ExecuteAsync(fast.ConnectionString, DropTwoComponentReceipts, ct);
+        await RoundAsync(full, fast, "resume after capture failure");
+        // A Unified edit, a renamed (reference) court room and a new graph.
+        await ExecuteAsync(full.ConnectionString, AdverseTargetDrift, ct);
+        await ExecuteAsync(fast.ConnectionString, AdverseTargetDrift, ct);
+        await ExecuteAsync(fixture.Source, AdverseRound2Delta, ct);
+        await RoundAsync(full, fast, "reference target changed");
+        await RoundAsync(full, fast, "rerun after reference change");
+        // Owned changes to captured components: graph replacement and rebinding.
+        await ExecuteAsync(fixture.Source, AdverseRound3Delta, ct);
+        await RoundAsync(full, fast, "changed captured component");
+        await RoundAsync(full, fast, "settled rerun");
+        // A new shift overlapping a captured group: an owned in-place group merge.
+        await ExecuteAsync(fixture.Source, OverlappingShiftJoinsCapturedGroup, ct);
+        await RoundAsync(full, fast, "captured group merge");
+        await RoundAsync(full, fast, "settled after group merge");
+        // Changes outside graph replacement: replayed from the per-row record, never from a stale page.
+        await ExecuteAsync(fixture.Source, """UPDATE "Duty" SET "UpdatedOn"='2026-11-23Z' WHERE "Id"=910040;""", ct);
+        var touched = await RoundAsync(full, fast, "duty touched");
+        Assert.Equal("Migrated:UnchangedMappedSource", (await OutcomesAsync(fast, touched, ct))[("Duty", "910040")]);
+        await ExecuteAsync(
+            fixture.Source,
+            """UPDATE "Duty" SET "Comment"='round 5 changed',"UpdatedOn"='2026-11-24Z' WHERE "Id"=910040;""",
+            ct
+        );
+        var changed = await RoundAsync(full, fast, "duty comment changed");
+        Assert.Equal("Migrated:OwnedMappedUpdate", (await OutcomesAsync(fast, changed, ct))[("Duty", "910040")]);
+        await RoundAsync(full, fast, "settled after duty change");
+    }
+
+    private const string OverlappingShiftJoinsCapturedGroup = """
+        INSERT INTO "Shift" ("Id","StartDate","EndDate","LocationId","CreatedOn","SheriffId","Timezone","OvertimeHours","Comment")
+        VALUES (910041,'2026-11-16T15:00Z','2026-11-16T18:00Z',900000,'2026-11-22Z','11111111-1111-4111-8111-111111111111','Etc/UTC',0,'round 4 overlap');
+        """;
+
+    private static async Task<Dictionary<string, string>> TargetKeysAsync(Clone clone, CancellationToken ct) =>
+        (
+            await TextRowsAsync(
+                clone,
+                """
+                SELECT "EntityType"||':'||"LegacyId"||'|'||"TargetType"||':'||"TargetKey"
+                FROM "DataMigrationRecords" WHERE "Source"='SS' AND NOT "IsDeleted"
+                  AND "EntityType" NOT IN ('SchedulingComponent','SchedulingMember')
+                """,
+                ct
+            )
+        )
+            .Select(x => x.Split('|'))
+            .ToDictionary(x => x[0], x => x[1]);
+
+    // Legacy rows that existed before the round and now point at a different (or no) target.
+    private static List<string> Rebound(Dictionary<string, string> before, Dictionary<string, string> after) =>
+        before.Where(x => !after.TryGetValue(x.Key, out var now) || now != x.Value).Select(x => x.Key).Order().ToList();
 
     [Fact(Skip = TemplatesSkipReason, SkipUnless = nameof(AreTemplatesConfigured))]
     public async Task ReplayPrefetch_NeverAnswersForARecordTrackedInTheJob()
