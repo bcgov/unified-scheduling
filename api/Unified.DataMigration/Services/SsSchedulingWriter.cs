@@ -84,6 +84,25 @@ public sealed class SsSchedulingWriter
             .Append(boundary)
             .Min();
         log.Done(selectedRows.Sum(x => x.Value.Count));
+        session.BeginReplayPrefetch(selected);
+        try
+        {
+            await PlanReplayWriteCaptureAsync(selected, session, boundary, log, ct);
+        }
+        finally
+        {
+            session.EndReplayPrefetch();
+        }
+    }
+
+    private async Task PlanReplayWriteCaptureAsync(
+        Dictionary<string, List<SsRow>> selected,
+        ISsSchedulingSession session,
+        DateTimeOffset boundary,
+        SsPhaseLog log,
+        CancellationToken ct
+    )
+    {
         log.Start("Plan");
         var graphs = new SsSchedulingGraphReplay(db, store);
         var proposals = new List<SsSchedulingProposal>();

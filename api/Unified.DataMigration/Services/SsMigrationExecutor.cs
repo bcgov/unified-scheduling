@@ -136,6 +136,7 @@ public sealed class SsMigrationExecutor(
             PersistenceMode = configured.PersistenceMode,
             BulkChunkSize = configured.BulkChunkSize,
             PlanReplacementFamiliesOnly = configured.PlanReplacementFamiliesOnly,
+            PrefetchReplayRecords = configured.PrefetchReplayRecords,
         };
         if (!flags.Value.Enabled || !source.Enabled || !settings.Enabled)
             throw new InvalidOperationException("SS migration job is disabled.");
@@ -415,6 +416,7 @@ public sealed class SsMigrationExecutor(
             );
             await batches.BeginAsync(ct);
             session.PlanReplacementFamiliesOnly = settings.PlanReplacementFamiliesOnly;
+            session.PrefetchReplayRecords = settings.PrefetchReplayRecords;
             await WriteJobAsync(job, rows, session, boundary, ct);
             await batches.CommitAsync(true, ct);
             return;

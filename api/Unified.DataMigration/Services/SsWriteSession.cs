@@ -134,6 +134,29 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run) : 
 
     /// <summary>See <see cref="Options.MigrationJobOptions.PlanReplacementFamiliesOnly"/>.</summary>
     public bool PlanReplacementFamiliesOnly { get; set; }
+
+    /// <summary>See <see cref="Options.MigrationJobOptions.PrefetchReplayRecords"/>.</summary>
+    public bool PrefetchReplayRecords { get; set; }
+    private SsReplayPrefetch? prefetch;
+
+    /// <summary>Starts page prefetch for <paramref name="rows"/> (PerRow EF backend with the switch on only).</summary>
+    public void BeginReplayPrefetch(IReadOnlyDictionary<string, List<SsRow>> rows)
+    {
+        EndReplayPrefetch();
+        if (PrefetchReplayRecords && Store is SsEfSessionBackend)
+            prefetch = new SsReplayPrefetch(db, rows);
+    }
+
+    public void EndReplayPrefetch()
+    {
+        if (prefetch is null)
+            return;
+        Console.WriteLine(
+            $"SsReplayPrefetch Run={run.Id} Hits={prefetch.Hits} Fallbacks={prefetch.Fallbacks} Pages={prefetch.PageLoads}"
+        );
+        prefetch.Dispose();
+        prefetch = null;
+    }
     internal Guid? SimulationNamespace { get; set; }
     internal string? SimulationSchema { get; set; }
 
@@ -477,7 +500,39 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run) : 
                 return id;
             throw new SsReject("MissingUnifiedSystemUser");
         }
+        if (prefetch is not null)
+        {
+            var (known, cached) = await prefetch.TryGetAsync(type, id, false, ct);
+            if (known)
+                return cached?.TargetKey ?? throw new SsReject("MissingParent");
+        }
         return await Store.TargetKeyAsync(type, id, ct) ?? throw new SsReject("MissingParent");
+    }
+
+    // Prefetched answer of ReplayGroupAsync's no-write paths: false = no crosswalk yet, true = unchanged group,
+    // null = the per-row query must decide (partial, changed, split or unknown members).
+    private async Task<bool?> UnchangedGroupAsync(
+        string type,
+        IReadOnlyList<SsRow> members,
+        string sourceHash,
+        CancellationToken ct
+    )
+    {
+        var entries = new List<SsReplayPrefetch.Entry>(members.Count);
+        foreach (var member in members)
+        {
+            var (known, cached) = await prefetch!.TryGetAsync(type, member.Id, true, ct);
+            if (!known)
+                return null;
+            if (cached is not null)
+                entries.Add(cached);
+        }
+        if (entries.Count == 0)
+            return false;
+        return entries.Count == members.Count
+            && entries.All(x => x.PayloadHash == sourceHash && x.TargetKey == entries[0].TargetKey)
+            ? true
+            : null;
     }
 
     public async Task<int?> ResolveIntAsync(string type, int? id, CancellationToken ct) =>
@@ -500,6 +555,25 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run) : 
         if (Rebinding.Contains((type, source.Id)))
             return false;
         sourceHash = MappedSourceHash(type, source, sourceHash);
+        if (prefetch is not null)
+        {
+            var (known, cached) = await prefetch.TryGetAsync(type, source.Id, true, ct);
+            if (known && cached is null)
+                return false;
+            // Only the no-write verdict is answered from the page; anything that writes reloads the tracked record.
+            if (
+                known
+                && (
+                    reference
+                    || cached!.PayloadHash == sourceHash
+                        && cached.SourceUpdatedAtUtc == (source.Date("UpdatedOn") ?? source.Date("CreatedOn"))
+                )
+            )
+            {
+                Outcome(type, source.Id, "Migrated", "ExistingCrosswalk");
+                return true;
+            }
+        }
         var record = await Store.RecordAsync(type, source.Id, ct);
         if (record is null)
             return false;
@@ -683,6 +757,14 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run) : 
         var ids = members.Select(x => x.Id).ToArray();
         if (ids.Any(id => Rebinding.Contains((type, id))))
             return false;
+        if (prefetch is not null && await UnchangedGroupAsync(type, members, sourceHash, ct) is { } unchanged)
+        {
+            if (!unchanged)
+                return false;
+            foreach (var member in members)
+                Outcome(type, member.Id, members.Count > 1 ? "Merged" : "Migrated", "ExistingGroupCrosswalk");
+            return true;
+        }
         var records = await Store.RecordsAsync(type, ids, ct);
         if (records.Count == 0)
             return false;

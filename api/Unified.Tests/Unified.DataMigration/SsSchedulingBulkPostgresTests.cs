@@ -1235,6 +1235,51 @@ public sealed class SsSchedulingBulkPostgresTests : IAsyncLifetime
 
     private static bool PlanSkipped(Guid run) => SkippedPlans.ContainsKey(run);
 
+    [Fact(Skip = TemplatesSkipReason, SkipUnless = nameof(AreTemplatesConfigured))]
+    public async Task ReplayPrefetch_NeverAnswersForARecordTrackedInTheJob()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var fixture = await AdverseFixtureAsync(ct);
+        var clone = await CloneAsync(fixture, "prefetch", MigrationPersistenceMode.PerRow, ct);
+        await AssertNoTechnicalFailureAsync(clone, await RunAsync(clone, ct), ct);
+        await using var db = Db(clone.ConnectionString);
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        var ids = await db
+            .DataMigrationRecords.Where(x => x.Source == "SS" && x.EntityType == "Shift")
+            .OrderBy(x => x.LegacyId)
+            .Select(x => x.LegacyId)
+            .Take(3)
+            .ToListAsync(ct);
+        Assert.Equal(3, ids.Count);
+        var (preTracked, plain, written) = (ids[0], ids[1], ids[2]);
+        const string absent = "999999999";
+        var rows = new Dictionary<string, List<SsRow>>
+        {
+            ["Shift"] = [.. ids.Append(absent).Select(id => new SsRow(new Dictionary<string, object?> { ["Id"] = id }))],
+        };
+        Task<global::Unified.Db.Models.DataMigration.DataMigrationRecord> Tracked(string id) =>
+            db.DataMigrationRecords.SingleAsync(x => x.Source == "SS" && x.EntityType == "Shift" && x.LegacyId == id, ct);
+        await Tracked(preTracked);
+
+        using var prefetch = new SsReplayPrefetch(db, rows);
+        Assert.False((await prefetch.TryGetAsync("Shift", plain, false, ct)).Known);
+        var (known, entry) = await prefetch.TryGetAsync("Shift", plain, true, ct);
+        Assert.True(known);
+        Assert.Equal((await Tracked(plain)).PayloadHash, entry!.PayloadHash);
+        Assert.Equal((true, null), await prefetch.TryGetAsync("Shift", absent, false, ct));
+        Assert.False((await prefetch.TryGetAsync("Shift", preTracked, false, ct)).Known);
+        // A write rolled back by a savepoint and a cleared tracker still never trusts the page.
+        Assert.True((await prefetch.TryGetAsync("Shift", written, false, ct)).Known);
+        await tx.CreateSavepointAsync("plan", ct);
+        (await Tracked(written)).PayloadHash = "changed";
+        await db.SaveChangesAsync(ct);
+        await tx.RollbackToSavepointAsync("plan", ct);
+        db.ChangeTracker.Clear();
+        Assert.False((await prefetch.TryGetAsync("Shift", written, true, ct)).Known);
+        Assert.False((await prefetch.TryGetAsync("Shift", plain, true, ct)).Known);
+        Assert.Equal(1, prefetch.PageLoads);
+    }
+
     private static bool IsGraphType(string type) => type is "Shift" or "Duty" or "DutySlot" or "Assignment";
 
     private static bool IsBlocked(string outcome) =>

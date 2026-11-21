@@ -316,7 +316,7 @@ internal sealed class SsSchedulingGraphReplay(UnifiedDbContext db, ISsScheduling
                     s.BeforeGraphReplacement();
                     if (s.Run.RollbackJournalKeyId is null)
                         throw new SsReject("GraphReplacementRequiresInverseJournal");
-                    var records = await SelectRecordsAsync(nodes, ct);
+                    var records = await SelectRecordsAsync(nodes, s, ct);
                     await s.GuardGraphAsync(records, ct);
                     var keep = await RetainedTargetsAsync(records, nodes, proposals, ct);
                     await DetachChangedSeriesAsync(records, keep, s, ct);
@@ -455,23 +455,28 @@ internal sealed class SsSchedulingGraphReplay(UnifiedDbContext db, ISsScheduling
         log?.Done(captured);
     }
 
-    private async Task<List<DataMigrationRecord>> SelectRecordsAsync(List<Node> nodes, CancellationToken ct)
+    private async Task<List<DataMigrationRecord>> SelectRecordsAsync(
+        List<Node> nodes,
+        ISsSchedulingSession s,
+        CancellationToken ct
+    )
     {
         var assignments = nodes.Where(x => x.Type == "Assignment").Select(x => x.Row.Id).ToHashSet();
         var duties = nodes.Where(x => x.Type == "Duty").Select(x => x.Row.Id).ToHashSet();
         var keys = nodes.Select(x => x.Key).ToHashSet();
-        return (
-            await db
-                .DataMigrationRecords.Where(x => x.Source == "SS" && RootTypes.Contains(x.EntityType))
-                .ToListAsync(ct)
-        )
-            .Where(x =>
-                keys.Contains($"{x.EntityType}:{x.LegacyId}")
-                || x.EntityType == "AssignmentSeries" && assignments.Any(id => x.LegacyId == $"g10:assignment:{id}")
-                || x.EntityType == "DutyEntry"
-                    && duties.Any(id => x.LegacyId.StartsWith($"duty:{id}:segment:", StringComparison.Ordinal))
-            )
-            .ToList();
+        bool Selected(DataMigrationRecord x) =>
+            keys.Contains($"{x.EntityType}:{x.LegacyId}")
+            || x.EntityType == "AssignmentSeries" && assignments.Any(id => x.LegacyId == $"g10:assignment:{id}")
+            || x.EntityType == "DutyEntry"
+                && duties.Any(id => x.LegacyId.StartsWith($"duty:{id}:segment:", StringComparison.Ordinal));
+        var roots = db.DataMigrationRecords.Where(x => x.Source == "SS" && RootTypes.Contains(x.EntityType));
+        if (!s.PrefetchReplayRecords)
+            return (await roots.ToListAsync(ct)).Where(Selected).ToList();
+        // Same records in the same order, but only the selected ones are tracked, so the replay prefetch keeps
+        // trusting pages for every record outside this graph.
+        var ids = (await roots.AsNoTracking().ToListAsync(ct)).Where(Selected).Select(x => x.Id).ToList();
+        var tracked = await db.DataMigrationRecords.Where(x => ids.Contains(x.Id)).ToDictionaryAsync(x => x.Id, ct);
+        return ids.Select(id => tracked[id]).ToList();
     }
 
     private async Task CaptureOneAsync(
@@ -485,7 +490,7 @@ internal sealed class SsSchedulingGraphReplay(UnifiedDbContext db, ISsScheduling
         // Do not cache ownership/hash receipts: re-read exact IDs in this component
         // transaction before the existing live target/version/dependent guards.
         var records = ids is null
-            ? await SelectRecordsAsync(component.Nodes, ct)
+            ? await SelectRecordsAsync(component.Nodes, s, ct)
             : await store.RecordsByIdAsync(ids, ct);
         if (ids is not null && records.Count != ids.Length)
             throw new SsReject("GraphMissingFullSourceMembership");

@@ -66,6 +66,13 @@ run that has no such family (first apply, unchanged rerun, recapture) skips plan
 `SsPhase ... Phase=Plan State=Skipped`. Any replacement family still plans everything, because the planners
 read across components (day groups, definition groups). Outcomes, crosswalks and receipts are unchanged.
 
+Scheduling PerRow may also opt in to `PrefetchReplayRecords=true` (default `false`). Existing crosswalk
+records are read untracked, 1000 source rows at a time in write order, instead of one query per row. A page
+answers only the no-write verdicts (no crosswalk yet; unchanged hash and source timestamp) and only for a
+record EF has not tracked in this job; any write, rebind, duplicate or rolled-back savepoint uses the per-row
+query. Graph replacement then tracks only the records of the replaced graph instead of every root record.
+The run logs `SsReplayPrefetch Run=... Hits=... Fallbacks=... Pages=...`. Bulk ignores the switch.
+
 ## Run Audit Summary
 
 For SS MyTeam, Training, Scheduling and Report, including simulation, the migration worker disables

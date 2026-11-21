@@ -77,6 +77,13 @@ public sealed class MigrationJobOptions
     /// Proposals are only read during replacement, so the outcome is identical; off keeps the always-plan path.
     /// </summary>
     public bool PlanReplacementFamiliesOnly { get; set; }
+
+    /// <summary>
+    /// Scheduling PerRow: read existing crosswalk records a page at a time instead of one query per row. Only the
+    /// no-write verdicts (no record, unchanged record) use a page, and only for records not yet loaded for writing
+    /// in this job; every other case runs the per-row query. Off keeps the per-row path. Bulk ignores it.
+    /// </summary>
+    public bool PrefetchReplayRecords { get; set; }
 }
 
 public enum MigrationPersistenceMode
