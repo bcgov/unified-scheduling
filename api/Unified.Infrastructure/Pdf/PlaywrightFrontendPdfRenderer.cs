@@ -103,6 +103,10 @@ public sealed class PlaywrightSchedulePdfRenderer(
                     DeviceScaleFactor = 1,
                     ColorScheme = ColorScheme.Light,
                     AcceptDownloads = false,
+                    ExtraHTTPHeaders = new Dictionary<string, string>
+                    {
+                        [LegacyAuthCookieCleanupMiddleware.SkipHeaderName] = "1",
+                    },
                 }
             );
             try

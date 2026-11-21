@@ -212,6 +212,47 @@ namespace Unified.Infrastructure.Helpers
             return "/";
         }
 
+        /// <summary>
+        /// Resolves the public application base path for cookie scoping, e.g. <c>/sheriff-scheduling/</c>
+        /// becomes <c>/sheriff-scheduling</c>. The application root, or any base href containing
+        /// characters that are not safe in a <c>Set-Cookie</c> path attribute, resolves to <c>/</c>.
+        /// </summary>
+        public static string ResolveCookiePath(HttpRequest request)
+        {
+            var baseHref = ResolveBaseHref(request);
+            if (!IsSafeCookieBaseHref(baseHref))
+                return "/";
+
+            var trimmed = baseHref.TrimEnd('/');
+            return string.IsNullOrEmpty(trimmed) ? "/" : trimmed;
+        }
+
+        private static bool IsSafeCookieBaseHref(string baseHref)
+        {
+            const int maxCookiePathLength = 256;
+            if (baseHref == "/")
+                return true;
+
+            if (baseHref.Length > maxCookiePathLength || !baseHref.StartsWith('/') || !baseHref.EndsWith('/'))
+                return false;
+
+            // Allow only unreserved URI characters in non-empty, non-dot segments so the value
+            // cannot inject cookie attributes (';'), split headers, or escape the base path.
+            foreach (var segment in baseHref[1..^1].Split('/'))
+            {
+                if (segment.Length == 0 || segment is "." or "..")
+                    return false;
+
+                foreach (var character in segment)
+                {
+                    if (!char.IsAsciiLetterOrDigit(character) && character is not ('-' or '.' or '_' or '~'))
+                        return false;
+                }
+            }
+
+            return true;
+        }
+
         public static string NormalizeBaseHref(string baseHref)
         {
             var trimmed = baseHref?.Trim();

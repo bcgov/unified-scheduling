@@ -460,6 +460,81 @@ public class AuthenticationServiceCollectionExtensionTests
         Assert.Equal(3, retainedProperties.GetTokens().Count());
     }
 
+    [Fact]
+    public async Task TicketReceived_Should_Retain_Only_Claims_The_Application_Reads()
+    {
+        using var provider = CreateServiceProvider();
+        var options = provider
+            .GetRequiredService<IOptionsMonitor<OpenIdConnectOptions>>()
+            .Get(OpenIdConnectDefaults.AuthenticationScheme);
+        const string issuer = "https://keycloak.example.com/realms/test";
+        var idirGuid = Guid.NewGuid().ToString();
+        var keycloakIdentity = new ClaimsIdentity(
+            [
+                new Claim(ClaimTypes.NameIdentifier, "external-user", ClaimValueTypes.String, issuer),
+                new Claim("sub", "external-user", ClaimValueTypes.String, issuer),
+                new Claim(UnifiedClaimTypes.IdirId, idirGuid, ClaimValueTypes.String, issuer),
+                new Claim("idir_user_guid", idirGuid, ClaimValueTypes.String, issuer),
+                new Claim("idir_username", "TUSER", ClaimValueTypes.String, issuer),
+                new Claim("name", "Test User", ClaimValueTypes.String, issuer),
+                new Claim("name", "Test User", ClaimValueTypes.String, issuer),
+                new Claim(ClaimTypes.Email, "test.user@example.com", ClaimValueTypes.String, issuer),
+                new Claim(ClaimTypes.GivenName, "Test", ClaimValueTypes.String, issuer),
+                new Claim("preferred_username", "tuser@idir", ClaimValueTypes.String, issuer),
+                new Claim("sid", "session-id", ClaimValueTypes.String, issuer),
+                new Claim(ClaimTypes.Role, "offline_access", ClaimValueTypes.String, issuer),
+            ],
+            "AuthenticationTypes.Federation",
+            "name",
+            "role"
+        );
+        var context = new TicketReceivedContext(
+            new DefaultHttpContext { RequestServices = provider },
+            new AuthenticationScheme(OpenIdConnectDefaults.AuthenticationScheme, null, typeof(OpenIdConnectHandler)),
+            options,
+            new AuthenticationTicket(
+                new ClaimsPrincipal(keycloakIdentity),
+                CreateProperties(DateTimeOffset.UtcNow.AddHours(1).ToString("O"), "refresh", "id", "access"),
+                OpenIdConnectDefaults.AuthenticationScheme
+            )
+        );
+
+        await options.Events.OnTicketReceived(context);
+
+        // Round-trip through the cookie ticket format to verify what is actually persisted.
+        var persisted = TicketSerializer.Default.Deserialize(
+            TicketSerializer.Default.Serialize(
+                new AuthenticationTicket(
+                    context.Principal!,
+                    context.Properties,
+                    CookieAuthenticationDefaults.AuthenticationScheme
+                )
+            )
+        )!;
+        var identity = Assert.IsType<ClaimsIdentity>(Assert.Single(persisted.Principal.Identities));
+        Assert.Equal(
+            new[]
+            {
+                (ClaimTypes.NameIdentifier, "external-user"),
+                ("sub", "external-user"),
+                (UnifiedClaimTypes.IdirId, idirGuid),
+                ("idir_user_guid", idirGuid),
+                ("idir_username", "TUSER"),
+                ("name", "Test User"),
+            }.Order(),
+            identity.Claims.Select(claim => (claim.Type, claim.Value)).Order()
+        );
+        Assert.All(identity.Claims, claim => Assert.Equal(ClaimsIdentity.DefaultIssuer, claim.Issuer));
+        Assert.Equal("Test User", persisted.Principal.Identity!.Name);
+        Assert.True(identity.IsAuthenticated);
+        Assert.Equal("AuthenticationTypes.Federation", identity.AuthenticationType);
+        Assert.Equal("role", identity.RoleClaimType);
+        Assert.Equal(
+            new[] { "expires_at", "id_token", "refresh_token" },
+            persisted.Properties.GetTokens().Select(token => token.Name).Order()
+        );
+    }
+
     internal static ServiceProvider CreateServiceProvider()
     {
         var services = new ServiceCollection();

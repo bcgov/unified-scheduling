@@ -82,6 +82,14 @@ Concurrent requests can still produce one successful refresh and one HTTP 401 wh
 
 Authentication-cookie tests use a conservative 16 KB combined `Cookie` request-header budget. Production nginx accepts request-header buffers up to 32 KB, but compatibility with every upstream ingress limit still requires deployment verification.
 
+**Cookie scope and size:**
+
+- The authentication cookie (including `C1..Cn` chunks and sign-out deletes) and the OIDC correlation/nonce cookies use `Path=<base href without trailing slash>`, resolved per request from `X-Base-Href` (for example `/sheriff-scheduling`), falling back to `PathBase` and then `/`. Base hrefs with characters outside unreserved URI characters fall back to `/`. Web nginx no longer rewrites cookie paths (`proxy_cookie_path` was removed).
+- **Temporary:** `UseLegacyAuthCookieCleanup()` expires auth cookies that earlier releases issued at `Path=/` (no `Domain`). It is skipped when the application is served at the root, and for PDF-renderer requests (`X-Unified-Pdf-Render`), whose headless browser holds the cookies at `Path=/` on the internal frontend URL. Remove it after one release has reached each environment.
+- After Keycloak sign-in only the `NameIdentifier`/`sub`, IDIR GUID, `idir_username`, and name claims are persisted, without per-claim issuer metadata. Application claims are resolved per request by `UnifiedClaimsTransformer`.
+- In Development, sign-in logs the serialized ticket size, protected cookie length, and estimated chunk count (sizes only).
+- Measured size: `OidcSignIn_RealisticKeycloakTokens_MeasuresAuthCookieSizeBeforeAndAfterClaimTrim` (in `AuthenticationPipelineTests`) runs the real login and OIDC callback with Keycloak-shaped IDIR tokens and prints the issued cookie size. Request `Cookie` header: ~7.2 KB with all Keycloak claims, ~4.6 KB after the trim (still the base cookie plus 2 chunks). The rest is mostly tokens: `id_token` ~1.65 KB (kept for `id_token_hint` at logout) and `refresh_token` ~0.9 KB. The test fails if the cookie reaches 5 KB.
+
 ### 2. OpenID Connect (OIDC)
 
 - Handles interactive authentication flows (login redirects)
