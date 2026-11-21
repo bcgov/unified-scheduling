@@ -394,13 +394,18 @@ internal sealed class SsSchedulingGraphReplay(UnifiedDbContext db, ISsScheduling
         Dictionary<string, List<SsRow>> rows,
         ISsSchedulingSession s,
         DateTimeOffset boundary,
-        CancellationToken ct
+        CancellationToken ct,
+        SsPhaseLog? log = null
     )
     {
         var retained = await store.RetainedMemberIdsAsync(ct);
         var rootIndex = new SsSchedulingRecordIndex(await store.RootRecordsAsync(RootTypes, ct));
+        long seen = 0;
+        long captured = 0;
         foreach (var component in Plan(rows, boundary, retained.ToHashSet()))
         {
+            if (++seen % 1000 == 0)
+                log?.Progress(seen);
             // Each key has at most one outcome, so look the component's own keys up directly.
             if (
                 component.Nodes.Any(n =>
@@ -421,7 +426,9 @@ internal sealed class SsSchedulingGraphReplay(UnifiedDbContext db, ISsScheduling
                 ct,
                 component.Nodes.Select(x => (x.Type, x.Row.Id)).ToList()
             );
+            captured++;
         }
+        log?.Done(captured);
     }
 
     private async Task<List<DataMigrationRecord>> SelectRecordsAsync(List<Node> nodes, CancellationToken ct)

@@ -54,6 +54,8 @@ public sealed class SsSchedulingWriter
         CancellationToken ct
     )
     {
+        var log = new SsPhaseLog(session.Run);
+        log.Start("Prepare");
         rows = SwapReversedDates(rows);
         await RoomsAsync(rows, session, ct);
         await ClassificationsAsync(rows, session, ct);
@@ -81,6 +83,8 @@ public sealed class SsSchedulingWriter
             .Select(x => x.Date("EndDate") ?? boundary)
             .Append(boundary)
             .Min();
+        log.Done(selectedRows.Sum(x => x.Value.Count));
+        log.Start("Plan");
         var proposals = new List<SsSchedulingProposal>();
         await session.PlanGraphAsync(
             async () =>
@@ -92,6 +96,8 @@ public sealed class SsSchedulingWriter
             },
             ct
         );
+        log.Done(proposals.Count);
+        log.Start("Replay");
         var graphs = new SsSchedulingGraphReplay(db, store);
         var remaining = await graphs.ReplayAsync(
             selected,
@@ -101,8 +107,12 @@ public sealed class SsSchedulingWriter
             ct,
             proposals
         );
+        log.Done(remaining.Sum(x => x.Value.Count));
+        log.Start("Write");
         await WriteGraphAsync(remaining, session, boundary, ct);
-        await graphs.CaptureAsync(selected, session, boundary, ct);
+        log.Done(session.Outcomes.Count);
+        log.Start("Capture");
+        await graphs.CaptureAsync(selected, session, boundary, ct, log);
     }
 
     // Legacy SS has a few rows whose StartDate/EndDate were entered backwards; the interval
