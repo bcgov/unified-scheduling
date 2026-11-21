@@ -1082,6 +1082,182 @@ public sealed class SsSchedulingBulkPostgresTests : IAsyncLifetime
         );
     }
 
+    // ------------------------------------------------------------------ PerRow rerun guards
+
+    // Pins the PerRow rules that decide whether a source row still needs transfer. Rerun speed-ups must keep every
+    // assertion here: nothing is inserted twice, unchanged rows stay untouched, changed rows take the same update or
+    // review path, rows without a crosswalk are re-evaluated, and missing capture receipts are recaptured.
+    [Fact(Skip = TemplatesSkipReason, SkipUnless = nameof(AreTemplatesConfigured))]
+    public async Task PerRowRerun_KeepsDuplicateAndChangeDetectionGuards()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        EnableAudit();
+        var fixture = await AdverseFixtureAsync(ct);
+        var clone = await CloneAsync(fixture, "guard", MigrationPersistenceMode.PerRow, ct, chunk: 7, batch: 5);
+
+        // Round 1 then an unchanged rerun.
+        var first = await RunAsync(clone, ct);
+        await AssertNoTechnicalFailureAsync(clone, first, ct);
+        var firstOutcomes = await OutcomesAsync(clone, first, ct);
+        var business = await SnapshotAsync(clone, true, ct);
+        var records = await RecordRowsAsync(clone, ct);
+        var rerun = await RunAsync(clone, ct);
+        await AssertNoTechnicalFailureAsync(clone, rerun, ct);
+        await AssertRerunAsync(clone, rerun, ct);
+        AssertEquivalent(business, await SnapshotAsync(clone, true, ct), BusinessSections, "unchanged rerun");
+        Assert.Equal(records, await RecordRowsAsync(clone, ct));
+        await AssertNoDuplicatesOrOrphansAsync(clone, ct);
+        var rerunOutcomes = await OutcomesAsync(clone, rerun, ct);
+        Assert.Equal(
+            firstOutcomes.Keys.Where(x => IsGraphType(x.Type)).Order(),
+            rerunOutcomes.Keys.Where(x => IsGraphType(x.Type)).Order()
+        );
+        foreach (var (key, outcome) in rerunOutcomes.Where(x => IsGraphType(x.Key.Type)))
+        {
+            // Transferred rows resolve through their crosswalk; every other row gets the same verdict again.
+            var original = firstOutcomes[key];
+            if (IsBlocked(original) || outcome == original)
+                Assert.Equal(original, outcome);
+            else
+                Assert.True(
+                    outcome.EndsWith(":ExistingCrosswalk", StringComparison.Ordinal)
+                        || outcome.EndsWith(":ExistingGroupCrosswalk", StringComparison.Ordinal),
+                    $"rerun {key}: {outcome} (round 1 {original})"
+                );
+        }
+        Assert.Equal("Migrated:ExistingCrosswalk", rerunOutcomes[("Duty", "900000")]);
+        Assert.Equal("Merged:ExistingGroupCrosswalk", rerunOutcomes[("Shift", "900000")]);
+        Assert.Equal("Migrated:ExistingGroupCrosswalk", rerunOutcomes[("Assignment", "900000")]);
+
+        // Crash after the write commit and before capture: drop the capture receipts of two components.
+        var receipts = await ReceiptRowsAsync(clone, ct);
+        Assert.NotEmpty(receipts);
+        await ExecuteAsync(
+            clone.ConnectionString,
+            """
+            WITH lost AS (
+              SELECT "TargetType","TargetKey" FROM "DataMigrationRecords"
+              WHERE "Source"='SS' AND "EntityType"='SchedulingComponent'
+              ORDER BY "TargetType","TargetKey" LIMIT 2),
+            gone AS (
+              SELECT r."Id" FROM "DataMigrationRecords" r JOIN lost l
+                ON l."TargetType"=r."TargetType" AND l."TargetKey"=r."TargetKey"
+              WHERE r."Source"='SS' AND r."EntityType" IN ('SchedulingComponent','SchedulingMember'))
+            , m AS (DELETE FROM "DataMigrationMutations" WHERE "DataMigrationRecordId" IN (SELECT "Id" FROM gone))
+            DELETE FROM "DataMigrationRecords" WHERE "Id" IN (SELECT "Id" FROM gone);
+            """,
+            ct
+        );
+        Assert.True((await ReceiptRowsAsync(clone, ct)).Count < receipts.Count);
+        var recapture = await RunAsync(clone, ct);
+        await AssertNoTechnicalFailureAsync(clone, recapture, ct);
+        await AssertRerunAsync(clone, recapture, ct);
+        Assert.Equal(receipts, await ReceiptRowsAsync(clone, ct));
+        AssertEquivalent(business, await SnapshotAsync(clone, true, ct), BusinessSections[..^1], "recapture");
+        await AssertNoDuplicatesOrOrphansAsync(clone, ct);
+
+        // Round 2: a Unified edit without a source change, a linked-only source change and a new graph.
+        await ExecuteAsync(clone.ConnectionString, AdverseTargetDrift, ct);
+        await ExecuteAsync(fixture.Source, AdverseRound2Delta, ct);
+        var second = await RunAsync(clone, ct);
+        await AssertNoTechnicalFailureAsync(clone, second, ct);
+        var secondOutcomes = await OutcomesAsync(clone, second, ct);
+        // A Unified edit with no source change is left alone; the new graph is inserted.
+        Assert.Equal("Migrated:ExistingGroupCrosswalk", secondOutcomes[("Shift", "910030")]);
+        Assert.Equal("Migrated:ExistingCrosswalk", secondOutcomes[("CourtRoom", "900000")]);
+        Assert.Equal("Migrated:", secondOutcomes[("Shift", "910040")]);
+        Assert.Equal("Migrated:", secondOutcomes[("Duty", "910040")]);
+        Assert.Equal("Migrated:", secondOutcomes[("DutySlot", "910040")]);
+        await AssertNoDuplicatesOrOrphansAsync(clone, ct);
+        var afterSecond = await RecordRowsAsync(clone, ct);
+        var again = await RunAsync(clone, ct);
+        await AssertNoTechnicalFailureAsync(clone, again, ct);
+        await AssertRerunAsync(clone, again, ct);
+        Assert.Equal(afterSecond, await RecordRowsAsync(clone, ct));
+        Assert.Equal(
+            1,
+            await CountAsync(
+                clone.ConnectionString,
+                """SELECT COUNT(*) FROM "DataMigrationRecords" WHERE "EntityType"='Shift' AND "LegacyId"='910040'""",
+                ct
+            )
+        );
+
+        // Round 3: an UpdatedOn-only touch, a change on a Unified-edited target, a clean owned change and a new
+        // future duty that joins an existing recurrence (graph replacement and rebinding).
+        await ExecuteAsync(fixture.Source, AdverseRound3Delta, ct);
+        var third = await RunAsync(clone, ct);
+        await AssertNoTechnicalFailureAsync(clone, third, ct);
+        var thirdOutcomes = await OutcomesAsync(clone, third, ct);
+        Assert.Equal("Migrated:OwnedFullGroupUpdate", thirdOutcomes[("Shift", "900002")]);
+        Assert.Equal("Rejected:GraphReplacementRequiresInverseJournal", thirdOutcomes[("Shift", "910030")]);
+        Assert.Equal("Rejected:GraphReplacementRequiresInverseJournal", thirdOutcomes[("Shift", "910031")]);
+        Assert.Equal("Migrated:", thirdOutcomes[("Duty", "910050")]);
+        Assert.Equal("Failed:MaterialMissingShiftUserLink", thirdOutcomes[("DutySlot", "910050")]);
+        // Rows migrated earlier and now rejected keep their crosswalk, so only the duplicate checks apply here.
+        await AssertNoDuplicatesOrOrphansAsync(clone, ct, rejectedOwnNothing: false);
+        var afterThird = await RecordRowsAsync(clone, ct);
+        Assert.Contains(
+            afterThird,
+            x =>
+                x.StartsWith("Shift:900002|", StringComparison.Ordinal)
+                && x.EndsWith("|2026-11-21T00:00:00Z", StringComparison.Ordinal)
+        );
+        var settled = await RunAsync(clone, ct);
+        await AssertNoTechnicalFailureAsync(clone, settled, ct);
+        await AssertRerunAsync(clone, settled, ct);
+        Assert.Equal(afterThird, await RecordRowsAsync(clone, ct));
+        await AssertNoDuplicatesOrOrphansAsync(clone, ct, rejectedOwnNothing: false);
+        var settledOutcomes = await OutcomesAsync(clone, settled, ct);
+        // Rejected and failed rows are reported again on every rerun; they are never treated as transferred.
+        foreach (var (key, outcome) in thirdOutcomes.Where(x => IsGraphType(x.Key.Type) && IsBlocked(x.Value)))
+            Assert.Equal(outcome, settledOutcomes.GetValueOrDefault(key));
+    }
+
+    private static bool IsGraphType(string type) => type is "Shift" or "Duty" or "DutySlot" or "Assignment";
+
+    private static bool IsBlocked(string outcome) =>
+        outcome.StartsWith("Rejected:", StringComparison.Ordinal)
+        || outcome.StartsWith("Failed:", StringComparison.Ordinal)
+        || outcome.StartsWith("NeedsAction:", StringComparison.Ordinal);
+
+    private static async Task<List<string>> RecordRowsAsync(Clone clone, CancellationToken ct) =>
+        await TextRowsAsync(
+            clone,
+            """
+            SELECT "EntityType"||':'||"LegacyId"||'|'||"TargetType"||':'||"TargetKey"||'|'||COALESCE("PayloadHash",'')
+              ||'|'||COALESCE(to_char("SourceUpdatedAtUtc" AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS"Z"'),'')
+            FROM "DataMigrationRecords" WHERE "Source"='SS' AND NOT "IsDeleted"
+              AND "EntityType" NOT IN ('SchedulingComponent','SchedulingMember')
+            ORDER BY 1
+            """,
+            ct
+        );
+
+    private static async Task<List<string>> ReceiptRowsAsync(Clone clone, CancellationToken ct) =>
+        await TextRowsAsync(
+            clone,
+            """
+            SELECT "EntityType"||':'||"LegacyId"||'|'||"TargetType"||':'||"TargetKey"||'|'||COALESCE("PayloadHash",'')
+            FROM "DataMigrationRecords" WHERE "Source"='SS' AND NOT "IsDeleted"
+              AND "EntityType" IN ('SchedulingComponent','SchedulingMember')
+            ORDER BY 1
+            """,
+            ct
+        );
+
+    private static async Task<List<string>> TextRowsAsync(Clone clone, string sql, CancellationToken ct)
+    {
+        await using var connection = new NpgsqlConnection(clone.ConnectionString);
+        await connection.OpenAsync(ct);
+        await using var command = new NpgsqlCommand(sql, connection);
+        await using var reader = await command.ExecuteReaderAsync(ct);
+        var rows = new List<string>();
+        while (await reader.ReadAsync(ct))
+            rows.Add(reader.GetString(0));
+        return rows;
+    }
+
     // Benchmark (opt-in): UNIFIED_MIGRATION_SCHEDULING_BENCHMARK_TEMPLATE=<frozen source database>.
     // UNIFIED_MIGRATION_SCHEDULING_BENCHMARK_PERROW=false skips the PerRow leg (then extrapolate).
     // UNIFIED_MIGRATION_SCHEDULING_BENCHMARK_SOURCE_DELTA=<sql> is applied to the cloned source first.
@@ -1628,7 +1804,11 @@ public sealed class SsSchedulingBulkPostgresTests : IAsyncLifetime
         }
     }
 
-    private static async Task AssertNoDuplicatesOrOrphansAsync(Clone clone, CancellationToken ct)
+    private static async Task AssertNoDuplicatesOrOrphansAsync(
+        Clone clone,
+        CancellationToken ct,
+        bool rejectedOwnNothing = true
+    )
     {
         foreach (
             var sql in new[]
@@ -1675,7 +1855,11 @@ public sealed class SsSchedulingBulkPostgresTests : IAsyncLifetime
                     """,
             }
         )
+        {
+            if (!rejectedOwnNothing && sql.Contains("JOIN LATERAL", StringComparison.Ordinal))
+                continue;
             Assert.True(await CountAsync(clone.ConnectionString, sql, ct) == 0, "Integrity check failed: " + sql);
+        }
     }
 
     // ------------------------------------------------------------------ canonical snapshot
