@@ -17,6 +17,7 @@ internal interface ISsSchedulingSession
 {
     DataMigrationRun Run { get; }
     DateTimeOffset Now { get; }
+    bool PlanReplacementFamiliesOnly { get; }
     List<DataMigrationOutcome> Outcomes { get; }
     HashSet<(string Type, string Id)> Rebinding { get; }
 

@@ -85,27 +85,43 @@ public sealed class SsSchedulingWriter
             .Min();
         log.Done(selectedRows.Sum(x => x.Value.Count));
         log.Start("Plan");
+        var graphs = new SsSchedulingGraphReplay(db, store);
         var proposals = new List<SsSchedulingProposal>();
-        await session.PlanGraphAsync(
-            async () =>
-            {
-                await DefinitionsAsync(selected, session, boundary, ct, proposals);
-                await ShiftsAsync(selected["Shift"], session, boundary, ct, proposals);
-                await DutiesAsync(selected, session, boundary, ct, proposals);
-                await new SsAssignmentSeriesWriter(store).WriteAsync(selected, session, ct, proposals);
-            },
-            ct
-        );
+        // Proposals are read only when a captured family is replaced. Planners read across components
+        // (day groups, definition groups), so a partial plan is unsafe: plan all or nothing.
+        var prepared = session.PlanReplacementFamiliesOnly
+            ? await graphs.PrepareAsync(selected, boundary, ct)
+            : null;
+        if (prepared is { Families.Count: 0 })
+        {
+            await session.PlanGraphAsync(() => Task.CompletedTask, ct);
+            log.Skipped();
+        }
+        else
+        {
+            // Planning clears the tracker; recompute replacement families from fresh records after it.
+            prepared = null;
+            await session.PlanGraphAsync(
+                async () =>
+                {
+                    await DefinitionsAsync(selected, session, boundary, ct, proposals);
+                    await ShiftsAsync(selected["Shift"], session, boundary, ct, proposals);
+                    await DutiesAsync(selected, session, boundary, ct, proposals);
+                    await new SsAssignmentSeriesWriter(store).WriteAsync(selected, session, ct, proposals);
+                },
+                ct
+            );
+        }
         log.Done(proposals.Count);
         log.Start("Replay");
-        var graphs = new SsSchedulingGraphReplay(db, store);
         var remaining = await graphs.ReplayAsync(
             selected,
             session,
             boundary,
             subset => WriteGraphAsync(subset, session, boundary, ct),
             ct,
-            proposals
+            proposals,
+            prepared
         );
         log.Done(remaining.Sum(x => x.Value.Count));
         log.Start("Write");

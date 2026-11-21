@@ -1087,23 +1087,32 @@ public sealed class SsSchedulingBulkPostgresTests : IAsyncLifetime
     // Pins the PerRow rules that decide whether a source row still needs transfer. Rerun speed-ups must keep every
     // assertion here: nothing is inserted twice, unchanged rows stay untouched, changed rows take the same update or
     // review path, rows without a crosswalk are re-evaluated, and missing capture receipts are recaptured.
-    [Fact(Skip = TemplatesSkipReason, SkipUnless = nameof(AreTemplatesConfigured))]
-    public async Task PerRowRerun_KeepsDuplicateAndChangeDetectionGuards()
+    [Theory(Skip = TemplatesSkipReason, SkipUnless = nameof(AreTemplatesConfigured))]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task PerRowRerun_KeepsDuplicateAndChangeDetectionGuards(bool planReplacementFamiliesOnly)
     {
         var ct = TestContext.Current.CancellationToken;
         EnableAudit();
+        SsPhaseLog.Observer = ObservePhase;
         var fixture = await AdverseFixtureAsync(ct);
         var clone = await CloneAsync(fixture, "guard", MigrationPersistenceMode.PerRow, ct, chunk: 7, batch: 5);
+        clone.Options.Sources.SS.Jobs.Scheduling.PlanReplacementFamiliesOnly = planReplacementFamiliesOnly;
+        // With the switch on, planning is skipped exactly when no captured family needs graph replacement.
+        void AssertPlanSkipped(Guid run, bool expected) =>
+            Assert.Equal(planReplacementFamiliesOnly && expected, PlanSkipped(run));
 
         // Round 1 then an unchanged rerun.
         var first = await RunAsync(clone, ct);
         await AssertNoTechnicalFailureAsync(clone, first, ct);
+        AssertPlanSkipped(first, true);
         var firstOutcomes = await OutcomesAsync(clone, first, ct);
         var business = await SnapshotAsync(clone, true, ct);
         var records = await RecordRowsAsync(clone, ct);
         var rerun = await RunAsync(clone, ct);
         await AssertNoTechnicalFailureAsync(clone, rerun, ct);
         await AssertRerunAsync(clone, rerun, ct);
+        AssertPlanSkipped(rerun, true);
         AssertEquivalent(business, await SnapshotAsync(clone, true, ct), BusinessSections, "unchanged rerun");
         Assert.Equal(records, await RecordRowsAsync(clone, ct));
         await AssertNoDuplicatesOrOrphansAsync(clone, ct);
@@ -1152,6 +1161,7 @@ public sealed class SsSchedulingBulkPostgresTests : IAsyncLifetime
         var recapture = await RunAsync(clone, ct);
         await AssertNoTechnicalFailureAsync(clone, recapture, ct);
         await AssertRerunAsync(clone, recapture, ct);
+        AssertPlanSkipped(recapture, true);
         Assert.Equal(receipts, await ReceiptRowsAsync(clone, ct));
         AssertEquivalent(business, await SnapshotAsync(clone, true, ct), BusinessSections[..^1], "recapture");
         await AssertNoDuplicatesOrOrphansAsync(clone, ct);
@@ -1188,6 +1198,7 @@ public sealed class SsSchedulingBulkPostgresTests : IAsyncLifetime
         await ExecuteAsync(fixture.Source, AdverseRound3Delta, ct);
         var third = await RunAsync(clone, ct);
         await AssertNoTechnicalFailureAsync(clone, third, ct);
+        AssertPlanSkipped(third, false);
         var thirdOutcomes = await OutcomesAsync(clone, third, ct);
         Assert.Equal("Migrated:OwnedFullGroupUpdate", thirdOutcomes[("Shift", "900002")]);
         Assert.Equal("Rejected:GraphReplacementRequiresInverseJournal", thirdOutcomes[("Shift", "910030")]);
@@ -1213,6 +1224,16 @@ public sealed class SsSchedulingBulkPostgresTests : IAsyncLifetime
         foreach (var (key, outcome) in thirdOutcomes.Where(x => IsGraphType(x.Key.Type) && IsBlocked(x.Value)))
             Assert.Equal(outcome, settledOutcomes.GetValueOrDefault(key));
     }
+
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<Guid, bool> SkippedPlans = new();
+
+    private static void ObservePhase(Guid run, string phase, string state, long? units)
+    {
+        if (phase == "Plan" && state == "Skipped")
+            SkippedPlans[run] = true;
+    }
+
+    private static bool PlanSkipped(Guid run) => SkippedPlans.ContainsKey(run);
 
     private static bool IsGraphType(string type) => type is "Shift" or "Duty" or "DutySlot" or "Assignment";
 

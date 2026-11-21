@@ -131,6 +131,9 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run) : 
     // Keys whose outcome may have changed since the last batch commit (opt-in by SsBatchProgress).
     private HashSet<(string Type, string Id)>? dirtyOutcomes;
     public DataMigrationRun Run => run;
+
+    /// <summary>See <see cref="Options.MigrationJobOptions.PlanReplacementFamiliesOnly"/>.</summary>
+    public bool PlanReplacementFamiliesOnly { get; set; }
     internal Guid? SimulationNamespace { get; set; }
     internal string? SimulationSchema { get; set; }
 

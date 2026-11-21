@@ -135,6 +135,7 @@ public sealed class SsMigrationExecutor(
             CronSchedule = configured.CronSchedule,
             PersistenceMode = configured.PersistenceMode,
             BulkChunkSize = configured.BulkChunkSize,
+            PlanReplacementFamiliesOnly = configured.PlanReplacementFamiliesOnly,
         };
         if (!flags.Value.Enabled || !source.Enabled || !settings.Enabled)
             throw new InvalidOperationException("SS migration job is disabled.");
@@ -413,6 +414,7 @@ public sealed class SsMigrationExecutor(
                 token => FenceAsync(run, token)
             );
             await batches.BeginAsync(ct);
+            session.PlanReplacementFamiliesOnly = settings.PlanReplacementFamiliesOnly;
             await WriteJobAsync(job, rows, session, boundary, ct);
             await batches.CommitAsync(true, ct);
             return;

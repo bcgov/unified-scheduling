@@ -71,6 +71,12 @@ public sealed class MigrationJobOptions
     /// Training histories and a Scheduling unit (merge group, duty graph, series, captured component) are never split.
     /// </summary>
     public int BulkChunkSize { get; set; } = 2000;
+
+    /// <summary>
+    /// Scheduling PerRow: skip the full graph proposal plan when no captured component needs graph replacement.
+    /// Proposals are only read during replacement, so the outcome is identical; off keeps the always-plan path.
+    /// </summary>
+    public bool PlanReplacementFamiliesOnly { get; set; }
 }
 
 public enum MigrationPersistenceMode

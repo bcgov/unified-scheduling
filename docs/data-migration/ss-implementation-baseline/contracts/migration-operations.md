@@ -60,6 +60,12 @@ chunks, no rollback journal, crosswalk-scoped `SsBulkUndo`, target role needs `T
 refuses (`BulkRequiresPerRow:*`) any path it cannot reproduce exactly, including updates of already
 migrated rows; see [bulk persistence](../training-bulk-persistence.md).
 
+Scheduling PerRow may opt in to `PlanReplacementFamiliesOnly=true` (default `false`). The full graph
+proposal plan is read only when a captured component family needs graph replacement. With the switch on, a
+run that has no such family (first apply, unchanged rerun, recapture) skips planning and logs
+`SsPhase ... Phase=Plan State=Skipped`. Any replacement family still plans everything, because the planners
+read across components (day groups, definition groups). Outcomes, crosswalks and receipts are unchanged.
+
 ## Run Audit Summary
 
 For SS MyTeam, Training, Scheduling and Report, including simulation, the migration worker disables

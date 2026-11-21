@@ -25,12 +25,12 @@ internal sealed class SsSchedulingGraphReplay(UnifiedDbContext db, ISsScheduling
         "AssignmentSeries",
     ];
 
-    private sealed record Node(string Type, SsRow Row)
+    internal sealed record Node(string Type, SsRow Row)
     {
         public string Key => $"{Type}:{Row.Id}";
     }
 
-    private sealed record Component(List<Node> Nodes, string Hash);
+    internal sealed record Component(List<Node> Nodes, string Hash);
 
     private static SsRow Synthetic(string id) =>
         new(
@@ -245,13 +245,17 @@ internal sealed class SsSchedulingGraphReplay(UnifiedDbContext db, ISsScheduling
         );
     }
 
-    internal async Task<Dictionary<string, List<SsRow>>> ReplayAsync(
+    /// <summary>Captured component families whose graph must be replaced, decided before any write.</summary>
+    internal sealed class ReplacementPlan
+    {
+        internal required List<Component> Proposed { get; init; }
+        internal required List<(List<int> Family, HashSet<string> Keys, List<DataMigrationRecord> OldMembers)> Families { get; init; }
+    }
+
+    internal async Task<ReplacementPlan> PrepareAsync(
         Dictionary<string, List<SsRow>> rows,
-        ISsSchedulingSession s,
         DateTimeOffset boundary,
-        Func<Dictionary<string, List<SsRow>>, Task> write,
-        CancellationToken ct,
-        List<SsSchedulingProposal> proposals
+        CancellationToken ct
     )
     {
         var members = await store.SchedulingMembersAsync(ct);
@@ -260,7 +264,7 @@ internal sealed class SsSchedulingGraphReplay(UnifiedDbContext db, ISsScheduling
         var componentKeys = proposed.Select(x => (IReadOnlyList<string>)x.Nodes.Select(n => n.Key).ToList()).ToList();
         var oldGroups = old.Select(g => (IReadOnlyList<DataMigrationRecord>)g.ToList()).ToList();
         var expansion = new FamilyExpansion<DataMigrationRecord>(componentKeys, oldGroups, x => x.LegacyId);
-        var excluded = new HashSet<string>();
+        var families = new List<(List<int>, HashSet<string>, List<DataMigrationRecord>)>();
         var seen = new HashSet<int>();
         for (var index = 0; index < proposed.Count; index++)
         {
@@ -276,6 +280,26 @@ internal sealed class SsSchedulingGraphReplay(UnifiedDbContext db, ISsScheduling
                 && oldMembers.All(x => x.PayloadHash == proposed[index].Hash)
             )
                 continue;
+            families.Add((family, keys, oldMembers));
+        }
+        return new ReplacementPlan { Proposed = proposed, Families = families };
+    }
+
+    internal async Task<Dictionary<string, List<SsRow>>> ReplayAsync(
+        Dictionary<string, List<SsRow>> rows,
+        ISsSchedulingSession s,
+        DateTimeOffset boundary,
+        Func<Dictionary<string, List<SsRow>>, Task> write,
+        CancellationToken ct,
+        List<SsSchedulingProposal> proposals,
+        ReplacementPlan? prepared = null
+    )
+    {
+        prepared ??= await PrepareAsync(rows, boundary, ct);
+        var proposed = prepared.Proposed;
+        var excluded = new HashSet<string>();
+        foreach (var (family, keys, oldMembers) in prepared.Families)
+        {
             var nodes = family.SelectMany(i => proposed[i].Nodes).ToList();
             excluded.UnionWith(keys);
             var first = nodes.First();
