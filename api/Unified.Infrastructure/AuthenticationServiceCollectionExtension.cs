@@ -272,25 +272,26 @@ public static class AuthenticationServiceCollectionExtension
         var serializedBytes = TicketSerializer.Default.Serialize(ticket).Length;
         var protectedLength = context.Options.TicketDataFormat.Protect(ticket).Length;
 
-        // Mirrors ChunkingCookieManager: one cookie when it fits, otherwise chunks sized after the attribute template.
+        // Mirrors ChunkingCookieManager: one cookie when it fits, otherwise a "chunks-N" marker cookie
+        // plus N chunks sized after the attribute template.
         var chunkSize = (context.Options.CookieManager as ChunkingCookieManager)?.ChunkSize;
         var templateLength = context
             .CookieOptions.CreateCookieHeader(context.Options.Cookie.Name ?? string.Empty, string.Empty)
             .ToString()
             .Length;
-        var chunkCount =
+        var cookieCount =
             chunkSize is not int size || size > templateLength + protectedLength
                 ? 1
-                : (int)Math.Ceiling(protectedLength / (double)Math.Max(1, size - templateLength - 3));
+                : 1 + (int)Math.Ceiling(protectedLength / (double)Math.Max(1, size - templateLength - 3));
 
         context
             .HttpContext.RequestServices.GetRequiredService<ILoggerFactory>()
             .CreateLogger(nameof(AuthenticationServiceCollectionExtension))
             .LogInformation(
-                "Authentication cookie size (Development): serialized ticket {SerializedTicketBytes} bytes, protected value {ProtectedValueLength} characters, estimated {CookieChunkCount} cookie(s).",
+                "Authentication cookie size (Development): serialized ticket {SerializedTicketBytes} bytes, protected value {ProtectedValueLength} characters, estimated {CookieCount} cookie(s).",
                 serializedBytes,
                 protectedLength,
-                chunkCount
+                cookieCount
             );
         return Task.CompletedTask;
     }
