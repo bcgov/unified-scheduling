@@ -419,6 +419,8 @@ public sealed class SsMigrationExecutor(
         }
         catch (Exception ex)
         {
+            var cause = MigrationTechnicalFailure.Describe(ex);
+            Console.Error.WriteLine($"SsMigrationFailure Run={run.Id} Job={job} Cause={cause}");
             if (
                 db.Database.GetDbConnection().Database
                     is "unified_ss_rehearsal_repartition_v4"
@@ -457,8 +459,9 @@ public sealed class SsMigrationExecutor(
                     run.Id,
                     ex is OperationCanceledException ? "Canceled" : "ExecutionFailed",
                     job == "Report"
-                        ? "SS report did not complete; inspect migration-only evidence."
-                        : "SS job failed; current batch rolled back. Earlier committed batches and retry/progress evidence are retained.",
+                        ? "SS report did not complete; inspect migration-only evidence. Cause: " + cause
+                        : "SS job failed; current batch rolled back. Earlier committed batches and retry/progress evidence are retained. Cause: "
+                            + cause,
                     job == "Report" ? session.Outcomes : null
                 );
             }
@@ -467,8 +470,8 @@ public sealed class SsMigrationExecutor(
                 throw new SsMigrationTerminalizationException();
             }
             if (!failed)
-                throw new InvalidOperationException("SS migration stopped after its run fence was revoked.");
-            throw new InvalidOperationException("SS migration failed; inspect migration-only run evidence.");
+                throw new InvalidOperationException("SS migration stopped after its run fence was revoked.", ex);
+            throw new InvalidOperationException("SS migration failed; inspect migration-only run evidence.", ex);
         }
     }
 

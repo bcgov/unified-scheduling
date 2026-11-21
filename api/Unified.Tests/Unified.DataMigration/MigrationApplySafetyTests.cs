@@ -356,6 +356,34 @@ public sealed class MigrationApplySafetyTests : IAsyncDisposable
     }
 
     [Fact]
+    public void TechnicalFailureDescription_KeepsOriginalCauseWithoutRowDetail()
+    {
+        var pg = new Npgsql.PostgresException(
+            "duplicate key value violates unique constraint",
+            "ERROR",
+            "ERROR",
+            "23505",
+            detail: "Key (LegacyId)=(secret-row) already exists.",
+            tableName: "DataMigrationRecords",
+            constraintName: "IX_DataMigrationRecords_Source_EntityType_LegacyId"
+        );
+        var ex = new DbUpdateException("An error occurred while saving the entity changes.", pg);
+
+        var text = MigrationTechnicalFailure.Describe(ex);
+
+        Assert.Contains("Microsoft.EntityFrameworkCore.DbUpdateException", text);
+        Assert.Contains("Npgsql.PostgresException", text);
+        Assert.Contains("SqlState=23505", text);
+        Assert.Contains("Constraint=IX_DataMigrationRecords_Source_EntityType_LegacyId", text);
+        Assert.Contains("Table=DataMigrationRecords", text);
+        Assert.DoesNotContain("secret-row", text);
+        Assert.True(
+            MigrationTechnicalFailure.Describe(new InvalidOperationException(new string('x', 5000))).Length
+                <= MigrationTechnicalFailure.MaxDescriptionLength
+        );
+    }
+
+    [Fact]
     public async Task ReportVerdict_DoesNotHideActualFailureOrPassTechnicalError()
     {
         var run = new DataMigrationRun
