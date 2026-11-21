@@ -24,8 +24,8 @@ public sealed class LegacyAuthCookieCleanupMiddleware(
     private const string LegacyCookiePath = "/";
 
     /// <summary>
-    /// Sent by the server-side PDF renderer, whose browser holds the auth cookies at <c>Path=/</c> on the
-    /// internal frontend URL; deleting them would sign the render out mid-page.
+    /// Sent by the server-side PDF renderer, whose browser holds the auth cookies at the frontend base
+    /// path (<c>/</c> on the internal frontend URL); deleting them would sign the render out mid-page.
     /// </summary>
     public const string SkipHeaderName = "X-Unified-Pdf-Render";
 

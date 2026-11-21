@@ -214,12 +214,28 @@ namespace Unified.Infrastructure.Helpers
 
         /// <summary>
         /// Resolves the public application base path for cookie scoping, e.g. <c>/sheriff-scheduling/</c>
-        /// becomes <c>/sheriff-scheduling</c>. The application root, or any base href containing
-        /// characters that are not safe in a <c>Set-Cookie</c> path attribute, resolves to <c>/</c>.
+        /// becomes <c>/sheriff-scheduling</c>. Uses <c>X-Base-Href</c> (an explicit <c>/</c> is honoured),
+        /// then <c>PathBase</c>; never the request path, so a request URL cannot change the scope.
         /// </summary>
         public static string ResolveCookiePath(HttpRequest request)
         {
-            var baseHref = ResolveBaseHref(request);
+            if (request == null)
+                return "/";
+
+            if (request.Headers.TryGetValue("X-Base-Href", out var baseHrefValues))
+                return ToCookiePath(baseHrefValues.ToString());
+
+            return ToCookiePath(request.PathBase.Value);
+        }
+
+        /// <summary>
+        /// Converts a base href to a cookie path, e.g. <c>/sheriff-scheduling/</c> becomes
+        /// <c>/sheriff-scheduling</c>. The root, or any base href containing characters that are not
+        /// safe in a <c>Set-Cookie</c> path attribute, becomes <c>/</c>.
+        /// </summary>
+        public static string ToCookiePath(string? baseHref)
+        {
+            baseHref = NormalizeBaseHref(baseHref ?? string.Empty);
             if (!IsSafeCookieBaseHref(baseHref))
                 return "/";
 

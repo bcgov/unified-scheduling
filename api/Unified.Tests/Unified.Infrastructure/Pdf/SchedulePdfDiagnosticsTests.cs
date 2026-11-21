@@ -313,6 +313,82 @@ public sealed class SchedulePdfDiagnosticsTests
         Assert.All(((StubProxy)(object)page).Handlers.Values, handler => Assert.Null(handler));
     }
 
+    [Theory]
+    [InlineData("https://scheduling.example.com/sheriff-scheduling/", "/sheriff-scheduling")]
+    [InlineData("http://unified-scheduling-web:8080/", "/")]
+    public async Task Render_AuthenticationCookies_UseFrontendBasePathSoRenewalReplacesThem(
+        string frontendBaseUrl,
+        string expectedPath
+    )
+    {
+        Cookie[] added = [];
+        var context = StubProxy.Create<IBrowserContext>(
+            (method, args) =>
+            {
+                switch (method.Name)
+                {
+                    case "AddCookiesAsync":
+                        added = ((IEnumerable<Cookie>)args![0]!).ToArray();
+                        return Task.CompletedTask;
+                    case "NewPageAsync":
+                        return Task.FromException<IPage>(new PlaywrightException("stop"));
+                    case "CloseAsync":
+                        return Task.CompletedTask;
+                    default:
+                        throw new NotSupportedException(method.Name);
+                }
+            }
+        );
+        var browser = StubProxy.Create<IBrowser>(
+            (method, _) =>
+                method.Name switch
+                {
+                    "get_IsConnected" => true,
+                    "NewContextAsync" => Task.FromResult(context),
+                    "CloseAsync" => Task.CompletedTask,
+                    _ => throw new NotSupportedException(method.Name),
+                }
+        );
+        var httpContext = new DefaultHttpContext();
+        httpContext.Request.Headers.Cookie = "UnifiedAuth.Development=chunks-2; UnifiedAuth.DevelopmentC1=a";
+        await using var renderer = new PlaywrightSchedulePdfRenderer(
+            new HttpContextAccessor { HttpContext = httpContext },
+            new TestEnvironment(),
+            Options.Create(new ScheduleDistributionRenderingOptions { FrontendBaseUrl = frontendBaseUrl }),
+            Options.Create(new KeycloakOptions { CookieName = "UnifiedAuth" }),
+            new RecordingLogger()
+        );
+        typeof(PlaywrightSchedulePdfRenderer)
+            .GetField("_browser", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .SetValue(renderer, browser);
+
+        await Assert.ThrowsAsync<PdfRenderingException>(() =>
+            renderer.RenderAsync(
+                new()
+                {
+                    View = SchedulePdfView.Schedule,
+                    LocationId = 1,
+                    StartDate = new(2026, 10, 26),
+                    EndDate = new(2026, 10, 27),
+                    Period = SchedulePdfPeriod.Day,
+                },
+                TestContext.Current.CancellationToken
+            )
+        );
+
+        var host = new Uri(frontendBaseUrl).Host;
+        Assert.Equal(2, added.Length);
+        Assert.All(
+            added,
+            cookie =>
+            {
+                Assert.Null(cookie.Url);
+                Assert.Equal(host, cookie.Domain);
+                Assert.Equal(expectedPath, cookie.Path);
+            }
+        );
+    }
+
     private static IRequest Request(string url) =>
         StubProxy.Create<IRequest>(
             (method, _) =>

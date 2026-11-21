@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.Playwright;
 using Unified.Core.Pdf;
+using Unified.Infrastructure.Helpers;
 using Unified.Infrastructure.Options;
 
 namespace Unified.Infrastructure.Pdf;
@@ -86,7 +87,7 @@ public sealed class PlaywrightSchedulePdfRenderer(
 
         try
         {
-            var authenticationCookies = GetAuthenticationCookies(targetUri);
+            var authenticationCookies = GetAuthenticationCookies(targetUri, new Uri(options.FrontendBaseUrl));
             diagnostics.Stage("semaphore-wait");
             await renderSemaphore.WaitAsync(renderToken);
             permitAcquired = true;
@@ -348,7 +349,7 @@ public sealed class PlaywrightSchedulePdfRenderer(
         }
     }
 
-    private IReadOnlyCollection<Cookie> GetAuthenticationCookies(Uri targetUri)
+    private IReadOnlyCollection<Cookie> GetAuthenticationCookies(Uri targetUri, Uri targetBaseUri)
     {
         var httpContext = httpContextAccessor.HttpContext;
         if (httpContext is null)
@@ -359,13 +360,17 @@ public sealed class PlaywrightSchedulePdfRenderer(
         if (environment.IsDevelopment())
             environmentCookieName += ".Development";
 
+        // Same path the API issues renewed cookies at (X-Base-Href from the frontend proxy), so a
+        // renewal replaces these cookies instead of adding a second set.
+        var cookiePath = XForwardedForHelper.ToCookiePath(targetBaseUri.AbsolutePath);
         var cookies = httpContext
             .Request.Cookies.Where(cookie => IsAuthenticationCookie(cookie.Key, environmentCookieName))
             .Select(cookie => new Cookie
             {
                 Name = cookie.Key,
                 Value = cookie.Value,
-                Url = targetUri.GetLeftPart(UriPartial.Authority) + "/",
+                Domain = targetBaseUri.Host,
+                Path = cookiePath,
                 HttpOnly = true,
                 Secure = targetUri.Scheme == Uri.UriSchemeHttps,
                 SameSite = targetUri.Scheme == Uri.UriSchemeHttps ? SameSiteAttribute.None : SameSiteAttribute.Lax,

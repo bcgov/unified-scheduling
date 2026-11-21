@@ -452,6 +452,18 @@ public class AuthenticationPipelineTests
     }
 
     [Fact]
+    public async Task LegacyCookieCleanup_ExplicitRootBaseHref_IgnoresBasePathLikeRequestPath()
+    {
+        using var server = CreateServer(environmentName: Environments.Production);
+        using var client = CreateProxiedClient(server, "/");
+        client.DefaultRequestHeaders.Add("Cookie", "UnifiedAuth=root; UnifiedAuthC1=root");
+
+        var response = await client.GetAsync("/sheriff-scheduling/api/public", TestContext.Current.CancellationToken);
+
+        Assert.False(response.Headers.Contains("Set-Cookie"));
+    }
+
+    [Fact]
     public async Task LegacyCookieCleanup_PdfRendererRequest_DoesNotDeleteCookies()
     {
         using var server = CreateServer(environmentName: Environments.Production);
