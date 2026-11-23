@@ -9,7 +9,13 @@ import { faker } from '@faker-js/faker';
 import { HttpResponse, http } from 'msw';
 import type { RequestHandlerOptions } from 'msw';
 
-import { CalendarEventStatus, CalendarEventStatusTypeCode, CalendarEventType, CalendarEventTypeCode } from '../models';
+import {
+  CalendarEventExceptionReasonCode,
+  CalendarEventStatus,
+  CalendarEventStatusTypeCode,
+  CalendarEventType,
+  CalendarEventTypeCode,
+} from '../models';
 import type { CalendarDataResponse } from '../models';
 
 export const getPostApiCalendarEventsResponseMock = (
@@ -36,10 +42,8 @@ export const getPostApiCalendarEventsResponseMock = (
           isReadOnly: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
           isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
           exceptionReasonCodes: faker.helpers.arrayElement([
-            [],
-            ['DateTimeChanged'],
-            ['IsAway'],
-            ['DateTimeChanged', 'IsAway'],
+            faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+            undefined,
           ]),
           type: faker.helpers.arrayElement([faker.helpers.arrayElement(Object.values(CalendarEventType)), undefined]),
           status: faker.helpers.arrayElement([
@@ -146,10 +150,8 @@ export const getPostApiCalendarEventsResponseMock = (
           isReadOnly: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
           isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
           exceptionReasonCodes: faker.helpers.arrayElement([
-            [],
-            ['DateTimeChanged'],
-            ['IsAway'],
-            ['DateTimeChanged', 'IsAway'],
+            faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+            undefined,
           ]),
           type: faker.helpers.arrayElement([faker.helpers.arrayElement(Object.values(CalendarEventType)), undefined]),
           status: faker.helpers.arrayElement([
@@ -256,10 +258,8 @@ export const getPostApiCalendarEventsResponseMock = (
           isReadOnly: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
           isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
           exceptionReasonCodes: faker.helpers.arrayElement([
-            [],
-            ['DateTimeChanged'],
-            ['IsAway'],
-            ['DateTimeChanged', 'IsAway'],
+            faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+            undefined,
           ]),
           type: faker.helpers.arrayElement([faker.helpers.arrayElement(Object.values(CalendarEventType)), undefined]),
           status: faker.helpers.arrayElement([

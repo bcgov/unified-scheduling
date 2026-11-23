@@ -5,6 +5,7 @@
  * OpenAPI spec version: 1.0.0
  */
 import type { CalendarFeatureFlags } from './calendarFeatureFlags.ts';
+import type { DataMigrationFeatureFlags } from './dataMigrationFeatureFlags.ts';
 import type { LeaveFeatureFlags } from './leaveFeatureFlags.ts';
 import type { LoanOutFeatureFlags } from './loanOutFeatureFlags.ts';
 import type { ReportingFeatureFlags } from './reportingFeatureFlags.ts';
@@ -20,6 +21,7 @@ export interface FeatureFlagsResponse {
   Stats?: StatsFeatureFlags;
   Training?: TrainingFeatureFlags;
   Reporting?: ReportingFeatureFlags;
+  DataMigration?: DataMigrationFeatureFlags;
   Leave?: LeaveFeatureFlags;
   LoanOut?: LoanOutFeatureFlags;
 }

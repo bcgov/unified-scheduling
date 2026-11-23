@@ -7,17 +7,10 @@
 import { faker } from '@faker-js/faker';
 
 import { HttpResponse, http } from 'msw';
-import type { HttpResponseResolver, PathParams, RequestHandlerOptions } from 'msw';
+import type { RequestHandlerOptions } from 'msw';
 
-import type {
-  ExpireShiftRequest,
-  ShiftEntryRequest,
-  ShiftEntryResponse,
-  ShiftEntryUpdateRequest,
-  ShiftSeriesRequest,
-  ShiftSeriesResponse,
-  ShiftSeriesUpdateRequest,
-} from '../models';
+import { CalendarEventExceptionReasonCode } from '../models';
+import type { ShiftEntryResponse, ShiftSeriesResponse } from '../models';
 
 export const getGetApiSchedulingShiftsSeriesResponseMock = (): ShiftSeriesResponse[] =>
   faker.helpers.arrayElement([
@@ -940,13 +933,6 @@ export const getGetApiSchedulingShiftsEntriesResponseMock = (): ShiftEntryRespon
       workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      exceptionReasonCodes: faker.helpers.arrayElement([
-        [],
-        ['DateTimeChanged'],
-        ['IsAway'],
-        ['DateTimeChanged', 'IsAway'],
-      ]),
       assignmentLinks: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -967,6 +953,11 @@ export const getGetApiSchedulingShiftsEntriesResponseMock = (): ShiftEntryRespon
       ]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -994,13 +985,6 @@ export const getGetApiSchedulingShiftsEntriesResponseMock = (): ShiftEntryRespon
       workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      exceptionReasonCodes: faker.helpers.arrayElement([
-        [],
-        ['DateTimeChanged'],
-        ['IsAway'],
-        ['DateTimeChanged', 'IsAway'],
-      ]),
       assignmentLinks: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1021,6 +1005,11 @@ export const getGetApiSchedulingShiftsEntriesResponseMock = (): ShiftEntryRespon
       ]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -1048,13 +1037,6 @@ export const getGetApiSchedulingShiftsEntriesResponseMock = (): ShiftEntryRespon
       workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      exceptionReasonCodes: faker.helpers.arrayElement([
-        [],
-        ['DateTimeChanged'],
-        ['IsAway'],
-        ['DateTimeChanged', 'IsAway'],
-      ]),
       assignmentLinks: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1075,6 +1057,11 @@ export const getGetApiSchedulingShiftsEntriesResponseMock = (): ShiftEntryRespon
       ]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -1108,13 +1095,6 @@ export const getPostApiSchedulingShiftsEntriesResponseMock = (
       workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      exceptionReasonCodes: faker.helpers.arrayElement([
-        [],
-        ['DateTimeChanged'],
-        ['IsAway'],
-        ['DateTimeChanged', 'IsAway'],
-      ]),
       assignmentLinks: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1135,6 +1115,11 @@ export const getPostApiSchedulingShiftsEntriesResponseMock = (
       ]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -1163,13 +1148,6 @@ export const getPostApiSchedulingShiftsEntriesResponseMock = (
       workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      exceptionReasonCodes: faker.helpers.arrayElement([
-        [],
-        ['DateTimeChanged'],
-        ['IsAway'],
-        ['DateTimeChanged', 'IsAway'],
-      ]),
       assignmentLinks: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1190,6 +1168,11 @@ export const getPostApiSchedulingShiftsEntriesResponseMock = (
       ]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -1218,13 +1201,6 @@ export const getPostApiSchedulingShiftsEntriesResponseMock = (
       workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      exceptionReasonCodes: faker.helpers.arrayElement([
-        [],
-        ['DateTimeChanged'],
-        ['IsAway'],
-        ['DateTimeChanged', 'IsAway'],
-      ]),
       assignmentLinks: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1245,6 +1221,11 @@ export const getPostApiSchedulingShiftsEntriesResponseMock = (
       ]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -1279,13 +1260,6 @@ export const getGetApiSchedulingShiftsEntriesIdResponseMock = (
       workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      exceptionReasonCodes: faker.helpers.arrayElement([
-        [],
-        ['DateTimeChanged'],
-        ['IsAway'],
-        ['DateTimeChanged', 'IsAway'],
-      ]),
       assignmentLinks: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1306,6 +1280,11 @@ export const getGetApiSchedulingShiftsEntriesIdResponseMock = (
       ]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -1334,13 +1313,6 @@ export const getGetApiSchedulingShiftsEntriesIdResponseMock = (
       workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      exceptionReasonCodes: faker.helpers.arrayElement([
-        [],
-        ['DateTimeChanged'],
-        ['IsAway'],
-        ['DateTimeChanged', 'IsAway'],
-      ]),
       assignmentLinks: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1361,6 +1333,11 @@ export const getGetApiSchedulingShiftsEntriesIdResponseMock = (
       ]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -1389,13 +1366,6 @@ export const getGetApiSchedulingShiftsEntriesIdResponseMock = (
       workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      exceptionReasonCodes: faker.helpers.arrayElement([
-        [],
-        ['DateTimeChanged'],
-        ['IsAway'],
-        ['DateTimeChanged', 'IsAway'],
-      ]),
       assignmentLinks: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1416,6 +1386,11 @@ export const getGetApiSchedulingShiftsEntriesIdResponseMock = (
       ]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -1450,13 +1425,6 @@ export const getPutApiSchedulingShiftsEntriesIdResponseMock = (
       workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      exceptionReasonCodes: faker.helpers.arrayElement([
-        [],
-        ['DateTimeChanged'],
-        ['IsAway'],
-        ['DateTimeChanged', 'IsAway'],
-      ]),
       assignmentLinks: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1477,6 +1445,11 @@ export const getPutApiSchedulingShiftsEntriesIdResponseMock = (
       ]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -1505,13 +1478,6 @@ export const getPutApiSchedulingShiftsEntriesIdResponseMock = (
       workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      exceptionReasonCodes: faker.helpers.arrayElement([
-        [],
-        ['DateTimeChanged'],
-        ['IsAway'],
-        ['DateTimeChanged', 'IsAway'],
-      ]),
       assignmentLinks: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1532,6 +1498,11 @@ export const getPutApiSchedulingShiftsEntriesIdResponseMock = (
       ]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -1560,13 +1531,6 @@ export const getPutApiSchedulingShiftsEntriesIdResponseMock = (
       workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      exceptionReasonCodes: faker.helpers.arrayElement([
-        [],
-        ['DateTimeChanged'],
-        ['IsAway'],
-        ['DateTimeChanged', 'IsAway'],
-      ]),
       assignmentLinks: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1587,6 +1551,11 @@ export const getPutApiSchedulingShiftsEntriesIdResponseMock = (
       ]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -1621,13 +1590,6 @@ export const getPostApiSchedulingShiftsEntriesIdPublishResponseMock = (
       workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      exceptionReasonCodes: faker.helpers.arrayElement([
-        [],
-        ['DateTimeChanged'],
-        ['IsAway'],
-        ['DateTimeChanged', 'IsAway'],
-      ]),
       assignmentLinks: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1648,6 +1610,11 @@ export const getPostApiSchedulingShiftsEntriesIdPublishResponseMock = (
       ]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -1676,13 +1643,6 @@ export const getPostApiSchedulingShiftsEntriesIdPublishResponseMock = (
       workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      exceptionReasonCodes: faker.helpers.arrayElement([
-        [],
-        ['DateTimeChanged'],
-        ['IsAway'],
-        ['DateTimeChanged', 'IsAway'],
-      ]),
       assignmentLinks: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1703,6 +1663,11 @@ export const getPostApiSchedulingShiftsEntriesIdPublishResponseMock = (
       ]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -1731,13 +1696,6 @@ export const getPostApiSchedulingShiftsEntriesIdPublishResponseMock = (
       workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      exceptionReasonCodes: faker.helpers.arrayElement([
-        [],
-        ['DateTimeChanged'],
-        ['IsAway'],
-        ['DateTimeChanged', 'IsAway'],
-      ]),
       assignmentLinks: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1758,6 +1716,11 @@ export const getPostApiSchedulingShiftsEntriesIdPublishResponseMock = (
       ]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -1792,13 +1755,6 @@ export const getPostApiSchedulingShiftsEntriesIdExpireResponseMock = (
       workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      exceptionReasonCodes: faker.helpers.arrayElement([
-        [],
-        ['DateTimeChanged'],
-        ['IsAway'],
-        ['DateTimeChanged', 'IsAway'],
-      ]),
       assignmentLinks: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1819,6 +1775,11 @@ export const getPostApiSchedulingShiftsEntriesIdExpireResponseMock = (
       ]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -1847,13 +1808,6 @@ export const getPostApiSchedulingShiftsEntriesIdExpireResponseMock = (
       workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      exceptionReasonCodes: faker.helpers.arrayElement([
-        [],
-        ['DateTimeChanged'],
-        ['IsAway'],
-        ['DateTimeChanged', 'IsAway'],
-      ]),
       assignmentLinks: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1874,6 +1828,11 @@ export const getPostApiSchedulingShiftsEntriesIdExpireResponseMock = (
       ]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -1902,13 +1861,6 @@ export const getPostApiSchedulingShiftsEntriesIdExpireResponseMock = (
       workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      exceptionReasonCodes: faker.helpers.arrayElement([
-        [],
-        ['DateTimeChanged'],
-        ['IsAway'],
-        ['DateTimeChanged', 'IsAway'],
-      ]),
       assignmentLinks: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1929,6 +1881,11 @@ export const getPostApiSchedulingShiftsEntriesIdExpireResponseMock = (
       ]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -1956,12 +1913,12 @@ export const getPostApiSchedulingShiftsEntriesIdExpireResponseMock = (
 export const getGetApiSchedulingShiftsSeriesMockHandler = (
   overrideResponse?:
     | ShiftSeriesResponse[]
-    | ((info: Parameters<HttpResponseResolver>[0]) => Promise<ShiftSeriesResponse[]> | ShiftSeriesResponse[]),
+    | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<ShiftSeriesResponse[]> | ShiftSeriesResponse[]),
   options?: RequestHandlerOptions,
 ) => {
   return http.get(
     '*/api/scheduling/shifts/series',
-    async (info: Parameters<HttpResponseResolver>[0]) => {
+    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -1978,14 +1935,12 @@ export const getGetApiSchedulingShiftsSeriesMockHandler = (
 export const getPostApiSchedulingShiftsSeriesMockHandler = (
   overrideResponse?:
     | ShiftSeriesResponse
-    | ((
-        info: Parameters<HttpResponseResolver<PathParams, ShiftSeriesRequest>>[0],
-      ) => Promise<ShiftSeriesResponse> | ShiftSeriesResponse),
+    | ((info: Parameters<Parameters<typeof http.post>[1]>[0]) => Promise<ShiftSeriesResponse> | ShiftSeriesResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.post<PathParams, ShiftSeriesRequest>(
+  return http.post(
     '*/api/scheduling/shifts/series',
-    async (info: Parameters<HttpResponseResolver<PathParams, ShiftSeriesRequest>>[0]) => {
+    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -2002,14 +1957,12 @@ export const getPostApiSchedulingShiftsSeriesMockHandler = (
 export const getGetApiSchedulingShiftsSeriesIdMockHandler = (
   overrideResponse?:
     | ShiftSeriesResponse
-    | ((
-        info: Parameters<HttpResponseResolver<{ id: string }>>[0],
-      ) => Promise<ShiftSeriesResponse> | ShiftSeriesResponse),
+    | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<ShiftSeriesResponse> | ShiftSeriesResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.get<{ id: string }>(
+  return http.get(
     '*/api/scheduling/shifts/series/:id',
-    async (info: Parameters<HttpResponseResolver<{ id: string }>>[0]) => {
+    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -2026,14 +1979,12 @@ export const getGetApiSchedulingShiftsSeriesIdMockHandler = (
 export const getPutApiSchedulingShiftsSeriesIdMockHandler = (
   overrideResponse?:
     | ShiftSeriesResponse
-    | ((
-        info: Parameters<HttpResponseResolver<{ id: string }, ShiftSeriesUpdateRequest>>[0],
-      ) => Promise<ShiftSeriesResponse> | ShiftSeriesResponse),
+    | ((info: Parameters<Parameters<typeof http.put>[1]>[0]) => Promise<ShiftSeriesResponse> | ShiftSeriesResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.put<{ id: string }, ShiftSeriesUpdateRequest>(
+  return http.put(
     '*/api/scheduling/shifts/series/:id',
-    async (info: Parameters<HttpResponseResolver<{ id: string }, ShiftSeriesUpdateRequest>>[0]) => {
+    async (info: Parameters<Parameters<typeof http.put>[1]>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -2048,12 +1999,12 @@ export const getPutApiSchedulingShiftsSeriesIdMockHandler = (
 };
 
 export const getDeleteApiSchedulingShiftsSeriesIdMockHandler = (
-  overrideResponse?: void | ((info: Parameters<HttpResponseResolver<{ id: string }>>[0]) => Promise<void> | void),
+  overrideResponse?: void | ((info: Parameters<Parameters<typeof http.delete>[1]>[0]) => Promise<void> | void),
   options?: RequestHandlerOptions,
 ) => {
-  return http.delete<{ id: string }>(
+  return http.delete(
     '*/api/scheduling/shifts/series/:id',
-    async (info: Parameters<HttpResponseResolver<{ id: string }>>[0]) => {
+    async (info: Parameters<Parameters<typeof http.delete>[1]>[0]) => {
       if (typeof overrideResponse === 'function') {
         await overrideResponse(info);
       }
@@ -2067,14 +2018,12 @@ export const getDeleteApiSchedulingShiftsSeriesIdMockHandler = (
 export const getPostApiSchedulingShiftsSeriesIdPublishMockHandler = (
   overrideResponse?:
     | ShiftSeriesResponse
-    | ((
-        info: Parameters<HttpResponseResolver<{ id: string }>>[0],
-      ) => Promise<ShiftSeriesResponse> | ShiftSeriesResponse),
+    | ((info: Parameters<Parameters<typeof http.post>[1]>[0]) => Promise<ShiftSeriesResponse> | ShiftSeriesResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.post<{ id: string }>(
+  return http.post(
     '*/api/scheduling/shifts/series/:id/publish',
-    async (info: Parameters<HttpResponseResolver<{ id: string }>>[0]) => {
+    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -2091,14 +2040,12 @@ export const getPostApiSchedulingShiftsSeriesIdPublishMockHandler = (
 export const getPostApiSchedulingShiftsSeriesIdExpireMockHandler = (
   overrideResponse?:
     | ShiftSeriesResponse
-    | ((
-        info: Parameters<HttpResponseResolver<{ id: string }, null | ExpireShiftRequest>>[0],
-      ) => Promise<ShiftSeriesResponse> | ShiftSeriesResponse),
+    | ((info: Parameters<Parameters<typeof http.post>[1]>[0]) => Promise<ShiftSeriesResponse> | ShiftSeriesResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.post<{ id: string }, null | ExpireShiftRequest>(
+  return http.post(
     '*/api/scheduling/shifts/series/:id/expire',
-    async (info: Parameters<HttpResponseResolver<{ id: string }, null | ExpireShiftRequest>>[0]) => {
+    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -2115,12 +2062,12 @@ export const getPostApiSchedulingShiftsSeriesIdExpireMockHandler = (
 export const getGetApiSchedulingShiftsEntriesMockHandler = (
   overrideResponse?:
     | ShiftEntryResponse[]
-    | ((info: Parameters<HttpResponseResolver>[0]) => Promise<ShiftEntryResponse[]> | ShiftEntryResponse[]),
+    | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<ShiftEntryResponse[]> | ShiftEntryResponse[]),
   options?: RequestHandlerOptions,
 ) => {
   return http.get(
     '*/api/scheduling/shifts/entries',
-    async (info: Parameters<HttpResponseResolver>[0]) => {
+    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -2137,14 +2084,12 @@ export const getGetApiSchedulingShiftsEntriesMockHandler = (
 export const getPostApiSchedulingShiftsEntriesMockHandler = (
   overrideResponse?:
     | ShiftEntryResponse
-    | ((
-        info: Parameters<HttpResponseResolver<PathParams, ShiftEntryRequest>>[0],
-      ) => Promise<ShiftEntryResponse> | ShiftEntryResponse),
+    | ((info: Parameters<Parameters<typeof http.post>[1]>[0]) => Promise<ShiftEntryResponse> | ShiftEntryResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.post<PathParams, ShiftEntryRequest>(
+  return http.post(
     '*/api/scheduling/shifts/entries',
-    async (info: Parameters<HttpResponseResolver<PathParams, ShiftEntryRequest>>[0]) => {
+    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -2161,12 +2106,12 @@ export const getPostApiSchedulingShiftsEntriesMockHandler = (
 export const getGetApiSchedulingShiftsEntriesIdMockHandler = (
   overrideResponse?:
     | ShiftEntryResponse
-    | ((info: Parameters<HttpResponseResolver<{ id: string }>>[0]) => Promise<ShiftEntryResponse> | ShiftEntryResponse),
+    | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<ShiftEntryResponse> | ShiftEntryResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.get<{ id: string }>(
+  return http.get(
     '*/api/scheduling/shifts/entries/:id',
-    async (info: Parameters<HttpResponseResolver<{ id: string }>>[0]) => {
+    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -2183,14 +2128,12 @@ export const getGetApiSchedulingShiftsEntriesIdMockHandler = (
 export const getPutApiSchedulingShiftsEntriesIdMockHandler = (
   overrideResponse?:
     | ShiftEntryResponse
-    | ((
-        info: Parameters<HttpResponseResolver<{ id: string }, ShiftEntryUpdateRequest>>[0],
-      ) => Promise<ShiftEntryResponse> | ShiftEntryResponse),
+    | ((info: Parameters<Parameters<typeof http.put>[1]>[0]) => Promise<ShiftEntryResponse> | ShiftEntryResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.put<{ id: string }, ShiftEntryUpdateRequest>(
+  return http.put(
     '*/api/scheduling/shifts/entries/:id',
-    async (info: Parameters<HttpResponseResolver<{ id: string }, ShiftEntryUpdateRequest>>[0]) => {
+    async (info: Parameters<Parameters<typeof http.put>[1]>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -2205,12 +2148,12 @@ export const getPutApiSchedulingShiftsEntriesIdMockHandler = (
 };
 
 export const getDeleteApiSchedulingShiftsEntriesIdMockHandler = (
-  overrideResponse?: void | ((info: Parameters<HttpResponseResolver<{ id: string }>>[0]) => Promise<void> | void),
+  overrideResponse?: void | ((info: Parameters<Parameters<typeof http.delete>[1]>[0]) => Promise<void> | void),
   options?: RequestHandlerOptions,
 ) => {
-  return http.delete<{ id: string }>(
+  return http.delete(
     '*/api/scheduling/shifts/entries/:id',
-    async (info: Parameters<HttpResponseResolver<{ id: string }>>[0]) => {
+    async (info: Parameters<Parameters<typeof http.delete>[1]>[0]) => {
       if (typeof overrideResponse === 'function') {
         await overrideResponse(info);
       }
@@ -2224,12 +2167,12 @@ export const getDeleteApiSchedulingShiftsEntriesIdMockHandler = (
 export const getPostApiSchedulingShiftsEntriesIdPublishMockHandler = (
   overrideResponse?:
     | ShiftEntryResponse
-    | ((info: Parameters<HttpResponseResolver<{ id: string }>>[0]) => Promise<ShiftEntryResponse> | ShiftEntryResponse),
+    | ((info: Parameters<Parameters<typeof http.post>[1]>[0]) => Promise<ShiftEntryResponse> | ShiftEntryResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.post<{ id: string }>(
+  return http.post(
     '*/api/scheduling/shifts/entries/:id/publish',
-    async (info: Parameters<HttpResponseResolver<{ id: string }>>[0]) => {
+    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -2246,14 +2189,12 @@ export const getPostApiSchedulingShiftsEntriesIdPublishMockHandler = (
 export const getPostApiSchedulingShiftsEntriesIdExpireMockHandler = (
   overrideResponse?:
     | ShiftEntryResponse
-    | ((
-        info: Parameters<HttpResponseResolver<{ id: string }, null | ExpireShiftRequest>>[0],
-      ) => Promise<ShiftEntryResponse> | ShiftEntryResponse),
+    | ((info: Parameters<Parameters<typeof http.post>[1]>[0]) => Promise<ShiftEntryResponse> | ShiftEntryResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.post<{ id: string }, null | ExpireShiftRequest>(
+  return http.post(
     '*/api/scheduling/shifts/entries/:id/expire',
-    async (info: Parameters<HttpResponseResolver<{ id: string }, null | ExpireShiftRequest>>[0]) => {
+    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'

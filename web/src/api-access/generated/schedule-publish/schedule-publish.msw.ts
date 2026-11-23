@@ -56,6 +56,16 @@ export const getPostApiSchedulingPublishPreviewResponseMock = (
         shiftConflicts: Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           message: faker.string.alpha({ length: { min: 10, max: 20 } }),
         })),
+        restrictedWarnings: faker.helpers.arrayElement([
+          Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
+            eventId: faker.string.alpha({ length: { min: 10, max: 20 } }),
+            sourceModule: faker.string.alpha({ length: { min: 10, max: 20 } }),
+            resourceId: faker.string.uuid(),
+            message: faker.string.alpha({ length: { min: 10, max: 20 } }),
+          })),
+          undefined,
+        ]),
+        hasRestrictedConflicts: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       },
       canPublish: faker.datatype.boolean(),
       ...overrideResponse,
@@ -101,6 +111,16 @@ export const getPostApiSchedulingPublishPreviewResponseMock = (
         shiftConflicts: Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           message: faker.string.alpha({ length: { min: 10, max: 20 } }),
         })),
+        restrictedWarnings: faker.helpers.arrayElement([
+          Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
+            eventId: faker.string.alpha({ length: { min: 10, max: 20 } }),
+            sourceModule: faker.string.alpha({ length: { min: 10, max: 20 } }),
+            resourceId: faker.string.uuid(),
+            message: faker.string.alpha({ length: { min: 10, max: 20 } }),
+          })),
+          undefined,
+        ]),
+        hasRestrictedConflicts: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       },
       canPublish: faker.datatype.boolean(),
       ...overrideResponse,
@@ -146,6 +166,16 @@ export const getPostApiSchedulingPublishPreviewResponseMock = (
         shiftConflicts: Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           message: faker.string.alpha({ length: { min: 10, max: 20 } }),
         })),
+        restrictedWarnings: faker.helpers.arrayElement([
+          Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
+            eventId: faker.string.alpha({ length: { min: 10, max: 20 } }),
+            sourceModule: faker.string.alpha({ length: { min: 10, max: 20 } }),
+            resourceId: faker.string.uuid(),
+            message: faker.string.alpha({ length: { min: 10, max: 20 } }),
+          })),
+          undefined,
+        ]),
+        hasRestrictedConflicts: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       },
       canPublish: faker.datatype.boolean(),
       ...overrideResponse,

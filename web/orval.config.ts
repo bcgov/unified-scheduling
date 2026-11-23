@@ -1,5 +1,30 @@
-import { defineConfig } from 'orval';
+import { defineConfig, defineTransformer } from 'orval';
 import { faker } from '@faker-js/faker';
+
+const preserveExpiryPreviewNullability = defineTransformer((spec) => {
+  const parameters = spec.paths?.['/api/training/user-trainings/expiry-date']?.get?.parameters ?? [];
+
+  // Keep the client contract aligned with the nullable properties on UserTrainingExpiryDateRequest.
+  for (const parameter of parameters) {
+    if ('$ref' in parameter || parameter.in !== 'query' || !['UserId', 'AllDay'].includes(parameter.name)) {
+      continue;
+    }
+
+    const schema = parameter.schema;
+    if (schema && !('$ref' in schema) && typeof schema.type === 'string') {
+      schema.type = [schema.type, 'null'];
+    }
+  }
+
+  return spec;
+});
+
+const input = {
+  target: 'http://localhost:5000/openapi/v1.json',
+  override: {
+    transformer: preserveExpiryPreviewNullability,
+  },
+};
 
 export default defineConfig({
   unified: {
@@ -65,9 +90,7 @@ export default defineConfig({
       },
       tsconfig: './tsconfig.app.json',
     },
-    input: {
-      target: 'http://localhost:5000/openapi/v1.json',
-    },
+    input,
     hooks: {
       afterAllFilesWrite: 'npm run format',
     },
@@ -96,8 +119,6 @@ export default defineConfig({
       },
       tsconfig: './tsconfig.app.json',
     },
-    input: {
-      target: 'http://localhost:5000/openapi/v1.json',
-    },
+    input,
   },
 });

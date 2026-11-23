@@ -8,6 +8,10 @@ import type { AssignmentEntryLinkRequest } from './assignmentEntryLinkRequest.ts
 
 export interface ShiftEntryRequest {
   /** @nullable */
+  lunchAvailableMinutes?: number | null;
+  /** @nullable */
+  workedLunchMinutes?: number | null;
+  /** @nullable */
   shiftSeriesId?: number | null;
   /** @nullable */
   assignmentEntryLinks?: AssignmentEntryLinkRequest[] | null;
@@ -30,9 +34,5 @@ export interface ShiftEntryRequest {
   allDay?: boolean;
   /** @nullable */
   locationId?: number | null;
-  /** @nullable */
-  lunchAvailableMinutes?: number | null;
-  /** @nullable */
-  workedLunchMinutes?: number | null;
   userIds?: string[];
 }

@@ -15,12 +15,12 @@ export const GetApiSchedulingLoanOutUsersUserIdEntriesParams = zod.strictObject(
 });
 
 export const GetApiSchedulingLoanOutUsersUserIdEntriesResponseItem = zod.object({
-  isException: zod.boolean().optional(),
-  exceptionReasonCodes: zod.array(zod.enum(['DateTimeChanged', 'IsAway'])).optional(),
   loanOutLocationId: zod.int().optional(),
   loanOutSeriesId: zod.int().nullish(),
   id: zod.int().optional(),
   eventSeriesId: zod.int().nullish(),
+  isException: zod.boolean().optional(),
+  exceptionReasonCodes: zod.array(zod.enum(['DateTimeChanged', 'IsAway'])).optional(),
   eventTypeCode: zod.string().nullish(),
   statusTypeCode: zod.string().nullish(),
   cancelledAt: zod.iso.datetime({ offset: true }).nullish(),
@@ -219,12 +219,12 @@ export const GetApiSchedulingLoanOutEntriesIdParams = zod.strictObject({
 });
 
 export const GetApiSchedulingLoanOutEntriesIdResponse = zod.object({
-  isException: zod.boolean().optional(),
-  exceptionReasonCodes: zod.array(zod.enum(['DateTimeChanged', 'IsAway'])).optional(),
   loanOutLocationId: zod.int().optional(),
   loanOutSeriesId: zod.int().nullish(),
   id: zod.int().optional(),
   eventSeriesId: zod.int().nullish(),
+  isException: zod.boolean().optional(),
+  exceptionReasonCodes: zod.array(zod.enum(['DateTimeChanged', 'IsAway'])).optional(),
   eventTypeCode: zod.string().nullish(),
   statusTypeCode: zod.string().nullish(),
   cancelledAt: zod.iso.datetime({ offset: true }).nullish(),
@@ -270,12 +270,12 @@ export const PutApiSchedulingLoanOutEntriesIdBody = zod.strictObject({
 });
 
 export const PutApiSchedulingLoanOutEntriesIdResponse = zod.object({
-  isException: zod.boolean().optional(),
-  exceptionReasonCodes: zod.array(zod.enum(['DateTimeChanged', 'IsAway'])).optional(),
   loanOutLocationId: zod.int().optional(),
   loanOutSeriesId: zod.int().nullish(),
   id: zod.int().optional(),
   eventSeriesId: zod.int().nullish(),
+  isException: zod.boolean().optional(),
+  exceptionReasonCodes: zod.array(zod.enum(['DateTimeChanged', 'IsAway'])).optional(),
   eventTypeCode: zod.string().nullish(),
   statusTypeCode: zod.string().nullish(),
   cancelledAt: zod.iso.datetime({ offset: true }).nullish(),
@@ -327,12 +327,12 @@ export const PostApiSchedulingLoanOutEntriesBody = zod.strictObject({
 });
 
 export const PostApiSchedulingLoanOutEntriesResponse = zod.object({
-  isException: zod.boolean().optional(),
-  exceptionReasonCodes: zod.array(zod.enum(['DateTimeChanged', 'IsAway'])).optional(),
   loanOutLocationId: zod.int().optional(),
   loanOutSeriesId: zod.int().nullish(),
   id: zod.int().optional(),
   eventSeriesId: zod.int().nullish(),
+  isException: zod.boolean().optional(),
+  exceptionReasonCodes: zod.array(zod.enum(['DateTimeChanged', 'IsAway'])).optional(),
   eventTypeCode: zod.string().nullish(),
   statusTypeCode: zod.string().nullish(),
   cancelledAt: zod.iso.datetime({ offset: true }).nullish(),

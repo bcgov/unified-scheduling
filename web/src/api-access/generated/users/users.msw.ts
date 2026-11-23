@@ -7,17 +7,10 @@
 import { faker } from '@faker-js/faker';
 
 import { HttpResponse, http } from 'msw';
-import type { HttpResponseResolver, PathParams, RequestHandlerOptions } from 'msw';
+import type { RequestHandlerOptions } from 'msw';
 
 import { Gender } from '../models';
-import type {
-  AssignUserRoleRequestDto,
-  ExpireUserRoleRequestDto,
-  PostApiUsersIdUploadPhotoBody,
-  UserRequestDto,
-  UserResponse,
-  UserRoleResponseDto,
-} from '../models';
+import type { UserResponse, UserRoleResponseDto } from '../models';
 
 export const getGetApiUsersResponseMock = (): UserResponse[] =>
   faker.helpers.arrayElement([
@@ -581,12 +574,13 @@ export const getPostApiUsersIdUploadPhotoResponseMock = (
 
 export const getGetApiUsersMockHandler = (
   overrideResponse?:
-    UserResponse[] | ((info: Parameters<HttpResponseResolver>[0]) => Promise<UserResponse[]> | UserResponse[]),
+    | UserResponse[]
+    | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<UserResponse[]> | UserResponse[]),
   options?: RequestHandlerOptions,
 ) => {
   return http.get(
     '*/api/users',
-    async (info: Parameters<HttpResponseResolver>[0]) => {
+    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -602,13 +596,12 @@ export const getGetApiUsersMockHandler = (
 
 export const getPostApiUsersMockHandler = (
   overrideResponse?:
-    | UserResponse
-    | ((info: Parameters<HttpResponseResolver<PathParams, UserRequestDto>>[0]) => Promise<UserResponse> | UserResponse),
+    UserResponse | ((info: Parameters<Parameters<typeof http.post>[1]>[0]) => Promise<UserResponse> | UserResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.post<PathParams, UserRequestDto>(
+  return http.post(
     '*/api/users',
-    async (info: Parameters<HttpResponseResolver<PathParams, UserRequestDto>>[0]) => {
+    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -624,13 +617,12 @@ export const getPostApiUsersMockHandler = (
 
 export const getGetApiUsersIdMockHandler = (
   overrideResponse?:
-    | UserResponse
-    | ((info: Parameters<HttpResponseResolver<{ id: string }>>[0]) => Promise<UserResponse> | UserResponse),
+    UserResponse | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<UserResponse> | UserResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.get<{ id: string }>(
+  return http.get(
     '*/api/users/:id',
-    async (info: Parameters<HttpResponseResolver<{ id: string }>>[0]) => {
+    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -646,15 +638,12 @@ export const getGetApiUsersIdMockHandler = (
 
 export const getPutApiUsersIdMockHandler = (
   overrideResponse?:
-    | UserResponse
-    | ((
-        info: Parameters<HttpResponseResolver<{ id: string }, UserRequestDto>>[0],
-      ) => Promise<UserResponse> | UserResponse),
+    UserResponse | ((info: Parameters<Parameters<typeof http.put>[1]>[0]) => Promise<UserResponse> | UserResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.put<{ id: string }, UserRequestDto>(
+  return http.put(
     '*/api/users/:id',
-    async (info: Parameters<HttpResponseResolver<{ id: string }, UserRequestDto>>[0]) => {
+    async (info: Parameters<Parameters<typeof http.put>[1]>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -671,14 +660,12 @@ export const getPutApiUsersIdMockHandler = (
 export const getGetApiUsersIdRolesMockHandler = (
   overrideResponse?:
     | UserRoleResponseDto[]
-    | ((
-        info: Parameters<HttpResponseResolver<{ id: string }>>[0],
-      ) => Promise<UserRoleResponseDto[]> | UserRoleResponseDto[]),
+    | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<UserRoleResponseDto[]> | UserRoleResponseDto[]),
   options?: RequestHandlerOptions,
 ) => {
-  return http.get<{ id: string }>(
+  return http.get(
     '*/api/users/:id/roles',
-    async (info: Parameters<HttpResponseResolver<{ id: string }>>[0]) => {
+    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -695,14 +682,12 @@ export const getGetApiUsersIdRolesMockHandler = (
 export const getPostApiUsersIdRolesMockHandler = (
   overrideResponse?:
     | UserRoleResponseDto
-    | ((
-        info: Parameters<HttpResponseResolver<{ id: string }, AssignUserRoleRequestDto>>[0],
-      ) => Promise<UserRoleResponseDto> | UserRoleResponseDto),
+    | ((info: Parameters<Parameters<typeof http.post>[1]>[0]) => Promise<UserRoleResponseDto> | UserRoleResponseDto),
   options?: RequestHandlerOptions,
 ) => {
-  return http.post<{ id: string }, AssignUserRoleRequestDto>(
+  return http.post(
     '*/api/users/:id/roles',
-    async (info: Parameters<HttpResponseResolver<{ id: string }, AssignUserRoleRequestDto>>[0]) => {
+    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -719,14 +704,12 @@ export const getPostApiUsersIdRolesMockHandler = (
 export const getPostApiUsersIdRolesExpireMockHandler = (
   overrideResponse?:
     | UserRoleResponseDto
-    | ((
-        info: Parameters<HttpResponseResolver<{ id: string }, ExpireUserRoleRequestDto>>[0],
-      ) => Promise<UserRoleResponseDto> | UserRoleResponseDto),
+    | ((info: Parameters<Parameters<typeof http.post>[1]>[0]) => Promise<UserRoleResponseDto> | UserRoleResponseDto),
   options?: RequestHandlerOptions,
 ) => {
-  return http.post<{ id: string }, ExpireUserRoleRequestDto>(
+  return http.post(
     '*/api/users/:id/roles/expire',
-    async (info: Parameters<HttpResponseResolver<{ id: string }, ExpireUserRoleRequestDto>>[0]) => {
+    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -741,12 +724,12 @@ export const getPostApiUsersIdRolesExpireMockHandler = (
 };
 
 export const getGetApiUsersIdPhotoMockHandler = (
-  overrideResponse?: Blob | ((info: Parameters<HttpResponseResolver<{ id: string }>>[0]) => Promise<Blob> | Blob),
+  overrideResponse?: Blob | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<Blob> | Blob),
   options?: RequestHandlerOptions,
 ) => {
-  return http.get<{ id: string }>(
+  return http.get(
     '*/api/users/:id/photo',
-    async (info: Parameters<HttpResponseResolver<{ id: string }>>[0]) => {
+    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
       const binaryBody =
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -761,15 +744,12 @@ export const getGetApiUsersIdPhotoMockHandler = (
 
 export const getPostApiUsersIdUploadPhotoMockHandler = (
   overrideResponse?:
-    | UserResponse
-    | ((
-        info: Parameters<HttpResponseResolver<{ id: string }, PostApiUsersIdUploadPhotoBody>>[0],
-      ) => Promise<UserResponse> | UserResponse),
+    UserResponse | ((info: Parameters<Parameters<typeof http.post>[1]>[0]) => Promise<UserResponse> | UserResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.post<{ id: string }, PostApiUsersIdUploadPhotoBody>(
+  return http.post(
     '*/api/users/:id/upload-photo',
-    async (info: Parameters<HttpResponseResolver<{ id: string }, PostApiUsersIdUploadPhotoBody>>[0]) => {
+    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'

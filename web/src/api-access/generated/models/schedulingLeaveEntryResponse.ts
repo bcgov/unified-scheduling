@@ -4,8 +4,8 @@
  * Unified.Api | v1
  * OpenAPI spec version: 1.0.0
  */
-
 import type { CalendarEventExceptionReasonCode } from './calendarEventExceptionReasonCode.ts';
+
 export interface SchedulingLeaveEntryResponse {
   /** @nullable */
   leaveSeriesId?: number | null;
@@ -15,6 +15,8 @@ export interface SchedulingLeaveEntryResponse {
   id?: number;
   /** @nullable */
   eventSeriesId?: number | null;
+  isException?: boolean;
+  exceptionReasonCodes?: CalendarEventExceptionReasonCode[];
   /** @nullable */
   eventTypeCode?: string | null;
   /** @nullable */
@@ -45,6 +47,4 @@ export interface SchedulingLeaveEntryResponse {
   /** @nullable */
   locationId?: number | null;
   userIds?: string[];
-  isException?: boolean;
-  exceptionReasonCodes?: CalendarEventExceptionReasonCode[];
 }

@@ -51,6 +51,12 @@ export const GetApiConfigResponse = zod.object({
           enabled: zod.boolean(),
         })
         .optional(),
+      DataMigration: zod
+        .object({
+          source: zod.string().nullish(),
+          enabled: zod.boolean().optional(),
+        })
+        .optional(),
       Leave: zod
         .object({
           source: zod.string().nullish(),
@@ -99,5 +105,6 @@ export const GetApiConfigResponse = zod.object({
       }),
     )
     .optional(),
+  emailDistributionAvailable: zod.boolean().optional(),
   defaultLunchMinutes: zod.int().optional(),
 });

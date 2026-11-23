@@ -4,8 +4,8 @@
  * Unified.Api | v1
  * OpenAPI spec version: 1.0.0
  */
-
 import type { CalendarEventExceptionReasonCode } from './calendarEventExceptionReasonCode.ts';
+
 export interface LoanOutEntryResponse {
   loanOutLocationId?: number;
   /** @nullable */
@@ -13,6 +13,8 @@ export interface LoanOutEntryResponse {
   id?: number;
   /** @nullable */
   eventSeriesId?: number | null;
+  isException?: boolean;
+  exceptionReasonCodes?: CalendarEventExceptionReasonCode[];
   /** @nullable */
   eventTypeCode?: string | null;
   /** @nullable */
@@ -43,6 +45,4 @@ export interface LoanOutEntryResponse {
   /** @nullable */
   locationId?: number | null;
   userIds?: string[];
-  isException?: boolean;
-  exceptionReasonCodes?: CalendarEventExceptionReasonCode[];
 }
