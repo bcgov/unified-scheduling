@@ -118,8 +118,24 @@ the frontend service address, for example `http://web:8080/unified-scheduling/` 
 and base path to match the deployment). HTTP is supported in every environment. Playwright forwards the
 authenticated session cookie to this configured origin, so HTTP targets must be trusted internal services.
 
-For local Docker Compose development, `ScheduleDistributionFrontendBaseUrl` defaults to
-`http://web:8080/`, which is the frontend service address reachable from the API container.
+Local Docker startup automatically configures schedule PDF rendering for the selected frontend mode:
+
+| Command | PDF frontend base URL |
+| --- | --- |
+| `./manage start` | `http://web:8080/` |
+| `./manage debug` | `http://web:8080/` |
+| `./manage start-proxy` | `http://web:8080/sheriff-scheduling/` |
+| `./manage debug-proxy` | `http://web:8080/sheriff-scheduling/` |
+
+Playwright appends `calendar?...` to the configured base URL and connects directly to the internal
+`web:8080` service in both modes, bypassing the external Nginx proxy. Switching modes selects the
+appropriate default without editing `.env`.
+
+An explicit, non-empty `ScheduleDistributionFrontendBaseUrl` in `.env` or the environment overrides
+the mode-specific default. It must be reachable from the API container and include the appropriate
+frontend base path. An explicit override remains in effect when switching modes; remove it to use
+the automatic defaults.
+
 Running the API directly in the Development environment continues to use
 `http://localhost:8080/` from `appsettings.Development.json`.
 
@@ -169,7 +185,8 @@ To switch, invoke any startup command above; add `-d` to detach. Keep the same
 `COMPOSE_PROJECT_NAME` to reuse the API, database, and volumes. Switching removes
 the optional proxy and recreates Vite when its frontend mode changes, keeping
 its normal name (`unified-scheduling-web-1` by default). The API is also recreated
-to apply or remove the Hangfire dashboard prefix. Existing temporary names
+to apply or remove the Hangfire dashboard prefix and update the PDF frontend URL. Compose recreates
+the API only when its effective configuration or image changes. Existing temporary names
 are repaired on the next startup. Repeated starts reuse unchanged Vite/API/database
 containers. Use the default service list or include `web` for frontend switching.
 `./manage stop` includes the proxy and preserves volumes; `down`/`rm` delete volumes.
@@ -211,8 +228,39 @@ In both proxy modes, check nested routes, frontend hot reload, photo uploads and
 prefixed image GETs with an authorized user, and login/logout redirects. In both
 debug modes, verify backend hot reload and debugger attachment. After switching,
 check container names, port 8080 ownership, an unchanged database container ID,
-and persisted data. For schedule PDF rendering through the proxy, set
-`ScheduleDistributionFrontendBaseUrl=http://web:8080/sheriff-scheduling/`.
+and persisted data. Schedule PDF rendering uses the mode-specific internal frontend URL automatically.
+
+### Schedule PDF regression checks
+
+Run from `docker/` with no explicit `ScheduleDistributionFrontendBaseUrl` override to check all four
+startup commands, repeated starts, and direct -> proxy -> direct switching. Each iteration prints the
+API container ID and its applied PDF frontend URL. Repeated startup with unchanged configuration
+should retain the API container ID; switching frontend modes should recreate the API.
+
+```bash
+for mode in start debug start-proxy debug-proxy debug-proxy start start; do
+  ./manage "$mode" -d
+  docker compose -p "${COMPOSE_PROJECT_NAME:-unified-scheduling}" -f docker-compose.yaml ps -q api
+  docker compose -p "${COMPOSE_PROJECT_NAME:-unified-scheduling}" -f docker-compose.yaml \
+    exec -T api printenv ScheduleDistribution__FrontendBaseUrl
+done
+```
+
+To inspect the resolved Compose value before startup:
+
+```bash
+docker compose -f docker-compose.yaml config | grep 'ScheduleDistribution__FrontendBaseUrl:'
+./manage proxy config | grep 'ScheduleDistribution__FrontendBaseUrl:'
+```
+
+Repeat the configuration checks with an explicit `ScheduleDistributionFrontendBaseUrl` in `.env`
+or the environment and confirm both resolve to that override.
+
+For each frontend mode, sign in at its browser URL, open Calendar's Schedule or Assignments view,
+and use **Distribute Schedule** to send to a test recipient through the existing CHES configuration.
+Confirm the attached PDF renders successfully. The API should request `http://web:8080/calendar?...`
+in direct mode and `http://web:8080/sheriff-scheduling/calendar?...` in proxy mode. Repeat after
+switching back to direct mode. Browser printing alone does not exercise server-side Playwright.
 
 # Dev Container
 

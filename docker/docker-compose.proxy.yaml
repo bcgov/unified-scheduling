@@ -3,6 +3,7 @@ services:
   api:
     environment:
       Hangfire__DashboardPrefixPath: /sheriff-scheduling
+      ScheduleDistribution__FrontendBaseUrl: ${ScheduleDistributionFrontendBaseUrl:-http://web:8080/sheriff-scheduling/}
 
   web:
     environment:
