@@ -6,13 +6,18 @@ const preserveExpiryPreviewNullability = defineTransformer((spec) => {
 
   // Keep the client contract aligned with the nullable properties on UserTrainingExpiryDateRequest.
   for (const parameter of parameters) {
-    if ('$ref' in parameter || parameter.in !== 'query' || !['UserId', 'AllDay'].includes(parameter.name)) {
+    if (
+      '$ref' in parameter ||
+      parameter.in !== 'query' ||
+      !['UserId', 'AllDay'].includes(parameter.name) ||
+      !('schema' in parameter)
+    ) {
       continue;
     }
 
     const schema = parameter.schema;
-    if (schema && !('$ref' in schema) && typeof schema.type === 'string') {
-      schema.type = [schema.type, 'null'];
+    if (schema && typeof schema === 'object' && !('$ref' in schema) && typeof schema.type === 'string') {
+      parameter.schema = { ...schema, type: [schema.type, 'null'] };
     }
   }
 
@@ -77,7 +82,7 @@ export default defineConfig({
           properties: {
             '/firstName/': () => faker.person.firstName(),
             '/lastName/': () => faker.person.lastName(),
-            '/email/': () => faker.internet.email(),
+            '/^email$/': () => faker.internet.email(),
           },
         },
       },
