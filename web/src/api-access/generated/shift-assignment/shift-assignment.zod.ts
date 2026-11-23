@@ -32,7 +32,6 @@ export const PostApiSchedulingShiftAssignmentsOptionsResponse = zod.object({
         assignedUserIds: zod.array(zod.uuid()).optional(),
         startAtUtc: zod.iso.datetime({ offset: true }).nullish(),
         eventId: zod.int().optional(),
-        isException: zod.boolean().optional(),
         assignmentLinks: zod
           .array(
             zod.object({
@@ -49,6 +48,8 @@ export const PostApiSchedulingShiftAssignmentsOptionsResponse = zod.object({
           .optional(),
         id: zod.int().optional(),
         eventSeriesId: zod.int().nullish(),
+        isException: zod.boolean().optional(),
+        exceptionReasonCodes: zod.array(zod.enum(['DateTimeChanged', 'IsAway'])).optional(),
         eventTypeCode: zod.string().nullish(),
         statusTypeCode: zod.string().nullish(),
         cancelledAt: zod.iso.datetime({ offset: true }).nullish(),

@@ -4,7 +4,6 @@
  * Unified.Api | v1
  * OpenAPI spec version: 1.0.0
  */
-
 import type { CalendarEventExceptionReasonCode } from './calendarEventExceptionReasonCode.ts';
 
 export interface SchedulingCalendarEventResponse {

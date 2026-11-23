@@ -66,10 +66,7 @@ export const PostApiTrainingUserTrainingsBody = zod.strictObject({
   trainingId: zod.int(),
   awardedOn: zod.iso.datetime({ offset: true }),
   endingOn: zod.iso.datetime({ offset: true }),
-  allDay: zod
-    .boolean()
-    .nullish()
-    .describe('When omitted, creates are all-day and updates preserve the existing classification.'),
+  allDay: zod.boolean().nullish(),
   expiryDate: zod.iso.datetime({ offset: true }).nullish(),
   notes: zod.string().nullish(),
 });
@@ -100,10 +97,7 @@ export const PutApiTrainingUserTrainingsIdBody = zod.strictObject({
   trainingId: zod.int(),
   awardedOn: zod.iso.datetime({ offset: true }),
   endingOn: zod.iso.datetime({ offset: true }),
-  allDay: zod
-    .boolean()
-    .nullish()
-    .describe('When omitted, creates are all-day and updates preserve the existing classification.'),
+  allDay: zod.boolean().nullish(),
   expiryDate: zod.iso.datetime({ offset: true }).nullish(),
   notes: zod.string().nullish(),
 });

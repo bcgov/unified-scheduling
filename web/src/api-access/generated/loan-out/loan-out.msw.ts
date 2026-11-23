@@ -9,6 +9,7 @@ import { faker } from '@faker-js/faker';
 import { HttpResponse, http } from 'msw';
 import type { RequestHandlerOptions } from 'msw';
 
+import { CalendarEventExceptionReasonCode } from '../models';
 import type { LoanOutEntryResponse, LoanOutSeriesResponse } from '../models';
 
 export const getGetApiSchedulingLoanOutUsersUserIdEntriesResponseMock = (): LoanOutEntryResponse[] =>
@@ -18,6 +19,11 @@ export const getGetApiSchedulingLoanOutUsersUserIdEntriesResponseMock = (): Loan
       loanOutSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -44,6 +50,11 @@ export const getGetApiSchedulingLoanOutUsersUserIdEntriesResponseMock = (): Loan
       loanOutSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -70,6 +81,11 @@ export const getGetApiSchedulingLoanOutUsersUserIdEntriesResponseMock = (): Loan
       loanOutSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -517,6 +533,11 @@ export const getGetApiSchedulingLoanOutEntriesIdResponseMock = (
       loanOutSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -544,6 +565,11 @@ export const getGetApiSchedulingLoanOutEntriesIdResponseMock = (
       loanOutSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -571,6 +597,11 @@ export const getGetApiSchedulingLoanOutEntriesIdResponseMock = (
       loanOutSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -604,6 +635,11 @@ export const getPutApiSchedulingLoanOutEntriesIdResponseMock = (
       loanOutSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -631,6 +667,11 @@ export const getPutApiSchedulingLoanOutEntriesIdResponseMock = (
       loanOutSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -658,6 +699,11 @@ export const getPutApiSchedulingLoanOutEntriesIdResponseMock = (
       loanOutSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -691,6 +737,11 @@ export const getPostApiSchedulingLoanOutEntriesResponseMock = (
       loanOutSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -718,6 +769,11 @@ export const getPostApiSchedulingLoanOutEntriesResponseMock = (
       loanOutSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -745,6 +801,11 @@ export const getPostApiSchedulingLoanOutEntriesResponseMock = (
       loanOutSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),

@@ -25,12 +25,12 @@ export interface AssignmentEntryResponse {
   /** @nullable */
   startAtUtc?: string | null;
   eventId?: number;
-  isException?: boolean;
-  exceptionReasonCodes?: CalendarEventExceptionReasonCode[];
   assignmentLinks?: ShiftAssignmentEntryResponse[];
   id?: number;
   /** @nullable */
   eventSeriesId?: number | null;
+  isException?: boolean;
+  exceptionReasonCodes?: CalendarEventExceptionReasonCode[];
   /** @nullable */
   eventTypeCode?: string | null;
   /** @nullable */

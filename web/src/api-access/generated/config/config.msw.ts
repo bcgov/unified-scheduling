@@ -7,7 +7,7 @@
 import { faker } from '@faker-js/faker';
 
 import { HttpResponse, http } from 'msw';
-import type { HttpResponseResolver, RequestHandlerOptions } from 'msw';
+import type { RequestHandlerOptions } from 'msw';
 
 import type { BrandHeaderOptions, ConfigResponse } from '../models';
 
@@ -122,6 +122,13 @@ export const getGetApiConfigResponseMock = (
             },
             undefined,
           ]),
+          DataMigration: faker.helpers.arrayElement([
+            {
+              source: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+              enabled: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+            },
+            undefined,
+          ]),
           Leave: faker.helpers.arrayElement([
             {
               source: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
@@ -172,6 +179,7 @@ export const getGetApiConfigResponseMock = (
         },
         undefined,
       ]),
+      emailDistributionAvailable: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       defaultLunchMinutes: faker.helpers.arrayElement([faker.number.int(), undefined]),
       ...overrideResponse,
     },
@@ -222,6 +230,13 @@ export const getGetApiConfigResponseMock = (
             },
             undefined,
           ]),
+          DataMigration: faker.helpers.arrayElement([
+            {
+              source: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+              enabled: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+            },
+            undefined,
+          ]),
           Leave: faker.helpers.arrayElement([
             {
               source: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
@@ -272,6 +287,7 @@ export const getGetApiConfigResponseMock = (
         },
         undefined,
       ]),
+      emailDistributionAvailable: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       defaultLunchMinutes: faker.helpers.arrayElement([faker.number.int(), undefined]),
       ...overrideResponse,
     },
@@ -322,6 +338,13 @@ export const getGetApiConfigResponseMock = (
             },
             undefined,
           ]),
+          DataMigration: faker.helpers.arrayElement([
+            {
+              source: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+              enabled: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+            },
+            undefined,
+          ]),
           Leave: faker.helpers.arrayElement([
             {
               source: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
@@ -372,6 +395,7 @@ export const getGetApiConfigResponseMock = (
         },
         undefined,
       ]),
+      emailDistributionAvailable: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       defaultLunchMinutes: faker.helpers.arrayElement([faker.number.int(), undefined]),
       ...overrideResponse,
     },
@@ -379,12 +403,13 @@ export const getGetApiConfigResponseMock = (
 
 export const getGetApiConfigMockHandler = (
   overrideResponse?:
-    ConfigResponse | ((info: Parameters<HttpResponseResolver>[0]) => Promise<ConfigResponse> | ConfigResponse),
+    | ConfigResponse
+    | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<ConfigResponse> | ConfigResponse),
   options?: RequestHandlerOptions,
 ) => {
   return http.get(
     '*/api/config',
-    async (info: Parameters<HttpResponseResolver>[0]) => {
+    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'

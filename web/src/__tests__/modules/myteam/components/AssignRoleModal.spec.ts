@@ -67,7 +67,7 @@ describe('AssignRoleModal', () => {
 
     server.use(
       getPostApiUsersIdRolesMockHandler(async (info) => {
-        requestBody = { ...(await info.request.json()) };
+        requestBody = (await info.request.json()) as Record<string, unknown>;
         return getPostApiUsersIdRolesResponseMock({
           roleId: 7,
           userId: 'test-user-id',
