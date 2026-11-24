@@ -25,6 +25,17 @@ public static class CalendarEventGuards
             throw new InvalidOperationException("Calendar entry must be in draft status to allow edits.");
     }
 
+    public static void EnsureEntryIsUpdatable(Event eventEntity, bool allowActive)
+    {
+        if (!allowActive)
+            EnsureEntryIsDraft(eventEntity);
+        else if (
+            eventEntity.StatusTypeCode
+            is not (CalendarEventStatusTypeCodes.Draft or CalendarEventStatusTypeCodes.Active)
+        )
+            throw new InvalidOperationException("Only draft and published calendar entries can be edited.");
+    }
+
     public static void EnsureEventSeriesType(EventSeries eventSeries, string expectedEventTypeCode)
     {
         if (eventSeries.EventTypeCode != expectedEventTypeCode)

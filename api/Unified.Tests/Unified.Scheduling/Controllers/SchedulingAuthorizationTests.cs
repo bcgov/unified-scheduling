@@ -160,21 +160,7 @@ public sealed class SchedulingAuthorizationTests
         bool expectedAuthorized
     )
     {
-        var configuration = new ConfigurationBuilder()
-            .AddInMemoryCollection(
-                new Dictionary<string, string?>
-                {
-                    ["FeatureFlags:Calendar:Enabled"] = "true",
-                    ["FeatureFlags:Scheduling:Enabled"] = "true",
-                    ["FeatureFlags:Stats:Enabled"] = "true",
-                }
-            )
-            .Build();
-        var services = new ServiceCollection();
-        services.AddLogging();
-        services.AddAuthorizationModule();
-        services.AddSchedulingModule(configuration);
-        await using var serviceProvider = services.BuildServiceProvider();
+        await using var serviceProvider = CreateAuthorizationProvider();
         var authorizationService = serviceProvider.GetRequiredService<IAuthorizationService>();
         var claims = new List<Claim>();
         if (actionPermission is not null)
@@ -195,6 +181,48 @@ public sealed class SchedulingAuthorizationTests
 
         var result = await authorizationService.AuthorizeAsync(user, resource: null, policy);
         Assert.Equal(expectedAuthorized, result.Succeeded);
+    }
+
+    [Theory]
+    [InlineData(SchedulingPolicies.ShiftsEdit, nameof(Permissions.ShiftsEdit))]
+    [InlineData(SchedulingPolicies.AssignmentsEdit, nameof(Permissions.AssignmentsEdit))]
+    public async Task OccurrenceEditPolicy_AcceptsEditPermissionAndRejectsPublishPermissionAlone(
+        string policy,
+        string editPermission
+    )
+    {
+        await using var provider = CreateAuthorizationProvider();
+        var authorization = provider.GetRequiredService<IAuthorizationService>();
+        var editor = new ClaimsPrincipal(
+            new ClaimsIdentity([new Claim(UnifiedClaimTypes.Permission, editPermission)], "Test")
+        );
+        var publisher = new ClaimsPrincipal(
+            new ClaimsIdentity([new Claim(UnifiedClaimTypes.Permission, nameof(Permissions.SchedulePublish))], "Test")
+        );
+
+        Assert.True((await authorization.AuthorizeAsync(editor, resource: null, policy)).Succeeded);
+        await Assert.ThrowsAsync<global::Unified.Infrastructure.ErrorHandling.ForbiddenException>(() =>
+            authorization.AuthorizeAsync(publisher, resource: null, policy)
+        );
+    }
+
+    private static ServiceProvider CreateAuthorizationProvider()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(
+                new Dictionary<string, string?>
+                {
+                    ["FeatureFlags:Calendar:Enabled"] = "true",
+                    ["FeatureFlags:Scheduling:Enabled"] = "true",
+                    ["FeatureFlags:Stats:Enabled"] = "true",
+                }
+            )
+            .Build();
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddAuthorizationModule();
+        services.AddSchedulingModule(configuration);
+        return services.BuildServiceProvider();
     }
 
     private static SchedulingCalendarController CreateCalendarController(

@@ -25,9 +25,36 @@ once in `Unified.Calendar` and each domain plugs in only the parts that are genu
 | `CalendarEventGuards` | Shared invariant checks: `EnsureEventType`, `EnsureEventSeriesType`, `EnsureEntryIsDraft`, `EnsureSeriesIsDraft` |
 | `CalendarEventServiceCollectionExtensions` | `AddCalendarEventEntry<...>()` / `AddCalendarEventSeries<...>()` DI registration helpers |
 
-`CalendarEventEntryService.UpdateEvent`/`IsDeletable` already call `CalendarEventGuards` internally
-(type + draft-status checks, and "recurring occurrences must be deleted through their series" for
-entries linked to a series), so domains don't need to repeat those checks around every call.
+`CalendarEventEntryService.UpdateEventAsync` and `IsDeletable` check event type, ownership and lifecycle
+eligibility through `CalendarEventGuards`. Entry updates and permanent deletion require draft status by
+default. A domain can explicitly allow published occurrence updates through the entry update service.
+Series updates and permanent deletion continue to use their draft-only guards.
+
+## Published scheduling corrections
+
+Open an individual shift or assignment and use **Edit**. This works for standalone records and for
+one occurrence in a recurring series. Published shifts require `ShiftsEdit`, and published
+assignments require `AssignmentsEdit`. `SchedulePublish` authorizes publication. To replace
+links or change the employees on a link through a published edit, the user also needs `AssignmentsAssign`.
+
+Saving applies the correction to the published schedule immediately and preserves the occurrence's
+identity and series membership. If a date correction would make a linked shift incompatible, remove
+the link explicitly before saving. Published occurrences are protected from permanent deletion.
+Use **Cancel** with the applicable cancellation permission to remove one from the official schedule.
+
+Omitting the links leaves all relationships intact. A replacement updates allocated links and keeps
+historical links to cancelled events and links with no allocated employees. Removing an allocated
+series-backed link suppresses that occurrence's link. Re-adding it restores the allocation on the
+same link and recalculates the occurrence's link exception.
+
+Editing an entire published series remains unavailable. When a date range is published, some
+occurrences may be published while their parent series remains draft. The existing draft series
+workflow can propagate some fields to published children that still inherit those fields. A direct
+occurrence correction affects only the selected occurrence and its explicitly edited relationships.
+
+Subsequent prints and distributions from the employee and assignment scheduling views include the
+corrected published records. Saving does not distribute the schedule. Previously sent PDFs retain
+their original contents.
 
 ## Using it in a domain module
 
@@ -87,6 +114,6 @@ entries linked to a series), so domains don't need to repeat those checks around
 
 - **Leave** (`Unified.Leave.Services.SchedulingLeaveService` / `LeaveServiceProvider`) uses the
   full pipeline for Create, Update, and Delete.
-- **Shift** (`Unified.Scheduling.Services.ShiftService` / `ShiftServiceProvider` /
-  `Unified.Scheduling.Factories.ShiftEventFactory`) uses the pipeline for Create and Delete only;
-  Update stays bespoke for the reasons above.
+- **Scheduling** (`ShiftEntryService` and `AssignmentEntryService`) uses the entry pipeline for
+  create, update and delete eligibility. Scheduling checks authorization and scheduling-specific
+  invariants inside the occurrence update transaction.

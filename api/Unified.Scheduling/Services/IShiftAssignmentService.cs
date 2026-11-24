@@ -22,13 +22,15 @@ public interface IShiftAssignmentService
     Task ReplaceShiftEntryLinksAsync(
         int shiftEntryId,
         IReadOnlyCollection<AssignmentEntryLinkRequest>? links,
-        CancellationToken cancellationToken = default
+        CancellationToken cancellationToken = default,
+        bool preserveInactiveLinks = false
     );
 
     Task ReplaceAssignmentEntryLinksAsync(
         int assignmentEntryId,
         IReadOnlyCollection<ShiftEntryLinkRequest>? links,
-        CancellationToken cancellationToken = default
+        CancellationToken cancellationToken = default,
+        bool preserveInactiveLinks = false
     );
 
     Task<ShiftAssignmentSeriesLinkResponse> LinkShiftSeriesAsync(

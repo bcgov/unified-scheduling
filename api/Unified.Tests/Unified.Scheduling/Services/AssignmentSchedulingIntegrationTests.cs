@@ -30,6 +30,7 @@ using Unified.Db.Models.Lookup;
 using Unified.Db.Models.Scheduling;
 using Unified.Db.Models.Stats;
 using Unified.Db.Models.UserManagement;
+using Unified.Infrastructure.ErrorHandling;
 using Unified.Leave.Mappings;
 using Unified.Leave.Services;
 using Unified.LoanOut.Constants;
@@ -1725,23 +1726,34 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task ExpireAssignmentEntryAsync_UsesInjectedTimeProvider()
+    public async Task ExpireAssignmentEntryAsync_WhenPublished_SetsCancellationMetadataAndPreventsEdit()
     {
-        var assignment = await _assignmentService.CreateAssignmentEntryAsync(
-            CreateAssignmentEntryRequest(),
-            TestContext.Current.CancellationToken
-        );
+        var ct = TestContext.Current.CancellationToken;
+        var assignment = await _assignmentService.CreateAssignmentEntryAsync(CreateAssignmentEntryRequest(), ct);
+        await _assignmentService.PublishAssignmentEntryAsync(assignment.Id, ct);
 
         var result = await _assignmentService.ExpireAssignmentEntryAsync(
             assignment.Id,
             new ExpireShiftRequest { CancellationReason = "done" },
             UserA,
-            TestContext.Current.CancellationToken
+            ct
         );
 
         Assert.NotNull(result);
         Assert.Equal(FixedNow, result.CancelledAt);
         Assert.Equal(UserA, result.CancelledByUserId);
+        Assert.Equal("done", result.CancellationReason);
+        Assert.Equal(CalendarEventStatusTypeCodes.Cancelled, result.StatusTypeCode);
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            _assignmentService.UpdateAssignmentEntryAsync(
+                assignment.Id,
+                CreateAssignmentEntryUpdateRequest() with
+                {
+                    ConcurrencyToken = result.ConcurrencyToken,
+                },
+                ct
+            )
+        );
     }
 
     [Fact]
@@ -2443,6 +2455,380 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
 
         Assert.Equal(At(9), updated!.StartAtUtc);
         Assert.Empty(await _db.CalendarConflictOverrides.ToListAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task UpdateShiftEntryAsync_WhenProposedPublishedShiftConflicts_RollsBack(bool overlaps)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var existing = await _shiftService.CreateShiftEntryAsync(
+            CreateShiftEntryRequest(At(16), overlaps ? AtDay(2, 10) : At(17)),
+            ct
+        );
+        await _shiftService.PublishShiftEntryAsync(existing.Id, ct);
+        var shift = await _shiftService.CreateShiftEntryAsync(
+            CreateShiftEntryRequest(AtDay(3, 16), AtDay(3, 17)) with
+            {
+                UserIds = [UserB],
+            },
+            ct
+        );
+        var published = (await _shiftService.PublishShiftEntryAsync(shift.Id, ct))!;
+        var update = CreateShiftEntryRequest(overlaps ? AtDay(2, 8) : At(18), overlaps ? AtDay(2, 12) : At(19)) with
+        {
+            ConcurrencyToken = published.ConcurrencyToken,
+            ConflictOverrides =
+            [
+                new CalendarConflictAcknowledgement
+                {
+                    FirstSourceModule = SchedulingConstants.SourceModule,
+                    FirstEventId = existing.EventId.ToString(),
+                    SecondSourceModule = SchedulingConstants.SourceModule,
+                    SecondEventId = shift.EventId.ToString(),
+                    ResourceId = UserA,
+                    Note = "Cannot override shift validation",
+                },
+            ],
+        };
+
+        var error = await Assert.ThrowsAsync<ConflictValidationException>(() =>
+            _shiftService.UpdateShiftEntryAsync(shift.Id, update, ct, conflictOverrideActorId: UserA)
+        );
+        Assert.Contains(overlaps ? "overlaps" : "shift start date", Assert.Single(error.Errors["UserIds"]));
+
+        _db.ChangeTracker.Clear();
+        var stored = (await _shiftService.GetShiftEntryByIdAsync(shift.Id, ct))!;
+        Assert.Equal(CalendarEventStatusTypeCodes.Active, stored.StatusTypeCode);
+        Assert.Equal(published.StartAtUtc, stored.StartAtUtc);
+        Assert.Equal([UserB], stored.UserIds);
+        Assert.Empty(await _db.CalendarConflictOverrides.ToListAsync(ct));
+    }
+
+    [Fact]
+    public async Task UpdateShiftEntryAsync_WhenPublishedLinksCreateDuplicateAssignment_RollsBack()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var (shift, first, _) = await CreateLinkedEntriesAsync();
+        var second = await _assignmentService.CreateAssignmentEntryAsync(
+            CreateAssignmentEntryRequest(At(13), At(14)),
+            ct
+        );
+        var published = (await _shiftService.PublishShiftEntryAsync(shift.Id, ct))!;
+        await _assignmentService.PublishAssignmentEntryAsync(second.Id, ct);
+
+        await Assert.ThrowsAsync<InformationValidationException>(() =>
+            _shiftService.UpdateShiftEntryAsync(
+                shift.Id,
+                CreateShiftEntryRequest(At(9), At(17)) with
+                {
+                    Title = "Corrected shift",
+                    ConcurrencyToken = published.ConcurrencyToken,
+                    AssignmentEntryLinks =
+                    [
+                        new AssignmentEntryLinkRequest { AssignmentEntryId = first.Id, AssignedUserIds = [UserA] },
+                        new AssignmentEntryLinkRequest { AssignmentEntryId = second.Id, AssignedUserIds = [UserA] },
+                    ],
+                },
+                ct,
+                canAssign: true
+            )
+        );
+
+        _db.ChangeTracker.Clear();
+        var stored = (await _shiftService.GetShiftEntryByIdAsync(shift.Id, ct))!;
+        Assert.Equal(published.Title, stored.Title);
+        Assert.Equal(first.Id, Assert.Single(stored.AssignmentLinks).AssignmentEntryId);
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task UpdateAssignmentEntryAsync_UniquenessOnlyCountsAllocationsOnNonCancelledShifts(
+        bool cancelOriginalShift,
+        bool editOriginalAssignment
+    )
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var (originalShift, originalAssignment, originalLink) = await CreateLinkedEntriesAsync();
+        await _shiftService.PublishShiftEntryAsync(originalShift.Id, ct);
+        if (cancelOriginalShift)
+            await _shiftService.ExpireShiftEntryAsync(originalShift.Id, new ExpireShiftRequest(), UserA, ct);
+        var secondShift = await _shiftService.CreateShiftEntryAsync(CreateShiftEntryRequest(At(13), At(17)), ct);
+        var secondAssignment = await _assignmentService.CreateAssignmentEntryAsync(
+            CreateAssignmentEntryRequest(At(13), At(14)),
+            ct
+        );
+        if (editOriginalAssignment)
+            await _linkService.LinkShiftEntryAsync(
+                new ShiftAssignmentEntryRequest
+                {
+                    ShiftEntryId = secondShift.Id,
+                    AssignmentEntryId = secondAssignment.Id,
+                    UserIds = [UserA],
+                },
+                ct
+            );
+
+        _db.ChangeTracker.Clear();
+        var target = (
+            await _assignmentService.GetAssignmentEntryByIdAsync(
+                editOriginalAssignment ? originalAssignment.Id : secondAssignment.Id,
+                ct
+            )
+        )!;
+        var request = (
+            editOriginalAssignment
+                ? CreateAssignmentEntryUpdateRequest()
+                : CreateAssignmentEntryUpdateRequest(At(13), At(14))
+        ) with
+        {
+            Title = "Corrected assignment",
+            ConcurrencyToken = target.ConcurrencyToken,
+            ShiftEntryLinks = editOriginalAssignment
+                ? null
+                : [new ShiftEntryLinkRequest { ShiftEntryId = secondShift.Id, AssignedUserIds = [UserA] }],
+        };
+        if (cancelOriginalShift)
+            Assert.NotNull(await _assignmentService.UpdateAssignmentEntryAsync(target.Id, request, ct));
+        else
+            await Assert.ThrowsAsync<InformationValidationException>(() =>
+                _assignmentService.UpdateAssignmentEntryAsync(target.Id, request, ct)
+            );
+
+        _db.ChangeTracker.Clear();
+        var historical = await _db
+            .ShiftAssignmentEntries.Include(link => link.Users)
+            .SingleAsync(link => link.Id == originalLink.Id, ct);
+        Assert.Equal([UserA], historical.Users.Select(user => user.UserId));
+        var stored = (await _assignmentService.GetAssignmentEntryByIdAsync(target.Id, ct))!;
+        Assert.Equal(cancelOriginalShift ? request.Title : target.Title, stored.Title);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task UpdatePublishedEntryAsync_ReplacesAllocationsWithoutRemovingHistoryOrSeriesSuppression(
+        bool shiftSide
+    )
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var (shiftSeries, assignmentSeries) = await CreateLinkedSeriesAsync();
+        var shiftId = Assert.Single(shiftSeries.ShiftEntryIds);
+        var assignmentId = Assert.Single(assignmentSeries.AssignmentEntryIds);
+        var activeLink = await _db.ShiftAssignmentEntries.AsNoTracking().SingleAsync(ct);
+        await _shiftService.PublishShiftEntryAsync(shiftId, ct);
+
+        var historicalShiftId = shiftSide
+            ? shiftId
+            : (await _shiftService.CreateShiftEntryAsync(CreateShiftEntryRequest(At(9), At(17)), ct)).Id;
+        var historicalAssignmentId = shiftSide
+            ? (
+                await _assignmentService.CreateAssignmentEntryAsync(
+                    CreateAssignmentEntryRequest(At(13), At(14)) with
+                    {
+                        AssignmentDefinitionId = 101,
+                    },
+                    ct
+                )
+            ).Id
+            : assignmentId;
+        var history = await _linkService.LinkShiftEntryAsync(
+            new ShiftAssignmentEntryRequest
+            {
+                ShiftEntryId = historicalShiftId,
+                AssignmentEntryId = historicalAssignmentId,
+                UserIds = [UserA],
+            },
+            ct
+        );
+        if (shiftSide)
+            await _assignmentService.ExpireAssignmentEntryAsync(
+                historicalAssignmentId,
+                new ExpireShiftRequest(),
+                UserA,
+                ct
+            );
+        else
+            await _shiftService.ExpireShiftEntryAsync(historicalShiftId, new ExpireShiftRequest(), UserA, ct);
+
+        await SaveLinksAsync(null);
+        await AssertLinksAsync(suppressed: false);
+        await SaveLinksAsync([]);
+        await AssertLinksAsync(suppressed: true);
+        await SaveLinksAsync([]);
+        await AssertLinksAsync(suppressed: true);
+        await SaveLinksAsync([shiftSide ? assignmentId : shiftId]);
+        await AssertLinksAsync(suppressed: false);
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            SaveLinksAsync([shiftSide ? historicalAssignmentId : historicalShiftId])
+        );
+        await AssertLinksAsync(suppressed: false);
+
+        async Task SaveLinksAsync(int[]? relatedIds)
+        {
+            _db.ChangeTracker.Clear();
+            if (shiftSide)
+            {
+                var shift = (await _shiftService.GetShiftEntryByIdAsync(shiftId, ct))!;
+                await _shiftService.UpdateShiftEntryAsync(
+                    shiftId,
+                    CreateShiftEntryRequest(At(9), At(17)) with
+                    {
+                        ConcurrencyToken = shift.ConcurrencyToken,
+                        AssignmentEntryLinks = relatedIds
+                            ?.Select(id => new AssignmentEntryLinkRequest
+                            {
+                                AssignmentEntryId = id,
+                                AssignedUserIds = [UserA],
+                            })
+                            .ToArray(),
+                    },
+                    ct,
+                    canAssign: relatedIds is not null
+                );
+            }
+            else
+            {
+                var assignment = (await _assignmentService.GetAssignmentEntryByIdAsync(assignmentId, ct))!;
+                await _assignmentService.UpdateAssignmentEntryAsync(
+                    assignmentId,
+                    CreateAssignmentEntryUpdateRequest() with
+                    {
+                        ConcurrencyToken = assignment.ConcurrencyToken,
+                        ShiftEntryLinks = relatedIds
+                            ?.Select(id => new ShiftEntryLinkRequest { ShiftEntryId = id, AssignedUserIds = [UserA] })
+                            .ToArray(),
+                    },
+                    ct,
+                    canAssign: relatedIds is not null
+                );
+            }
+        }
+
+        async Task AssertLinksAsync(bool suppressed)
+        {
+            var links = await _db.ShiftAssignmentEntries.AsNoTracking().Include(link => link.Users).ToListAsync(ct);
+            Assert.Equal(2, links.Count);
+            var stored = Assert.Single(links, link => link.Id == activeLink.Id);
+            Assert.Equal(activeLink.ShiftAssignmentSeriesLinkId, stored.ShiftAssignmentSeriesLinkId);
+            Assert.Equal(suppressed, stored.IsException);
+            Guid[] expectedUsers = suppressed ? [] : [UserA];
+            Assert.Equal(expectedUsers, stored.Users.Select(user => user.UserId));
+            Assert.Equal(
+                [UserA],
+                Assert.Single(links, link => link.Id == history.Id).Users.Select(user => user.UserId)
+            );
+        }
+    }
+
+    [Fact]
+    public async Task UpdateAssignmentEntryAsync_WhenPublishedLinkIntroducesConflict_RequiresAcknowledgement()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var shift = await _shiftService.CreateShiftEntryAsync(
+            CreateShiftEntryRequest(At(8), At(12)) with
+            {
+                UserIds = [UserA, UserB],
+            },
+            ct
+        );
+        await _assignmentService.CreateAssignmentEntryAsync(
+            CreateAssignmentEntryRequest(At(8), At(10)) with
+            {
+                ShiftEntryLinks = [new ShiftEntryLinkRequest { ShiftEntryId = shift.Id, AssignedUserIds = [UserA] }],
+            },
+            ct
+        );
+        var second = await _assignmentService.CreateAssignmentEntryAsync(
+            CreateAssignmentEntryRequest(At(9), At(11)) with
+            {
+                AssignmentDefinitionId = 101,
+                ShiftEntryLinks = [new ShiftEntryLinkRequest { ShiftEntryId = shift.Id, AssignedUserIds = [UserB] }],
+            },
+            ct
+        );
+        await _shiftService.PublishShiftEntryAsync(shift.Id, ct);
+        var published = (await _assignmentService.GetAssignmentEntryByIdAsync(second.Id, ct))!;
+        var update = CreateAssignmentEntryUpdateRequest(At(9), At(11)) with
+        {
+            AssignmentDefinitionId = 101,
+            ConcurrencyToken = published.ConcurrencyToken,
+            ShiftEntryLinks = [new ShiftEntryLinkRequest { ShiftEntryId = shift.Id, AssignedUserIds = [UserA] }],
+        };
+
+        var rejection = await Assert.ThrowsAsync<CalendarConflictException>(() =>
+            _assignmentService.UpdateAssignmentEntryAsync(second.Id, update, ct, canAssign: true)
+        );
+        var conflict = Assert.Single(rejection.Conflicts);
+        Assert.Equal(UserA, conflict.ResourceId);
+        _db.ChangeTracker.Clear();
+        var stored = (await _assignmentService.GetAssignmentEntryByIdAsync(second.Id, ct))!;
+        Assert.Equal([UserB], stored.AssignedUserIds);
+        Assert.Empty(await _db.CalendarConflictOverrides.ToListAsync(ct));
+
+        var acknowledged = update with
+        {
+            ConflictOverrides =
+            [
+                new CalendarConflictAcknowledgement
+                {
+                    FirstSourceModule = conflict.Entry.SourceModule,
+                    FirstEventId = conflict.Entry.EventId,
+                    SecondSourceModule = conflict.Overlaps.SourceModule,
+                    SecondEventId = conflict.Overlaps.EventId,
+                    ResourceId = conflict.ResourceId,
+                    Note = "Approved correction",
+                },
+            ],
+        };
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            _assignmentService.UpdateAssignmentEntryAsync(second.Id, acknowledged, ct, canAssign: true)
+        );
+        _db.ChangeTracker.Clear();
+
+        var corrected = (
+            await _assignmentService.UpdateAssignmentEntryAsync(
+                second.Id,
+                acknowledged,
+                ct,
+                conflictOverrideActorId: UserA,
+                canAssign: true
+            )
+        )!;
+        Assert.Equal([UserA], corrected.AssignedUserIds);
+        Assert.Equal(second.EventId, corrected.EventId);
+        Assert.Equal(CalendarEventStatusTypeCodes.Active, corrected.StatusTypeCode);
+        Assert.Null((await _db.CalendarConflictOverrides.AsNoTracking().SingleAsync(ct)).InvalidatedOn);
+
+        var retained = (
+            await _assignmentService.UpdateAssignmentEntryAsync(
+                second.Id,
+                update with
+                {
+                    Title = "New title",
+                    ShiftEntryLinks = null,
+                    ConcurrencyToken = corrected.ConcurrencyToken,
+                },
+                ct
+            )
+        )!;
+        Assert.Null((await _db.CalendarConflictOverrides.AsNoTracking().SingleAsync(ct)).InvalidatedOn);
+
+        await _assignmentService.UpdateAssignmentEntryAsync(
+            second.Id,
+            update with
+            {
+                ShiftEntryLinks = [],
+                ConcurrencyToken = retained.ConcurrencyToken,
+            },
+            ct,
+            canAssign: true
+        );
+        Assert.NotNull((await _db.CalendarConflictOverrides.AsNoTracking().SingleAsync(ct)).InvalidatedOn);
     }
 
     [Fact]
@@ -5900,13 +6286,17 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
         Assert.Equal(assignment.Id, link.AssignmentEntryId);
     }
 
-    [Fact]
-    public async Task CreateAssignmentEntryAsync_WithShiftEntryLinks_CreatesLinksAtomically()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task CreateAssignmentEntryAsync_WithShiftEntryLinks_CreatesDraftAndLinksAtomically(bool publishShift)
     {
         var shift = await _shiftService.CreateShiftEntryAsync(
             CreateShiftEntryRequest(At(9), At(17)),
             TestContext.Current.CancellationToken
         );
+        if (publishShift)
+            await _shiftService.PublishShiftEntryAsync(shift.Id, TestContext.Current.CancellationToken);
 
         var assignment = await _assignmentService.CreateAssignmentEntryAsync(
             CreateAssignmentEntryRequest() with
@@ -5919,6 +6309,7 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
         var link = Assert.Single(await _db.ShiftAssignmentEntries.ToListAsync(TestContext.Current.CancellationToken));
         Assert.Equal(shift.Id, link.ShiftEntryId);
         Assert.Equal(assignment.Id, link.AssignmentEntryId);
+        Assert.Equal(CalendarEventStatusTypeCodes.Draft, assignment.StatusTypeCode);
     }
 
     [Fact]
@@ -5944,18 +6335,27 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
         Assert.Equal("America/Vancouver", participant.TimeZoneId);
     }
 
-    [Fact]
-    public async Task UpdateAssignmentEntryAsync_WithNullShiftEntryLinks_PreservesExistingRelationships()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task UpdateAssignmentEntryAsync_WithNullShiftEntryLinks_PreservesExistingRelationships(bool publish)
     {
-        var (shift, assignment, _) = await CreateLinkedEntriesAsync();
+        var ct = TestContext.Current.CancellationToken;
+        var (shift, assignment, originalLink) = await CreateLinkedEntriesAsync();
+        if (publish)
+        {
+            await _shiftService.PublishShiftEntryAsync(shift.Id, ct);
+            assignment = (await _assignmentService.GetAssignmentEntryByIdAsync(assignment.Id, ct))!;
+        }
 
         var updated = await _assignmentService.UpdateAssignmentEntryAsync(
             assignment.Id,
             CreateAssignmentEntryUpdateRequest() with
             {
                 Title = "Updated assignment",
+                ConcurrencyToken = assignment.ConcurrencyToken,
             },
-            TestContext.Current.CancellationToken
+            ct
         );
 
         var link = Assert.Single(
@@ -5964,8 +6364,126 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
                 .ToListAsync(TestContext.Current.CancellationToken)
         );
         Assert.Equal("Updated assignment", updated!.Title);
+        Assert.Equal(assignment.Id, updated.Id);
+        Assert.Equal(assignment.EventId, updated.EventId);
+        Assert.Equal(assignment.StatusTypeCode, updated.StatusTypeCode);
+        Assert.Equal(originalLink.Id, link.Id);
         Assert.Equal(shift.Id, link.ShiftEntryId);
         Assert.Equal([UserA], link.Users.Select(user => user.UserId));
+    }
+
+    [Fact]
+    public async Task UpdateAssignmentEntryAsync_WhenPublished_RequiresPermissionToReplaceLinks()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var (shift, assignment, _) = await CreateLinkedEntriesAsync();
+        await _shiftService.PublishShiftEntryAsync(shift.Id, ct);
+        var published = (await _assignmentService.GetAssignmentEntryByIdAsync(assignment.Id, ct))!;
+        var update = CreateAssignmentEntryUpdateRequest() with
+        {
+            Title = "Corrected assignment",
+            ConcurrencyToken = published.ConcurrencyToken,
+        };
+
+        await Assert.ThrowsAsync<ForbiddenException>(() =>
+            _assignmentService.UpdateAssignmentEntryAsync(published.Id, update with { ShiftEntryLinks = [] }, ct)
+        );
+
+        var stored = (await _assignmentService.GetAssignmentEntryByIdAsync(published.Id, ct))!;
+        Assert.Equal(published.Title, stored.Title);
+        Assert.Equal([shift.Id], stored.LinkedShiftEntryIds);
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            _assignmentService.DeleteAssignmentEntryAsync(published.Id, ct)
+        );
+    }
+
+    [Fact]
+    public async Task UpdateAssignmentEntryAsync_WhenPublishedDateChanges_RequiresExplicitRemovalOfInvalidLinks()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var (shift, assignment, _) = await CreateLinkedEntriesAsync();
+        await _shiftService.PublishShiftEntryAsync(shift.Id, ct);
+        var published = (await _assignmentService.GetAssignmentEntryByIdAsync(assignment.Id, ct))!;
+        var update = CreateAssignmentEntryUpdateRequest(AtDay(2, 10), AtDay(2, 12)) with
+        {
+            ConcurrencyToken = published.ConcurrencyToken,
+        };
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            _assignmentService.UpdateAssignmentEntryAsync(published.Id, update, ct)
+        );
+        var stored = (await _assignmentService.GetAssignmentEntryByIdAsync(published.Id, ct))!;
+        Assert.Equal(published.StartAtUtc, stored.StartAtUtc);
+        Assert.Equal([shift.Id], stored.LinkedShiftEntryIds);
+
+        var corrected = await _assignmentService.UpdateAssignmentEntryAsync(
+            published.Id,
+            update with
+            {
+                ShiftEntryLinks = [],
+            },
+            ct,
+            canAssign: true
+        );
+
+        Assert.NotNull(corrected);
+        Assert.Equal(CalendarEventStatusTypeCodes.Active, corrected.StatusTypeCode);
+        Assert.Equal(update.StartAtUtc, corrected.StartAtUtc);
+        Assert.Empty(corrected.LinkedShiftEntryIds);
+    }
+
+    [Fact]
+    public async Task UpdateAssignmentEntryAsync_WhenPublishedOccurrenceChanges_PreservesDraftParentAndSibling()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var series = await _assignmentService.CreateAssignmentSeriesAsync(
+            CreateAssignmentSeriesRequest() with
+            {
+                RecurrenceRule = "FREQ=DAILY;COUNT=2",
+            },
+            ct
+        );
+        var entries = (
+            await _assignmentService.GetAssignmentEntriesAsync(
+                new AssignmentEntryQueryParams { AssignmentSeriesId = series.Id },
+                ct
+            )
+        )
+            .OrderBy(entry => entry.StartAtUtc)
+            .ToArray();
+        var published = (await _assignmentService.PublishAssignmentEntryAsync(entries[0].Id, ct))!;
+
+        var updated = await _assignmentService.UpdateAssignmentEntryAsync(
+            published.Id,
+            CreateAssignmentEntryUpdateRequest(At(11), At(13)) with
+            {
+                Title = "Corrected occurrence",
+                ConcurrencyToken = published.ConcurrencyToken,
+            },
+            ct
+        );
+
+        Assert.NotNull(updated);
+        Assert.Equal(published.EventId, updated.EventId);
+        Assert.Equal(series.Id, updated.AssignmentSeriesId);
+        Assert.Equal(
+            series.EventSeriesId,
+            await _db
+                .Events.Where(item => item.Id == updated.EventId)
+                .Select(item => item.EventSeriesId)
+                .SingleAsync(ct)
+        );
+        Assert.Equal(published.SeriesStartAtUtc, updated.SeriesStartAtUtc);
+        Assert.Equal(CalendarEventStatusTypeCodes.Active, updated.StatusTypeCode);
+        Assert.True(updated.IsException);
+        var sibling = (await _assignmentService.GetAssignmentEntryByIdAsync(entries[1].Id, ct))!;
+        Assert.Equal(entries[1].StartAtUtc, sibling.StartAtUtc);
+        Assert.Equal(entries[1].Title, sibling.Title);
+        Assert.Equal(CalendarEventStatusTypeCodes.Draft, sibling.StatusTypeCode);
+        Assert.Equal(
+            CalendarEventStatusTypeCodes.Draft,
+            (await _assignmentService.GetAssignmentSeriesByIdAsync(series.Id, ct))!.StatusTypeCode
+        );
     }
 
     [Fact]
@@ -6102,28 +6620,32 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
         Assert.Equal(existingShift.Id, storedLink.ShiftEntryId);
     }
 
-    [Fact]
-    public async Task UpdateAssignmentEntryAsync_WithNullShiftEntryLinks_PreservesZeroUserRelationship()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task UpdateAssignmentEntryAsync_PreservesHiddenZeroUserRelationship(bool publish)
     {
-        var shift = await _shiftService.CreateShiftEntryAsync(
-            CreateShiftEntryRequest(At(9), At(17)),
-            TestContext.Current.CancellationToken
-        );
-        var assignment = await _assignmentService.CreateAssignmentEntryAsync(
-            CreateAssignmentEntryRequest(),
-            TestContext.Current.CancellationToken
-        );
+        var ct = TestContext.Current.CancellationToken;
+        var shift = await _shiftService.CreateShiftEntryAsync(CreateShiftEntryRequest(At(9), At(17)), ct);
+        var assignment = await _assignmentService.CreateAssignmentEntryAsync(CreateAssignmentEntryRequest(), ct);
         var zeroUserLink = new ShiftAssignmentEntry { ShiftEntryId = shift.Id, AssignmentEntryId = assignment.Id };
         _db.ShiftAssignmentEntries.Add(zeroUserLink);
-        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        await _db.SaveChangesAsync(ct);
+        if (publish)
+            await _assignmentService.PublishAssignmentEntryAsync(assignment.Id, ct);
+        var current = (await _assignmentService.GetAssignmentEntryByIdAsync(assignment.Id, ct))!;
+        Assert.Empty(current.AssignmentLinks);
 
         await _assignmentService.UpdateAssignmentEntryAsync(
             assignment.Id,
             CreateAssignmentEntryUpdateRequest() with
             {
                 Notes = "Unrelated change",
+                ShiftEntryLinks = publish ? [] : null,
+                ConcurrencyToken = current.ConcurrencyToken,
             },
-            TestContext.Current.CancellationToken
+            ct,
+            canAssign: publish
         );
 
         var storedLink = Assert.Single(
