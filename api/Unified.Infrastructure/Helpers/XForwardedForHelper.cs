@@ -212,6 +212,63 @@ namespace Unified.Infrastructure.Helpers
             return "/";
         }
 
+        /// <summary>
+        /// Resolves the public application base path for cookie scoping, e.g. <c>/sheriff-scheduling/</c>
+        /// becomes <c>/sheriff-scheduling</c>. Uses <c>X-Base-Href</c> (an explicit <c>/</c> is honoured),
+        /// then <c>PathBase</c>; never the request path, so a request URL cannot change the scope.
+        /// </summary>
+        public static string ResolveCookiePath(HttpRequest request)
+        {
+            if (request == null)
+                return "/";
+
+            if (request.Headers.TryGetValue("X-Base-Href", out var baseHrefValues))
+                return ToCookiePath(baseHrefValues.ToString());
+
+            return ToCookiePath(request.PathBase.Value);
+        }
+
+        /// <summary>
+        /// Converts a base href to a cookie path, e.g. <c>/sheriff-scheduling/</c> becomes
+        /// <c>/sheriff-scheduling</c>. The root, or any base href containing characters that are not
+        /// safe in a <c>Set-Cookie</c> path attribute, becomes <c>/</c>.
+        /// </summary>
+        public static string ToCookiePath(string? baseHref)
+        {
+            baseHref = NormalizeBaseHref(baseHref ?? string.Empty);
+            if (!IsSafeCookieBaseHref(baseHref))
+                return "/";
+
+            var trimmed = baseHref.TrimEnd('/');
+            return string.IsNullOrEmpty(trimmed) ? "/" : trimmed;
+        }
+
+        private static bool IsSafeCookieBaseHref(string baseHref)
+        {
+            const int maxCookiePathLength = 256;
+            if (baseHref == "/")
+                return true;
+
+            if (baseHref.Length > maxCookiePathLength || !baseHref.StartsWith('/') || !baseHref.EndsWith('/'))
+                return false;
+
+            // Allow only unreserved URI characters in non-empty, non-dot segments so the value
+            // cannot inject cookie attributes (';'), split headers, or escape the base path.
+            foreach (var segment in baseHref[1..^1].Split('/'))
+            {
+                if (segment.Length == 0 || segment is "." or "..")
+                    return false;
+
+                foreach (var character in segment)
+                {
+                    if (!char.IsAsciiLetterOrDigit(character) && character is not ('-' or '.' or '_' or '~'))
+                        return false;
+                }
+            }
+
+            return true;
+        }
+
         public static string NormalizeBaseHref(string baseHref)
         {
             var trimmed = baseHref?.Trim();

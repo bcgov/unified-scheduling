@@ -224,6 +224,78 @@ public static class AuthenticationServiceCollectionExtension
         }
     }
 
+    // Claims read from the cookie principal: UnifiedClaimsTransformer and cookie validation
+    // (NameIdentifier/sub), UserAccountResolutionService (IDIR GUID, NameIdentifier, idir_username),
+    // and the audit actor / user-info display name (Name). Application claims are added per request.
+    private static readonly string[] RetainedClaimTypes =
+    [
+        ClaimTypes.NameIdentifier,
+        "sub",
+        IdirIdClaimType,
+        "idir_user_guid",
+        "idir_username",
+        ClaimTypes.Name,
+        "name",
+    ];
+
+    /// <summary>
+    /// Rebuilds the Keycloak principal with only the claims the application reads, to keep the
+    /// authentication cookie small. Claims are recreated without per-claim issuer metadata.
+    /// </summary>
+    private static ClaimsPrincipal? CreateCompactPrincipal(ClaimsPrincipal? principal)
+    {
+        if (principal?.Identity is not ClaimsIdentity identity)
+            return principal;
+
+        var retainedTypes = new HashSet<string>(RetainedClaimTypes, StringComparer.Ordinal) { identity.NameClaimType };
+        var claims = principal
+            .Claims.Where(claim => retainedTypes.Contains(claim.Type) && !string.IsNullOrEmpty(claim.Value))
+            .Select(claim => (claim.Type, claim.Value))
+            .Distinct()
+            .Select(claim => new Claim(claim.Type, claim.Value));
+
+        return new ClaimsPrincipal(
+            new ClaimsIdentity(claims, identity.AuthenticationType, identity.NameClaimType, identity.RoleClaimType)
+        );
+    }
+
+    /// <summary>
+    /// Development only: logs the authentication cookie size so ticket growth is visible.
+    /// Logs sizes only, never cookie, token, or claim values.
+    /// </summary>
+    private static Task LogAuthenticationCookieSize(CookieSigningInContext context)
+    {
+        if (context.Principal is null)
+            return Task.CompletedTask;
+
+        var ticket = new AuthenticationTicket(context.Principal, context.Properties, context.Scheme.Name);
+        var serializedBytes = TicketSerializer.Default.Serialize(ticket).Length;
+        var protectedLength = context.Options.TicketDataFormat.Protect(ticket).Length;
+
+        // Mirrors ChunkingCookieManager: one cookie when it fits, otherwise a "chunks-N" marker cookie
+        // plus N chunks sized after the attribute template.
+        var chunkSize = (context.Options.CookieManager as ChunkingCookieManager)?.ChunkSize;
+        var templateLength = context
+            .CookieOptions.CreateCookieHeader(context.Options.Cookie.Name ?? string.Empty, string.Empty)
+            .ToString()
+            .Length;
+        var cookieCount =
+            chunkSize is not int size || size > templateLength + protectedLength
+                ? 1
+                : 1 + (int)Math.Ceiling(protectedLength / (double)Math.Max(1, size - templateLength - 3));
+
+        context
+            .HttpContext.RequestServices.GetRequiredService<ILoggerFactory>()
+            .CreateLogger(nameof(AuthenticationServiceCollectionExtension))
+            .LogInformation(
+                "Authentication cookie size (Development): serialized ticket {SerializedTicketBytes} bytes, protected value {ProtectedValueLength} characters, estimated {CookieCount} cookie(s).",
+                serializedBytes,
+                protectedLength,
+                cookieCount
+            );
+        return Task.CompletedTask;
+    }
+
     public static IServiceCollection AddUnifiedAuthentication(
         this IServiceCollection services,
         IHostEnvironment env,
@@ -251,6 +323,8 @@ public static class AuthenticationServiceCollectionExtension
                 options.Cookie.HttpOnly = true;
                 options.Cookie.SameSite = SameSiteMode.None;
                 options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+                // Scope the cookie (and its chunks and sign-out deletes) to the public base path.
+                options.Cookie = new BaseHrefCookieBuilder(options.Cookie);
 
                 options.Events = new CookieAuthenticationEvents
                 {
@@ -261,6 +335,8 @@ public static class AuthenticationServiceCollectionExtension
                     },
                     OnValidatePrincipal = ctx => ValidateAndRefreshPrincipalAsync(ctx, keycloakOptions),
                 };
+                if (env.IsDevelopment())
+                    options.Events.OnSigningIn = LogAuthenticationCookieSize;
             })
             .AddOpenIdConnect(options =>
             {
@@ -276,9 +352,9 @@ public static class AuthenticationServiceCollectionExtension
                 options.CallbackPath = "/api/auth/signin-oidc";
                 options.SignedOutCallbackPath = "/api/auth/signout-callback-oidc";
 
-                // Set explicit cookie paths so nginx's proxy_cookie_path directive
-                options.CorrelationCookie.Path = "/";
-                options.NonceCookie.Path = "/";
+                // Scope the correlation and nonce cookies to the public base path, keeping their defaults.
+                options.CorrelationCookie = new BaseHrefCookieBuilder(options.CorrelationCookie);
+                options.NonceCookie = new BaseHrefCookieBuilder(options.NonceCookie);
 
                 // Disable Pushed Authorization Requests (PAR) so that kc_idp_hint
                 // is sent as a query parameter on the authorization URL rather than
@@ -302,6 +378,7 @@ public static class AuthenticationServiceCollectionExtension
                             )
                             .ToArray();
                         context.Properties.StoreTokens(retainedTokens);
+                        context.Principal = CreateCompactPrincipal(context.Principal);
                         return Task.CompletedTask;
                     },
                     OnRedirectToIdentityProvider = context =>
