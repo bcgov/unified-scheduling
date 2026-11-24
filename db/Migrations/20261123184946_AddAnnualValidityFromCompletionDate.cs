@@ -15,7 +15,8 @@ namespace Unified.Db.Migrations
                 table: "Trainings",
                 type: "boolean",
                 nullable: false,
-                defaultValue: false);
+                defaultValue: false
+            );
         }
 
         /// <inheritdoc />
@@ -23,7 +24,8 @@ namespace Unified.Db.Migrations
         {
             migrationBuilder.DropColumn(
                 name: "AnnualValidityFromCompletionDate",
-                table: "Trainings");
+                table: "Trainings"
+            );
         }
     }
 }
