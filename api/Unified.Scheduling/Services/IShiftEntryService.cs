@@ -20,7 +20,8 @@ public interface IShiftEntryService
         int id,
         ShiftEntryUpdateRequest request,
         CancellationToken cancellationToken = default,
-        Guid? conflictOverrideActorId = null
+        Guid? conflictOverrideActorId = null,
+        bool canAssign = false
     );
 
     Task<ShiftEntryResponse?> PublishShiftEntryAsync(int id, CancellationToken cancellationToken = default);

@@ -2551,8 +2551,8 @@ describe('CalendarSchedulingAssignmentModal', () => {
     );
     const shiftQuery = {
       LocationId: 12,
-      StartAtUtc: '2026-07-13T07:00:00Z',
-      EndAtUtc: '2026-07-14T07:00:00Z',
+      StartAtUtc: '2026-07-12T07:00:00Z',
+      EndAtUtc: '2026-07-15T07:00:00Z',
     };
     expect(getApiSchedulingShiftsEntries).toHaveBeenCalledWith(shiftQuery, { options: { immediate: false } });
     expect(getApiSchedulingShiftsSeries).toHaveBeenCalledWith(shiftQuery, { options: { immediate: false } });
@@ -2716,12 +2716,7 @@ describe('CalendarSchedulingAssignmentModal', () => {
 
     await flushPromises();
 
-    expect(document.body.textContent).not.toContain(
-      'This assignment has been published, and cannot be edited or deleted, only cancelled',
-    );
-    expect(document.body.textContent).toContain(
-      'This assignment is linked to a published shift. New links to published shifts cannot be added.',
-    );
+    expect(document.body.textContent).not.toContain('This assignment is published.');
     expect(Array.from(document.querySelectorAll('button')).some((button) => button.textContent === 'Edit')).toBe(true);
     expect(Array.from(document.querySelectorAll('button')).some((button) => button.textContent === 'Delete')).toBe(
       true,
@@ -2730,88 +2725,95 @@ describe('CalendarSchedulingAssignmentModal', () => {
     wrapper.unmount();
   });
 
-  it('blocks new assignment links to published shift entries', async () => {
-    const getAssignmentDefinitionsExecute = vi.fn().mockResolvedValue(undefined);
-    const getShiftSeriesExecute = vi.fn().mockResolvedValue(undefined);
-    const getShiftEntriesExecute = vi.fn().mockResolvedValue(undefined);
-    const getUsersExecute = vi.fn().mockResolvedValue(undefined);
+  it.each(['Active', 'Cancelled'])(
+    'applies occurrence link eligibility for %s shift entries',
+    async (statusTypeCode) => {
+      const getAssignmentDefinitionsExecute = vi.fn().mockResolvedValue(undefined);
+      const getShiftSeriesExecute = vi.fn().mockResolvedValue(undefined);
+      const getShiftEntriesExecute = vi.fn().mockResolvedValue(undefined);
+      const getUsersExecute = vi.fn().mockResolvedValue(undefined);
 
-    vi.doMock('@/api-access/generated/assignment-definition/assignment-definition', () => ({
-      getApiSchedulingAssignmentDefinitions: vi.fn().mockReturnValue({
-        data: { value: [] },
-        error: { value: null },
-        execute: getAssignmentDefinitionsExecute,
-      }),
-      postApiSchedulingAssignmentDefinitions: vi.fn(),
-    }));
-    vi.doMock('@/api-access/generated/shift/shift', () => ({
-      getApiSchedulingShiftsSeries: vi.fn().mockReturnValue({
-        data: { value: [] },
-        error: { value: null },
-        execute: getShiftSeriesExecute,
-      }),
-      getApiSchedulingShiftsEntries: vi.fn().mockReturnValue({
-        data: {
-          value: [
-            {
-              id: 42,
-              title: 'Published shift',
-              startAtUtc: '2026-07-13T16:00:00Z',
-              endAtUtc: '2026-07-14T00:00:00Z',
-              timeZoneId: 'America/Vancouver',
-              locationId: 12,
-              statusTypeCode: 'Active',
-              userIds: ['00000000-0000-0000-0000-000000000001'],
-            },
-          ],
+      vi.doMock('@/api-access/generated/assignment-definition/assignment-definition', () => ({
+        getApiSchedulingAssignmentDefinitions: vi.fn().mockReturnValue({
+          data: { value: [] },
+          error: { value: null },
+          execute: getAssignmentDefinitionsExecute,
+        }),
+        postApiSchedulingAssignmentDefinitions: vi.fn(),
+      }));
+      vi.doMock('@/api-access/generated/shift/shift', () => ({
+        getApiSchedulingShiftsSeries: vi.fn().mockReturnValue({
+          data: { value: [] },
+          error: { value: null },
+          execute: getShiftSeriesExecute,
+        }),
+        getApiSchedulingShiftsEntries: vi.fn().mockReturnValue({
+          data: {
+            value: [
+              {
+                id: 42,
+                title: 'Published shift',
+                startAtUtc: '2026-07-13T16:00:00Z',
+                endAtUtc: '2026-07-14T00:00:00Z',
+                timeZoneId: 'America/Vancouver',
+                locationId: 12,
+                statusTypeCode,
+                userIds: ['00000000-0000-0000-0000-000000000001'],
+              },
+            ],
+          },
+          error: { value: null },
+          execute: getShiftEntriesExecute,
+        }),
+      }));
+      vi.doMock('@/api-access/generated/users/users', () => ({
+        getApiUsers: vi.fn().mockReturnValue({
+          data: { value: [] },
+          error: { value: null },
+          execute: getUsersExecute,
+        }),
+      }));
+      vi.doMock('@/api-access/generated/assignment/assignment', () => ({
+        postApiSchedulingAssignmentsEntries: vi.fn(),
+        postApiSchedulingAssignmentsSeries: vi.fn(),
+      }));
+
+      const { default: CalendarSchedulingAssignmentModal } =
+        await import('@/modules/scheduling/CalendarSchedulingAssignmentModal.vue');
+
+      const app = await createTestApp({ loadConfig: false });
+      const locationsStore = useLocationsStore(app.pinia);
+      locationsStore.setSelectedLocationId(12);
+
+      const wrapper = mount(CalendarSchedulingAssignmentModal, {
+        props: {
+          initialDate: '2026-07-13',
+          timeZone: 'America/Vancouver',
         },
-        error: { value: null },
-        execute: getShiftEntriesExecute,
-      }),
-    }));
-    vi.doMock('@/api-access/generated/users/users', () => ({
-      getApiUsers: vi.fn().mockReturnValue({
-        data: { value: [] },
-        error: { value: null },
-        execute: getUsersExecute,
-      }),
-    }));
-    vi.doMock('@/api-access/generated/assignment/assignment', () => ({
-      postApiSchedulingAssignmentsEntries: vi.fn(),
-      postApiSchedulingAssignmentsSeries: vi.fn(),
-    }));
+        global: { plugins: app.mountPlugins },
+        attachTo: document.body,
+      });
 
-    const { default: CalendarSchedulingAssignmentModal } =
-      await import('@/modules/scheduling/CalendarSchedulingAssignmentModal.vue');
+      await flushPromises();
 
-    const app = await createTestApp({ loadConfig: false });
-    const locationsStore = useLocationsStore(app.pinia);
-    locationsStore.setSelectedLocationId(12);
+      const vm = wrapper.vm as unknown as {
+        formData: { shiftEntryLinks?: Array<{ shiftEntryId: number }> };
+        updateSelectedShiftEntry: (value: number) => void;
+      };
 
-    const wrapper = mount(CalendarSchedulingAssignmentModal, {
-      props: {
-        initialDate: '2026-07-13',
-        timeZone: 'America/Vancouver',
-      },
-      global: { plugins: app.mountPlugins },
-      attachTo: document.body,
-    });
+      vm.updateSelectedShiftEntry(42);
+      await flushPromises();
 
-    await flushPromises();
+      if (statusTypeCode === 'Active') {
+        expect(vm.formData.shiftEntryLinks).toEqual([
+          { shiftEntryId: 42, assignedUserIds: ['00000000-0000-0000-0000-000000000001'] },
+        ]);
+      } else {
+        expect(vm.formData.shiftEntryLinks).toEqual([]);
+        expect(document.body.textContent).toContain('Select a shift that starts or ends on the assignment date.');
+      }
 
-    const vm = wrapper.vm as unknown as {
-      formData: { shiftEntryLinks?: Array<{ shiftEntryId: number }> };
-      updateSelectedShiftEntry: (value: number) => void;
-    };
-
-    vm.updateSelectedShiftEntry(42);
-    await flushPromises();
-
-    expect(vm.formData.shiftEntryLinks).toEqual([]);
-    expect(document.body.textContent).toContain(
-      'Shift already published. To link a new assignment, please create a new shift.',
-    );
-
-    wrapper.unmount();
-  });
+      wrapper.unmount();
+    },
+  );
 });

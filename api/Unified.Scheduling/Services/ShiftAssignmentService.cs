@@ -94,21 +94,25 @@ public sealed class ShiftAssignmentService(
     public async Task ReplaceShiftEntryLinksAsync(
         int shiftEntryId,
         IReadOnlyCollection<AssignmentEntryLinkRequest>? links,
-        CancellationToken cancellationToken = default
+        CancellationToken cancellationToken = default,
+        bool preserveInactiveLinks = false
     )
     {
         if (links is null)
             return;
 
         EnsureAmbientTransaction();
-        var existingLinks = await db
+        var existing = db
             .ShiftAssignmentEntries.Include(link => link.Users)
-            .Where(link => link.ShiftEntryId == shiftEntryId)
-            .ToListAsync(cancellationToken);
+            .Where(link => link.ShiftEntryId == shiftEntryId);
+        if (preserveInactiveLinks)
+            existing = existing.Include(link => link.AssignmentEntry).ThenInclude(entry => entry!.Event);
+        var existingLinks = await existing.ToListAsync(cancellationToken);
         await ReplaceEntryLinksAsync(
             existingLinks,
             links.Select(link => new EntryLinkReplacement(shiftEntryId, link.AssignmentEntryId, link.AssignedUserIds)),
-            cancellationToken
+            cancellationToken,
+            preserveInactiveLinks ? ShiftAssignmentGuards.HasAllocationOnAssignment : null
         );
         await InvalidateAssignmentEntryOverridesAsync(
             existingLinks.Select(link => link.AssignmentEntryId).Concat(links.Select(link => link.AssignmentEntryId)),
@@ -119,21 +123,25 @@ public sealed class ShiftAssignmentService(
     public async Task ReplaceAssignmentEntryLinksAsync(
         int assignmentEntryId,
         IReadOnlyCollection<ShiftEntryLinkRequest>? links,
-        CancellationToken cancellationToken = default
+        CancellationToken cancellationToken = default,
+        bool preserveInactiveLinks = false
     )
     {
         if (links is null)
             return;
 
         EnsureAmbientTransaction();
-        var existingLinks = await db
+        var existing = db
             .ShiftAssignmentEntries.Include(link => link.Users)
-            .Where(link => link.AssignmentEntryId == assignmentEntryId)
-            .ToListAsync(cancellationToken);
+            .Where(link => link.AssignmentEntryId == assignmentEntryId);
+        if (preserveInactiveLinks)
+            existing = existing.Include(link => link.ShiftEntry).ThenInclude(entry => entry!.Event);
+        var existingLinks = await existing.ToListAsync(cancellationToken);
         await ReplaceEntryLinksAsync(
             existingLinks,
             links.Select(link => new EntryLinkReplacement(link.ShiftEntryId, assignmentEntryId, link.AssignedUserIds)),
-            cancellationToken
+            cancellationToken,
+            preserveInactiveLinks ? ShiftAssignmentGuards.HasAllocationOnShift : null
         );
         await InvalidateAssignmentEntryOverridesAsync([assignmentEntryId], cancellationToken);
     }
@@ -527,22 +535,24 @@ public sealed class ShiftAssignmentService(
     private async Task ReplaceEntryLinksAsync(
         IReadOnlyCollection<ShiftAssignmentEntry> existingLinks,
         IEnumerable<EntryLinkReplacement> requestedLinks,
-        CancellationToken cancellationToken
+        CancellationToken cancellationToken,
+        Func<ShiftAssignmentEntry, bool>? hasAllocation = null
     )
     {
         var replacements = requestedLinks.ToList();
         EnsureDistinctEntryLinks(replacements);
         var requestedIds = replacements.Select(link => (link.ShiftEntryId, link.AssignmentEntryId)).ToHashSet();
         var removedLinks = existingLinks
-            .Where(link => !requestedIds.Contains((link.ShiftEntryId, link.AssignmentEntryId)))
+            .Where(link =>
+                !requestedIds.Contains((link.ShiftEntryId, link.AssignmentEntryId))
+                && (hasAllocation is null || hasAllocation(link))
+            )
             .ToList();
         SuppressSeriesBackedLinks(removedLinks.Where(link => link.ShiftAssignmentSeriesLinkId.HasValue).ToList());
         RemoveLinks(removedLinks.Where(link => !link.ShiftAssignmentSeriesLinkId.HasValue).ToList());
         await db.SaveChangesAsync(cancellationToken);
 
-        var existingById = existingLinks
-            .Except(removedLinks)
-            .ToDictionary(link => (link.ShiftEntryId, link.AssignmentEntryId));
+        var existingById = existingLinks.ToDictionary(link => (link.ShiftEntryId, link.AssignmentEntryId));
         foreach (var requestedLink in replacements)
         {
             existingById.TryGetValue(

@@ -62,8 +62,9 @@ public sealed class ShiftService(IShiftEntryService entryService, IShiftSeriesSe
         int id,
         ShiftEntryUpdateRequest request,
         CancellationToken cancellationToken = default,
-        Guid? conflictOverrideActorId = null
-    ) => entryService.UpdateShiftEntryAsync(id, request, cancellationToken, conflictOverrideActorId);
+        Guid? conflictOverrideActorId = null,
+        bool canAssign = false
+    ) => entryService.UpdateShiftEntryAsync(id, request, cancellationToken, conflictOverrideActorId, canAssign);
 
     public Task<ShiftEntryResponse?> PublishShiftEntryAsync(int id, CancellationToken cancellationToken = default) =>
         entryService.PublishShiftEntryAsync(id, cancellationToken);

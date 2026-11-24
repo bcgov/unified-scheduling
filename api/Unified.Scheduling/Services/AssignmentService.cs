@@ -62,8 +62,9 @@ public sealed class AssignmentService(IAssignmentEntryService entryService, IAss
         int id,
         AssignmentEntryUpdateRequest request,
         CancellationToken cancellationToken = default,
-        Guid? conflictOverrideActorId = null
-    ) => entryService.UpdateAssignmentEntryAsync(id, request, cancellationToken, conflictOverrideActorId);
+        Guid? conflictOverrideActorId = null,
+        bool canAssign = false
+    ) => entryService.UpdateAssignmentEntryAsync(id, request, cancellationToken, conflictOverrideActorId, canAssign);
 
     public Task<AssignmentEntryResponse?> PublishAssignmentEntryAsync(
         int id,
