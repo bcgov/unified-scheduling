@@ -13,6 +13,9 @@ public class Training : BaseCodeTypeEntity
     // Signifies how long the training is valid for in days. If null, always valid.
     public int? ValidityDays { get; set; }
 
+    // When enabled, annual validity ends on the completion-date anniversary instead of end of calendar year.
+    public bool AnnualValidityFromCompletionDate { get; set; }
+
     public int? AdvanceNoticeDays { get; set; }
 
     public bool Rotating { get; set; }

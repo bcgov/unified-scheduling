@@ -467,6 +467,27 @@ public class UserTrainingServiceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task CalculateExpiryDate_WhenAnnualValidityUsesCompletionDate_PreservesLocalCompletionDay()
+    {
+        var training = await _db.Trainings.SingleAsync(
+            item => item.Id == TrainingWithValidityId,
+            TestContext.Current.CancellationToken
+        );
+        training.AnnualValidityFromCompletionDate = true;
+        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var request = new UserTrainingExpiryDateRequest
+        {
+            TrainingId = TrainingWithValidityId,
+            AwardedOn = new DateTimeOffset(2026, 10, 17, 0, 0, 0, TimeSpan.FromHours(14)),
+        };
+
+        var result = await _service.CalculateExpiryDateAsync(request, TestContext.Current.CancellationToken);
+
+        Assert.Equal(new DateTimeOffset(2027, 10, 17, 23, 59, 59, TimeSpan.FromHours(14)), result.ExpiryDate);
+    }
+
+    [Fact]
     public async Task CalculateExpiryDate_WhenTrainingHasNoValidityDays_ReturnsNull()
     {
         var request = new UserTrainingExpiryDateRequest

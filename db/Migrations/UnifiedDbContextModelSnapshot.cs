@@ -3270,6 +3270,9 @@ namespace Unified.Db.Migrations
                     b.Property<int?>("AdvanceNoticeDays")
                         .HasColumnType("integer");
 
+                    b.Property<bool>("AnnualValidityFromCompletionDate")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("Code")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -3755,6 +3758,9 @@ namespace Unified.Db.Migrations
 
                     b.Property<string>("EmployeeNumber")
                         .HasColumnType("text");
+
+                    b.Property<bool>("Excused")
+                        .HasColumnType("boolean");
 
                     b.Property<string>("FirstName")
                         .IsRequired()

@@ -11,6 +11,7 @@ import UaBtn from '@/shared/components/UaBtn.vue';
 import UaCard from '@/shared/components/UaCard.vue';
 import UaDataTable from '@/shared/components/UaDataTable.vue';
 import UaPlaceholderPage from '@/shared/components/UaPlaceholderPage.vue';
+import UaAutocomplete from '@/shared/components/UaAutocomplete.vue';
 import UaSelect from '@/shared/components/UaSelect.vue';
 import UaTextField from '@/shared/components/UaTextField.vue';
 import { useTrainingLookup } from '@/modules/training/trainingLookupApi';
@@ -28,6 +29,7 @@ const selectedUserIdFilter = ref<string[]>([]);
 const selectedRegionIdFilter = ref<number[]>([]);
 const selectedLocationIdFilter = ref<number[]>([]);
 const selectedTrainingCodeFilter = ref<string[]>([]);
+const mandatoryTrainingsOnly = ref(true);
 const startDateFilter = ref<string>('');
 const endDateFilter = ref<string>('');
 const selectedReportTypeFilter = ref<string>('training');
@@ -119,14 +121,19 @@ const userOptions = computed<SelectOption[]>(() => {
 });
 
 const trainingOptions = computed<SelectOption[]>(() => {
-  return buildSelectOptions(trainingLookupData.value ?? [], (training) => {
-    const code = training.code?.trim() ?? '';
+  const trainings = trainingLookupData.value ?? [];
 
-    return {
-      code,
-      description: code,
-    };
-  });
+  return buildSelectOptions(
+    mandatoryTrainingsOnly.value ? trainings.filter((training) => training.mandatory) : trainings,
+    (training) => {
+      const code = training.code?.trim() ?? '';
+
+      return {
+        code,
+        description: code,
+      };
+    },
+  );
 });
 
 const headers = [
@@ -275,10 +282,12 @@ function formatDateCellValue(value: unknown): unknown {
       <div class="filters-grid">
         <div class="filter-field">
           <label class="filter-label" for="user-training-report-user-name">User</label>
-          <UaSelect
+          <UaAutocomplete
             id="user-training-report-user-name"
             v-model="selectedUserIdFilter"
             :items="userOptions"
+            client-filter
+            browser-autocomplete="off"
             label=""
             multiple
             chips
@@ -289,23 +298,44 @@ function formatDateCellValue(value: unknown): unknown {
 
         <div class="filter-field">
           <label class="filter-label" for="user-training-report-training-code">Training Types</label>
-          <UaSelect
+          <UaAutocomplete
             id="user-training-report-training-code"
             v-model="selectedTrainingCodeFilter"
             :items="trainingOptions"
+            client-filter
+            browser-autocomplete="off"
             multiple
             chips
             closable-chips
             clearable
-          />
+          >
+            <template #prepend-inner>
+              <UaBtn
+                class="mandatory-only-toggle"
+                type="button"
+                size="small"
+                :variant="mandatoryTrainingsOnly ? 'flat' : 'outlined'"
+                :color="mandatoryTrainingsOnly ? 'primary' : undefined"
+                :aria-pressed="mandatoryTrainingsOnly"
+                aria-label="Show mandatory trainings only"
+                @pointerdown.stop
+                @mousedown.stop.prevent
+                @click.stop="mandatoryTrainingsOnly = !mandatoryTrainingsOnly"
+              >
+                Mandatory
+              </UaBtn>
+            </template>
+          </UaAutocomplete>
         </div>
 
         <div class="filter-field">
           <label class="filter-label" for="user-training-report-region">Region</label>
-          <UaSelect
+          <UaAutocomplete
             id="user-training-report-region"
             v-model="selectedRegionIdFilter"
             :items="regionOptions"
+            client-filter
+            browser-autocomplete="off"
             label=""
             multiple
             chips
@@ -316,10 +346,12 @@ function formatDateCellValue(value: unknown): unknown {
 
         <div class="filter-field">
           <label class="filter-label" for="user-training-report-location">Location</label>
-          <UaSelect
+          <UaAutocomplete
             id="user-training-report-location"
             v-model="selectedLocationIdFilter"
             :items="locationOptions"
+            client-filter
+            browser-autocomplete="off"
             label=""
             multiple
             chips
@@ -354,10 +386,12 @@ function formatDateCellValue(value: unknown): unknown {
 
         <div v-if="reportTypeOptions.length > 1" class="filter-field">
           <label class="filter-label" for="user-training-report-report-type">Report Type</label>
-          <UaSelect
+          <UaAutocomplete
             id="user-training-report-report-type"
             v-model="selectedReportTypeFilter"
             :items="reportTypeOptions"
+            client-filter
+            browser-autocomplete="off"
             label=""
             clearable
           />
@@ -409,6 +443,18 @@ function formatDateCellValue(value: unknown): unknown {
   font-size: var(--ua-font-size-lg);
   font-weight: var(--ua-font-weight-bold);
   color: var(--ua-text-primary);
+}
+
+.mandatory-only-toggle {
+  min-width: 0;
+  height: 28px;
+  min-height: 28px;
+  padding-inline: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1rem;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .report-table-actions {

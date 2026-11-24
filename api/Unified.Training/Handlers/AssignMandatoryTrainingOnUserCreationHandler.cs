@@ -32,7 +32,12 @@ public sealed class AssignMandatoryTrainingOnUserCreationHandler(UnifiedDbContex
                 && (training.ExpiryDate == null || training.ExpiryDate > now)
             )
             .WhereApplicableToTrainingProfile(userTrainingProfileId)
-            .Select(training => new { training.Id, training.ValidityDays })
+            .Select(training => new
+            {
+                training.Id,
+                training.ValidityDays,
+                training.AnnualValidityFromCompletionDate,
+            })
             .ToListAsync(cancellationToken);
 
         if (mandatoryTrainings.Count == 0)
@@ -65,7 +70,11 @@ public sealed class AssignMandatoryTrainingOnUserCreationHandler(UnifiedDbContex
                     AwardedOn = now,
                     EndingOn = now,
                     AllDay = true,
-                    ExpiryDate = UserTrainingHelper.CalculateExpiryDate(now, training.ValidityDays),
+                    ExpiryDate = UserTrainingHelper.CalculateExpiryDate(
+                        now,
+                        training.ValidityDays,
+                        training.AnnualValidityFromCompletionDate
+                    ),
                     NoticeState = UserTrainingNoticeStates.None,
                     Notes = null,
                 }

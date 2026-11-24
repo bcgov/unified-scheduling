@@ -8,11 +8,11 @@ import {
 import { PostApiTrainingUserTrainingsBody } from '@/api-access/generated/user-training/user-training.zod';
 import UaAlert from '@/shared/components/UaAlert.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
+import UaAutocomplete from '@/shared/components/UaAutocomplete.vue';
 import UaFormGrid from '@/shared/components/UaFormGrid.vue';
 import UaModal from '@/shared/components/UaModal.vue';
 import UaTextField from '@/shared/components/UaTextField.vue';
 import UaTextarea from '@/shared/components/UaTextarea.vue';
-import UaSelect from '@/shared/components/UaSelect.vue';
 import { toDateInputValue, toDateTime, toOffsetDateTimeString } from '@/utils/date';
 import type { SelectOption } from '@/types/select';
 import { mdiClose, mdiRefresh } from '@mdi/js';
@@ -410,11 +410,13 @@ const handleSave = async () => {
 
     <UaFormGrid>
       <label v-if="!isEditMode && !isRenewMode" class="ua-form-label" for="user-training-training">Training</label>
-      <UaSelect
+      <UaAutocomplete
         v-if="!isEditMode && !isRenewMode"
         id="user-training-training"
         label="Training"
         :items="props.trainingOptions"
+        client-filter
+        browser-autocomplete="off"
         v-model="formData.trainingId"
         :error-messages="formErrors.trainingId"
       />

@@ -33,6 +33,12 @@ public sealed class TrainingLookupRequestValidator : AbstractValidator<TrainingL
             .WithMessage(ApiValidationErrorCodes.Invalid)
             .When(x => x.ValidityDays.HasValue);
 
+        RuleFor(x => x)
+            .Must(x => x.ValidityDays is >= 365 && x.ValidityDays.Value % 365 == 0)
+            .WithErrorCode(ApiValidationErrorCodes.Invalid)
+            .WithMessage(ApiValidationErrorCodes.Invalid)
+            .When(x => x.AnnualValidityFromCompletionDate);
+
         RuleFor(x => x.AdvanceNoticeDays)
             .GreaterThan(0)
             .WithErrorCode(ApiValidationErrorCodes.Invalid)

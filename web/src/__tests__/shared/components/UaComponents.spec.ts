@@ -173,6 +173,32 @@ describe('UaAutocomplete', () => {
 
     await wrapper.findComponent({ name: 'VAutocomplete' }).vm.$emit('update:search', 'jan');
     expect(wrapper.emitted('update:search')?.[0]).toEqual(['jan']);
+    expect(wrapper.findComponent({ name: 'VAutocomplete' }).props('noFilter')).toBe(true);
+    expect(wrapper.findComponent({ name: 'VAutocomplete' }).props('autocomplete')).toBe('on');
+  });
+
+  it('allows browser autocomplete to be disabled', () => {
+    const wrapper = mount(UaAutocomplete, {
+      props: {
+        items: [{ code: '1', description: 'Jane Doe' }],
+        browserAutocomplete: 'off',
+      },
+      global: { plugins: [vuetify] },
+    });
+
+    expect(wrapper.findComponent({ name: 'VAutocomplete' }).props('autocomplete')).toBe('off');
+  });
+
+  it('supports client-side filtering when requested', () => {
+    const wrapper = mount(UaAutocomplete, {
+      props: {
+        items: [{ code: '1', description: 'Jane Doe' }],
+        clientFilter: true,
+      },
+      global: { plugins: [vuetify] },
+    });
+
+    expect(wrapper.findComponent({ name: 'VAutocomplete' }).props('noFilter')).toBe(false);
   });
 });
 

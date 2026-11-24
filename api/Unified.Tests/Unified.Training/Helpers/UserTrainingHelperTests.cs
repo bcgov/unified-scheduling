@@ -135,6 +135,28 @@ public class UserTrainingHelperTests
         Assert.Equal(new DateTimeOffset(2025, 12, 31, 23, 59, 59, TimeSpan.Zero), expiry);
     }
 
+    [Theory]
+    [InlineData(10, 1)]
+    [InlineData(10, 17)]
+    public void CalculateExpiryDate_WhenAnnualValidityUsesCompletionDate_ReturnsOneYearAnniversary(int month, int day)
+    {
+        var awardedOn = new DateTimeOffset(2026, month, day, 0, 0, 0, TimeSpan.Zero);
+
+        var expiry = UserTrainingHelper.CalculateExpiryDate(awardedOn, 365, annualValidityFromCompletionDate: true);
+
+        Assert.Equal(new DateTimeOffset(2027, month, day, 23, 59, 59, TimeSpan.Zero), expiry);
+    }
+
+    [Fact]
+    public void CalculateExpiryDate_WhenAnnualValidityUsesCompletionDateAndLeapDay_ComputesValidAnniversary()
+    {
+        var awardedOn = new DateTimeOffset(2024, 2, 29, 0, 0, 0, TimeSpan.Zero);
+
+        var expiry = UserTrainingHelper.CalculateExpiryDate(awardedOn, 365, annualValidityFromCompletionDate: true);
+
+        Assert.Equal(new DateTimeOffset(2025, 2, 28, 23, 59, 59, TimeSpan.Zero), expiry);
+    }
+
     [Fact]
     public void CalculateExpiryDate_WhenValidityDaysProvidedAsMultipleYears_ReturnsEndOfFinalYear()
     {

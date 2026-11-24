@@ -93,6 +93,7 @@ describe('TrainingCreateModal', () => {
         mandatory: boolean;
         mandatoryTrainingProfileIds: number[];
         validityDayCode: string;
+        annualValidityFromCompletionDate: boolean;
         advanceNoticeDays: string;
         rotating: boolean;
       };
@@ -102,6 +103,8 @@ describe('TrainingCreateModal', () => {
     vm.formData.description = 'Firearms';
     vm.formData.mandatory = true;
     vm.formData.mandatoryTrainingProfileIds = [1, 2];
+    vm.formData.validityDayCode = 'annual';
+    vm.formData.annualValidityFromCompletionDate = true;
 
     await flushPromises();
 
@@ -119,6 +122,8 @@ describe('TrainingCreateModal', () => {
         description: 'Firearms',
         mandatory: true,
         mandatoryTrainingProfileIds: [1, 2],
+        validityDays: 365,
+        annualValidityFromCompletionDate: true,
       }),
     );
 
