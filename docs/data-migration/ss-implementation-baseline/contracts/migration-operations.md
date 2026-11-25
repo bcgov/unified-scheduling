@@ -73,6 +73,15 @@ record EF has not tracked in this job; any write, rebind, duplicate or rolled-ba
 query. Graph replacement then tracks only the records of the replaced graph instead of every root record.
 The run logs `SsReplayPrefetch Run=... Hits=... Fallbacks=... Pages=...`. Bulk ignores the switch.
 
+Training may opt in to `DataMigration:Sources:SS:Jobs:Training:IncludeExcused=true` (default `false`; refused by
+options validation on any other job). Off, SheriffTraining rows of SS users with `Excused=true` are
+`Excluded/ExcusedSheriff`. On, they are migrated like any other user's rows in PerRow, Bulk and dry-run (every
+other rule still applies; a missing MyTeam user crosswalk rejects the row with `MissingParent`), and their
+histories count toward the course `Rotating` repeat rule. Excluded rows have no crosswalk, so turning the switch
+on and rerunning Training picks them up; a further rerun is a no-op. Turning it off again keeps already migrated
+rows (`Excluded/PreviouslyMigratedNowExcludedRetained`). The switch is part of the dry-run simulation
+configuration hash, so changing it requires a fresh MyTeam dry-run parent. MyTeam and other jobs are unaffected.
+
 ## Run Audit Summary
 
 For SS MyTeam, Training, Scheduling and Report, including simulation, the migration worker disables

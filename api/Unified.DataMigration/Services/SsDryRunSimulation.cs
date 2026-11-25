@@ -91,12 +91,15 @@ internal sealed class SsDryRunSimulation(
                     .ToArray(),
             }
         );
+        var includeExcused = source.Jobs.Training.IncludeExcused;
         var configHash = SsWriteSession.Hash(
             new
             {
                 Version = typeof(SsDryRunSimulation).Assembly.ManifestModule.ModuleVersionId,
                 source.CutoverDate,
                 source.HistoryStartDate,
+                // Changing the Training excused-user switch invalidates Training/Report simulation parents.
+                TrainingIncludeExcused = includeExcused,
                 Flags = configuration
                     .AsEnumerable()
                     .Where(x =>
@@ -175,7 +178,7 @@ internal sealed class SsDryRunSimulation(
                     SimulationSchema = schema,
                 };
                 BoundTracking(hydrated, batchSize, fence);
-                await WriteAsync(parent.Run.Job, rows, hydrated, boundary, ct);
+                await WriteAsync(parent.Run.Job, rows, hydrated, boundary, includeExcused, ct);
                 db.ChangeTracker.Clear();
                 if (
                     hydrated.Outcomes.Any(x => x.Outcome is "Rejected" or "Failed" or "NeedsAction" or "DroppedBadData")
@@ -198,7 +201,7 @@ internal sealed class SsDryRunSimulation(
             }
             else
             {
-                await WriteAsync(run.Job, rows, session, boundary, ct);
+                await WriteAsync(run.Job, rows, session, boundary, includeExcused, ct);
                 var receipt = await CandidateAsync(run.Id, ns, ct);
                 manifest = new DataMigrationSimulation
                 {
@@ -293,13 +296,14 @@ internal sealed class SsDryRunSimulation(
         Dictionary<string, List<SsRow>> rows,
         SsWriteSession session,
         DateTimeOffset boundary,
+        bool includeExcused,
         CancellationToken ct
     )
     {
         if (job == "MyTeam")
             await myTeam.WriteAsync(rows, session, boundary, ct);
         else if (job == "Training")
-            await training.WriteAsync(rows, session, boundary, ct);
+            await training.WriteAsync(rows, session, includeExcused, ct); // Training has no history date limit.
         else if (job == "Scheduling")
         {
             await scheduling.WriteAsync(rows, session, boundary, ct);

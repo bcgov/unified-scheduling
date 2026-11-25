@@ -84,6 +84,13 @@ public sealed class MigrationJobOptions
     /// in this job; every other case runs the per-row query. Off keeps the per-row path. Bulk ignores it.
     /// </summary>
     public bool PrefetchReplayRecords { get; set; }
+
+    /// <summary>
+    /// Training only (<c>DataMigration:Sources:SS:Jobs:Training:IncludeExcused</c>). When true, SheriffTraining
+    /// rows of SS users with <c>Excused=true</c> are migrated like any other user's (every other rule still
+    /// applies). Default false keeps them Excluded/<c>ExcusedSheriff</c>. Must stay false for other jobs.
+    /// </summary>
+    public bool IncludeExcused { get; set; }
 }
 
 public enum MigrationPersistenceMode
@@ -117,6 +124,8 @@ public sealed class DataMigrationOptionsValidator : IValidateOptions<DataMigrati
                     && job is not ("Training" or "Scheduling")
                 )
                     failures.Add($"SS:{job}:PersistenceMode Bulk is supported only for Training and Scheduling.");
+                if (settings.IncludeExcused && job != "Training")
+                    failures.Add($"SS:{job}:IncludeExcused is supported only for Training.");
                 if (!settings.Enabled)
                     continue;
                 if (settings.BatchSize <= 0)

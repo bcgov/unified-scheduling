@@ -12,10 +12,13 @@ public sealed class SsTrainingWriter(UnifiedDbContext db)
     internal static string AllocateCourseCode(string code, IReadOnlySet<string> reserved) =>
         SsTrainingRules.AllocateCourseCode(code, reserved);
 
+    // Training has no history date limit: every SheriffTraining row is considered regardless of
+    // HistoryStartDate (which still bounds MyTeam/Leave/Scheduling and lineage/checkpoint keys).
+    // includeExcused = DataMigration:Sources:SS:Jobs:Training:IncludeExcused.
     public async Task WriteAsync(
         Dictionary<string, List<SsRow>> rows,
         SsWriteSession session,
-        DateTimeOffset boundary,
+        bool includeExcused,
         CancellationToken ct
     )
     {
@@ -23,7 +26,7 @@ public sealed class SsTrainingWriter(UnifiedDbContext db)
         var sourceCodes = SsTrainingRules.SourceCourseCodes(rows["LookupCode"]);
         var shortenedCarbineCourseIds = SsTrainingRules.ShortenedCarbineCourseIds(rows["LookupCode"]);
         var courseCodeCounts = SsTrainingRules.CourseCodeCounts(rows["LookupCode"]);
-        var repeats = SsTrainingRules.RepeatedCourses(rows["SheriffTraining"], users, boundary);
+        var repeats = SsTrainingRules.RepeatedCourses(rows["SheriffTraining"], users, includeExcused);
         foreach (var row in SsTrainingRules.Courses(rows["LookupCode"]))
             await session.RowAsync(
                 "Training",
@@ -125,15 +128,11 @@ public sealed class SsTrainingWriter(UnifiedDbContext db)
                 row,
                 async () =>
                 {
-                    if (row.Date("EndDate") < boundary)
-                    {
-                        session.Outcome("SheriffTraining", row.Id, "Excluded", "BeforeHistoryBoundary");
-                        return;
-                    }
                     var sourceUser = row.Guid("SheriffId")?.ToString() ?? throw new SsReject("MissingUser");
                     if (!users.TryGetValue(sourceUser, out var sheriff))
                         throw new SsReject("MissingSourceUser");
-                    if (row.Date("ExpiryDate") is not null || sheriff.Bool("Excused"))
+                    var excused = SsTrainingRules.ExcludedExcused(sheriff, includeExcused);
+                    if (row.Date("ExpiryDate") is not null || excused)
                     {
                         var linked = await db.DataMigrationRecords.AnyAsync(
                             x => x.Source == "SS" && x.EntityType == "SheriffTraining" && x.LegacyId == row.Id,
@@ -143,19 +142,20 @@ public sealed class SsTrainingWriter(UnifiedDbContext db)
                             "SheriffTraining",
                             row.Id,
                             "Excluded",
-                            SsTrainingRules.ExcludedHistoryReason(linked, sheriff.Bool("Excused"))
+                            SsTrainingRules.ExcludedHistoryReason(linked, excused)
                         );
                         return;
                     }
                     var dates = SsWriteSession.Dates(row);
                     SsWriteSession.Timezone(row, false); // Target UserTraining has no timezone column; report the loss.
                     var hash = SsTrainingRules.HistoryHash(row, sourceUser, dates);
+                    // Unchanged source: no write (ExistingCrosswalk/UnchangedMappedSource). Changed source with a
+                    // target edited in Unified since migration (e.g. 2026-11-01 time zone fix): skipped, not overwritten.
                     if (
-                        await session.ReplayAsync(
+                        await session.ReplaySkippingDriftAsync(
                             "SheriffTraining",
                             row,
                             hash,
-                            false,
                             ct,
                             async () =>
                             {

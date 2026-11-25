@@ -75,8 +75,8 @@ public sealed class SsTrainingBulkWriter(UnifiedDbContext db, IOptions<AuditReco
     internal async Task ExecuteAsync(
         DataMigrationRun run,
         Dictionary<string, List<SsRow>> rows,
-        DateTimeOffset boundary,
         DateOnly history,
+        bool includeExcused,
         int chunkSize,
         Func<CancellationToken, Task> fence,
         CancellationToken ct
@@ -88,7 +88,14 @@ public sealed class SsTrainingBulkWriter(UnifiedDbContext db, IOptions<AuditReco
             throw new InvalidOperationException("SS Training bulk chunk size must be positive.");
         var ledger = new SsBulkLedger(db, run, rows, history, OwnedType);
         var runner = new SsBulkChunkRunner(db, ledger, fence, BeforeChunkCommitAsync);
-        var context = new Context(db, run, rows, boundary, ledger, auditOptions?.Value ?? new AuditRecordOptions());
+        var context = new Context(
+            db,
+            run,
+            rows,
+            includeExcused,
+            ledger,
+            auditOptions?.Value ?? new AuditRecordOptions()
+        );
         await runner.RunAsync((connection, token) => context.WriteCoursesAsync(connection, token), ct);
         foreach (var chunk in await context.PlanHistoryChunksAsync(chunkSize, ct))
             await runner.RunAsync((connection, token) => context.WriteHistoriesAsync(connection, chunk, token), ct);
@@ -113,7 +120,7 @@ public sealed class SsTrainingBulkWriter(UnifiedDbContext db, IOptions<AuditReco
         UnifiedDbContext db,
         DataMigrationRun run,
         Dictionary<string, List<SsRow>> rows,
-        DateTimeOffset boundary,
+        bool includeExcused,
         SsBulkLedger ledger,
         AuditRecordOptions auditOptions
     )
@@ -211,7 +218,7 @@ public sealed class SsTrainingBulkWriter(UnifiedDbContext db, IOptions<AuditReco
             var lookup = rows["LookupCode"];
             var sourceCodes = SsTrainingRules.SourceCourseCodes(lookup);
             var courseCodeCounts = SsTrainingRules.CourseCodeCounts(lookup);
-            var repeats = SsTrainingRules.RepeatedCourses(rows["SheriffTraining"], users, boundary);
+            var repeats = SsTrainingRules.RepeatedCourses(rows["SheriffTraining"], users, includeExcused);
             var linked = (
                 await QueryAsync(
                     "SELECT \"LegacyId\" FROM \"DataMigrationRecords\" WHERE \"Source\"='SS' AND \"EntityType\"='Training'",
@@ -779,22 +786,19 @@ public sealed class SsTrainingBulkWriter(UnifiedDbContext db, IOptions<AuditReco
                     row,
                     () =>
                     {
-                        if (row.Date("EndDate") < boundary)
-                        {
-                            ledger.Outcome("SheriffTraining", row.Id, "Excluded", "BeforeHistoryBoundary");
-                            return;
-                        }
+                        // Training has no history date limit (same as SsTrainingWriter).
                         var sourceUser = row.Guid("SheriffId")?.ToString() ?? throw new SsReject("MissingUser");
                         if (!users.TryGetValue(sourceUser, out var sheriff))
                             throw new SsReject("MissingSourceUser");
                         records.TryGetValue(row.Id, out var record);
-                        if (row.Date("ExpiryDate") is not null || sheriff.Bool("Excused"))
+                        var excused = SsTrainingRules.ExcludedExcused(sheriff, includeExcused);
+                        if (row.Date("ExpiryDate") is not null || excused)
                         {
                             ledger.Outcome(
                                 "SheriffTraining",
                                 row.Id,
                                 "Excluded",
-                                SsTrainingRules.ExcludedHistoryReason(record is not null, sheriff.Bool("Excused"))
+                                SsTrainingRules.ExcludedHistoryReason(record is not null, excused)
                             );
                             return;
                         }
@@ -832,8 +836,13 @@ public sealed class SsTrainingBulkWriter(UnifiedDbContext db, IOptions<AuditReco
                                 throw new InvalidOperationException(
                                     "SS bulk owned target was written twice in one chunk."
                                 );
+                            // Same as PerRow (ReplaySkippingDriftAsync): a target edited in Unified since the
+                            // job last wrote it is skipped and left unchanged, never overwritten from SS.
                             if (ownedBefore[record.TargetKey].Fingerprint != record.AfterHash)
-                                throw new SsReject("OwnedTargetDrift");
+                            {
+                                ledger.Outcome("SheriffTraining", row.Id, "Excluded", "OwnedTargetDrift");
+                                return;
+                            }
                             var resolvedUser = Guid.Parse(ResolveUser(sourceUser));
                             var resolvedCourse = ResolveCourse(row);
                             var rebind = owned.UserId != resolvedUser || owned.TrainingId != resolvedCourse;

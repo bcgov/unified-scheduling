@@ -10,7 +10,8 @@
 - Docker; isolated migration target and persistent synthetic SS source; no shared DB reset.
 - Source schema from SS EF migrations and deterministic fake data shaped by SH aggregates.
 - SS read-only connection supplied outside Git. Explicit false JC expiry flags.
-- `HistoryStartDate=2020-01-01`, `CutoverDate=2026-12-01`; per-job disabled/dry-run defaults.
+- `HistoryStartDate=2020-01-01` (not applied to Training), `CutoverDate=2026-12-01`; per-job disabled/dry-run defaults;
+  `Jobs:Training:IncludeExcused=false`.
 - Apply is disabled per job by default. An authorized operator must set that job's
   `AllowMigrationApply=true` and explicitly request JSON `dryRun:false` through the operations
   API. No second `DryRun=false` config is needed. Direct/recurring jobs cannot apply.

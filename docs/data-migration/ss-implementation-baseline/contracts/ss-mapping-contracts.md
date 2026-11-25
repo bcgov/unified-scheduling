@@ -52,7 +52,8 @@ affected lineages are rolled back. Insert-only null date/photo fallbacks use one
 
 `HistoryStartDate=2020-01-01` means midnight America/Vancouver, initially
 `2020-01-01T08:00:00Z`. Include EndDate >= boundary regardless of row timezone for acting rank,
-away, leave, training, Duty, DutySlot and Shift. Include unexpired Assignments and every
+away, leave, Duty, DutySlot and Shift. Training (SheriffTraining) has no history date limit:
+every row is considered regardless of EndDate (2026-11 change). Include unexpired Assignments and every
 Assignment needed by an included Duty. People, roles, UserRole and needed references are
 not history-filtered. Earlier cutoff changes trigger resumable backfill independent of normal
 incremental progress; later changes do not delete targets. Boundary moved from 2015-01-01 to 2020-01-01 on 2026-11-17.
@@ -154,7 +155,7 @@ type is expired; record any edit/picker loss as a Unified backlog item.
   timestamptz copies its UTC instant; null EffectiveDate -> fixed UTC run start.
   Copy source course expiry exactly, including null.
 - Copy Mandatory. New Rotating=true if source true, ValidityPeriod>0, or repeated eligible
-  same-user/course history exists; otherwise false.
+  same-user/course history exists (any date; no history boundary); otherwise false.
 - ValidityPeriod 0 -> null, 1461 -> 1460, >1825 -> 1825; other positive values unchanged;
   negatives reject. AdvanceNotice 0 -> null; positive must be below mapped non-null
   validity, or any positive when validity null; negatives reject.
@@ -228,9 +229,14 @@ copied cancellation instant/reason; no invented cancelled actor.
 
 ## Training History And Reporting
 
-Skip/count records with own ExpiryDate non-null and every record of an Excused=true sheriff;
+Skip/count records with own ExpiryDate non-null and every record of an Excused=true sheriff
+(`ExcusedSheriff`) unless `Sources:SS:Jobs:Training:IncludeExcused=true`, in which case excused
+users' records follow every other rule (including Carbine profile eligibility);
 no new target/link. If later excluded after migration, preserve old targets/links and warn.
-Course retirement and past certificate expiry do not exclude eligible histories.
+Course retirement and past certificate expiry do not exclude eligible histories. No history
+date limit applies to training. A rerun never overwrites a migrated UserTraining edited in
+Unified since it was migrated (e.g. the 2026-11-01 time zone correction): unchanged source is a
+no-op; changed source over a drifted target is skipped as `Excluded/OwnedTargetDrift`.
 
 Require resolved user and Type 6 course. StartDate -> AwardedOn; EndDate -> EndingOn;
 equality allowed, reversed dates reject. Copy TrainingCertificationExpiry exactly, including

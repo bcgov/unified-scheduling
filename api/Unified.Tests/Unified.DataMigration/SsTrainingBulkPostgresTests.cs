@@ -379,7 +379,6 @@ public sealed class SsTrainingBulkPostgresTests : IAsyncLifetime
                         "MissingSourceUser",
                         "ExcusedSheriff",
                         "DeletedHistory",
-                        "BeforeHistoryBoundary",
                         "ReversedDates",
                         "InvalidTimezone",
                         "TargetTrainingTimezoneUnavailable",
@@ -388,6 +387,11 @@ public sealed class SsTrainingBulkPostgresTests : IAsyncLifetime
                     }
                 )
                     Assert.Contains(reason, reasons);
+                // Training has no history date limit: 2009 ends just before the 2020-01-01 Vancouver boundary
+                // and still migrates in both modes (parity is asserted above).
+                Assert.DoesNotContain("BeforeHistoryBoundary", reasons);
+                foreach (var (clone, id) in new[] { (perRow, perRowRun), (bulk, bulkRun) })
+                    Assert.StartsWith("Migrated", await OutcomeAsync(clone, id, "SheriffTraining", "2009", ct));
                 // Rejected parent courses leave no orphan children.
                 Assert.Equal(
                     0,
@@ -711,6 +715,292 @@ public sealed class SsTrainingBulkPostgresTests : IAsyncLifetime
             Assert.Contains("CreatedCourseRequirementsChanged", blocked.Blockers);
         }
         AssertEquivalent(edited, await SnapshotAsync(clone, true, ct), BusinessSections, "blocked undo");
+    }
+
+    // Training migrates SheriffTraining with no history date limit, once, in both modes; reruns are no-ops for
+    // unchanged rows and never overwrite a target edited in Unified (incl. the 2026-11-01 time zone correction).
+    // MyTeam/Leave keep the HistoryStartDate boundary.
+    [Fact(Skip = SkipReason, SkipUnless = nameof(IsConfigured))]
+    public async Task Training_NoHistoryLimit_RerunIsNoOp_DriftedAndTimezoneAdjustedTargetsAreSkipped()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await ExecuteAsync(
+            sourceConnection,
+            $"""
+            INSERT INTO "SheriffTraining" ("Id","SheriffId","TrainingTypeId","StartDate","EndDate","ExpiryDate",
+                "TrainingCertificationExpiry","FirstNotice","Comment","Note","Timezone","CreatedOn") VALUES
+            (5001,'{U(
+                2
+            )}',100,'2009-03-10T17:00Z','2009-03-11T01:00Z',NULL,NULL,false,NULL,'pre-2020 history',NULL,'2024-01-01Z'),
+            (5002,'{U(
+                3
+            )}',101,'2026-11-15T17:00Z','2026-11-16T01:00Z',NULL,NULL,false,NULL,'after tz change',NULL,'2024-01-01Z');
+            INSERT INTO "SheriffLeave" ("Id","CreatedOn","LeaveTypeId","StartDate","EndDate","SheriffId")
+            VALUES (9001,'2024-01-01',NULL,'2009-03-01','2009-03-02','{U(1)}');
+            """,
+            ct
+        );
+        var clones = new[]
+        {
+            await CloneAsync("nolimit_a", MigrationPersistenceMode.PerRow, ct),
+            await CloneAsync("nolimit_b", MigrationPersistenceMode.Bulk, ct),
+        };
+        string[] business = ["trainings", "categories", "requirements", "usertrainings", "users"];
+
+        foreach (var clone in clones)
+        {
+            // The MyTeam (leave) history boundary is unchanged.
+            await using (var context = clone.Db())
+            {
+                var myTeam = await context
+                    .DataMigrationRuns.AsNoTracking()
+                    .Where(x => x.Job == "MyTeam" && !x.DryRun)
+                    .Select(x => x.Id)
+                    .SingleAsync(ct);
+                Assert.Equal(
+                    "Excluded:BeforeHistoryBoundary",
+                    await OutcomeAsync(clone, myTeam, "SheriffLeave", "9001", ct)
+                );
+            }
+        }
+
+        // Dry run (PerRow and Bulk share the simulation path): pre-2020 rows are proposed, nothing persists,
+        // and a repeated dry run reports the same counts.
+        var dry = clones[0];
+        var beforeDry = await SnapshotAsync(dry, true, ct);
+        await AssertRunAsync(dry, await RunAsync(dry, "MyTeam", ct, dryRun: true), "Completed", ct);
+        var dryRuns = new List<global::Unified.Db.Models.DataMigration.DataMigrationRun>();
+        for (var i = 0; i < 2; i++)
+        {
+            var id = await RunAsync(dry, "Training", ct, dryRun: true);
+            await using var context = dry.Db();
+            dryRuns.Add(await context.DataMigrationRuns.AsNoTracking().SingleAsync(x => x.Id == id, ct));
+            foreach (var legacy in new[] { "2009", "5001" })
+                Assert.StartsWith("Migrated", await OutcomeAsync(dry, id, "SheriffTraining", legacy, ct));
+        }
+        Assert.Equal(
+            (dryRuns[0].ScannedCount, dryRuns[0].InsertedCount, dryRuns[0].SkippedCount, dryRuns[0].RejectedCount),
+            (dryRuns[1].ScannedCount, dryRuns[1].InsertedCount, dryRuns[1].SkippedCount, dryRuns[1].RejectedCount)
+        );
+        AssertEquivalent(beforeDry, await SnapshotAsync(dry, true, ct), business, "dry run persists nothing");
+
+        // First apply: pre-2020 histories are created exactly once.
+        var first = new Guid[clones.Length];
+        for (var i = 0; i < clones.Length; i++)
+        {
+            first[i] = await RunAsync(clones[i], "Training", ct);
+            await AssertCleanAsync(clones[i], first[i], ct);
+            Assert.DoesNotContain("BeforeHistoryBoundary", await ReasonsAsync(clones[i], first[i], ct));
+            foreach (var legacy in new[] { "2009", "5001", "5002" })
+                Assert.StartsWith("Migrated", await OutcomeAsync(clones[i], first[i], "SheriffTraining", legacy, ct));
+            await AssertNoDuplicatesOrOrphansAsync(clones[i], ct);
+        }
+        AssertEquivalent(
+            await SnapshotAsync(clones[0], false, ct),
+            await SnapshotAsync(clones[1], false, ct),
+            business,
+            "no-limit first apply"
+        );
+
+        // (a) A second run is a no-op.
+        for (var i = 0; i < clones.Length; i++)
+        {
+            var before = await SnapshotAsync(clones[i], true, ct);
+            var second = await RunAsync(clones[i], "Training", ct);
+            await AssertCleanAsync(clones[i], second, ct);
+            await using (var context = clones[i].Db())
+            {
+                var run = await context.DataMigrationRuns.AsNoTracking().SingleAsync(x => x.Id == second, ct);
+                Assert.Equal((0, 0), (run.InsertedCount, run.UpdatedCount));
+            }
+            foreach (var legacy in new[] { "2009", "5001", "5002" })
+                Assert.Equal(
+                    "Migrated:ExistingCrosswalk",
+                    await OutcomeAsync(clones[i], second, "SheriffTraining", legacy, ct)
+                );
+            await AssertNoDuplicatesOrOrphansAsync(clones[i], ct);
+            AssertEquivalent(before, await SnapshotAsync(clones[i], true, ct), business, "second run no-op");
+        }
+
+        // (c) Post-2026-11-01 times adjusted in Unified (time zone change) and (b) a target edited in Unified.
+        foreach (var clone in clones)
+            await ExecuteAsync(
+                clone.ConnectionString,
+                """
+                UPDATE "UserTrainings" SET "AwardedOn"="AwardedOn" + interval '1 hour',
+                    "EndingOn"="EndingOn" + interval '1 hour'
+                WHERE "Id"::text IN (SELECT "TargetKey" FROM "DataMigrationRecords"
+                    WHERE "EntityType"='SheriffTraining' AND "LegacyId"='5002');
+                UPDATE "UserTrainings" SET "Notes"='edited in Unified'
+                WHERE "Id"::text IN (SELECT "TargetKey" FROM "DataMigrationRecords"
+                    WHERE "EntityType"='SheriffTraining' AND "LegacyId" IN ('5001','1041'));
+                """,
+                ct
+            );
+        var edited = new List<Dictionary<string, string>>();
+        foreach (var clone in clones)
+        {
+            var values = new Dictionary<string, string>();
+            foreach (var legacy in new[] { "5001", "5002", "1041" })
+                values[legacy] = await TargetHistoryAsync(clone, legacy, ct);
+            edited.Add(values);
+        }
+
+        // Unchanged source: the adjusted/edited targets are left alone.
+        for (var i = 0; i < clones.Length; i++)
+        {
+            var third = await RunAsync(clones[i], "Training", ct);
+            await AssertCleanAsync(clones[i], third, ct);
+            foreach (var (legacy, value) in edited[i])
+            {
+                Assert.Equal(
+                    "Migrated:ExistingCrosswalk",
+                    await OutcomeAsync(clones[i], third, "SheriffTraining", legacy, ct)
+                );
+                Assert.Equal(value, await TargetHistoryAsync(clones[i], legacy, ct));
+            }
+        }
+
+        // Changed source over drifted targets: skipped (Excluded/OwnedTargetDrift), never overwritten, on
+        // every rerun; nothing is rejected for it.
+        await ExecuteAsync(
+            sourceConnection,
+            """
+            UPDATE "SheriffTraining" SET "Note"='changed in SS', "UpdatedOn"='2026-11-20Z'
+            WHERE "Id" IN (5001,5002,1041);
+            """,
+            ct
+        );
+        for (var round = 0; round < 2; round++)
+        for (var i = 0; i < clones.Length; i++)
+        {
+            var run = await RunAsync(clones[i], "Training", ct);
+            await AssertCleanAsync(clones[i], run, ct);
+            await using (var context = clones[i].Db())
+                Assert.Equal(
+                    0,
+                    (await context.DataMigrationRuns.AsNoTracking().SingleAsync(x => x.Id == run, ct)).UpdatedCount
+                );
+            foreach (var (legacy, value) in edited[i])
+            {
+                Assert.Equal(
+                    "Excluded:OwnedTargetDrift",
+                    await OutcomeAsync(clones[i], run, "SheriffTraining", legacy, ct)
+                );
+                Assert.Equal(value, await TargetHistoryAsync(clones[i], legacy, ct));
+            }
+            await AssertNoDuplicatesOrOrphansAsync(clones[i], ct);
+        }
+    }
+
+    // DataMigration:Sources:SS:Jobs:Training:IncludeExcused. Off (default): excused users' training is
+    // Excluded/ExcusedSheriff. On: migrated like any other user's in PerRow, Bulk and dry-run, once; an excused user
+    // without a MyTeam user crosswalk rejects with MissingParent. Turning it off again retains migrated rows.
+    [Fact(Skip = SkipReason, SkipUnless = nameof(IsConfigured))]
+    public async Task Training_IncludeExcused_OffExcludes_OnMigratesIdempotently()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await ExecuteAsync(
+            sourceConnection,
+            $"""
+            UPDATE "User" SET "Excused"=true WHERE "Id"='{U(UnlinkedUser)}';
+            INSERT INTO "SheriffTraining" ("Id","SheriffId","TrainingTypeId","StartDate","EndDate","ExpiryDate",
+                "TrainingCertificationExpiry","FirstNotice","Comment","Note","Timezone","CreatedOn") VALUES
+            (5101,'{U(
+                ExcusedUser
+            )}',100,'2009-05-10T17:00Z','2009-05-11T01:00Z',NULL,NULL,false,NULL,'excused pre-2020',NULL,'2024-01-01Z');
+            """,
+            ct
+        );
+        var clones = new[]
+        {
+            await CloneAsync("excused_a", MigrationPersistenceMode.PerRow, ct),
+            await CloneAsync("excused_b", MigrationPersistenceMode.Bulk, ct),
+        };
+        string[] business = ["trainings", "categories", "requirements", "usertrainings", "users"];
+        string[] excused = ["2007", "5101"];
+
+        // Flag off (default): ExcusedSheriff, nothing created.
+        foreach (var clone in clones)
+        {
+            Assert.False(clone.Options.Sources.SS.Jobs.Training.IncludeExcused);
+            var off = await RunAsync(clone, "Training", ct);
+            await AssertCleanAsync(clone, off, ct);
+            foreach (var legacy in excused.Append("2012"))
+                Assert.Equal("Excluded:ExcusedSheriff", await OutcomeAsync(clone, off, "SheriffTraining", legacy, ct));
+            Assert.Equal(
+                0,
+                await CountAsync(
+                    clone,
+                    """SELECT COUNT(*) FROM "DataMigrationRecords" WHERE "EntityType"='SheriffTraining' AND "LegacyId" IN ('2007','5101','2012')""",
+                    ct
+                )
+            );
+            clone.Options.Sources.SS.Jobs.Training.IncludeExcused = true;
+        }
+
+        // Dry run with the flag on proposes the excused rows and persists nothing.
+        var dry = clones[0];
+        var beforeDry = await SnapshotAsync(dry, true, ct);
+        await AssertRunAsync(dry, await RunAsync(dry, "MyTeam", ct, dryRun: true), "Completed", ct);
+        var dryRun = await RunAsync(dry, "Training", ct, dryRun: true);
+        foreach (var legacy in excused)
+            Assert.StartsWith("Migrated", await OutcomeAsync(dry, dryRun, "SheriffTraining", legacy, ct));
+        // The simulated MyTeam parent recreates the deleted user crosswalk, so 2012 is also proposed in dry run.
+        Assert.StartsWith("Migrated", await OutcomeAsync(dry, dryRun, "SheriffTraining", "2012", ct));
+        AssertEquivalent(beforeDry, await SnapshotAsync(dry, true, ct), business, "excused dry run persists nothing");
+
+        // Flag on: the previously excluded rows are reconsidered and migrated once; missing user parent rejects.
+        for (var i = 0; i < clones.Length; i++)
+        {
+            var on = await RunAsync(clones[i], "Training", ct);
+            await AssertCleanAsync(clones[i], on, ct);
+            Assert.DoesNotContain("ExcusedSheriff", await ReasonsAsync(clones[i], on, ct));
+            foreach (var legacy in excused)
+                Assert.StartsWith("Migrated", await OutcomeAsync(clones[i], on, "SheriffTraining", legacy, ct));
+            Assert.Equal("Rejected:MissingParent", await OutcomeAsync(clones[i], on, "SheriffTraining", "2012", ct));
+            await AssertNoDuplicatesOrOrphansAsync(clones[i], ct);
+        }
+        AssertEquivalent(
+            await SnapshotAsync(clones[0], false, ct),
+            await SnapshotAsync(clones[1], false, ct),
+            business,
+            "include-excused apply"
+        );
+
+        // Rerun with the flag on is a no-op.
+        for (var i = 0; i < clones.Length; i++)
+        {
+            var before = await SnapshotAsync(clones[i], true, ct);
+            var rerun = await RunAsync(clones[i], "Training", ct);
+            await AssertCleanAsync(clones[i], rerun, ct);
+            await using (var context = clones[i].Db())
+            {
+                var run = await context.DataMigrationRuns.AsNoTracking().SingleAsync(x => x.Id == rerun, ct);
+                Assert.Equal((0, 0), (run.InsertedCount, run.UpdatedCount));
+            }
+            foreach (var legacy in excused)
+                Assert.Equal(
+                    "Migrated:ExistingCrosswalk",
+                    await OutcomeAsync(clones[i], rerun, "SheriffTraining", legacy, ct)
+                );
+            AssertEquivalent(before, await SnapshotAsync(clones[i], true, ct), business, "include-excused rerun no-op");
+        }
+
+        // Flag off again: already migrated excused rows are retained, never deleted.
+        foreach (var clone in clones)
+        {
+            clone.Options.Sources.SS.Jobs.Training.IncludeExcused = false;
+            var before = await SnapshotAsync(clone, true, ct);
+            var off = await RunAsync(clone, "Training", ct);
+            await AssertCleanAsync(clone, off, ct);
+            foreach (var legacy in excused)
+                Assert.Equal(
+                    "Excluded:PreviouslyMigratedNowExcludedRetained",
+                    await OutcomeAsync(clone, off, "SheriffTraining", legacy, ct)
+                );
+            AssertEquivalent(before, await SnapshotAsync(clone, true, ct), business, "excused retained");
+        }
     }
 
     // Benchmark (opt-in): UNIFIED_MIGRATION_BULK_BENCHMARK_HISTORIES=<n> extra synthetic histories.
@@ -1055,6 +1345,42 @@ public sealed class SsTrainingBulkPostgresTests : IAsyncLifetime
                 .ToListAsync(ct);
             Assert.Fail($"{run.Job} run {run.Status}: {string.Join("; ", details.Concat(failures))}");
         }
+    }
+
+    /// <summary>"Outcome:Reason" of one source row in a run, or "" when the run has no outcome for it.</summary>
+    private static async Task<string> OutcomeAsync(
+        Clone clone,
+        Guid runId,
+        string type,
+        string legacyId,
+        CancellationToken ct
+    )
+    {
+        await using var context = clone.Db();
+        return await context
+                .DataMigrationOutcomes.AsNoTracking()
+                .Where(x => x.RunId == runId && x.EntityType == type && x.LegacyId == legacyId)
+                .Select(x => x.Outcome + ":" + x.Reason)
+                .SingleOrDefaultAsync(ct)
+            ?? "";
+    }
+
+    /// <summary>Mapped target values of the UserTraining owned by a SheriffTraining crosswalk.</summary>
+    private static async Task<string> TargetHistoryAsync(Clone clone, string legacyId, CancellationToken ct)
+    {
+        await using var connection = new NpgsqlConnection(clone.ConnectionString);
+        await connection.OpenAsync(ct);
+        await using var command = new NpgsqlCommand(
+            $"""
+            SELECT u."AwardedOn"::text || '|' || u."EndingOn"::text || '|' || COALESCE(u."Notes",'') || '|'
+                || u."Version"::text || '|' || COALESCE(u."UpdatedOn"::text,'')
+            FROM "UserTrainings" u JOIN "DataMigrationRecords" r
+              ON r."TargetType"='UserTraining' AND r."TargetKey"=u."Id"::text
+            WHERE r."Source"='SS' AND r."EntityType"='SheriffTraining' AND r."LegacyId"='{legacyId}'
+            """,
+            connection
+        );
+        return (string?)await command.ExecuteScalarAsync(ct) ?? throw new InvalidOperationException(legacyId);
     }
 
     private static async Task<HashSet<string?>> ReasonsAsync(Clone clone, Guid runId, CancellationToken ct)

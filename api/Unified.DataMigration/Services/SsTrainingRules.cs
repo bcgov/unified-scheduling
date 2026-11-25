@@ -63,18 +63,21 @@ internal static class SsTrainingRules
             .Select(x => x.Int("Id"))
             .ToHashSet();
 
-    /// <summary>Courses with a repeated eligible (user, course) history are rotating.</summary>
+    /// <summary>
+    /// Courses with a repeated eligible (user, course) history are rotating. Training histories have
+    /// no history date limit, so eligibility does not depend on HistoryStartDate. Excused users' histories
+    /// are eligible only when the Training job includes excused users.
+    /// </summary>
     internal static HashSet<int?> RepeatedCourses(
         IEnumerable<SsRow> histories,
         IReadOnlyDictionary<string, SsRow> users,
-        DateTimeOffset boundary
+        bool includeExcused
     ) =>
         histories
             .Where(history =>
-                history.Date("EndDate") >= boundary
-                && history.Date("ExpiryDate") is null
+                history.Date("ExpiryDate") is null
                 && users.TryGetValue(history.Guid("SheriffId")?.ToString() ?? "", out var user)
-                && !user.Bool("Excused")
+                && !ExcludedExcused(user, includeExcused)
             )
             .GroupBy(x => (User: x.Guid("SheriffId"), Course: x.Int("TrainingTypeId")))
             .Where(x => x.Count() > 1)
@@ -158,6 +161,10 @@ internal static class SsTrainingRules
     /// <summary>Global SheriffTraining processing order; version numbering depends on it.</summary>
     internal static IEnumerable<SsRow> HistoryOrder(IEnumerable<SsRow> histories) =>
         histories.OrderBy(x => x.Date("EndDate")).ThenBy(x => x.Date("StartDate")).ThenBy(x => x.Int("Id"));
+
+    /// <summary>True when the sheriff's training is excluded as ExcusedSheriff (Training IncludeExcused off).</summary>
+    internal static bool ExcludedExcused(SsRow sheriff, bool includeExcused) =>
+        !includeExcused && sheriff.Bool("Excused");
 
     internal static string ExcludedHistoryReason(bool linked, bool excused) =>
         linked ? "PreviouslyMigratedNowExcludedRetained"

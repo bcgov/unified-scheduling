@@ -545,13 +545,36 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run) : 
                 CultureInfo.InvariantCulture
             );
 
-    public async Task<bool> ReplayAsync(
+    public Task<bool> ReplayAsync(
         string type,
         SsRow source,
         string sourceHash,
         bool reference,
         CancellationToken ct,
         Func<Task>? applyOwnedUpdate = null
+    ) => ReplayCoreAsync(type, source, sourceHash, reference, ct, applyOwnedUpdate, skipOwnedTargetDrift: false);
+
+    /// <summary>
+    /// Owned (non-reference) replay where a drifted target (edited in Unified since the job last wrote it,
+    /// e.g. the 2026-11-01 time zone correction) is skipped: the target and crosswalk are left unchanged and
+    /// the row is recorded as Excluded/OwnedTargetDrift (counted as skipped, FR-018) instead of Rejected.
+    /// </summary>
+    public Task<bool> ReplaySkippingDriftAsync(
+        string type,
+        SsRow source,
+        string sourceHash,
+        CancellationToken ct,
+        Func<Task> applyOwnedUpdate
+    ) => ReplayCoreAsync(type, source, sourceHash, false, ct, applyOwnedUpdate, skipOwnedTargetDrift: true);
+
+    private async Task<bool> ReplayCoreAsync(
+        string type,
+        SsRow source,
+        string sourceHash,
+        bool reference,
+        CancellationToken ct,
+        Func<Task>? applyOwnedUpdate,
+        bool skipOwnedTargetDrift
     )
     {
         if (Rebinding.Contains((type, source.Id)))
@@ -611,7 +634,13 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run) : 
                 record.TargetType == "User" && version != prior.Version
                 || record.AfterHash != await TargetFingerprintAsync(record.TargetType, record.TargetKey, ct)
             )
-                throw new SsReject("OwnedTargetDrift");
+            {
+                if (!skipOwnedTargetDrift)
+                    throw new SsReject("OwnedTargetDrift");
+                // Leave the record untouched so every later run re-detects the drift and skips again.
+                Outcome(type, source.Id, "Excluded", "OwnedTargetDrift");
+                return true;
+            }
             Store.BeforeOwnedUpdate($"OwnedUpdate:{type}");
             await applyOwnedUpdate();
             await Store.SaveAsync(ct);

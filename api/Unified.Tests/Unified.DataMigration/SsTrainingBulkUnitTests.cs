@@ -151,6 +151,53 @@ public sealed class SsTrainingBulkUnitTests
     }
 
     [Fact]
+    public void IncludeExcused_DefaultsFalse_AndIsAcceptedOnlyForTraining()
+    {
+        Assert.False(new MigrationJobOptions().IncludeExcused);
+        Assert.True(_validator.Validate(null, Enabled(jobs => jobs.Training.IncludeExcused = true)).Succeeded);
+        foreach (var job in new[] { "MyTeam", "Scheduling", "Report" })
+        {
+            var result = _validator.Validate(null, Enabled(jobs => jobs.For(job).IncludeExcused = true));
+            Assert.True(result.Failed);
+            Assert.Contains(result.Failures, x => x.Contains($"SS:{job}:IncludeExcused", StringComparison.Ordinal));
+        }
+    }
+
+    [Fact]
+    public void ExcusedSheriff_ExcludedOnlyWhenIncludeExcusedIsOff_AndRepeatsFollowTheSwitch()
+    {
+        var excused = new SsRow(new Dictionary<string, object?> { ["Id"] = "u1", ["Excused"] = true });
+        var active = new SsRow(new Dictionary<string, object?> { ["Id"] = "u2", ["Excused"] = false });
+        Assert.True(SsTrainingRules.ExcludedExcused(excused, includeExcused: false));
+        Assert.False(SsTrainingRules.ExcludedExcused(excused, includeExcused: true));
+        Assert.False(SsTrainingRules.ExcludedExcused(active, includeExcused: false));
+        Assert.Equal("ExcusedSheriff", SsTrainingRules.ExcludedHistoryReason(linked: false, excused: true));
+
+        var sheriff = Guid.NewGuid();
+        var users = new Dictionary<string, SsRow>
+        {
+            [sheriff.ToString()] = new(
+                new Dictionary<string, object?> { ["Id"] = sheriff.ToString(), ["Excused"] = true }
+            ),
+        };
+        // Pre-2020 repeats count too: Training has no history date limit.
+        SsRow History(int id, int year) =>
+            new(
+                new Dictionary<string, object?>
+                {
+                    ["Id"] = id.ToString(),
+                    ["SheriffId"] = sheriff,
+                    ["TrainingTypeId"] = 7,
+                    ["EndDate"] = new DateTime(year, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+                    ["ExpiryDate"] = null,
+                }
+            );
+        List<SsRow> histories = [History(1, 2009), History(2, 2010)];
+        Assert.Empty(SsTrainingRules.RepeatedCourses(histories, users, includeExcused: false));
+        Assert.Equal(new int?[] { 7 }, SsTrainingRules.RepeatedCourses(histories, users, includeExcused: true));
+    }
+
+    [Fact]
     public void SafeTargetFields_MatchPerRowWriteSession()
     {
         Assert.Equal(
