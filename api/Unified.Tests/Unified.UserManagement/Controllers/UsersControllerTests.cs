@@ -18,7 +18,10 @@ namespace Unified.Tests.UserManagement.Controllers;
 
 public class UsersControllerTests
 {
-    private static UsersController CreateController(FakeUserService fakeService, IAuthorizationService? authorization = null)
+    private static UsersController CreateController(
+        FakeUserService fakeService,
+        IAuthorizationService? authorization = null
+    )
     {
         var featureFlags = new UserManagementFeatureFlags
         {
@@ -132,9 +135,15 @@ public class UsersControllerTests
         var service = new FakeUserService { GetAllResult = [user], GetByIdResult = user };
         var authorization = new FakeAuthorizationService { Deny = true };
         var controller = CreateController(service, authorization);
-        controller.HttpContext.User = new ClaimsPrincipal(new ClaimsIdentity(
-            [new Claim(UnifiedClaimTypes.Permission, nameof(Permissions.UsersView)),
-             new Claim(UnifiedClaimTypes.HomeLocationId, "1")], "test"));
+        controller.HttpContext.User = new ClaimsPrincipal(
+            new ClaimsIdentity(
+                [
+                    new Claim(UnifiedClaimTypes.Permission, nameof(Permissions.UsersView)),
+                    new Claim(UnifiedClaimTypes.HomeLocationId, "1"),
+                ],
+                "test"
+            )
+        );
 
         var profile = await controller.GetById(user.Id, TestContext.Current.CancellationToken);
         var paged = await controller.GetPaged(new PagedUserQueryParams(), TestContext.Current.CancellationToken);
@@ -144,7 +153,9 @@ public class UsersControllerTests
         Assert.Equal(UserManagementPolicies.UsersViewOtherProfiles, authorization.LastPolicy);
         var pagedResponse = Assert.IsType<PagedUserResponse>(Assert.IsType<OkObjectResult>(paged.Result).Value);
         Assert.Equal("jane@example.com", Assert.Single(pagedResponse.Data).Email);
-        var users = Assert.IsAssignableFrom<IEnumerable<UserResponse>>(Assert.IsType<OkObjectResult>(unpaged.Result).Value);
+        var users = Assert.IsAssignableFrom<IEnumerable<UserResponse>>(
+            Assert.IsType<OkObjectResult>(unpaged.Result).Value
+        );
         Assert.Equal("jane@example.com", Assert.Single(users).Email);
     }
 
