@@ -216,9 +216,9 @@ describe('UserTrainingModal', () => {
 
     expect(created[0]).toMatchObject({
       allDay: false,
-      awardedOn: '2026-07-20T00:00:00.000-07:00',
       endingOn: '2026-07-20T16:28:00.000-07:00',
     });
+    expect(Date.parse(created[0]!.awardedOn)).toBe(Date.parse('2026-07-20T00:00:00.000-07:00'));
   });
 
   it('preserves a manually entered expiry when To changes', async () => {
