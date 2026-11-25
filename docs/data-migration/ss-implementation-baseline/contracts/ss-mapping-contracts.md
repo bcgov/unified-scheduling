@@ -61,7 +61,8 @@ incremental progress; later changes do not delete targets. Boundary moved from 2
 Copy DateTimeOffset instants as UTC. Preserve supplied valid IANA timezone; reject invalid
 values. Q-X1: person-event null timezone stays null (read-path fallback must be checked);
 blank is invalid. Roster timezone null, blank or invalid rejects. This is not permission
-to reinterpret source instants or substitute a host timezone.
+to reinterpret source instants or substitute a host timezone. The only exception is the
+Training America/Vancouver standard-time adjustment (see Training History And Reporting).
 Reject inverted/equal intervals except training permits equal start/end. No invented intervals.
 
 ## References And JC (T051)
@@ -240,7 +241,46 @@ no-op; changed source over a drifted target is skipped as `Excluded/OwnedTargetD
 
 Require resolved user and Type 6 course. StartDate -> AwardedOn; EndDate -> EndingOn;
 equality allowed, reversed dates reject. Copy TrainingCertificationExpiry exactly, including
-null, with no expiry calculation. FirstNotice false -> None, true -> Sent, never Pending.
+null, with no expiry calculation (except the Vancouver adjustment below). FirstNotice false -> None,
+true -> Sent, never Pending.
+
+America/Vancouver standard-time adjustment (2026-11-25). America/Vancouver moved to a permanent
+UTC-07:00 offset on 2026-11-01. SS still stored standard-time instants at the old UTC-08:00 offset, so
+those rows would show one hour late in Unified, which renders with IANA rules (-08:00 before the change,
+-07:00 after). Only sheriffs whose SS home location (`User.HomeLocationId` -> `Location.Timezone`)
+is exactly `America/Vancouver` (trimmed, ordinal comparison) are adjusted. SS shows and enters training in the home
+location zone and keeps no home-location history. The row's own `Timezone` column is ignored for this
+decision. A null or missing home location, or any other zone (America/Edmonton, America/Creston,
+America/Dawson_Creek, America/Fort_Nelson, Etc/UTC, ...), means no adjustment and no extra outcome.
+For those sheriffs, each of StartDate, EndDate and TrainingCertificationExpiry is shifted -1 hour
+(UTC = local + 7h instead of local + 8h) independently when the instant is at or after
+`2026-11-01T09:00:00Z` and falls in old-rule Pacific standard time (outside second Sunday of March 10:00Z
+to first Sunday of November 09:00Z of its UTC year). Instants before the change are already displayed
+correctly with -08:00 and stay unchanged; old-rule DST instants stay unchanged. Example: SS
+2026-12-01 09:00 PST is stored as `17:00Z`; Unified gets `16:00Z` = 09:00 at -07:00. An interval spanning a
+DST transition shifts only the standard-time endpoint; EndingOn is then clamped to AwardedOn if the
+shift would reverse it (only possible for spans under an hour across the fall-back). The expiry is shifted
+so the SS end-of-year expiry (local 23:59:59 at -08:00) keeps its calendar date. Migrated rows are
+always AllDay=false (SS has no all-day concept), so the rule applies to every migrated row. A Unified
+edit to AllDay=true is drift. The rule is always on and has no option: turning it off would knowingly
+migrate wrong wall-clock times. The dry-run configuration hash already changes with the code (assembly MVID).
+PerRow, Bulk and dry run share `SsTrainingRules.MapHistoryTimes`. Version ordering (EndDate, StartDate,
+source ID) uses the mapped values.
+
+The payload hash keeps its previous shape for unadjusted rows. Adjusted rows add the mapped instants,
+so rows migrated before the adjustment take the owned-update path once on rerun:
+- unedited targets are corrected (`Migrated/OwnedMappedUpdate`);
+- a target a Unified user already set to exactly the mapped values (user, course, AwardedOn, EndingOn,
+  AllDay=false, ExpiryDate, Notes, NoticeState) is adopted without any business write
+  (`Migrated/TargetAlreadyMatchesMappedSource`, counted unchanged; only the crosswalk payload/after hash
+  move, so later reruns are `ExistingCrosswalk`);
+- any other edit stays `Excluded/OwnedTargetDrift` and is never overwritten.
+Adoption limits: alias crosswalks are not refreshed. A rollback treats the user-edited row as a later edit
+(conservative). Bulk undo of the original insert run compares the crosswalk after-hash, which now matches
+the adopted row, so that undo would delete it like any other row it created.
+Known limitation (unchanged): the history payload hash serializes the start/end ValueTuple as `{}`, so an SS
+edit to only StartDate/EndDate of an otherwise unchanged history is not reapplied
+(`UnchangedMappedSource`). Fixing it would rewrite every SheriffTraining hash.
 For Other course, Comment -> `Other training: {Comment}`, append newline + distinct Note;
 if equal include labeled Comment once; absent Comment copies Note. Preserve source text.
 A Comment on another course rejects. Validate target lengths rather than truncate.

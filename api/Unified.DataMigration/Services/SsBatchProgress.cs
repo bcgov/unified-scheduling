@@ -235,7 +235,13 @@ internal sealed class SsBatchProgress(
             var source = SsWriteSession.IsSourceType(type);
             if (source)
                 Scanned += delta;
-            if (reason is "ExistingCrosswalk" or "ExistingGroupCrosswalk" or "UnchangedMappedSource")
+            if (
+                reason
+                is "ExistingCrosswalk"
+                    or "ExistingGroupCrosswalk"
+                    or "UnchangedMappedSource"
+                    or SsWriteSession.TargetAlreadyMatchesMappedSourceReason
+            )
                 Unchanged += delta;
             if (source && outcome == "Excluded")
                 Skipped += delta;
@@ -263,7 +269,11 @@ internal sealed class SsBatchProgress(
         run.InsertedCount = session.Inserted;
         run.UpdatedCount = session.Updated;
         run.UnchangedCount = session.Outcomes.Count(x =>
-            x.Reason is "ExistingCrosswalk" or "ExistingGroupCrosswalk" or "UnchangedMappedSource"
+            x.Reason
+                is "ExistingCrosswalk"
+                    or "ExistingGroupCrosswalk"
+                    or "UnchangedMappedSource"
+                    or SsWriteSession.TargetAlreadyMatchesMappedSourceReason
         );
         run.SkippedCount = session.SourceOutcomes.Count(x => x.Outcome == "Excluded");
         run.RejectedCount = session.Outcomes.Count(x => x.Outcome == "Rejected");

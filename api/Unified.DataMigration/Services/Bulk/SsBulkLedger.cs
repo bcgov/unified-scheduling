@@ -271,7 +271,11 @@ internal sealed class SsBulkLedger
         persisted.InsertedCount = inserted.Count;
         persisted.UpdatedCount = updated.Count;
         persisted.UnchangedCount = order.Count(x =>
-            x.Reason is "ExistingCrosswalk" or "ExistingGroupCrosswalk" or "UnchangedMappedSource"
+            x.Reason
+                is "ExistingCrosswalk"
+                    or "ExistingGroupCrosswalk"
+                    or "UnchangedMappedSource"
+                    or SsWriteSession.TargetAlreadyMatchesMappedSourceReason
         );
         persisted.SkippedCount = primary.Count(x => x.Outcome == "Excluded");
         persisted.RejectedCount = order.Count(x => x.Outcome == "Rejected");

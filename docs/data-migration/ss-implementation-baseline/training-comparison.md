@@ -110,7 +110,10 @@ Initial ready-v2 target rehearsal persisted one qualification with AwardedOn=End
 `2026-11-01T10:00:00Z`, null certificate expiry, NoticeState Sent and Version1.
 Actual UserTrainingReportQueryHandler returned the same instant at
 `2026-11-01T03:00:00-07:00`; unchanged replay retained counts. This verifies that one fixture,
-not the full SS export/report population or all edge cases.
+not the full SS export/report population or all edge cases. Since the 2026-11-25 America/Vancouver
+standard-time adjustment ([contract](contracts/ss-mapping-contracts.md#training-history-and-reporting)), this
+instant maps to `2026-11-01T09:00:00Z` (02:00 at -07:00, SS wall clock 02:00 PST) when the sheriff's home
+location is America/Vancouver.
 
 Populate actual source/target row and field counts, report windows, ignored layout differences,
 matched discrepancy classes and artifact/command links after execution. Any missing business

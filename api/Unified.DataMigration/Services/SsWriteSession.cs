@@ -545,6 +545,9 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run) : 
                 CultureInfo.InvariantCulture
             );
 
+    /// <summary>A drifted owned target that already equals the mapped source values (no write; unchanged).</summary>
+    public const string TargetAlreadyMatchesMappedSourceReason = "TargetAlreadyMatchesMappedSource";
+
     public Task<bool> ReplayAsync(
         string type,
         SsRow source,
@@ -558,14 +561,29 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run) : 
     /// Owned (non-reference) replay where a drifted target (edited in Unified since the job last wrote it,
     /// e.g. the 2026-11-01 time zone correction) is skipped: the target and crosswalk are left unchanged and
     /// the row is recorded as Excluded/OwnedTargetDrift (counted as skipped, FR-018) instead of Rejected.
+    /// When <paramref name="targetMatchesMapped"/> reports that the drifted target already equals the new mapped
+    /// values, nothing is written to the target: the crosswalk adopts the current target image (source hash,
+    /// after-hash, source timestamp) and the row is recorded as Migrated/TargetAlreadyMatchesMappedSource
+    /// (counted as unchanged), so later reruns are no-ops.
     /// </summary>
     public Task<bool> ReplaySkippingDriftAsync(
         string type,
         SsRow source,
         string sourceHash,
         CancellationToken ct,
-        Func<Task> applyOwnedUpdate
-    ) => ReplayCoreAsync(type, source, sourceHash, false, ct, applyOwnedUpdate, skipOwnedTargetDrift: true);
+        Func<Task> applyOwnedUpdate,
+        Func<Task<bool>>? targetMatchesMapped = null
+    ) =>
+        ReplayCoreAsync(
+            type,
+            source,
+            sourceHash,
+            false,
+            ct,
+            applyOwnedUpdate,
+            skipOwnedTargetDrift: true,
+            targetMatchesMapped
+        );
 
     private async Task<bool> ReplayCoreAsync(
         string type,
@@ -574,7 +592,8 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run) : 
         bool reference,
         CancellationToken ct,
         Func<Task>? applyOwnedUpdate,
-        bool skipOwnedTargetDrift
+        bool skipOwnedTargetDrift,
+        Func<Task<bool>>? targetMatchesMapped = null
     )
     {
         if (Rebinding.Contains((type, source.Id)))
@@ -637,6 +656,16 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run) : 
             {
                 if (!skipOwnedTargetDrift)
                     throw new SsReject("OwnedTargetDrift");
+                if (record.TargetType != "User" && targetMatchesMapped is not null && await targetMatchesMapped())
+                {
+                    // Same no-write precedent as UnchangedMappedSource: only crosswalk evidence moves.
+                    record.PayloadHash = sourceHash;
+                    record.AfterHash = await TargetFingerprintAsync(record.TargetType, record.TargetKey, ct);
+                    record.SourceUpdatedAtUtc = source.Date("UpdatedOn") ?? source.Date("CreatedOn");
+                    record.LastAppliedRunId = run.Id;
+                    Outcome(type, source.Id, "Migrated", TargetAlreadyMatchesMappedSourceReason);
+                    return true;
+                }
                 // Leave the record untouched so every later run re-detects the drift and skips again.
                 Outcome(type, source.Id, "Excluded", "OwnedTargetDrift");
                 return true;

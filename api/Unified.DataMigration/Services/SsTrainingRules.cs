@@ -158,9 +158,178 @@ internal static class SsTrainingRules
     internal static (string Outcome, string? Reason) CourseLinkOutcome(bool shortened) =>
         shortened ? ("MigratedWithDifference", "CourseCodeShortened") : ("Migrated", null);
 
-    /// <summary>Global SheriffTraining processing order; version numbering depends on it.</summary>
-    internal static IEnumerable<SsRow> HistoryOrder(IEnumerable<SsRow> histories) =>
-        histories.OrderBy(x => x.Date("EndDate")).ThenBy(x => x.Date("StartDate")).ThenBy(x => x.Int("Id"));
+    /// <summary>
+    /// Global SheriffTraining processing order; version numbering depends on it. Ordered by the mapped
+    /// (Vancouver-adjusted, see <see cref="MapHistoryTimes"/>) EndDate, StartDate, then source ID so the order
+    /// uses the same values <see cref="PlaceHistory"/> compares. Rows with missing dates keep sorting first
+    /// (they reject later).
+    /// </summary>
+    internal static IEnumerable<SsRow> HistoryOrder(
+        IEnumerable<SsRow> histories,
+        IReadOnlySet<string> vancouverSheriffs
+    ) =>
+        histories
+            .Select(x => (Row: x, Key: HistoryOrderKey(x, IsVancouverSheriff(x, vancouverSheriffs))))
+            .OrderBy(x => x.Key.End)
+            .ThenBy(x => x.Key.Start)
+            .ThenBy(x => x.Row.Int("Id"))
+            .Select(x => x.Row);
+
+    private static (DateTimeOffset? Start, DateTimeOffset? End) HistoryOrderKey(SsRow row, bool vancouver)
+    {
+        var start = row.Date("StartDate");
+        var end = row.Date("EndDate");
+        if (start is null || end is null || end < start)
+            return (
+                start is null ? null : AdjustVancouverStandardTime(start.Value, vancouver),
+                end is null ? null : AdjustVancouverStandardTime(end.Value, vancouver)
+            );
+        var mapped = MapTimes(start.Value, end.Value, null, vancouver);
+        return (mapped.Start, mapped.End);
+    }
+
+    // ---------------------------------------------------------------- America/Vancouver permanent UTC-07:00
+
+    /// <summary>The only SS Location.Timezone value whose trainings are adjusted (trimmed, ordinal).</summary>
+    internal const string VancouverTimeZone = "America/Vancouver";
+
+    /// <summary>
+    /// First instant of the permanent UTC-07:00 offset: the old-rule fall-back 2026-11-01 02:00 PDT (09:00Z).
+    /// Unified renders instants before it with the historical BC rules (-08:00 in standard time), which already
+    /// matches what SS showed, so only instants at or after it are adjusted.
+    /// </summary>
+    internal static readonly DateTimeOffset VancouverPermanentOffsetStart = new(2026, 11, 1, 9, 0, 0, TimeSpan.Zero);
+
+    /// <summary>True when the SS location time zone is exactly <c>America/Vancouver</c> (after trimming).</summary>
+    internal static bool IsVancouverZone(string? zone) =>
+        zone is not null && string.Equals(zone.Trim(), VancouverTimeZone, StringComparison.Ordinal);
+
+    /// <summary>
+    /// SS user IDs whose home location (User.HomeLocationId -> Location.Timezone, the zone SS displays and
+    /// enters training in) is America/Vancouver. A missing home location or Location row means no adjustment.
+    /// </summary>
+    internal static HashSet<string> VancouverSheriffs(IEnumerable<SsRow> users, IEnumerable<SsRow> locations)
+    {
+        var vancouverLocations = locations
+            .Where(x => IsVancouverZone(x.Text("Timezone")))
+            .Select(x => x.Id)
+            .ToHashSet(StringComparer.Ordinal);
+        return users
+            .Where(x =>
+                x.Int("HomeLocationId") is { } home
+                && vancouverLocations.Contains(home.ToString(CultureInfo.InvariantCulture))
+            )
+            .Select(x => x.Id)
+            .ToHashSet(StringComparer.Ordinal);
+    }
+
+    internal static bool IsVancouverSheriff(SsRow history, IReadOnlySet<string> vancouverSheriffs) =>
+        history.Guid("SheriffId")?.ToString() is { } sheriff && vancouverSheriffs.Contains(sheriff);
+
+    /// <summary>
+    /// Standard time under the old (pre-2026-11-01) Pacific rules: DST from the 2nd Sunday of March 02:00 PST
+    /// (10:00Z) to the 1st Sunday of November 02:00 PDT (09:00Z). SS stored such instants with UTC-08:00.
+    /// </summary>
+    internal static bool IsOldPacificStandardTime(DateTimeOffset instant)
+    {
+        var utc = instant.UtcDateTime;
+        var dstStart = NthSunday(utc.Year, 3, 2).AddHours(10);
+        var dstEnd = NthSunday(utc.Year, 11, 1).AddHours(9);
+        return utc < dstStart || utc >= dstEnd;
+    }
+
+    private static DateTime NthSunday(int year, int month, int n)
+    {
+        var first = new DateTime(year, month, 1, 0, 0, 0, DateTimeKind.Utc);
+        var offset = ((int)DayOfWeek.Sunday - (int)first.DayOfWeek + 7) % 7;
+        return first.AddDays(offset + 7 * (n - 1));
+    }
+
+    /// <summary>
+    /// SS stored an America/Vancouver standard-time wall clock as local+8h; Unified renders it at UTC-07:00 from
+    /// 2026-11-01, so the correct instant is local+7h: subtract one hour. Example: SS 2026-12-01 09:00 PST was
+    /// stored as 17:00Z (Unified would show 10:00); mapped to 16:00Z (Unified shows 09:00).
+    /// Old-rule DST instants, instants before <see cref="VancouverPermanentOffsetStart"/> and non-Vancouver
+    /// zones are unchanged.
+    /// </summary>
+    internal static DateTimeOffset AdjustVancouverStandardTime(DateTimeOffset instant, bool vancouver) =>
+        vancouver && instant >= VancouverPermanentOffsetStart && IsOldPacificStandardTime(instant)
+            ? instant.AddHours(-1)
+            : instant;
+
+    /// <summary>
+    /// Mapped UserTraining instants. <see cref="Adjusted"/> is true when any value differs from the source.
+    /// </summary>
+    internal sealed record HistoryTimes(
+        DateTimeOffset Start,
+        DateTimeOffset End,
+        DateTimeOffset? Expiry,
+        bool Adjusted
+    );
+
+    /// <summary>
+    /// Validates SS StartDate/EndDate (<see cref="SsWriteSession.Dates"/>) and maps StartDate, EndDate and
+    /// TrainingCertificationExpiry with <see cref="AdjustVancouverStandardTime"/>. Each endpoint uses its own
+    /// old-rule offset (an interval spanning a DST transition shifts only its standard-time endpoint). Only the
+    /// 2026-11-01 fall-back hour can reverse an interval (start in PDT, end in the repeated PST hour); the end
+    /// is then clamped to the start so EndingOn &gt;= AwardedOn still holds.
+    /// </summary>
+    internal static HistoryTimes MapHistoryTimes(SsRow row, bool vancouver)
+    {
+        var (start, end) = SsWriteSession.Dates(row);
+        return MapTimes(start, end, row.Date("TrainingCertificationExpiry"), vancouver);
+    }
+
+    internal static HistoryTimes MapTimes(
+        DateTimeOffset start,
+        DateTimeOffset end,
+        DateTimeOffset? expiry,
+        bool vancouver
+    )
+    {
+        var mappedStart = AdjustVancouverStandardTime(start, vancouver);
+        var mappedEnd = AdjustVancouverStandardTime(end, vancouver);
+        if (mappedEnd < mappedStart)
+            mappedEnd = mappedStart;
+        var mappedExpiry = expiry is { } value ? AdjustVancouverStandardTime(value, vancouver) : (DateTimeOffset?)null;
+        return new(
+            mappedStart,
+            mappedEnd,
+            mappedExpiry,
+            mappedStart != start || mappedEnd != end || mappedExpiry != expiry
+        );
+    }
+
+    /// <summary>Mapped-value image of a UserTraining (record equality compares instants, ordinal text).</summary>
+    internal sealed record HistoryTargetValues(
+        Guid UserId,
+        int TrainingId,
+        DateTimeOffset AwardedOn,
+        DateTimeOffset EndingOn,
+        bool AllDay,
+        DateTimeOffset? ExpiryDate,
+        string? Notes,
+        string? NoticeState
+    );
+
+    /// <summary>What the job would write for <paramref name="row"/> (migrated rows are always timed).</summary>
+    internal static HistoryTargetValues MappedTarget(
+        SsRow row,
+        Guid userId,
+        int trainingId,
+        string courseCode,
+        HistoryTimes times
+    ) =>
+        new(
+            userId,
+            trainingId,
+            times.Start,
+            times.End,
+            false,
+            times.Expiry,
+            MappedNotes(row, courseCode),
+            NoticeState(row)
+        );
 
     /// <summary>True when the sheriff's training is excluded as ExcusedSheriff (Training IncludeExcused off).</summary>
     internal static bool ExcludedExcused(SsRow sheriff, bool includeExcused) =>
@@ -171,21 +340,44 @@ internal static class SsTrainingRules
         : excused ? "ExcusedSheriff"
         : "DeletedHistory";
 
-    internal static string HistoryHash(
-        SsRow row,
-        string sourceUser,
-        (DateTimeOffset Start, DateTimeOffset End) dates
-    ) =>
-        SsWriteSession.Hash(
-            new
-            {
-                User = sourceUser,
-                Course = row.Int("TrainingTypeId"),
-                dates,
-                Expiry = row.Date("TrainingCertificationExpiry"),
-                Notice = row.Bool("FirstNotice"),
-            }
-        );
+    /// <summary>
+    /// Mapped history payload hash. Unadjusted rows keep the original hash shape byte for byte (existing
+    /// crosswalks stay unchanged). A Vancouver-adjusted row adds the mapped instants, so rows migrated before
+    /// the adjustment existed replay through the owned-update path (corrected, or skipped/adopted on drift)
+    /// and later reruns are no-ops.
+    /// </summary>
+    internal static string HistoryHash(SsRow row, string sourceUser, HistoryTimes times)
+    {
+        // Kept for hash compatibility; System.Text.Json serializes the ValueTuple (fields only) as {}.
+        var dates = (Start: row.Date("StartDate"), End: row.Date("EndDate"));
+        return times.Adjusted
+            ? SsWriteSession.Hash(
+                new
+                {
+                    User = sourceUser,
+                    Course = row.Int("TrainingTypeId"),
+                    dates,
+                    Expiry = row.Date("TrainingCertificationExpiry"),
+                    Notice = row.Bool("FirstNotice"),
+                    VancouverAdjusted = new
+                    {
+                        times.Start,
+                        times.End,
+                        times.Expiry,
+                    },
+                }
+            )
+            : SsWriteSession.Hash(
+                new
+                {
+                    User = sourceUser,
+                    Course = row.Int("TrainingTypeId"),
+                    dates,
+                    Expiry = row.Date("TrainingCertificationExpiry"),
+                    Notice = row.Bool("FirstNotice"),
+                }
+            );
+    }
 
     internal static string? MappedNotes(SsRow row, string courseCode)
     {

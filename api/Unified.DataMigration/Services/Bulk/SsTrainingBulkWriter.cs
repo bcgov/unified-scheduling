@@ -129,6 +129,7 @@ public sealed class SsTrainingBulkWriter(UnifiedDbContext db, IOptions<AuditReco
         private readonly DateTimeOffset now = run.StartedOn!.Value;
         private readonly Guid? actor = SsBulkTargets.StampActor(db);
         private readonly Dictionary<string, SsRow> users = rows["User"].ToDictionary(x => x.Id);
+        private readonly HashSet<string> vancouver = SsTrainingRules.VancouverSheriffs(rows["User"], rows["Location"]);
         private readonly HashSet<int?> shortenedCarbine = SsTrainingRules.ShortenedCarbineCourseIds(rows["LookupCode"]);
 
         private NpgsqlConnection Connection => SsBulkStaging.Connection(db);
@@ -523,7 +524,7 @@ public sealed class SsTrainingBulkWriter(UnifiedDbContext db, IOptions<AuditReco
         public async Task<List<List<(int Order, SsRow Row)>>> PlanHistoryChunksAsync(int size, CancellationToken ct)
         {
             var ordered = SsTrainingRules
-                .HistoryOrder(rows["SheriffTraining"])
+                .HistoryOrder(rows["SheriffTraining"], vancouver)
                 .Select((row, index) => (index, row))
                 .ToList();
             var userKeys = (
@@ -724,7 +725,10 @@ public sealed class SsTrainingBulkWriter(UnifiedDbContext db, IOptions<AuditReco
                         continue;
                     if (records.TryGetValue(row.Id, out var record))
                     {
-                        var dates = SsWriteSession.Dates(row);
+                        var dates = SsTrainingRules.MapHistoryTimes(
+                            row,
+                            SsTrainingRules.IsVancouverSheriff(row, vancouver)
+                        );
                         var hash = SsTrainingRules.HistoryHash(row, sourceUser, dates);
                         if (
                             record.PayloadHash != SsWriteSession.ProposalHash("SheriffTraining", row, hash)
@@ -742,7 +746,9 @@ public sealed class SsTrainingBulkWriter(UnifiedDbContext db, IOptions<AuditReco
                             pairs.TryGetValue((target, course), out var group)
                             && SsTrainingRules.MayHaveNewerHistory(
                                 group.Select(x => x.EndingOn),
-                                SsWriteSession.Dates(row).End
+                                SsTrainingRules
+                                    .MapHistoryTimes(row, SsTrainingRules.IsVancouverSheriff(row, vancouver))
+                                    .End
                             )
                         )
                             foreach (var existing in group)
@@ -823,6 +829,8 @@ public sealed class SsTrainingBulkWriter(UnifiedDbContext db, IOptions<AuditReco
             var writes = new List<HistoryWrite>();
             var composes = new List<(Guid User, int Profile)>();
             var stamps = new List<(Rec Record, DateTimeOffset? Changed)>();
+            // Owned records whose drifted target already equals the mapped values (adopted via stamps).
+            var adopted = new HashSet<long>();
             var intents = new List<Intent>();
             var nextTemp = -1;
             var touched = new HashSet<int>();
@@ -859,7 +867,42 @@ public sealed class SsTrainingBulkWriter(UnifiedDbContext db, IOptions<AuditReco
                     throw new InvalidOperationException(
                         "SS bulk training version placement target was not prefetched."
                     );
+                // Adopted earlier in this chunk: its after-hash now equals this image (PerRow updates the record).
+                if (adopted.Contains(owner.Id))
+                    return null;
                 return image.Fingerprint == owner.AfterHash ? null : "OwnedTargetDrift";
+            }
+            // Same as PerRow TargetMatchesMappedAsync: the drifted target already holds the mapped values.
+            bool TargetMatchesMapped(
+                SsBulkTargetImage image,
+                SsRow row,
+                string sourceUser,
+                SsTrainingRules.HistoryTimes dates
+            )
+            {
+                try
+                {
+                    var values = image.PersistedValues;
+                    var user = Guid.Parse(ResolveUser(sourceUser));
+                    var course = ResolveCourse(row);
+                    if (!courseCodes.TryGetValue(course, out var code))
+                        return false;
+                    var actual = new SsTrainingRules.HistoryTargetValues(
+                        (Guid)values["UserId"]!,
+                        (int)values["TrainingId"]!,
+                        (DateTimeOffset)values["AwardedOn"]!,
+                        (DateTimeOffset)values["EndingOn"]!,
+                        (bool)values["AllDay"]!,
+                        (DateTimeOffset?)values["ExpiryDate"],
+                        (string?)values["Notes"],
+                        (string?)values["NoticeState"]
+                    );
+                    return actual == SsTrainingRules.MappedTarget(row, user, course, code, dates);
+                }
+                catch (SsReject)
+                {
+                    return false;
+                }
             }
 
             foreach (var (_, row) in chunk)
@@ -884,7 +927,10 @@ public sealed class SsTrainingBulkWriter(UnifiedDbContext db, IOptions<AuditReco
                             );
                             return;
                         }
-                        var dates = SsWriteSession.Dates(row);
+                        var dates = SsTrainingRules.MapHistoryTimes(
+                            row,
+                            SsTrainingRules.IsVancouverSheriff(row, vancouver)
+                        );
                         SsWriteSession.Timezone(row, false);
                         var hash = SsTrainingRules.HistoryHash(row, sourceUser, dates);
                         var mapped = SsWriteSession.ProposalHash("SheriffTraining", row, hash);
@@ -922,6 +968,28 @@ public sealed class SsTrainingBulkWriter(UnifiedDbContext db, IOptions<AuditReco
                             // job last wrote it is skipped and left unchanged, never overwritten from SS.
                             if (ownedBefore[record.TargetKey].Fingerprint != record.AfterHash)
                             {
+                                if (TargetMatchesMapped(ownedBefore[record.TargetKey], row, sourceUser, dates))
+                                {
+                                    // Same crosswalk refresh as PerRow; no target write, mutation or alias refresh.
+                                    stamps.Add(
+                                        (
+                                            record with
+                                            {
+                                                PayloadHash = mapped,
+                                                AfterHash = ownedBefore[record.TargetKey].Fingerprint,
+                                            },
+                                            changed
+                                        )
+                                    );
+                                    adopted.Add(record.Id);
+                                    ledger.Outcome(
+                                        "SheriffTraining",
+                                        row.Id,
+                                        "Migrated",
+                                        SsWriteSession.TargetAlreadyMatchesMappedSourceReason
+                                    );
+                                    return;
+                                }
                                 ledger.Outcome("SheriffTraining", row.Id, "Excluded", "OwnedTargetDrift");
                                 return;
                             }
@@ -971,7 +1039,7 @@ public sealed class SsTrainingBulkWriter(UnifiedDbContext db, IOptions<AuditReco
                                     mapped,
                                     dates.Start,
                                     dates.End,
-                                    row.Date("TrainingCertificationExpiry"),
+                                    dates.Expiry,
                                     notes,
                                     SsTrainingRules.NoticeState(row),
                                     record,
@@ -1083,7 +1151,7 @@ public sealed class SsTrainingBulkWriter(UnifiedDbContext db, IOptions<AuditReco
                                 mapped,
                                 dates.Start,
                                 dates.End,
-                                row.Date("TrainingCertificationExpiry"),
+                                dates.Expiry,
                                 mappedNotes,
                                 SsTrainingRules.NoticeState(row),
                                 null,

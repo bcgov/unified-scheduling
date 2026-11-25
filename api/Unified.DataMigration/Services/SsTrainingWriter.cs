@@ -9,7 +9,15 @@ namespace Unified.DataMigration.Services;
 
 public sealed class SsTrainingWriter(UnifiedDbContext db)
 {
-    public static readonly string[] Tables = ["LookupCode", "User", "SheriffTraining", "SheriffStandardTraining"];
+    // Location is a read-only lookup (home location time zone, see SsTrainingRules.VancouverSheriffs).
+    public static readonly string[] Tables =
+    [
+        "LookupCode",
+        "Location",
+        "User",
+        "SheriffTraining",
+        "SheriffStandardTraining",
+    ];
 
     internal static string AllocateCourseCode(string code, IReadOnlySet<string> reserved) =>
         SsTrainingRules.AllocateCourseCode(code, reserved);
@@ -29,6 +37,7 @@ public sealed class SsTrainingWriter(UnifiedDbContext db)
         var shortenedCarbineCourseIds = SsTrainingRules.ShortenedCarbineCourseIds(rows["LookupCode"]);
         var courseCodeCounts = SsTrainingRules.CourseCodeCounts(rows["LookupCode"]);
         var repeats = SsTrainingRules.RepeatedCourses(rows["SheriffTraining"], users, includeExcused);
+        var vancouver = SsTrainingRules.VancouverSheriffs(rows["User"], rows["Location"]);
         foreach (var row in SsTrainingRules.Courses(rows["LookupCode"]))
             await session.RowAsync(
                 "Training",
@@ -124,7 +133,7 @@ public sealed class SsTrainingWriter(UnifiedDbContext db)
                 },
                 ct
             );
-        foreach (var row in SsTrainingRules.HistoryOrder(rows["SheriffTraining"]))
+        foreach (var row in SsTrainingRules.HistoryOrder(rows["SheriffTraining"], vancouver))
             await session.RowAsync(
                 "SheriffTraining",
                 row,
@@ -148,11 +157,16 @@ public sealed class SsTrainingWriter(UnifiedDbContext db)
                         );
                         return;
                     }
-                    var dates = SsWriteSession.Dates(row);
+                    // America/Vancouver home location: old-rule standard-time instants from 2026-11-01 move -1h.
+                    var dates = SsTrainingRules.MapHistoryTimes(
+                        row,
+                        SsTrainingRules.IsVancouverSheriff(row, vancouver)
+                    );
                     SsWriteSession.Timezone(row, false); // Target UserTraining has no timezone column; report the loss.
                     var hash = SsTrainingRules.HistoryHash(row, sourceUser, dates);
                     // Unchanged source: no write (ExistingCrosswalk/UnchangedMappedSource). Changed source with a
-                    // target edited in Unified since migration (e.g. 2026-11-01 time zone fix): skipped, not overwritten.
+                    // target edited in Unified since migration (e.g. 2026-11-01 time zone fix): skipped, not
+                    // overwritten, unless the edit already equals the mapped values (adopted, no write).
                     if (
                         await session.ReplaySkippingDriftAsync(
                             "SheriffTraining",
@@ -191,12 +205,13 @@ public sealed class SsTrainingWriter(UnifiedDbContext db)
                                 }
                                 owned.AwardedOn = dates.Start;
                                 owned.EndingOn = dates.End;
-                                owned.ExpiryDate = row.Date("TrainingCertificationExpiry");
+                                owned.ExpiryDate = dates.Expiry;
                                 owned.Notes = SsTrainingRules.MappedNotes(row, owned.Training.Code);
                                 owned.NoticeState = SsTrainingRules.NoticeState(row);
                                 StampRun(owned, session.Now);
                                 // Keep the existing version; never invoke renewal or mail services.
-                            }
+                            },
+                            () => TargetMatchesMappedAsync(session, row, sourceUser, dates, ct)
                         )
                     )
                         return;
@@ -245,7 +260,7 @@ public sealed class SsTrainingWriter(UnifiedDbContext db)
                             AwardedOn = dates.Start,
                             EndingOn = dates.End,
                             AllDay = false,
-                            ExpiryDate = row.Date("TrainingCertificationExpiry"),
+                            ExpiryDate = dates.Expiry,
                             Notes = notes,
                             NoticeState = SsTrainingRules.NoticeState(row),
                         }
@@ -314,6 +329,45 @@ public sealed class SsTrainingWriter(UnifiedDbContext db)
         history.UpdatedOn = now;
     }
 
+    /// <summary>
+    /// True when the drifted owned target already holds exactly what this job would write (e.g. a Unified
+    /// user applied the 2026-11-01 time zone correction by hand). Any mismatch, or a mapping that would reject,
+    /// keeps the OwnedTargetDrift skip.
+    /// </summary>
+    private async Task<bool> TargetMatchesMappedAsync(
+        SsWriteSession session,
+        SsRow row,
+        string sourceUser,
+        SsTrainingRules.HistoryTimes dates,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            var id = int.Parse(await session.ResolveAsync("SheriffTraining", row.Id, ct), CultureInfo.InvariantCulture);
+            var owned = await db.UserTrainings.Include(x => x.Training).SingleAsync(x => x.Id == id, ct);
+            var user = Guid.Parse(await session.ResolveAsync("User", sourceUser, ct));
+            var course = await session.ResolveIntAsync("Training", row.Int("TrainingTypeId"), ct);
+            if (course is null || owned.UserId != user || owned.TrainingId != course)
+                return false;
+            var actual = new SsTrainingRules.HistoryTargetValues(
+                owned.UserId,
+                owned.TrainingId,
+                owned.AwardedOn,
+                owned.EndingOn,
+                owned.AllDay,
+                owned.ExpiryDate,
+                owned.Notes,
+                owned.NoticeState
+            );
+            return actual == SsTrainingRules.MappedTarget(row, user, course.Value, owned.Training.Code, dates);
+        }
+        catch (SsReject)
+        {
+            return false;
+        }
+    }
+
     private async Task<(
         SsTrainingRules.HistoryPlacement Placement,
         Dictionary<int, DataMigrationRecord> Owners
@@ -321,7 +375,7 @@ public sealed class SsTrainingWriter(UnifiedDbContext db)
         SsWriteSession session,
         List<UserTraining> histories,
         string legacyId,
-        (DateTimeOffset Start, DateTimeOffset End) dates,
+        SsTrainingRules.HistoryTimes dates,
         CancellationToken ct
     )
     {

@@ -893,6 +893,212 @@ public sealed class SsTrainingBulkPostgresTests : IAsyncLifetime
         }
     }
 
+    // America/Vancouver permanent UTC-07:00 (2026-11-01): trainings of sheriffs whose SS home location is
+    // America/Vancouver move -1h for old-rule standard-time instants from the change on; others are untouched.
+    // Rows migrated before the adjustment existed are corrected on rerun unless edited in Unified; a row a user
+    // already fixed by hand is adopted without a write. PerRow and Bulk end in the same state.
+    [Fact(Skip = SkipReason, SkipUnless = nameof(IsConfigured))]
+    public async Task Training_VancouverStandardTime_ShiftedOnce_CorrectsUneditedRows_AdoptsManualFixes()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var clones = new[]
+        {
+            await CloneAsync("tz_a", MigrationPersistenceMode.PerRow, ct),
+            await CloneAsync("tz_b", MigrationPersistenceMode.Bulk, ct),
+        };
+        string[] business = ["trainings", "categories", "requirements", "usertrainings", "users"];
+        // Home locations are read-only Training lookups; MyTeam already ran in the clones.
+        await ExecuteAsync(
+            sourceConnection,
+            $"""
+            INSERT INTO "Location" ("Id","AgencyId","Name","Timezone","CreatedOn") VALUES
+            (901,'TZ-VAN','Vancouver synthetic','America/Vancouver','2024-01-01Z'),
+            (902,'TZ-EDM','Edmonton synthetic','America/Edmonton','2024-01-01Z');
+            UPDATE "User" SET "HomeLocationId"=902 WHERE "Id"='{U(2)}';
+            INSERT INTO "SheriffTraining" ("Id","SheriffId","TrainingTypeId","StartDate","EndDate","ExpiryDate",
+                "TrainingCertificationExpiry","FirstNotice","Comment","Note","Timezone","CreatedOn") VALUES
+            (6001,'{U(1)}',100,'2026-12-01T17:00Z','2026-12-02T01:00Z',NULL,'2028-01-01T07:59:59Z',false,NULL,
+                'standard after change',NULL,'2024-01-01Z'),
+            (6002,'{U(1)}',100,'2027-07-15T16:00Z','2027-07-15T23:00Z',NULL,NULL,false,NULL,'dst',NULL,'2024-01-01Z'),
+            (6003,'{U(1)}',100,'2026-01-20T17:00Z','2026-01-21T01:00Z',NULL,NULL,false,NULL,'before change',NULL,
+                '2024-01-01Z'),
+            (6004,'{U(2)}',100,'2026-12-01T17:00Z','2026-12-02T01:00Z',NULL,NULL,false,NULL,'edmonton',NULL,
+                '2024-01-01Z'),
+            (6005,'{U(1)}',100,'2027-01-12T17:00Z','2027-01-13T01:00Z',NULL,NULL,false,NULL,'fixed by hand',NULL,
+                '2024-01-01Z'),
+            (6006,'{U(1)}',100,'2027-02-09T17:00Z','2027-02-10T01:00Z',NULL,NULL,false,NULL,'edited',NULL,
+                '2024-01-01Z'),
+            (6007,'{U(1)}',100,'2026-12-15T17:00Z','2026-12-16T01:00Z',NULL,NULL,false,NULL,'unedited',NULL,
+                '2024-01-01Z');
+            """,
+            ct
+        );
+        string[] ids = ["6001", "6002", "6003", "6004", "6005", "6006", "6007"];
+
+        // Migration before the adjustment: U(1) has no home location yet, so nothing is shifted (same mapping
+        // and hash as the previous code).
+        foreach (var clone in clones)
+        {
+            var run = await RunAsync(clone, "Training", ct);
+            await AssertCleanAsync(clone, run, ct);
+            foreach (var legacy in ids)
+                Assert.StartsWith("Migrated", await OutcomeAsync(clone, run, "SheriffTraining", legacy, ct));
+            Assert.Equal(
+                (Z("2026-12-01T17:00Z"), Z("2026-12-02T01:00Z"), (DateTimeOffset?)Z("2028-01-01T07:59:59Z")),
+                await TimesAsync(clone, "6001", ct)
+            );
+        }
+
+        // Unified users already corrected one row by hand (-1h) and edited another to something else.
+        foreach (var clone in clones)
+            await ExecuteAsync(
+                clone.ConnectionString,
+                """
+                UPDATE "UserTrainings" SET "AwardedOn"="AwardedOn" - interval '1 hour',
+                    "EndingOn"="EndingOn" - interval '1 hour'
+                WHERE "Id"::text IN (SELECT "TargetKey" FROM "DataMigrationRecords"
+                    WHERE "EntityType"='SheriffTraining' AND "LegacyId"='6005');
+                UPDATE "UserTrainings" SET "Notes"='edited in Unified'
+                WHERE "Id"::text IN (SELECT "TargetKey" FROM "DataMigrationRecords"
+                    WHERE "EntityType"='SheriffTraining' AND "LegacyId"='6006');
+                """,
+                ct
+            );
+        var edited = new List<Dictionary<string, string>>();
+        foreach (var clone in clones)
+            edited.Add(
+                new()
+                {
+                    ["6005"] = await TargetHistoryAsync(clone, "6005", ct),
+                    ["6006"] = await TargetHistoryAsync(clone, "6006", ct),
+                }
+            );
+
+        // The adjustment applies: U(1)'s home location is America/Vancouver, and a new row arrives.
+        await ExecuteAsync(
+            sourceConnection,
+            $"""
+            UPDATE "User" SET "HomeLocationId"=901 WHERE "Id"='{U(1)}';
+            INSERT INTO "SheriffTraining" ("Id","SheriffId","TrainingTypeId","StartDate","EndDate","ExpiryDate",
+                "TrainingCertificationExpiry","FirstNotice","Comment","Note","Timezone","CreatedOn") VALUES
+            (6008,'{U(1)}',100,'2027-02-20T17:00Z','2027-02-21T01:00Z',NULL,NULL,false,NULL,'new',NULL,'2024-01-01Z');
+            """,
+            ct
+        );
+        var expected = new Dictionary<string, string>
+        {
+            ["6001"] = "Migrated:OwnedMappedUpdate",
+            ["6002"] = "Migrated:ExistingCrosswalk",
+            ["6003"] = "Migrated:ExistingCrosswalk",
+            ["6004"] = "Migrated:ExistingCrosswalk",
+            ["6005"] = "Migrated:TargetAlreadyMatchesMappedSource",
+            ["6006"] = "Excluded:OwnedTargetDrift",
+            ["6007"] = "Migrated:OwnedMappedUpdate",
+        };
+
+        // Dry run persists nothing. (After an applied Training run the simulation does not rehydrate Training
+        // crosswalks, so it reports every history as OlderHistoryBlockedByUnownedVersion; existing behaviour.)
+        var dry = clones[0];
+        var beforeDry = await SnapshotAsync(dry, true, ct);
+        await AssertRunAsync(dry, await RunAsync(dry, "MyTeam", ct, dryRun: true), "Completed", ct);
+        var dryRun = await RunAsync(dry, "Training", ct, dryRun: true);
+        Assert.NotEqual("", await OutcomeAsync(dry, dryRun, "SheriffTraining", "6001", ct));
+        AssertEquivalent(beforeDry, await SnapshotAsync(dry, true, ct), business, "tz dry run persists nothing");
+
+        for (var i = 0; i < clones.Length; i++)
+        {
+            var clone = clones[i];
+            var run = await RunAsync(clone, "Training", ct);
+            await AssertCleanAsync(clone, run, ct);
+            foreach (var (legacy, outcome) in expected)
+                Assert.Equal(outcome, await OutcomeAsync(clone, run, "SheriffTraining", legacy, ct));
+            Assert.StartsWith("Migrated", await OutcomeAsync(clone, run, "SheriffTraining", "6008", ct));
+            // U(1)'s June 2020-2024 fixture histories (DST, before the change) are untouched.
+            for (var y = 0; y <= 4; y++)
+                Assert.Equal(
+                    "Migrated:ExistingCrosswalk",
+                    await OutcomeAsync(clone, run, "SheriffTraining", (1010 + y).ToString(), ct)
+                );
+            await using (var context = clone.Db())
+            {
+                var counts = await context.DataMigrationRuns.AsNoTracking().SingleAsync(x => x.Id == run, ct);
+                // 6001 and 6007 corrected; 6002 (July 2027) renumbered above the new February 2027 row 6008.
+                Assert.Equal((1, 3), (counts.InsertedCount, counts.UpdatedCount));
+            }
+            // Vancouver standard time from the change: -1h (start, end, certification expiry).
+            Assert.Equal(
+                (Z("2026-12-01T16:00Z"), Z("2026-12-02T00:00Z"), (DateTimeOffset?)Z("2028-01-01T06:59:59Z")),
+                await TimesAsync(clone, "6001", ct)
+            );
+            Assert.Equal((Z("2026-12-15T16:00Z"), Z("2026-12-16T00:00Z"), null), await TimesAsync(clone, "6007", ct));
+            Assert.Equal((Z("2027-02-20T16:00Z"), Z("2027-02-21T00:00Z"), null), await TimesAsync(clone, "6008", ct));
+            // Old-rule DST, before the change, and other zones: unchanged.
+            Assert.Equal((Z("2027-07-15T16:00Z"), Z("2027-07-15T23:00Z"), null), await TimesAsync(clone, "6002", ct));
+            Assert.Equal((Z("2026-01-20T17:00Z"), Z("2026-01-21T01:00Z"), null), await TimesAsync(clone, "6003", ct));
+            Assert.Equal((Z("2026-12-01T17:00Z"), Z("2026-12-02T01:00Z"), null), await TimesAsync(clone, "6004", ct));
+            // Manually fixed (no write) and edited (never overwritten) rows keep the Unified values.
+            foreach (var (legacy, value) in edited[i])
+                Assert.Equal(value, await TargetHistoryAsync(clone, legacy, ct));
+            Assert.Equal((Z("2027-01-12T16:00Z"), Z("2027-01-13T00:00Z"), null), await TimesAsync(clone, "6005", ct));
+            await AssertNoDuplicatesOrOrphansAsync(clone, ct);
+        }
+        AssertEquivalent(
+            await SnapshotAsync(clones[0], false, ct),
+            await SnapshotAsync(clones[1], false, ct),
+            business,
+            "tz adjustment rerun"
+        );
+
+        // Further reruns are no-ops; the adopted row no longer drifts, the edited row is still skipped.
+        foreach (var clone in clones)
+        {
+            var before = await SnapshotAsync(clone, true, ct);
+            var run = await RunAsync(clone, "Training", ct);
+            await AssertCleanAsync(clone, run, ct);
+            await using (var context = clone.Db())
+            {
+                var counts = await context.DataMigrationRuns.AsNoTracking().SingleAsync(x => x.Id == run, ct);
+                Assert.Equal((0, 0), (counts.InsertedCount, counts.UpdatedCount));
+            }
+            foreach (var legacy in ids.Append("6008"))
+                Assert.Equal(
+                    legacy == "6006" ? "Excluded:OwnedTargetDrift" : "Migrated:ExistingCrosswalk",
+                    await OutcomeAsync(clone, run, "SheriffTraining", legacy, ct)
+                );
+            AssertEquivalent(before, await SnapshotAsync(clone, true, ct), business, "tz rerun no-op");
+        }
+    }
+
+    private static DateTimeOffset Z(string value) =>
+        DateTimeOffset.Parse(value, CultureInfo.InvariantCulture).ToUniversalTime();
+
+    private static async Task<(DateTimeOffset Start, DateTimeOffset End, DateTimeOffset? Expiry)> TimesAsync(
+        Clone clone,
+        string legacyId,
+        CancellationToken ct
+    )
+    {
+        await using var connection = new NpgsqlConnection(clone.ConnectionString);
+        await connection.OpenAsync(ct);
+        await using var command = new NpgsqlCommand(
+            """
+            SELECT u."AwardedOn", u."EndingOn", u."ExpiryDate"
+            FROM "UserTrainings" u JOIN "DataMigrationRecords" r
+              ON r."TargetType"='UserTraining' AND r."TargetKey"=u."Id"::text
+            WHERE r."Source"='SS' AND r."EntityType"='SheriffTraining' AND r."LegacyId"=@legacy
+            """,
+            connection
+        );
+        command.Parameters.AddWithValue("legacy", legacyId);
+        await using var reader = await command.ExecuteReaderAsync(ct);
+        Assert.True(await reader.ReadAsync(ct), legacyId);
+        return (
+            reader.GetFieldValue<DateTimeOffset>(0).ToUniversalTime(),
+            reader.GetFieldValue<DateTimeOffset>(1).ToUniversalTime(),
+            reader.IsDBNull(2) ? null : reader.GetFieldValue<DateTimeOffset>(2).ToUniversalTime()
+        );
+    }
+
     // Backfill after a date-bounded migration (Copilot review on #514): the already migrated 2026 certificate must
     // stay the highest Version (the current certificate for UserTrainingService, reports and expiry notices) when
     // older histories arrive later. Migration-owned rows are renumbered (Version only); Unified-created or drifted
