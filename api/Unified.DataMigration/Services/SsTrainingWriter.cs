@@ -194,7 +194,7 @@ public sealed class SsTrainingWriter(UnifiedDbContext db)
                                 owned.ExpiryDate = row.Date("TrainingCertificationExpiry");
                                 owned.Notes = SsTrainingRules.MappedNotes(row, owned.Training.Code);
                                 owned.NoticeState = SsTrainingRules.NoticeState(row);
-                                owned.UpdatedOn = session.Now;
+                                StampRun(owned, session.Now);
                                 // Keep the existing version; never invoke renewal or mail services.
                             }
                         )
@@ -230,15 +230,7 @@ public sealed class SsTrainingWriter(UnifiedDbContext db)
                             () =>
                             {
                                 existing.Version = SsTrainingRules.NextVersion(existing.Version);
-                                var updatedOn = db.Entry(existing).Property(x => x.UpdatedOn);
-                                if (existing.UpdatedOn == session.Now)
-                                {
-                                    // Shifted again in this run: AuditableEntityInterceptor would replace an
-                                    // unchanged UpdatedOn with the wall clock. Keep the run stamp like Bulk.
-                                    updatedOn.OriginalValue = null;
-                                    updatedOn.IsModified = true;
-                                }
-                                existing.UpdatedOn = session.Now;
+                                StampRun(existing, session.Now);
                             },
                             ct
                         );
@@ -304,6 +296,22 @@ public sealed class SsTrainingWriter(UnifiedDbContext db)
             );
         foreach (var row in rows["SheriffStandardTraining"])
             session.Outcome("SheriffStandardTraining", row.Id, "Excluded", "UnifiedMandatoryPolicyReplacesFutureRules");
+    }
+
+    /// <summary>
+    /// Sets the run's UpdatedOn. A history already saved in this run (shifted by a backfill, then shifted again or
+    /// updated) keeps the run stamp: AuditableEntityInterceptor would replace an unchanged UpdatedOn with the wall
+    /// clock, which Bulk (one statement per row) never does.
+    /// </summary>
+    private void StampRun(UserTraining history, DateTimeOffset now)
+    {
+        if (history.UpdatedOn == now)
+        {
+            var updatedOn = db.Entry(history).Property(x => x.UpdatedOn);
+            updatedOn.OriginalValue = null;
+            updatedOn.IsModified = true;
+        }
+        history.UpdatedOn = now;
     }
 
     private async Task<(

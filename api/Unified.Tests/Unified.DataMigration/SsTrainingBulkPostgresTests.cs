@@ -1093,11 +1093,114 @@ public sealed class SsTrainingBulkPostgresTests : IAsyncLifetime
         }
     }
 
+    // Copilot review (round 2) on #514: in one Bulk chunk an older backfill shifts owned history H (1043) up in its
+    // First Aid group, then H's own changed source rebinds it to an empty course (Rotating Course) at version 1,
+    // while the First Aid group still holds 1040 at version 1. H must move with user, course and version together.
+    [Fact(Skip = SkipReason, SkipUnless = nameof(IsConfigured))]
+    public async Task Training_BackfillShiftThenRebindInOneChunk_AppliesUserCourseAndVersionTogether()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var clones = new[]
+        {
+            await CloneAsync("shiftrebind_a", MigrationPersistenceMode.PerRow, ct),
+            await CloneAsync("shiftrebind_b", MigrationPersistenceMode.Bulk, ct),
+        };
+        foreach (var clone in clones)
+        {
+            await AssertCleanAsync(clone, await RunAsync(clone, "Training", ct), ct);
+            Assert.Equal(
+                ["1040:1", "1041:2", "1042:3", "1043:4", "1044:5"],
+                await GroupAsync(clone, 4, ct, false, versions: true)
+            );
+            Assert.Empty(await GroupAsync(clone, 4, ct, false, 113, true));
+        }
+        await ExecuteAsync(
+            sourceConnection,
+            $"""
+            INSERT INTO "SheriffTraining" ("Id","SheriffId","TrainingTypeId","StartDate","EndDate","ExpiryDate",
+                "TrainingCertificationExpiry","FirstNotice","Comment","Note","Timezone","CreatedOn") VALUES
+            (5301,'{U(
+                4
+            )}',100,'2021-12-01T17:00Z','2021-12-02T01:00Z',NULL,NULL,false,NULL,'backfill',NULL,'2026-11-20Z');
+            UPDATE "SheriffTraining" SET "TrainingTypeId"=113, "UpdatedOn"='2026-11-20Z' WHERE "Id"=1043;
+            """,
+            ct
+        );
+
+        var reruns = new Guid[clones.Length];
+        for (var i = 0; i < clones.Length; i++)
+        {
+            var clone = clones[i];
+            reruns[i] = await RunAsync(clone, "Training", ct);
+            await AssertCleanAsync(clone, reruns[i], ct);
+            Assert.Equal(
+                "MigratedWithDifference:LateOlderHistoryAppended",
+                await OutcomeAsync(clone, reruns[i], "SheriffTraining", "5301", ct)
+            );
+            Assert.Equal(
+                "Migrated:OwnedMappedUpdate",
+                await OutcomeAsync(clone, reruns[i], "SheriffTraining", "1043", ct)
+            );
+            // 5301 takes 1042's slot; 1042..1044 moved up, then 1043 left for its new course at version 1.
+            Assert.Equal(
+                ["1040:1", "1041:2", "5301:3", "1042:4", "1044:6"],
+                await GroupAsync(clone, 4, ct, false, versions: true)
+            );
+            Assert.Equal(["1043:1"], await GroupAsync(clone, 4, ct, false, 113, true));
+            Assert.Equal(
+                0,
+                await CountAsync(
+                    clone,
+                    """
+                    SELECT COUNT(*) FROM (SELECT 1 FROM "UserTrainings"
+                    GROUP BY "UserId","TrainingId","Version" HAVING COUNT(*) > 1) d
+                    """,
+                    ct
+                )
+            );
+            await AssertNoDuplicatesOrOrphansAsync(clone, ct);
+        }
+        // Same targets, crosswalk evidence, mutation receipts (Update per shift and per rebind) and outcomes.
+        AssertEquivalent(
+            await SnapshotAsync(clones[0], false, ct),
+            await SnapshotAsync(clones[1], false, ct),
+            ["trainings", "usertrainings", "users", "outcomes", "records", "mutations", "runs", "audit"],
+            "backfill shift + rebind"
+        );
+
+        // Refreshed evidence: a further rerun is a no-op.
+        foreach (var clone in clones)
+        {
+            var before = await SnapshotAsync(clone, true, ct);
+            var rerun = await RunAsync(clone, "Training", ct);
+            await AssertCleanAsync(clone, rerun, ct);
+            await using (var context = clone.Db())
+            {
+                var run = await context.DataMigrationRuns.AsNoTracking().SingleAsync(x => x.Id == rerun, ct);
+                Assert.Equal((0, 0), (run.InsertedCount, run.UpdatedCount));
+            }
+            foreach (var legacy in new[] { "5301", "1043", "1042", "1044" })
+                Assert.Equal(
+                    "Migrated:ExistingCrosswalk",
+                    await OutcomeAsync(clone, rerun, "SheriffTraining", legacy, ct)
+                );
+            AssertEquivalent(before, await SnapshotAsync(clone, true, ct), ["usertrainings", "records"], "no-op");
+        }
+    }
+
     /// <summary>
-    /// User <paramref name="user"/>'s First Aid histories in Version order: owning source IDs, or (with
-    /// <paramref name="details"/>) source ID, dates, notes, expiry and notice ("unowned" for Unified-created rows).
+    /// User <paramref name="user"/>'s histories of SS course <paramref name="course"/> (First Aid by default) in
+    /// Version order: owning source IDs, or (with <paramref name="details"/>) source ID, dates, notes, expiry and
+    /// notice ("unowned" for Unified-created rows), or (with <paramref name="versions"/>) "sourceId:version".
     /// </summary>
-    private static async Task<List<string>> GroupAsync(Clone clone, int user, CancellationToken ct, bool details)
+    private static async Task<List<string>> GroupAsync(
+        Clone clone,
+        int user,
+        CancellationToken ct,
+        bool details,
+        int course = 100,
+        bool versions = false
+    )
     {
         await using var connection = new NpgsqlConnection(clone.ConnectionString);
         await connection.OpenAsync(ct);
@@ -1106,11 +1209,12 @@ public sealed class SsTrainingBulkPostgresTests : IAsyncLifetime
             SELECT COALESCE(r."LegacyId",'unowned') || CASE WHEN @details THEN '|' || u."AwardedOn"::text || '|'
                 || u."EndingOn"::text || '|' || COALESCE(u."Notes",'') || '|' || COALESCE(u."ExpiryDate"::text,'')
                 || '|' || u."NoticeState" ELSE '' END
+                || CASE WHEN @versions THEN ':' || u."Version"::text ELSE '' END
             FROM "UserTrainings" u
             JOIN "DataMigrationRecords" ur ON ur."EntityType"='User' AND ur."TargetKey"=u."UserId"::text
                 AND ur."LegacyId"='{U(user)}'
             JOIN "DataMigrationRecords" tr ON tr."EntityType"='Training' AND tr."TargetKey"=u."TrainingId"::text
-                AND tr."LegacyId"='100'
+                AND tr."LegacyId"='{course}'
             LEFT JOIN "DataMigrationRecords" r ON r."EntityType"='SheriffTraining' AND r."TargetType"='UserTraining'
                 AND r."TargetKey"=u."Id"::text
             ORDER BY u."Version"
@@ -1118,6 +1222,7 @@ public sealed class SsTrainingBulkPostgresTests : IAsyncLifetime
             connection
         );
         command.Parameters.AddWithValue("details", details);
+        command.Parameters.AddWithValue("versions", versions);
         var result = new List<string>();
         await using var reader = await command.ExecuteReaderAsync(ct);
         while (await reader.ReadAsync(ct))

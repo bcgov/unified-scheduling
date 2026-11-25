@@ -831,6 +831,8 @@ public sealed class SsTrainingBulkWriter(UnifiedDbContext db, IOptions<AuditReco
             var newLegacy = new Dictionary<int, string>();
             var renumbered = new Dictionary<int, Ut>();
             var shiftedWrites = new HashSet<int>();
+            // Shifted first, then written by its own changed source: persisted only through the full update.
+            var shiftedBeforeWrite = new HashSet<int>();
 
             string? Legacy(Ut x)
             {
@@ -948,6 +950,10 @@ public sealed class SsTrainingBulkWriter(UnifiedDbContext db, IOptions<AuditReco
                                 throw new RowFailure(nameof(DbUpdateException));
                             EnsureNotesFit(notes);
                             touched.Add(ownedId);
+                            // An older backfill in this chunk already shifted it (same mutable state): keep the
+                            // staging sets disjoint so it is parked and moved once, with user, course and version.
+                            if (renumbered.Remove(ownedId))
+                                shiftedBeforeWrite.Add(ownedId);
                             if (rebind)
                             {
                                 pairs[(owned.UserId, owned.TrainingId)].Remove(owned);
@@ -1104,6 +1110,7 @@ public sealed class SsTrainingBulkWriter(UnifiedDbContext db, IOptions<AuditReco
                 usersBefore,
                 renumbered,
                 shiftedWrites,
+                shiftedBeforeWrite,
                 groupRecords,
                 recordsByTarget,
                 ct
@@ -1120,6 +1127,7 @@ public sealed class SsTrainingBulkWriter(UnifiedDbContext db, IOptions<AuditReco
             Dictionary<string, SsBulkTargetImage> usersBefore,
             Dictionary<int, Ut> renumbered,
             HashSet<int> shiftedWrites,
+            HashSet<int> shiftedBeforeWrite,
             ILookup<string, Rec> groupRecords,
             Dictionary<string, List<Rec>> recordsByTarget,
             CancellationToken ct
@@ -1150,7 +1158,10 @@ public sealed class SsTrainingBulkWriter(UnifiedDbContext db, IOptions<AuditReco
                     "rebind",
                     "boolean",
                     NpgsqlDbType.Boolean,
-                    x => x.VersionChanged || shiftedWrites.Contains(x.State.Id)
+                    x =>
+                        x.VersionChanged
+                        || shiftedWrites.Contains(x.State.Id)
+                        || shiftedBeforeWrite.Contains(x.State.Id)
                 ),
             };
             var renumberColumns = new SsBulkColumn<Ut>[]
@@ -1169,7 +1180,11 @@ public sealed class SsTrainingBulkWriter(UnifiedDbContext db, IOptions<AuditReco
                     ct
                 );
             // Two-phase version move: park every row whose version changes (rebinds, renumbers) on unique
-            // negative versions first so moves never collide transiently on the unique version index.
+            // negative versions first so moves never collide transiently on the unique version index. The
+            // renumber and full-update sets are disjoint: a shifted row that is also rewritten moves only with
+            // its full update (user, course and version together).
+            if (updates.Any(x => renumbered.ContainsKey(x.State.Id)))
+                throw new InvalidOperationException("SS bulk training row staged for renumber and update.");
             if (updates.Count > 0)
                 await ExecuteAsync(
                     """
@@ -1420,20 +1435,47 @@ public sealed class SsTrainingBulkWriter(UnifiedDbContext db, IOptions<AuditReco
                     PersistedValues = WithVersion(image.PersistedValues, version),
                 };
             }
+            // Shifted first and then rewritten: the moves happen on the original image (original user/course)
+            // before the full update, like PerRow's version-only saves followed by the update save.
+            SsBulkTargetImage Shifted(int id, int moves)
+            {
+                var image = ownedBefore[Key(id)];
+                if (moves == 0)
+                    return image;
+                var after = historyAfter[Key(id)];
+                var version = (int)image.PersistedValues["Version"]! + moves;
+                return image with
+                {
+                    AuditValues = WithMove(image.AuditValues, after.AuditValues, version),
+                    PersistedValues = WithMove(image.PersistedValues, after.PersistedValues, version),
+                };
+            }
             foreach (var write in updates)
                 audit.Modified(
                     nameof(UserTraining),
                     "UserTrainings",
-                    ownedBefore[write.Record!.TargetKey],
+                    shiftedBeforeWrite.Contains(write.State.Id)
+                        ? Shifted(write.State.Id, renumberEvents.GetValueOrDefault(write.State.Id))
+                        : ownedBefore[write.Record!.TargetKey],
                     shiftedWrites.Contains(write.State.Id)
                         ? Step(write.State.Id, renumberEvents.GetValueOrDefault(write.State.Id))
-                        : historyAfter[write.Record.TargetKey]
+                        : historyAfter[write.Record!.TargetKey]
                 );
             var seen = new Dictionary<int, int>();
             foreach (var intent in intents.Where(x => x.Kind == "Renumber"))
             {
                 var done = seen[intent.Index] = seen.GetValueOrDefault(intent.Index) + 1;
                 var total = renumberEvents[intent.Index];
+                if (shiftedBeforeWrite.Contains(intent.Index))
+                {
+                    audit.Modified(
+                        nameof(UserTraining),
+                        "UserTrainings",
+                        Shifted(intent.Index, done - 1),
+                        Shifted(intent.Index, done)
+                    );
+                    continue;
+                }
                 var before =
                     done == 1 && !shiftedWrites.Contains(intent.Index)
                         ? ownedBefore[Key(intent.Index)]
@@ -1496,6 +1538,20 @@ public sealed class SsTrainingBulkWriter(UnifiedDbContext db, IOptions<AuditReco
     }
 
     private static string Key(int id) => id.ToString(CultureInfo.InvariantCulture);
+
+    /// <summary>Pre-image moved to <paramref name="version"/> with the run's update stamp from the final image.</summary>
+    private static IReadOnlyDictionary<string, object?> WithMove(
+        IReadOnlyDictionary<string, object?> before,
+        IReadOnlyDictionary<string, object?> after,
+        int version
+    )
+    {
+        var values = new Dictionary<string, object?>(WithVersion(before, version), StringComparer.Ordinal);
+        foreach (var stamp in new[] { "UpdatedOn", "UpdatedById" })
+            if (values.ContainsKey(stamp) && after.TryGetValue(stamp, out var value))
+                values[stamp] = value;
+        return values;
+    }
 
     private static IReadOnlyDictionary<string, object?> WithVersion(
         IReadOnlyDictionary<string, object?> values,
