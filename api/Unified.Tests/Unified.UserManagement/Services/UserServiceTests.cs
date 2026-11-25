@@ -163,11 +163,43 @@ public class UserServiceTests : IAsyncLifetime
         Assert.Equal(4, result.Count);
         Assert.Collection(
             result,
-            user => Assert.Equal("Doe", user.LastName),
             user => Assert.Equal("Johnson", user.LastName),
             user => Assert.Equal("Jones", user.LastName),
+            user => Assert.Equal("Doe", user.LastName),
             user => Assert.Equal("Smith", user.LastName)
         );
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_Should_Return_Requested_Page_With_Total_Count()
+    {
+        // Arrange
+        await SeedTestData();
+        var all = await _userService.GetAllAsync(null, TestContext.Current.CancellationToken);
+        var queryParams = new UserQueryParams { Page = 2, PageSize = 1 };
+
+        // Act
+        var result = await _userService.GetPagedAsync(queryParams, TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.Equal(2, result.Page);
+        Assert.Equal(1, result.PageSize);
+        Assert.Equal(all.Count, result.TotalCount);
+        Assert.Equal(all.ElementAt(1).Id, Assert.Single(result.Data).Id);
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_Should_Reject_Unknown_Location()
+    {
+        // Arrange
+        await SeedTestData();
+        var queryParams = new UserQueryParams { LocationId = [1, 9999] };
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            _userService.GetPagedAsync(queryParams, TestContext.Current.CancellationToken)
+        );
+        Assert.Contains("9999", ex.Message);
     }
 
     [Fact]

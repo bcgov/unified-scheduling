@@ -498,6 +498,23 @@ public class UsersControllerTests
             return Task.FromResult(GetAllResult);
         }
 
+        public Task<PagedUserResponse> GetPagedAsync(
+            UserQueryParams? queryParams = null,
+            CancellationToken cancellationToken = default
+        )
+        {
+            LastQueryParams = queryParams;
+            return Task.FromResult(
+                new PagedUserResponse
+                {
+                    Page = queryParams?.Page ?? 1,
+                    PageSize = queryParams?.PageSize ?? 25,
+                    TotalCount = GetAllResult.Count,
+                    Data = [.. GetAllResult],
+                }
+            );
+        }
+
         public Task<UserResponse?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
         {
             return Task.FromResult(GetByIdResult);

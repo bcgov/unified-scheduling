@@ -17,6 +17,7 @@ public static class UserManagementPolicies
     public const string UsersExpire = AuthorizationModule.PolicyPrefix + nameof(Permissions.UsersExpire);
     public const string UsersViewOtherProfiles =
         AuthorizationModule.PolicyPrefix + nameof(Permissions.UsersViewOtherProfiles);
+    public const string UsersViewOrGlobalSearch = AuthorizationModule.PolicyPrefix + "UsersViewOrGlobalSearch";
 
     // --- Roles ---
     public const string RolesView = AuthorizationModule.PolicyPrefix + nameof(Permissions.RolesView);

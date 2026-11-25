@@ -11,6 +11,7 @@ using Unified.Db;
 using Unified.Db.Extensions;
 using Unified.Db.Models.UserManagement;
 using Unified.UserManagement.FeatureFlags;
+using Unified.UserManagement.Guards;
 using Unified.UserManagement.Models;
 using Unified.UserManagement.Queries;
 
@@ -24,19 +25,67 @@ public sealed class UserService(
     IEventDispatcher eventDispatcher
 ) : IUserService
 {
+    private const int DefaultPageSize = 25;
+    private const int MaxPageSize = 100;
+
     public async Task<IReadOnlyCollection<UserResponse>> GetAllAsync(
         UserQueryParams? queryParams = null,
         CancellationToken cancellationToken = default
     )
     {
         logger.LogDebug(
-            "Retrieving users with search provided {HasSearch}, search length {SearchLength}, location {LocationId}, enabled {IsEnabled}",
+            "Retrieving users with search provided {HasSearch}, search length {SearchLength}, location count {LocationCount}, enabled {IsEnabled}",
             LogSanitizer.HasValue(queryParams?.Search),
             LogSanitizer.Length(queryParams?.Search),
-            queryParams?.LocationId,
+            queryParams?.LocationId?.Count ?? 0,
             queryParams?.IsEnabled
         );
 
+        await LocationGuard.EnsureValidAsync(DB, queryParams?.LocationId, cancellationToken);
+
+        return await BuildFilteredQuery(queryParams).ProjectToType<UserResponse>().ToListAsync(cancellationToken);
+    }
+
+    public async Task<PagedUserResponse> GetPagedAsync(
+        UserQueryParams? queryParams = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        var page = queryParams?.Page is > 0 ? queryParams.Page.Value : 1;
+        var pageSize = queryParams?.PageSize is > 0
+            ? Math.Min(queryParams.PageSize.Value, MaxPageSize)
+            : DefaultPageSize;
+
+        logger.LogDebug(
+            "Retrieving users page {Page} with page size {PageSize}, search provided {HasSearch}, location count {LocationCount}, enabled {IsEnabled}",
+            page,
+            pageSize,
+            LogSanitizer.HasValue(queryParams?.Search),
+            queryParams?.LocationId?.Count ?? 0,
+            queryParams?.IsEnabled
+        );
+
+        await LocationGuard.EnsureValidAsync(DB, queryParams?.LocationId, cancellationToken);
+
+        var query = BuildFilteredQuery(queryParams);
+        var totalCount = await query.CountAsync(cancellationToken);
+        var data = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ProjectToType<UserResponse>()
+            .ToListAsync(cancellationToken);
+
+        return new PagedUserResponse
+        {
+            Page = page,
+            PageSize = pageSize,
+            TotalCount = totalCount,
+            Data = data,
+        };
+    }
+
+    private IQueryable<User> BuildFilteredQuery(UserQueryParams? queryParams)
+    {
         var query = DB.Users.AsNoTracking();
 
         if (queryParams?.Search?.Trim() is { Length: > 0 } searchText)
@@ -51,9 +100,9 @@ public sealed class UserService(
             );
         }
 
-        if (queryParams?.LocationId is int locationId)
+        if (queryParams?.LocationId is { Count: > 0 } locationIds)
         {
-            query = query.Where(x => x.HomeLocationId == locationId);
+            query = query.Where(x => x.HomeLocationId != null && locationIds.Contains(x.HomeLocationId.Value));
         }
 
         if (queryParams?.IsEnabled is bool isEnabled)
@@ -61,11 +110,7 @@ public sealed class UserService(
             query = query.Where(x => x.IsEnabled == isEnabled);
         }
 
-        return await query
-            .OrderBy(x => x.LastName)
-            .ThenBy(x => x.FirstName)
-            .ProjectToType<UserResponse>()
-            .ToListAsync(cancellationToken);
+        return query.OrderBy(x => x.FirstName).ThenBy(x => x.LastName).ThenBy(x => x.Id);
     }
 
     public async Task<UserResponse?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
@@ -80,6 +125,7 @@ public sealed class UserService(
     public async Task<UserResponse> CreateAsync(UserRequestDto request, CancellationToken cancellationToken = default)
     {
         await EnsureIdirNameIsUniqueAsync(request.IdirName, cancellationToken: cancellationToken);
+        await LocationGuard.EnsureValidAsync(DB, [request.HomeLocationId], cancellationToken);
         await EnsureTrainingProfileExistsAsync(request.TrainingProfileId, cancellationToken);
 
         var userEntity = new User
@@ -141,6 +187,7 @@ public sealed class UserService(
             userEntity.IdirName = request.IdirName;
         }
 
+        await LocationGuard.EnsureValidAsync(DB, [request.HomeLocationId], cancellationToken);
         await EnsureTrainingProfileExistsAsync(request.TrainingProfileId, cancellationToken);
 
         userEntity.Gender = request.Gender;

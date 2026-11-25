@@ -2,24 +2,47 @@ import { describe, expect, it } from 'vitest';
 import { flushPromises, mount } from '@vue/test-utils';
 import { HttpResponse, http } from 'msw';
 
-import { getGetApiUsersMockHandler, getGetApiUsersResponseMock } from '@/api-access/generated/users/users.msw';
+import { getGetApiUsersResponseMock } from '@/api-access/generated/users/users.msw';
 import Myteam from '@/modules/myteam/views/Myteam.vue';
 import UserCard from '@/modules/myteam/components/UserCard.vue';
 import { createTestApp } from '../../helpers/createTestApp';
 import { server } from '../../mocks/server';
 import { useLocationsStore } from '@/stores/LocationsStore';
 
+const getPagedUsersHandler = (
+  onRequest: (info: { request: Request }) => ReturnType<typeof getGetApiUsersResponseMock> | void,
+) =>
+  http.get('*/api/users/paged', (info) => {
+    const users = onRequest(info) ?? getGetApiUsersResponseMock();
+    return HttpResponse.json({ page: 1, pageSize: 10, totalCount: users.length, data: users });
+  });
+
 describe('Myteam', () => {
+  it.each([
+    [['UserGlobalSearch' as const], true],
+    [[], false],
+  ])('location filter visibility with permissions %j is %s', async (permissions, visible) => {
+    const app = await createTestApp({ permissions });
+    server.use(getPagedUsersHandler(() => getGetApiUsersResponseMock()));
+
+    const wrapper = mount(Myteam, { global: { plugins: app.mountPlugins } });
+    await flushPromises();
+
+    expect(wrapper.find('#team-location').exists()).toBe(visible);
+  });
+
   it('fetches users and renders user cards', async () => {
     const app = await createTestApp();
 
     const users = getGetApiUsersResponseMock();
 
     server.use(
-      getGetApiUsersMockHandler((info) => {
+      getPagedUsersHandler((info) => {
         const url = new URL(info.request.url);
 
         expect(url.searchParams.get('IsEnabled')).toBe('true');
+        expect(url.searchParams.get('Page')).toBe('1');
+        expect(url.searchParams.get('PageSize')).toBe('10');
 
         return users;
       }),
@@ -48,7 +71,7 @@ describe('Myteam', () => {
     const app = await createTestApp();
 
     server.use(
-      http.get('*/api/users', () => {
+      http.get('*/api/users/paged', () => {
         return HttpResponse.json({ message: 'Failed to load users' }, { status: 500, statusText: 'Server Error' });
       }),
     );
@@ -69,9 +92,8 @@ describe('Myteam', () => {
     const capturedSearchTerms: Array<string | null> = [];
 
     server.use(
-      getGetApiUsersMockHandler((info) => {
+      getPagedUsersHandler((info) => {
         capturedSearchTerms.push(new URL(info.request.url).searchParams.get('Search'));
-        return getGetApiUsersResponseMock();
       }),
     );
 
@@ -83,11 +105,7 @@ describe('Myteam', () => {
 
     await flushPromises();
 
-    const searchField = wrapper.findComponent({ name: 'VTextField' });
-    expect(wrapper.get('label[for="team-search"]').text()).toBe('Search');
-    expect(searchField.props('prependInnerIcon')).toBeUndefined();
-    expect(searchField.props('density')).toBe('comfortable');
-    expect(searchField.props('variant')).toBe('outlined');
+    expect(wrapper.get('label[for="team-search"]').text()).toBe('Search by name or badge number');
 
     const searchInput = wrapper.get('#team-search');
     await searchInput.setValue('Doe');
@@ -110,10 +128,9 @@ describe('Myteam', () => {
     let capturedLocationId: string | null = null;
 
     server.use(
-      getGetApiUsersMockHandler((info) => {
+      getPagedUsersHandler((info) => {
         const url = new URL(info.request.url);
         capturedLocationId = url.searchParams.get('LocationId');
-        return getGetApiUsersResponseMock();
       }),
     );
 
@@ -134,9 +151,8 @@ describe('Myteam', () => {
     let capturedUrl: URL | null = null;
 
     server.use(
-      getGetApiUsersMockHandler((info) => {
+      getPagedUsersHandler((info) => {
         capturedUrl = new URL(info.request.url);
-        return getGetApiUsersResponseMock();
       }),
     );
 

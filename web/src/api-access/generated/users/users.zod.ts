@@ -9,7 +9,9 @@ import * as zod from 'zod';
 export const GetApiUsersQueryParams = zod.strictObject({
   Search: zod.string().optional(),
   IsEnabled: zod.boolean().optional(),
-  LocationId: zod.int().optional(),
+  LocationId: zod.array(zod.int()).optional(),
+  Page: zod.int().optional(),
+  PageSize: zod.int().optional(),
 });
 
 export const GetApiUsersResponseItem = zod.object({
@@ -85,6 +87,51 @@ export const PostApiUsersResponse = zod.object({
   pendingRegistration: zod.boolean().optional(),
   photoUrl: zod.string().nullish(),
   lastPhotoUpdate: zod.iso.datetime({ offset: true }).nullish(),
+});
+
+export const GetApiUsersPagedQueryParams = zod.strictObject({
+  Search: zod.string().optional(),
+  IsEnabled: zod.boolean().optional(),
+  LocationId: zod.array(zod.int()).optional(),
+  Page: zod.int().optional(),
+  PageSize: zod.int().optional(),
+});
+
+export const GetApiUsersPagedResponse = zod.object({
+  page: zod.int(),
+  pageSize: zod.int(),
+  totalCount: zod.int(),
+  data: zod.array(
+    zod.object({
+      id: zod.uuid(),
+      idirName: zod.string(),
+      idirId: zod.uuid().nullish(),
+      isEnabled: zod.boolean(),
+      firstName: zod.string(),
+      lastName: zod.string(),
+      email: zod.string(),
+      gender: zod.enum(['Male', 'Female', 'Other']),
+      rank: zod.string().nullish(),
+      badgeNumber: zod.string().nullish(),
+      employeeNumber: zod.string(),
+      homeLocationId: zod.int().nullish(),
+      userLocations: zod
+        .array(
+          zod.object({
+            id: zod.int().optional(),
+            locationId: zod.int().optional(),
+            effectiveFrom: zod.iso.datetime({ offset: true }).nullish(),
+            effectiveUntil: zod.iso.datetime({ offset: true }).optional(),
+          }),
+        )
+        .optional(),
+      trainingProfileId: zod.int().nullish(),
+      lastLogin: zod.iso.datetime({ offset: true }).nullish(),
+      pendingRegistration: zod.boolean().optional(),
+      photoUrl: zod.string().nullish(),
+      lastPhotoUpdate: zod.iso.datetime({ offset: true }).nullish(),
+    }),
+  ),
 });
 
 export const GetApiUsersIdParams = zod.strictObject({

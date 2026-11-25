@@ -42,6 +42,23 @@ public class UsersController(
     }
 
     /// <summary>
+    /// Returns a page of users filtered by optional query parameters.
+    /// </summary>
+    /// <param name="queryParams">Optional filters and paging (Page, PageSize).</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A page of users with the total match count.</returns>
+    [HttpGet("paged")]
+    [Authorize(Policy = UserManagementPolicies.UsersViewOrGlobalSearch)]
+    [ProducesResponseType(typeof(PagedUserResponse), StatusCodes.Status200OK)]
+    public async Task<ActionResult<PagedUserResponse>> GetPaged(
+        [FromQuery] UserQueryParams? queryParams,
+        CancellationToken cancellationToken
+    )
+    {
+        return Ok(await userService.GetPagedAsync(queryParams, cancellationToken));
+    }
+
+    /// <summary>
     /// Returns a user by id.
     /// </summary>
     /// <param name="id">The user identifier.</param>
