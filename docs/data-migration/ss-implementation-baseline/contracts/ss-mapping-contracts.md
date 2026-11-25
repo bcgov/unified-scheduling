@@ -314,6 +314,15 @@ reconsiders it. A drifted row adopted as `TargetAlreadyMatchesMappedSource` (a U
 the correction) is a user edit and is never renumbered. PerRow and Bulk share
 `SsTrainingRules.HistoryOrderChanged` and `PlaceHistory`.
 
+Journaled rollback of a PerRow Training run restores every row to its first before-image one row at a
+time, so the `-Id` parking used by these permutations (backfill shift chains, re-placement swaps, rebinds,
+cycles) is not replayed. Before restoring any original, `SsRollbackService` therefore parks every
+restored UserTrainings row whose UserId/TrainingId/Version changed, and every run-created history still
+present, on `-Id` (Version is then always restored and verified). The unique index cannot collide in any
+restore order. Bulk Training runs are not journaled, and the Bulk undo refuses runs with Update/Renumber
+mutations (`BulkUndoRequiresInsertLinkComposeOnlyRun`), so a Bulk correction run cannot be undone and
+nothing is changed.
+
 SheriffStandardTraining is intentionally not migrated/reported separately. Unified mandatory
 flags/profile applicability replace future-user rules; stored SS histories still migrate.
 Compare actual SS service/export and actual Unified report results, not just row counts.

@@ -64,7 +64,7 @@ public sealed class SsTrainingBulkPostgresTests : IAsyncLifetime
     private readonly IOptions<DataMigrationFeatureFlags> flags = Options.Create(
         new DataMigrationFeatureFlags { Enabled = true }
     );
-    private readonly IConfiguration configuration = new ConfigurationBuilder()
+    private IConfiguration configuration = new ConfigurationBuilder()
         .AddInMemoryCollection(
             new Dictionary<string, string?>
             {
@@ -1511,6 +1511,146 @@ public sealed class SsTrainingBulkPostgresTests : IAsyncLifetime
         }
     }
 
+    // Copilot review (round 4) on #514: the journaled PerRow rollback of the reorder swap (B=v1/A=v2 back to
+    // A=v1/B=v2) restored A to v1 while B still held v1 (unique UserId/TrainingId/Version violation), because rows
+    // are restored one at a time to their first before-image and the -Id parking step is not replayed. Rollback now
+    // parks every affected history first. Bulk Training runs are not journaled and their Update/Renumber runs are
+    // refused by the Bulk undo, so nothing changes there.
+    [Fact(Skip = SkipReason, SkipUnless = nameof(IsConfigured))]
+    public async Task Training_VancouverReorder_JournaledRollbackRestoresOriginalVersions()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        const string rehearsal = "unified_ss_rehearsal_ready_v4_rollback";
+        var export = Path.Combine(Path.GetTempPath(), "ss-rollback-" + suffix);
+        configuration = new ConfigurationBuilder()
+            .AddConfiguration(configuration)
+            .AddInMemoryCollection(
+                new Dictionary<string, string?>
+                {
+                    ["DataMigrationRollback:EncryptionKey"] = Convert.ToBase64String(new byte[32]),
+                    ["DataMigrationRollback:KeyId"] = "6c3f0f8e-2b1a-4d5e-9f00-000000000b14",
+                    ["DataMigrationRollback:ExportDirectory"] = export,
+                    ["DataMigration:Sources:SS:AllowUnrecoverableSyntheticApply"] = "true",
+                }
+            )
+            .Build();
+        await using (
+            var admin = new NpgsqlConnection(
+                new NpgsqlConnectionStringBuilder(Admin) { Pooling = false }.ConnectionString
+            )
+        )
+        {
+            await admin.OpenAsync(ct);
+            await using var drop = new NpgsqlCommand($"DROP DATABASE IF EXISTS \"{rehearsal}\" WITH (FORCE)", admin);
+            await drop.ExecuteNonQueryAsync(ct);
+        }
+        try
+        {
+            var perRow = await CloneAsync("tzrollback_a", MigrationPersistenceMode.PerRow, ct, database: rehearsal);
+            var bulk = await CloneAsync("tzrollback_b", MigrationPersistenceMode.Bulk, ct);
+            await ExecuteAsync(
+                sourceConnection,
+                $"""
+                INSERT INTO "Location" ("Id","AgencyId","Name","Timezone","CreatedOn") VALUES
+                (901,'TZ-VAN','Vancouver synthetic','America/Vancouver','2024-01-01Z');
+                INSERT INTO "SheriffTraining" ("Id","SheriffId","TrainingTypeId","StartDate","EndDate","ExpiryDate",
+                    "TrainingCertificationExpiry","FirstNotice","Comment","Note","Timezone","CreatedOn") VALUES
+                (6101,'{U(
+                    3
+                )}',113,'2026-11-01T08:00Z','2026-11-01T08:50Z',NULL,NULL,false,NULL,'A pdt',NULL,'2024-01-01Z'),
+                (6102,'{U(
+                    3
+                )}',113,'2026-11-01T09:05Z','2026-11-01T09:10Z',NULL,NULL,false,NULL,'B pst',NULL,'2024-01-01Z');
+                """,
+                ct
+            );
+            var clones = new[] { perRow, bulk };
+            var original = new List<List<string>>();
+            foreach (var clone in clones)
+            {
+                await AssertCleanAsync(clone, await RunAsync(clone, "Training", ct), ct);
+                Assert.Equal(["6101:1", "6102:2"], await GroupAsync(clone, 3, ct, false, 113, true));
+            }
+            await ExecuteAsync(
+                sourceConnection,
+                $"""UPDATE "User" SET "HomeLocationId"=901 WHERE "Id"='{U(3)}';""",
+                ct
+            );
+            var snapshots = new List<Dictionary<string, List<string>>>();
+            foreach (var clone in clones)
+            {
+                original.Add(await GroupAsync(clone, 3, ct, true, 113, true));
+                snapshots.Add(await SnapshotAsync(clone, true, ct));
+            }
+            var runs = new List<Guid>();
+            foreach (var clone in clones)
+            {
+                var run = await RunAsync(clone, "Training", ct);
+                await AssertCleanAsync(clone, run, ct);
+                Assert.Equal(["6102:1", "6101:2"], await GroupAsync(clone, 3, ct, false, 113, true));
+                runs.Add(run);
+            }
+
+            // PerRow: journaled apply -> preview -> rollback restores the original rows and versions exactly.
+            await using (var context = perRow.Db())
+            {
+                var applied = await context.DataMigrationRuns.AsNoTracking().SingleAsync(x => x.Id == runs[0], ct);
+                Assert.NotNull(applied.RollbackJournalKeyId);
+                var service = new SsRollbackService(
+                    context,
+                    new SsRollbackJournal(context, configuration),
+                    configuration
+                );
+                var preview = await service.PreviewAsync(runs[0], ct);
+                Assert.Empty(preview.Blockers);
+                await service.ApplyAsync(runs[0], $"{runs[0]:D}:{preview.Digest}", ct);
+            }
+            await AssertRunAsync(perRow, runs[0], "RolledBack", ct);
+            Assert.Equal(original[0], await GroupAsync(perRow, 3, ct, true, 113, true));
+            Assert.Equal(["6101:1", "6102:2"], await GroupAsync(perRow, 3, ct, false, 113, true));
+            Assert.Equal((Z("2026-11-01T09:05Z"), Z("2026-11-01T09:10Z"), null), await TimesAsync(perRow, "6102", ct));
+            // The journal deliberately never restores audit stamps (CreatedOn/UpdatedOn; SsRollbackSchema), so
+            // compare every other UserTrainings column and the remaining business sections exactly.
+            var restored = await SnapshotAsync(perRow, true, ct);
+            AssertEquivalent(snapshots[0], restored, BusinessSections.Except(["usertrainings"]), "rollback");
+            // Columns: history, user, course, Version, AwardedOn, EndingOn, AllDay, ExpiryDate, NoticeState, Notes,
+            // CreatedOn, UpdatedOn (index 11), CreatedById, UpdatedById.
+            static List<string> WithoutUpdatedOn(List<string> rows) =>
+                rows.Select(x => x.Split(" | ")).Select(x => string.Join(" | ", x[..11].Concat(x[12..]))).ToList();
+            Assert.Equal(
+                WithoutUpdatedOn(snapshots[0]["usertrainings"]).Order(),
+                WithoutUpdatedOn(restored["usertrainings"]).Order()
+            );
+            await AssertNoDuplicatesOrOrphansAsync(perRow, ct);
+            // The restored pre-adjustment state is corrected again by the next run, which is then journaled too.
+            var again = await RunAsync(perRow, "Training", ct);
+            await AssertCleanAsync(perRow, again, ct);
+            Assert.Equal(
+                "Migrated:OwnedMappedUpdate",
+                await OutcomeAsync(perRow, again, "SheriffTraining", "6102", ct)
+            );
+            Assert.Equal(["6102:1", "6101:2"], await GroupAsync(perRow, 3, ct, false, 113, true));
+
+            // Bulk: the reorder run is not journaled and the Bulk undo refuses Update/Renumber runs; no change.
+            var beforeUndo = await SnapshotAsync(bulk, true, ct);
+            await using (var context = bulk.Db())
+            {
+                var applied = await context.DataMigrationRuns.AsNoTracking().SingleAsync(x => x.Id == runs[1], ct);
+                Assert.Null(applied.RollbackJournalKeyId);
+                var refused = await new SsBulkUndo(context).UndoAsync(runs[1], ct);
+                Assert.Null(refused.ReceiptRunId);
+                Assert.Contains("BulkUndoRequiresInsertLinkComposeOnlyRun", refused.Blockers);
+            }
+            AssertEquivalent(beforeUndo, await SnapshotAsync(bulk, true, ct), BusinessSections, "bulk undo refused");
+            Assert.Equal(["6102:1", "6101:2"], await GroupAsync(bulk, 3, ct, false, 113, true));
+        }
+        finally
+        {
+            if (Directory.Exists(export))
+                Directory.Delete(export, true);
+        }
+    }
+
     /// <summary>
     /// User <paramref name="user"/>'s histories of SS course <paramref name="course"/> (First Aid by default) in
     /// Version order: owning source IDs, or (with <paramref name="details"/>) source ID, dates, notes, expiry and
@@ -1790,10 +1930,11 @@ public sealed class SsTrainingBulkPostgresTests : IAsyncLifetime
         string name,
         MigrationPersistenceMode mode,
         CancellationToken ct,
-        int chunk = 4
+        int chunk = 4,
+        string? database = null
     )
     {
-        var connection = await CreateDatabaseAsync($"migration_it_bulk_{name}_{suffix}", baseDatabase, ct);
+        var connection = await CreateDatabaseAsync(database ?? $"migration_it_bulk_{name}_{suffix}", baseDatabase, ct);
         var clone = new Clone(
             new NpgsqlConnectionStringBuilder(connection) { Pooling = true }.ConnectionString,
             NewOptions(mode, chunk)

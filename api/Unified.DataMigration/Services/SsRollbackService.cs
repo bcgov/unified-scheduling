@@ -216,6 +216,17 @@ public sealed class SsRollbackService(UnifiedDbContext db, SsRollbackJournal cry
                 );
         }
         // Restore deleted originals in FK order. All rows are read/locked under the same plan.
+        var parked = await ParkHistoryVersionsAsync(plan, original, ct);
+        original = original
+            .Select(x =>
+                parked.Contains(x.Current.Id) && !x.Columns.Contains("Version")
+                    ? x with
+                    {
+                        Columns = [.. x.Columns, "Version"],
+                    }
+                    : x
+            )
+            .ToList();
         var missing = original.Where(x => x.Current.Values is null).ToDictionary(x => x.Current.Id);
         while (missing.Count > 0)
         {
@@ -499,6 +510,37 @@ public sealed class SsRollbackService(UnifiedDbContext db, SsRollbackJournal cry
             blockers.Distinct().OrderBy(x => x, StringComparer.Ordinal).ToArray(),
             digest
         );
+    }
+
+    // Unique (UserId, TrainingId, Version) of training histories. Training permutes versions (backfill shift
+    // chains, the re-placement swap of a corrected history, rebinds, and in general any cycle), parking rows on
+    // -Id in between; that step is not a separate undo entry because rows are restored to their FIRST before
+    // image one at a time. Restoring one row into a version another restored row still holds would violate the
+    // index for any order, so every restored history whose key columns changed, and every history this run
+    // inserted that is still present (deleted at the end), is parked on its unique -Id first. Not journaled
+    // (unified_ss.run is cleared); the verification below proves the original values afterwards.
+    private static readonly string[] HistoryKeyColumns = ["UserId", "TrainingId", "Version"];
+
+    private async Task<HashSet<string>> ParkHistoryVersionsAsync(Plan plan, List<Undo> original, CancellationToken ct)
+    {
+        var rows = original
+            .Where(x =>
+                x.Current.Values is not null
+                && x.Current.Table.Id == "public.UserTrainings"
+                && x.Columns.Intersect(HistoryKeyColumns, StringComparer.Ordinal).Any()
+            )
+            .Select(x => x.Current)
+            .Concat(plan.Deletes.Where(x => x.Table.Id == "public.UserTrainings"))
+            .DistinctBy(x => x.Id)
+            .OrderBy(x => x.Id, StringComparer.Ordinal)
+            .ToList();
+        foreach (var row in rows)
+            await CommandAsync(
+                $"UPDATE {row.Table.Sql} t SET \"Version\" = -t.\"Id\" WHERE to_jsonb(t) @> @key::jsonb",
+                ct,
+                new NpgsqlParameter("key", NpgsqlDbType.Jsonb) { Value = row.Key }
+            );
+        return rows.Select(x => x.Id).ToHashSet(StringComparer.Ordinal);
     }
 
     private bool HasMissingParent(Undo item, IEnumerable<Undo> remaining)
