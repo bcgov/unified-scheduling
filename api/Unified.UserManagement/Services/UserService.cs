@@ -68,7 +68,7 @@ public sealed class UserService(
         var query = BuildFilteredPagedQuery(queryParams);
         var totalCount = await query.CountAsync(cancellationToken);
         var data = await query
-            .Skip((page - 1) * pageSize)
+            .Skip((int)Math.Min(((long)page - 1) * pageSize, int.MaxValue))
             .Take(pageSize)
             .ProjectToType<UserResponse>()
             .ToListAsync(cancellationToken);

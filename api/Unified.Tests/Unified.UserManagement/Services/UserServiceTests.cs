@@ -247,6 +247,93 @@ public class UserServiceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task GetPagedAsync_Should_Combine_Location_Union_With_Search_And_Status_Filters()
+    {
+        // Arrange
+        await SeedTestData();
+        var location3 = await _dbContext
+            .Locations.AsNoTracking()
+            .FirstAsync(l => l.Id != 1 && l.Id != 2, TestContext.Current.CancellationToken);
+        _dbContext.Users.AddRange(
+            CreateUser("Zed", "Johnstone", 2, true),
+            CreateUser("Yan", "Johnstone", location3.Id, true),
+            CreateUser("Xia", "Johnstone", null, true),
+            CreateUser("Walt", "Johnstone", 1, false)
+        );
+        await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        // Act
+        var union = await _userService.GetPagedAsync(
+            new PagedUserQueryParams { LocationId = [1, 2] },
+            TestContext.Current.CancellationToken
+        );
+        var unionSearch = await _userService.GetPagedAsync(
+            new PagedUserQueryParams { LocationId = [1, 2], Search = "Johnstone" },
+            TestContext.Current.CancellationToken
+        );
+        var unionSearchEnabled = await _userService.GetPagedAsync(
+            new PagedUserQueryParams
+            {
+                LocationId = [1, 2],
+                Search = "Johnstone",
+                IsEnabled = true,
+            },
+            TestContext.Current.CancellationToken
+        );
+        var singleLocation = await _userService.GetPagedAsync(
+            new PagedUserQueryParams { LocationId = [location3.Id] },
+            TestContext.Current.CancellationToken
+        );
+
+        // Assert
+        Assert.Equal(5, union.TotalCount);
+        Assert.Equal(["Bob", "Jane", "John", "Walt", "Zed"], union.Data.Select(u => u.FirstName));
+
+        Assert.Equal(2, unionSearch.TotalCount);
+        Assert.Equal(["Walt", "Zed"], unionSearch.Data.Select(u => u.FirstName));
+
+        Assert.Equal(1, unionSearchEnabled.TotalCount);
+        Assert.Equal("Zed", Assert.Single(unionSearchEnabled.Data).FirstName);
+
+        Assert.Equal(1, singleLocation.TotalCount);
+        Assert.Equal("Yan", Assert.Single(singleLocation.Data).FirstName);
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_Should_Page_Within_Location_Union_And_Keep_Total_Count()
+    {
+        // Arrange
+        await SeedTestData();
+        var query = new PagedUserQueryParams
+        {
+            LocationId = [1, 2],
+            Page = 2,
+            PageSize = 2,
+        };
+
+        // Act
+        var result = await _userService.GetPagedAsync(query, TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.Equal(3, result.TotalCount);
+        Assert.Equal("John", Assert.Single(result.Data).FirstName);
+    }
+
+    private static User CreateUser(string firstName, string lastName, int? homeLocationId, bool isEnabled) =>
+        new()
+        {
+            Id = Guid.NewGuid(),
+            IdirName = $"{firstName}.{lastName}".ToLowerInvariant(),
+            IdirId = Guid.NewGuid(),
+            IsEnabled = isEnabled,
+            FirstName = firstName,
+            LastName = lastName,
+            Gender = Gender.Male,
+            Email = $"{firstName}.{lastName}@example.com".ToLowerInvariant(),
+            HomeLocationId = homeLocationId,
+        };
+
+    [Fact]
     public async Task GetPagedAsync_Should_Reject_Unknown_Location()
     {
         // Arrange

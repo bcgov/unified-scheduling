@@ -131,11 +131,21 @@ const handleCreateModalClose = () => {
     <UaCard title="Filters">
       <div class="filters-grid">
         <div class="filter-field">
-          <label class="filter-label" for="team-search">Search by name or badge number</label>
+          <label class="filter-label" for="team-search">
+            {{
+              accessControl.featureFlags.value?.UserManagement?.userBadgeNumber?.enabled
+                ? 'Search by name or badge number'
+                : 'Search by name'
+            }}
+          </label>
           <UaTextField
             id="team-search"
             label=""
-            hint="Enter a first name, last name, or badge number, then press Enter."
+            :hint="
+              accessControl.featureFlags.value?.UserManagement?.userBadgeNumber?.enabled
+                ? 'Enter a first name, last name, or badge number, then press Enter.'
+                : 'Enter a first name or last name, then press Enter.'
+            "
             persistent-hint
             v-model="searchText"
             clearable
