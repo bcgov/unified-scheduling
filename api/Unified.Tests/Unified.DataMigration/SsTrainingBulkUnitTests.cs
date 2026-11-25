@@ -305,6 +305,32 @@ public sealed class SsTrainingBulkUnitTests
         Assert.Equal("OwnedTargetDrift", drifted.Skip);
     }
 
+    [Fact]
+    public void PlaceHistory_FallbackGapMustSitAboveOlderHistories()
+    {
+        string? Unowned(SsTrainingRules.HistorySlot x) =>
+            x.LegacyId is null ? SsTrainingRules.UnownedNewerHistoryReason : null;
+
+        // 2015 at v2, unowned 2026 at v3, v1 free: a 2020 backfill may not take v1 (2020 -> 2015 -> 2026).
+        var lowerGapOnly = Place([Slot(1, 2, 2015, "1"), Slot(2, 3, 2026, null)], 2020, Unowned);
+        Assert.Equal(
+            (0, 0, SsTrainingRules.UnownedNewerHistoryReason),
+            (lowerGapOnly.Version, lowerGapOnly.Shift.Count, lowerGapOnly.Skip)
+        );
+
+        // An older Unified-created row also bounds the gap by its dates.
+        var unownedOlder = Place([Slot(1, 2, 2015, null), Slot(2, 3, 2026, null)], 2020, Unowned);
+        Assert.Equal(SsTrainingRules.UnownedNewerHistoryReason, unownedOlder.Skip);
+
+        // Drift on the blocker is still reported as OwnedTargetDrift.
+        var drifted = Place([Slot(1, 2, 2015, "1"), Slot(2, 3, 2026, "2")], 2020, _ => "OwnedTargetDrift");
+        Assert.Equal("OwnedTargetDrift", drifted.Skip);
+
+        // A free version between the older row and the blocker is used; the highest such gap wins.
+        var gap = Place([Slot(0, 1, 2010, "0"), Slot(1, 2, 2015, "1"), Slot(2, 6, 2026, null)], 2020, Unowned);
+        Assert.Equal((5, 0, (string?)null), (gap.Version, gap.Shift.Count, gap.Skip));
+    }
+
     private static IEnumerable<string> PrivateSet(string name) =>
         (IEnumerable<string>)
             typeof(SsWriteSession).GetField(name, BindingFlags.NonPublic | BindingFlags.Static)!.GetValue(null)!;

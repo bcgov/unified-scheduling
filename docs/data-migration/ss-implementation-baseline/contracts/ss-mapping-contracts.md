@@ -251,7 +251,8 @@ certificate (highest version) is the newest history. A later older row (e.g. a p
 keeps that order: it takes the lowest version of the newer rows and the migration-owned, undrifted
 newer rows move up one version (Version and update stamp only; dates, notes and Unified edits are
 untouched; crosswalk evidence is refreshed so reruns are no-ops). If a newer row is Unified-created
-or drifted it is never moved: the older row takes the highest free lower version, else it is
+or drifted it is never moved: the older row takes the highest free version above every history that sorts before it and below the
+newer rows, else it is
 Excluded as OlderHistoryBlockedByUnownedVersion (or OwnedTargetDrift) and reconsidered on rerun.
 Either way it records an out-of-order finding. Use tracked migration inserts with
 audit/FK/unique validation; do not invoke renewal or user-creation side effects.

@@ -255,8 +255,9 @@ internal static class SsTrainingRules
     /// (EndDate, StartDate, source ID): the current certificate stays the highest version. With no newer
     /// row it is max+1 (a clean first run never renumbers). Otherwise the new row takes the lowest newer
     /// version and the contiguous run of versions from there moves up one, but only when every row in that
-    /// run is migration-owned and undrifted. If not, the new row takes the highest free version below the
-    /// newer rows without touching them, or is skipped with the blocking row's reason.
+    /// run is migration-owned and undrifted. If not, the new row takes the highest free version strictly
+    /// between every older row and the newer rows without touching them, or is skipped with the blocking
+    /// row's reason (OwnedTargetDrift wins).
     /// <paramref name="block"/> is evaluated only for rows that would move: null when the row is
     /// migration-owned, version-proven and undrifted (the job may renumber it), otherwise the reason it may not.
     /// </summary>
@@ -296,7 +297,10 @@ internal static class SsTrainingRules
         var blocks = run.Select(x => block(x)).Where(x => x is not null).ToList();
         if (blocks.Count == 0)
             return new(lowest, [.. run.OrderByDescending(x => x.Version).Select(x => x.Id)], null);
-        for (var version = lowest - 1; version >= 1; version--)
+        // The free version must also sit above every history that sorts before the new row (owned or not),
+        // so the chronological order holds on both sides; a gap below an older row is not usable.
+        var floor = group.Where(x => !Newer(x)).Select(x => x.Version).DefaultIfEmpty(0).Max();
+        for (var version = lowest - 1; version > floor; version--)
             if (!byVersion.ContainsKey(version))
                 return new(version, [], null);
         return new(0, [], blocks.Contains("OwnedTargetDrift") ? "OwnedTargetDrift" : blocks[0]);
