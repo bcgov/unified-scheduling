@@ -151,6 +151,36 @@ public class UserServiceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task UserSearches_ReturnSameProfileFieldsAsGetById()
+    {
+        await SeedTestData();
+        var paged = await _userService.GetPagedAsync(
+            new PagedUserQueryParams { Search = "Smith", LocationId = [1] },
+            TestContext.Current.CancellationToken
+        );
+        var unpaged = await _userService.GetAllAsync(
+            new UserQueryParams { Search = "Smith", LocationId = 1 },
+            TestContext.Current.CancellationToken
+        );
+        var pagedUser = Assert.Single(paged.Data);
+        var unpagedUser = Assert.Single(unpaged);
+        var profile = await _userService.GetByIdAsync(pagedUser.Id, TestContext.Current.CancellationToken);
+
+        Assert.NotNull(profile);
+        Assert.Equal("john.smith@example.com", profile.Email);
+        Assert.NotNull(profile.IdirId);
+        Assert.NotNull(profile.LastLogin);
+        Assert.Equal(profile.Email, pagedUser.Email);
+        Assert.Equal(profile.IdirId, pagedUser.IdirId);
+        Assert.Equal(profile.Gender, pagedUser.Gender);
+        Assert.Equal(profile.LastLogin, pagedUser.LastLogin);
+        Assert.Equal(profile.Email, unpagedUser.Email);
+        Assert.Equal(profile.IdirId, unpagedUser.IdirId);
+        Assert.Equal(profile.Gender, unpagedUser.Gender);
+        Assert.Equal(profile.LastLogin, unpagedUser.LastLogin);
+    }
+
+    [Fact]
     public async Task GetAllAsync_Should_Return_All_Users_When_No_QueryParams()
     {
         // Arrange

@@ -119,11 +119,6 @@ public static class UserManagementModule
             .AddPermissionPolicy(Permissions.UsersView)
             .AddPermissionPolicy(Permissions.UsersExpire)
             .AddPermissionPolicy(Permissions.UsersViewOtherProfiles)
-            .AddAnyPermissionPolicy(
-                UserManagementPolicies.UsersViewOrGlobalSearch,
-                Permissions.UsersView,
-                Permissions.UserGlobalSearch
-            )
             // Roles
             .AddPermissionPolicy(Permissions.RolesView)
             .AddPermissionPolicy(Permissions.RolesCreate)

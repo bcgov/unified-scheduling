@@ -153,7 +153,13 @@ const handleCreateModalClose = () => {
             @keydown.enter="search"
           />
         </div>
-        <div v-if="accessControl.hasPermission(Permissions.UserGlobalSearch)" class="filter-field">
+        <div
+          v-if="
+            accessControl.hasPermission(Permissions.UsersView) &&
+            accessControl.hasPermission(Permissions.UserGlobalSearch)
+          "
+          class="filter-field"
+        >
           <label class="filter-label" for="team-location">Location</label>
           <UaAutocomplete
             id="team-location"

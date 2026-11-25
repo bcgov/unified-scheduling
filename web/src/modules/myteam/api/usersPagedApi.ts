@@ -1,5 +1,3 @@
-// TODO: Replace with the Orval-generated client for GET /api/users/paged once `npm run gen:api` is run against the API.
-
 import type { MaybeRef } from 'vue';
 import type { UserResponse } from '@/api-access/generated/models';
 import { useFetchAPI } from '@/api-access/useFetchAPI';

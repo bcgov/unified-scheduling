@@ -21,7 +21,9 @@ const getPagedUsersHandler = (
 
 describe('Myteam', () => {
   it.each([
-    [['UserGlobalSearch' as const], true],
+    [['UsersView' as const, 'UserGlobalSearch' as const], true],
+    [['UsersView' as const], false],
+    [['UserGlobalSearch' as const], false],
     [[], false],
   ])('location filter visibility with permissions %j is %s', async (permissions, visible) => {
     const app = await createTestApp({ permissions });
@@ -70,7 +72,7 @@ describe('Myteam', () => {
   });
 
   it('pages results, changes page size, and resets the page for multiple locations and search', async () => {
-    const app = await createTestApp({ permissions: ['UserGlobalSearch'] });
+    const app = await createTestApp({ permissions: ['UsersView', 'UserGlobalSearch'] });
     const template = getGetApiUsersResponseMock()[0]!;
     const users = Array.from({ length: 32 }, (_, index) => ({
       ...template,

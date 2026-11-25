@@ -2,6 +2,7 @@ using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Unified.Authorization;
 using Unified.Authorization.Claims;
 using Unified.Common.Filters;
 using Unified.Common.ImageFormat;
@@ -48,13 +49,27 @@ public class UsersController(
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A page of users with the total match count.</returns>
     [HttpGet("paged")]
-    [Authorize(Policy = UserManagementPolicies.UsersViewOrGlobalSearch)]
+    [Authorize(Policy = UserManagementPolicies.UsersView)]
     [ProducesResponseType(typeof(PagedUserResponse), StatusCodes.Status200OK)]
     public async Task<ActionResult<PagedUserResponse>> GetPaged(
         [FromQuery] PagedUserQueryParams? queryParams,
         CancellationToken cancellationToken
     )
     {
+        if (!User.HasClaim(UnifiedClaimTypes.Permission, nameof(Permissions.UserGlobalSearch)))
+        {
+            if (
+                !int.TryParse(User.FindFirst(UnifiedClaimTypes.HomeLocationId)?.Value, out var homeLocationId)
+                || homeLocationId <= 0
+                || (queryParams?.LocationId is { Count: > 0 } locations && locations.Any(id => id != homeLocationId))
+            )
+            {
+                return Forbid();
+            }
+
+            queryParams = (queryParams ?? new PagedUserQueryParams()) with { LocationId = [homeLocationId] };
+        }
+
         return Ok(await userService.GetPagedAsync(queryParams, cancellationToken));
     }
 
