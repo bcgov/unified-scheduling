@@ -163,20 +163,19 @@ public class UserServiceTests : IAsyncLifetime
         Assert.Equal(4, result.Count);
         Assert.Collection(
             result,
+            user => Assert.Equal("Doe", user.LastName),
             user => Assert.Equal("Johnson", user.LastName),
             user => Assert.Equal("Jones", user.LastName),
-            user => Assert.Equal("Doe", user.LastName),
             user => Assert.Equal("Smith", user.LastName)
         );
     }
 
     [Fact]
-    public async Task GetPagedAsync_Should_Return_Requested_Page_With_Total_Count()
+    public async Task GetPagedAsync_Should_Order_By_FirstName_And_Return_Requested_Page_With_Total_Count()
     {
         // Arrange
         await SeedTestData();
-        var all = await _userService.GetAllAsync(null, TestContext.Current.CancellationToken);
-        var queryParams = new UserQueryParams { Page = 2, PageSize = 1 };
+        var queryParams = new PagedUserQueryParams { Page = 2, PageSize = 1 };
 
         // Act
         var result = await _userService.GetPagedAsync(queryParams, TestContext.Current.CancellationToken);
@@ -184,8 +183,67 @@ public class UserServiceTests : IAsyncLifetime
         // Assert
         Assert.Equal(2, result.Page);
         Assert.Equal(1, result.PageSize);
-        Assert.Equal(all.Count, result.TotalCount);
-        Assert.Equal(all.ElementAt(1).Id, Assert.Single(result.Data).Id);
+        Assert.Equal(4, result.TotalCount);
+        Assert.Equal("Bob", Assert.Single(result.Data).FirstName);
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_Should_Apply_Defaults_And_Clamp_PageSize()
+    {
+        // Arrange
+        await SeedTestData();
+
+        // Act
+        var defaults = await _userService.GetPagedAsync(null, TestContext.Current.CancellationToken);
+        var clamped = await _userService.GetPagedAsync(
+            new PagedUserQueryParams { Page = 0, PageSize = 1000 },
+            TestContext.Current.CancellationToken
+        );
+
+        // Assert
+        Assert.Equal(1, defaults.Page);
+        Assert.Equal(25, defaults.PageSize);
+        Assert.Equal(1, clamped.Page);
+        Assert.Equal(100, clamped.PageSize);
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_Should_Apply_Search_And_IsEnabled_Filters()
+    {
+        // Arrange
+        await SeedTestData();
+
+        // Act
+        var bySearch = await _userService.GetPagedAsync(
+            new PagedUserQueryParams { Search = "Doe" },
+            TestContext.Current.CancellationToken
+        );
+        var disabled = await _userService.GetPagedAsync(
+            new PagedUserQueryParams { IsEnabled = false },
+            TestContext.Current.CancellationToken
+        );
+
+        // Assert
+        Assert.Equal("Jane", Assert.Single(bySearch.Data).FirstName);
+        Assert.Equal(1, bySearch.TotalCount);
+        Assert.Equal("Bob", Assert.Single(disabled.Data).FirstName);
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_Should_Filter_By_Multiple_Locations()
+    {
+        // Arrange
+        await SeedTestData();
+
+        // Act
+        var result = await _userService.GetPagedAsync(
+            new PagedUserQueryParams { LocationId = [1, 2] },
+            TestContext.Current.CancellationToken
+        );
+
+        // Assert
+        Assert.Equal(3, result.TotalCount);
+        Assert.Equal(["Bob", "Jane", "John"], result.Data.Select(u => u.FirstName));
     }
 
     [Fact]
@@ -193,7 +251,7 @@ public class UserServiceTests : IAsyncLifetime
     {
         // Arrange
         await SeedTestData();
-        var queryParams = new UserQueryParams { LocationId = [1, 9999] };
+        var queryParams = new PagedUserQueryParams { LocationId = [1, 9999] };
 
         // Act & Assert
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>

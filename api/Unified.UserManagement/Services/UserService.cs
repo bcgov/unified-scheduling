@@ -34,20 +34,18 @@ public sealed class UserService(
     )
     {
         logger.LogDebug(
-            "Retrieving users with search provided {HasSearch}, search length {SearchLength}, location count {LocationCount}, enabled {IsEnabled}",
+            "Retrieving users with search provided {HasSearch}, search length {SearchLength}, location {LocationId}, enabled {IsEnabled}",
             LogSanitizer.HasValue(queryParams?.Search),
             LogSanitizer.Length(queryParams?.Search),
-            queryParams?.LocationId?.Count ?? 0,
+            queryParams?.LocationId,
             queryParams?.IsEnabled
         );
-
-        await LocationGuard.EnsureValidAsync(DB, queryParams?.LocationId, cancellationToken);
 
         return await BuildFilteredQuery(queryParams).ProjectToType<UserResponse>().ToListAsync(cancellationToken);
     }
 
     public async Task<PagedUserResponse> GetPagedAsync(
-        UserQueryParams? queryParams = null,
+        PagedUserQueryParams? queryParams = null,
         CancellationToken cancellationToken = default
     )
     {
@@ -67,7 +65,7 @@ public sealed class UserService(
 
         await LocationGuard.EnsureValidAsync(DB, queryParams?.LocationId, cancellationToken);
 
-        var query = BuildFilteredQuery(queryParams);
+        var query = BuildFilteredPagedQuery(queryParams);
         var totalCount = await query.CountAsync(cancellationToken);
         var data = await query
             .Skip((page - 1) * pageSize)
@@ -84,11 +82,11 @@ public sealed class UserService(
         };
     }
 
-    private IQueryable<User> BuildFilteredQuery(UserQueryParams? queryParams)
+    private IQueryable<User> DefaultBuildFilteredQuery(string? search, bool? isEnabledFilter)
     {
         var query = DB.Users.AsNoTracking();
 
-        if (queryParams?.Search?.Trim() is { Length: > 0 } searchText)
+        if (search?.Trim() is { Length: > 0 } searchText)
         {
             var normalizedSearchText = searchText.ToLowerInvariant();
             var searchByBadgeNumber = featureFlags.Value.UserBadgeNumber is { Enabled: true };
@@ -100,17 +98,36 @@ public sealed class UserService(
             );
         }
 
+        if (isEnabledFilter is bool isEnabled)
+        {
+            query = query.Where(x => x.IsEnabled == isEnabled);
+        }
+
+        return query;
+    }
+
+    private IQueryable<User> BuildFilteredPagedQuery(PagedUserQueryParams? queryParams)
+    {
+        var query = DefaultBuildFilteredQuery(queryParams?.Search, queryParams?.IsEnabled);
+
         if (queryParams?.LocationId is { Count: > 0 } locationIds)
         {
             query = query.Where(x => x.HomeLocationId != null && locationIds.Contains(x.HomeLocationId.Value));
         }
 
-        if (queryParams?.IsEnabled is bool isEnabled)
+        return query.OrderBy(x => x.FirstName).ThenBy(x => x.LastName).ThenBy(x => x.Id);
+    }
+
+    private IQueryable<User> BuildFilteredQuery(UserQueryParams? queryParams)
+    {
+        var query = DefaultBuildFilteredQuery(queryParams?.Search, queryParams?.IsEnabled);
+
+        if (queryParams?.LocationId is int locationId)
         {
-            query = query.Where(x => x.IsEnabled == isEnabled);
+            query = query.Where(x => x.HomeLocationId == locationId);
         }
 
-        return query.OrderBy(x => x.FirstName).ThenBy(x => x.LastName).ThenBy(x => x.Id);
+        return query.OrderBy(x => x.LastName).ThenBy(x => x.FirstName);
     }
 
     public async Task<UserResponse?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)

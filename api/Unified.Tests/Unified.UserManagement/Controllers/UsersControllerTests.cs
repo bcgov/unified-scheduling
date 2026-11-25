@@ -55,6 +55,32 @@ public class UsersControllerTests
     }
 
     [Fact]
+    public async Task GetPaged_Should_Return_Ok_With_Page_And_Pass_Query_Params()
+    {
+        // Arrange
+        var fakeService = new FakeUserService { GetAllResult = [CreateUserResponse("John", "Smith")] };
+        var controller = CreateController(fakeService);
+        var queryParams = new PagedUserQueryParams
+        {
+            Search = "John",
+            LocationId = [1, 2],
+            Page = 2,
+            PageSize = 10,
+        };
+
+        // Act
+        var result = await controller.GetPaged(queryParams, TestContext.Current.CancellationToken);
+
+        // Assert
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var page = Assert.IsType<PagedUserResponse>(okResult.Value);
+        Assert.Equal(2, page.Page);
+        Assert.Equal(10, page.PageSize);
+        Assert.Single(page.Data);
+        Assert.Same(queryParams, fakeService.LastPagedQueryParams);
+    }
+
+    [Fact]
     public async Task GetById_Should_Return_Ok_When_Found()
     {
         // Arrange
@@ -487,6 +513,8 @@ public class UsersControllerTests
 
         public UserQueryParams? LastQueryParams { get; private set; }
 
+        public PagedUserQueryParams? LastPagedQueryParams { get; private set; }
+
         public AssignUserRoleRequestDto? LastAssignRoleRequest { get; private set; }
 
         public Task<IReadOnlyCollection<UserResponse>> GetAllAsync(
@@ -499,11 +527,11 @@ public class UsersControllerTests
         }
 
         public Task<PagedUserResponse> GetPagedAsync(
-            UserQueryParams? queryParams = null,
+            PagedUserQueryParams? queryParams = null,
             CancellationToken cancellationToken = default
         )
         {
-            LastQueryParams = queryParams;
+            LastPagedQueryParams = queryParams;
             return Task.FromResult(
                 new PagedUserResponse
                 {

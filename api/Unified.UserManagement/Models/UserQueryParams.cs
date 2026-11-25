@@ -4,6 +4,13 @@ public sealed record UserQueryParams
 {
     public string? Search { get; init; }
     public bool? IsEnabled { get; init; }
+    public int? LocationId { get; init; }
+}
+
+public sealed record PagedUserQueryParams
+{
+    public string? Search { get; init; }
+    public bool? IsEnabled { get; init; }
     public IReadOnlyList<int>? LocationId { get; init; }
 
     public int? Page { get; init; }

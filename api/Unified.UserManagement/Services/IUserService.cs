@@ -10,7 +10,7 @@ public interface IUserService
     );
 
     Task<PagedUserResponse> GetPagedAsync(
-        UserQueryParams? queryParams = null,
+        PagedUserQueryParams? queryParams = null,
         CancellationToken cancellationToken = default
     );
 

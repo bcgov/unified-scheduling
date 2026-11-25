@@ -51,7 +51,7 @@ public class UsersController(
     [Authorize(Policy = UserManagementPolicies.UsersViewOrGlobalSearch)]
     [ProducesResponseType(typeof(PagedUserResponse), StatusCodes.Status200OK)]
     public async Task<ActionResult<PagedUserResponse>> GetPaged(
-        [FromQuery] UserQueryParams? queryParams,
+        [FromQuery] PagedUserQueryParams? queryParams,
         CancellationToken cancellationToken
     )
     {
