@@ -297,6 +297,23 @@ Excluded as OlderHistoryBlockedByUnownedVersion (or OwnedTargetDrift) and recons
 Either way it records an out-of-order finding. Use tracked migration inserts with
 audit/FK/unique validation; do not invoke renewal or user-creation side effects.
 
+An owned update that changes a history's dates without a user/course rebind (e.g. the Vancouver
+correction of an already migrated row) keeps its version unless the new dates change its order among
+the other histories of the group. Example: the 2026-11-01 fall-back pair A (ends 08:50Z, PDT) and B
+(ends 09:10Z, PST) was migrated as A=v1, B=v2; corrected B ends 08:10Z, before A. Then the history is
+placed again with the same rule as a backfill (its current version is a free gap): it takes the lowest
+version of the histories now newer than it, and the migration-owned, undrifted run between moves up one
+version (B=v1, A=v2, so A stays the current certificate). The corrected row is parked on `-Id` first so
+the unique (UserId, TrainingId, Version) index never collides; moved rows get the same Version-only
+update, mutation receipt and refreshed crosswalk evidence as a backfill shift, so the next rerun is a
+no-op. If a row that would have to move is Unified-created, drifted or lacks version proof, the whole
+owned update is skipped (`Excluded/OwnedTargetDrift`, `OlderHistoryBlockedByUnownedVersion` or
+`MissingOriginalTargetVersionProof`): no dates are corrected and nothing is written, because correcting
+the dates alone would leave the wrong current certificate. The crosswalk is untouched, so every rerun
+reconsiders it. A drifted row adopted as `TargetAlreadyMatchesMappedSource` (a Unified user already applied
+the correction) is a user edit and is never renumbered. PerRow and Bulk share
+`SsTrainingRules.HistoryOrderChanged` and `PlaceHistory`.
+
 SheriffStandardTraining is intentionally not migrated/reported separately. Unified mandatory
 flags/profile applicability replace future-user rules; stored SS histories still migrate.
 Compare actual SS service/export and actual Unified report results, not just row counts.

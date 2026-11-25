@@ -565,6 +565,9 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run) : 
     /// values, nothing is written to the target: the crosswalk adopts the current target image (source hash,
     /// after-hash, source timestamp) and the row is recorded as Migrated/TargetAlreadyMatchesMappedSource
     /// (counted as unchanged), so later reruns are no-ops.
+    /// <paramref name="ownedUpdateBlock"/> runs only for an undrifted owned target whose mapped source changed,
+    /// before anything is written: a non-null reason skips the whole update (Excluded/reason; target and
+    /// crosswalk untouched, reconsidered on rerun) so no partial change is applied.
     /// </summary>
     public Task<bool> ReplaySkippingDriftAsync(
         string type,
@@ -572,7 +575,8 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run) : 
         string sourceHash,
         CancellationToken ct,
         Func<Task> applyOwnedUpdate,
-        Func<Task<bool>>? targetMatchesMapped = null
+        Func<Task<bool>>? targetMatchesMapped = null,
+        Func<Task<string?>>? ownedUpdateBlock = null
     ) =>
         ReplayCoreAsync(
             type,
@@ -582,7 +586,8 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run) : 
             ct,
             applyOwnedUpdate,
             skipOwnedTargetDrift: true,
-            targetMatchesMapped
+            targetMatchesMapped,
+            ownedUpdateBlock
         );
 
     private async Task<bool> ReplayCoreAsync(
@@ -593,7 +598,8 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run) : 
         CancellationToken ct,
         Func<Task>? applyOwnedUpdate,
         bool skipOwnedTargetDrift,
-        Func<Task<bool>>? targetMatchesMapped = null
+        Func<Task<bool>>? targetMatchesMapped = null,
+        Func<Task<string?>>? ownedUpdateBlock = null
     )
     {
         if (Rebinding.Contains((type, source.Id)))
@@ -668,6 +674,12 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run) : 
                 }
                 // Leave the record untouched so every later run re-detects the drift and skips again.
                 Outcome(type, source.Id, "Excluded", "OwnedTargetDrift");
+                return true;
+            }
+            if (ownedUpdateBlock is not null && await ownedUpdateBlock() is { } blocked)
+            {
+                // Nothing written; the record is untouched so the next run reconsiders the update.
+                Outcome(type, source.Id, "Excluded", blocked);
                 return true;
             }
             Store.BeforeOwnedUpdate($"OwnedUpdate:{type}");

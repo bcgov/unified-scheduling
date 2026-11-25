@@ -185,6 +185,40 @@ public sealed class SsTrainingVancouverTimeTests
         );
     }
 
+    [Fact]
+    public void CorrectedFallBackHistory_ChangesOrder_AndIsPlacedBeforeItsPredecessor()
+    {
+        // Already migrated unshifted: A=v1 (ends 08:50Z), B=v2 (ends 09:10Z). The correction moves B to 08:10Z.
+        var a = new SsTrainingRules.HistorySlot(10, 1, Z("2026-11-01T08:00:00Z"), Z("2026-11-01T08:50:00Z"), "1");
+        var oldStart = Z("2026-11-01T08:05:00Z");
+        var oldEnd = Z("2026-11-01T09:10:00Z");
+        var newEnd = Z("2026-11-01T08:10:00Z");
+        Assert.True(SsTrainingRules.HistoryOrderChanged([a], "2", oldStart, oldEnd, oldStart, newEnd));
+        var placement = SsTrainingRules.PlaceHistory([a], "2", oldStart, newEnd, _ => null);
+        Assert.Equal(1, placement.Version);
+        Assert.Equal([10], placement.Shift);
+        Assert.Null(placement.Skip);
+        // A history that must move but may not (unowned/drifted) blocks the whole correction.
+        Assert.Equal(
+            "OwnedTargetDrift",
+            SsTrainingRules.PlaceHistory([a], "2", oldStart, newEnd, _ => "OwnedTargetDrift").Skip
+        );
+    }
+
+    [Fact]
+    public void CorrectedHistory_KeepingItsRelativeOrder_KeepsItsVersion()
+    {
+        var a = new SsTrainingRules.HistorySlot(10, 1, Z("2026-06-01T08:00:00Z"), Z("2026-06-01T09:00:00Z"), "1");
+        var start = Z("2026-12-01T17:00:00Z");
+        var end = Z("2026-12-01T18:00:00Z");
+        Assert.False(SsTrainingRules.HistoryOrderChanged([a], "2", start, end, start, end));
+        Assert.False(SsTrainingRules.HistoryOrderChanged([a], "2", start, end, start.AddHours(-1), end.AddHours(-1)));
+        Assert.False(SsTrainingRules.HistoryOrderChanged([], "2", start, end, start.AddHours(-1), end.AddHours(-1)));
+        // Exact tie after the move: the larger source ID sorts after, as on a first run.
+        var tie = new SsTrainingRules.HistorySlot(11, 1, start.AddHours(-1), end.AddHours(-1), "3");
+        Assert.True(SsTrainingRules.HistoryOrderChanged([tie], "2", start, end, start.AddHours(-1), end.AddHours(-1)));
+    }
+
     private static SsRow Row(params (string Key, object? Value)[] values) =>
         new(values.ToDictionary(x => x.Key, x => x.Value));
 

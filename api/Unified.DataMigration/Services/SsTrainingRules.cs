@@ -436,6 +436,44 @@ internal static class SsTrainingRules
     /// <summary>Unified-created or linked-only newer row prevents an older SS history from taking a lower version.</summary>
     internal const string UnownedNewerHistoryReason = "OlderHistoryBlockedByUnownedVersion";
 
+    private static int? SourceId(string? legacyId) =>
+        int.TryParse(legacyId, CultureInfo.InvariantCulture, out var parsed) ? parsed : null;
+
+    /// <summary>
+    /// True when <paramref name="x"/> sorts after a history with <paramref name="start"/>/<paramref name="end"/>
+    /// and source ID <paramref name="id"/> in the first-run (EndDate, StartDate, source ID) order.
+    /// </summary>
+    private static bool SortsAfter(HistorySlot x, int? id, DateTimeOffset start, DateTimeOffset end)
+    {
+        if (x.EndingOn != end)
+            return x.EndingOn > end;
+        if (x.AwardedOn != start)
+            return x.AwardedOn > start;
+        // Unified-created rows (no source ID) are treated as newer on an exact tie.
+        return x.LegacyId is null || id is null || SourceId(x.LegacyId) is not { } other || other > id;
+    }
+
+    /// <summary>
+    /// True when moving an existing history from (<paramref name="oldStart"/>, <paramref name="oldEnd"/>) to
+    /// (<paramref name="start"/>, <paramref name="end"/>) changes which of the <paramref name="others"/> in its
+    /// user/course group sort after it, i.e. its version must be placed again (e.g. the Vancouver correction
+    /// moving a fall-back history before its predecessor). Same dates or same relative order: keep the version.
+    /// </summary>
+    internal static bool HistoryOrderChanged(
+        IEnumerable<HistorySlot> others,
+        string legacyId,
+        DateTimeOffset oldStart,
+        DateTimeOffset oldEnd,
+        DateTimeOffset start,
+        DateTimeOffset end
+    )
+    {
+        if (oldStart == start && oldEnd == end)
+            return false;
+        var id = SourceId(legacyId);
+        return others.Any(x => SortsAfter(x, id, oldStart, oldEnd) != SortsAfter(x, id, start, end));
+    }
+
     /// <summary>
     /// Only a row ending at or after the new history can sort after it; otherwise the cheap max+1 path applies.
     /// </summary>
@@ -461,19 +499,8 @@ internal static class SsTrainingRules
         Func<HistorySlot, string?> block
     )
     {
-        var id = int.TryParse(legacyId, CultureInfo.InvariantCulture, out var parsed) ? parsed : (int?)null;
-        bool Newer(HistorySlot x)
-        {
-            if (x.EndingOn != end)
-                return x.EndingOn > end;
-            if (x.AwardedOn != start)
-                return x.AwardedOn > start;
-            // Unified-created rows (no source ID) are treated as newer on an exact tie.
-            return x.LegacyId is null
-                || id is null
-                || !int.TryParse(x.LegacyId, CultureInfo.InvariantCulture, out var other)
-                || other > id;
-        }
+        var id = SourceId(legacyId);
+        bool Newer(HistorySlot x) => SortsAfter(x, id, start, end);
         var newer = group.Where(Newer).ToList();
         if (newer.Count == 0)
             return new(NextVersion(group.Select(x => (int?)x.Version).Max()), [], null);

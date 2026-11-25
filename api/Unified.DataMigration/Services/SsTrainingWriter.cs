@@ -167,6 +167,9 @@ public sealed class SsTrainingWriter(UnifiedDbContext db)
                     // Unchanged source: no write (ExistingCrosswalk/UnchangedMappedSource). Changed source with a
                     // target edited in Unified since migration (e.g. 2026-11-01 time zone fix): skipped, not
                     // overwritten, unless the edit already equals the mapped values (adopted, no write).
+                    // A corrected history whose new dates change its order within the user/course group is
+                    // placed again (PlaceHistory) so the newest history stays the highest version.
+                    Reorder? reorder = null;
                     if (
                         await session.ReplaySkippingDriftAsync(
                             "SheriffTraining",
@@ -203,15 +206,22 @@ public sealed class SsTrainingWriter(UnifiedDbContext db)
                                     owned.TrainingId = resolvedCourse;
                                     owned.Training = await db.Trainings.SingleAsync(x => x.Id == resolvedCourse, ct);
                                 }
+                                else if (reorder is { } move)
+                                    await ReorderAsync(session, owned, move, ct);
                                 owned.AwardedOn = dates.Start;
                                 owned.EndingOn = dates.End;
                                 owned.ExpiryDate = dates.Expiry;
                                 owned.Notes = SsTrainingRules.MappedNotes(row, owned.Training.Code);
                                 owned.NoticeState = SsTrainingRules.NoticeState(row);
                                 StampRun(owned, session.Now);
-                                // Keep the existing version; never invoke renewal or mail services.
+                                // Never invoke renewal or mail services.
                             },
-                            () => TargetMatchesMappedAsync(session, row, sourceUser, dates, ct)
+                            () => TargetMatchesMappedAsync(session, row, sourceUser, dates, ct),
+                            async () =>
+                            {
+                                (reorder, var skip) = await PlanReorderAsync(session, row, sourceUser, dates, ct);
+                                return skip;
+                            }
                         )
                     )
                         return;
@@ -379,9 +389,97 @@ public sealed class SsTrainingWriter(UnifiedDbContext db)
         CancellationToken ct
     )
     {
-        var owners = new Dictionary<int, DataMigrationRecord>();
         if (!SsTrainingRules.MayHaveNewerHistory(histories.Select(x => x.EndingOn), dates.End))
-            return (new(SsTrainingRules.NextVersion(histories.Select(x => (int?)x.Version).Max()), [], null), owners);
+            return (
+                new(SsTrainingRules.NextVersion(histories.Select(x => (int?)x.Version).Max()), [], null),
+                new Dictionary<int, DataMigrationRecord>()
+            );
+        var (slots, blocks, owners) = await SlotsAsync(session, histories, ct);
+        return (SsTrainingRules.PlaceHistory(slots, legacyId, dates.Start, dates.End, x => blocks[x.Id]), owners);
+    }
+
+    /// <summary>A planned re-placement of a corrected owned history (see <see cref="PlanReorderAsync"/>).</summary>
+    private sealed record Reorder(
+        SsTrainingRules.HistoryPlacement Placement,
+        Dictionary<int, DataMigrationRecord> Owners,
+        Dictionary<int, UserTraining> Histories
+    );
+
+    /// <summary>
+    /// For an undrifted owned history whose mapped dates change (e.g. the Vancouver correction) without a
+    /// user/course rebind: when the new dates change its order among the other histories of the group, plans
+    /// its new version with <see cref="SsTrainingRules.PlaceHistory"/> (its current version is a free gap, so
+    /// only the newer owned run between moves). Returns the plan, or the blocking reason (an unowned/drifted
+    /// row would have to move) so the caller skips the whole update instead of correcting the dates while
+    /// leaving a stale version order. Null plan and reason: keep the existing version.
+    /// </summary>
+    private async Task<(Reorder? Plan, string? Skip)> PlanReorderAsync(
+        SsWriteSession session,
+        SsRow row,
+        string sourceUser,
+        SsTrainingRules.HistoryTimes dates,
+        CancellationToken ct
+    )
+    {
+        var id = int.Parse(await session.ResolveAsync("SheriffTraining", row.Id, ct), CultureInfo.InvariantCulture);
+        var owned = await db.UserTrainings.SingleAsync(x => x.Id == id, ct);
+        var user = Guid.Parse(await session.ResolveAsync("User", sourceUser, ct));
+        var course = await session.ResolveIntAsync("Training", row.Int("TrainingTypeId"), ct);
+        if (
+            course is null
+            || owned.UserId != user
+            || owned.TrainingId != course
+            || owned.AwardedOn == dates.Start && owned.EndingOn == dates.End
+        )
+            return (null, null);
+        await db.Database.ExecuteSqlRawAsync("LOCK TABLE \"UserTrainings\" IN SHARE ROW EXCLUSIVE MODE", ct);
+        var others = await db
+            .UserTrainings.Where(x => x.UserId == user && x.TrainingId == course && x.Id != id)
+            .ToListAsync(ct);
+        var (slots, blocks, owners) = await SlotsAsync(session, others, ct);
+        if (
+            !SsTrainingRules.HistoryOrderChanged(slots, row.Id, owned.AwardedOn, owned.EndingOn, dates.Start, dates.End)
+        )
+            return (null, null);
+        var placement = SsTrainingRules.PlaceHistory(slots, row.Id, dates.Start, dates.End, x => blocks[x.Id]);
+        return placement.Skip is { } skip
+            ? (null, skip)
+            : (new(placement, owners, others.ToDictionary(x => x.Id)), null);
+    }
+
+    /// <summary>
+    /// Applies a <see cref="Reorder"/> plan: parks the corrected history on -Id (Version is unique per
+    /// user/course), moves the newer owned run up one version with refreshed crosswalk evidence, then gives
+    /// the corrected history its placed version (saved with the owned update).
+    /// </summary>
+    private async Task ReorderAsync(SsWriteSession session, UserTraining owned, Reorder plan, CancellationToken ct)
+    {
+        owned.Version = -owned.Id;
+        StampRun(owned, session.Now);
+        await db.SaveChangesAsync(ct);
+        foreach (var shifted in plan.Placement.Shift)
+        {
+            var existing = plan.Histories[shifted];
+            await session.RenumberOwnedAsync(
+                plan.Owners[shifted],
+                () =>
+                {
+                    existing.Version = SsTrainingRules.NextVersion(existing.Version);
+                    StampRun(existing, session.Now);
+                },
+                ct
+            );
+        }
+        owned.Version = plan.Placement.Version;
+    }
+
+    private async Task<(
+        List<SsTrainingRules.HistorySlot> Slots,
+        Dictionary<int, string?> Blocks,
+        Dictionary<int, DataMigrationRecord> Owners
+    )> SlotsAsync(SsWriteSession session, List<UserTraining> histories, CancellationToken ct)
+    {
+        var owners = new Dictionary<int, DataMigrationRecord>();
         var keys = histories.Select(x => x.Id.ToString(CultureInfo.InvariantCulture)).ToList();
         var records = (
             await db
@@ -415,7 +513,7 @@ public sealed class SsTrainingWriter(UnifiedDbContext db)
                 )
             );
         }
-        return (SsTrainingRules.PlaceHistory(slots, legacyId, dates.Start, dates.End, x => blocks[x.Id]), owners);
+        return (slots, blocks, owners);
     }
 
     private async Task<TrainingProfileType> CarbineProfileAsync(DateTimeOffset now, CancellationToken ct)

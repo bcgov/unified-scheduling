@@ -43,8 +43,9 @@ public static class MigrationDiagnostics
         SimulationCandidateReceiptMismatch SimulationExplicitSchemaUnsupported SimulationOnlyNotAppliedLineage SimulationParentRehydrationFailed
         SimulationUnkeyedTableUnsupported SlotFlagsRepresentedOnEntry SlotPartlyOutsideShift SourceChangedSinceApplied SourceJobRunning
         SsoIdentityCollision StaleSimulationInputsOrTargetBaseline StandaloneInsufficientPatternOccurrences StandaloneMissingRruleOccurrence
-        StandaloneSplitDuty StandaloneUnsupportedPattern StatsAssumptionC1S3 TargetTrainingAllDayNotInSource TargetTrainingTimezoneUnavailable
-        TrainingCannotChangeMyTeamMappedFields UnapprovedTrainingCategory UnexpectedNonOtherComment UnifiedMandatoryPolicyReplacesFutureRules
+        StandaloneSplitDuty StandaloneUnsupportedPattern StatsAssumptionC1S3 TargetAlreadyMatchesMappedSource
+        TargetTrainingAllDayNotInSource TargetTrainingTimezoneUnavailable
+        TrainingCannotChangeMyTeamMappedFields UnapprovedTrainingCategory UnchangedMappedSource UnexpectedNonOtherComment UnifiedMandatoryPolicyReplacesFutureRules
         UnifiedSystemUser UnkeyedDependentTableRequiresExplicitResolution UnknownEntityOwnership UnknownLeaveType UnknownSourceLookupType
         UnknownSourceOutcome UnknownTargetType UnownedGraphDependent UnresolvedPrimaryRetryItems UnresolvedRank UnsupportedScopedCourse
         UnsupportedSimulationJob UnusedClassificationCode UserIdentityCollision VersionOverflow WrongOrMissingSimulationCandidateNamespace

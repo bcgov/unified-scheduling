@@ -1394,6 +1394,123 @@ public sealed class SsTrainingBulkPostgresTests : IAsyncLifetime
         }
     }
 
+    // Copilot review (round 3) on #514: a pre-adjustment migration stored the 2026-11-01 fall-back pair as
+    // A=v1 (ends 08:50Z, PDT) and B=v2 (ends 09:10Z, PST). The Vancouver correction moves B to 08:10Z, before A,
+    // so B must become v1 and A v2 (A is the current certificate). Only migration-owned, undrifted rows move; if A
+    // was edited in Unified the whole correction of B is skipped (no date fix with a stale order).
+    [Fact(Skip = SkipReason, SkipUnless = nameof(IsConfigured))]
+    public async Task Training_VancouverCorrection_ReordersAlreadyMigratedFallBackPair()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var clones = new[]
+        {
+            await CloneAsync("tzorder_a", MigrationPersistenceMode.PerRow, ct),
+            await CloneAsync("tzorder_b", MigrationPersistenceMode.Bulk, ct),
+        };
+        // U(3) and U(5) have no Rotating Course (113) histories in the fixture; no home location yet.
+        await ExecuteAsync(
+            sourceConnection,
+            $"""
+            INSERT INTO "Location" ("Id","AgencyId","Name","Timezone","CreatedOn") VALUES
+            (901,'TZ-VAN','Vancouver synthetic','America/Vancouver','2024-01-01Z');
+            INSERT INTO "SheriffTraining" ("Id","SheriffId","TrainingTypeId","StartDate","EndDate","ExpiryDate",
+                "TrainingCertificationExpiry","FirstNotice","Comment","Note","Timezone","CreatedOn") VALUES
+            (6101,'{U(3)}',113,'2026-11-01T08:00Z','2026-11-01T08:50Z',NULL,NULL,false,NULL,'A pdt',NULL,'2024-01-01Z'),
+            (6102,'{U(3)}',113,'2026-11-01T09:05Z','2026-11-01T09:10Z',NULL,NULL,false,NULL,'B pst',NULL,'2024-01-01Z'),
+            (6103,'{U(5)}',113,'2026-11-01T08:00Z','2026-11-01T08:50Z',NULL,NULL,false,NULL,'C pdt',NULL,'2024-01-01Z'),
+            (6104,'{U(5)}',113,'2026-11-01T09:05Z','2026-11-01T09:10Z',NULL,NULL,false,NULL,'D pst',NULL,'2024-01-01Z');
+            """,
+            ct
+        );
+
+        // Already migrated before the adjustment: unshifted, A/C v1 and B/D v2. C is then edited in Unified.
+        foreach (var clone in clones)
+        {
+            await AssertCleanAsync(clone, await RunAsync(clone, "Training", ct), ct);
+            Assert.Equal(["6101:1", "6102:2"], await GroupAsync(clone, 3, ct, false, 113, true));
+            Assert.Equal(["6103:1", "6104:2"], await GroupAsync(clone, 5, ct, false, 113, true));
+            await ExecuteAsync(
+                clone.ConnectionString,
+                """
+                UPDATE "UserTrainings" SET "Notes"='edited in Unified'
+                WHERE "Id"::text IN (SELECT "TargetKey" FROM "DataMigrationRecords"
+                    WHERE "EntityType"='SheriffTraining' AND "LegacyId"='6103');
+                """,
+                ct
+            );
+        }
+        var blocked = new List<List<string>>();
+        foreach (var clone in clones)
+            blocked.Add(await GroupAsync(clone, 5, ct, true, 113, true));
+        await ExecuteAsync(
+            sourceConnection,
+            $"""UPDATE "User" SET "HomeLocationId"=901 WHERE "Id" IN ('{U(3)}','{U(5)}');""",
+            ct
+        );
+
+        for (var i = 0; i < clones.Length; i++)
+        {
+            var clone = clones[i];
+            var run = await RunAsync(clone, "Training", ct);
+            await AssertCleanAsync(clone, run, ct);
+            Assert.Equal("Migrated:OwnedMappedUpdate", await OutcomeAsync(clone, run, "SheriffTraining", "6102", ct));
+            Assert.Equal("Migrated:ExistingCrosswalk", await OutcomeAsync(clone, run, "SheriffTraining", "6101", ct));
+            // B corrected (-1h at both PST endpoints) and placed below A; A renumbered to the current certificate.
+            Assert.Equal(["6102:1", "6101:2"], await GroupAsync(clone, 3, ct, false, 113, true));
+            Assert.Equal((Z("2026-11-01T08:05Z"), Z("2026-11-01T08:10Z"), null), await TimesAsync(clone, "6102", ct));
+            Assert.Equal((Z("2026-11-01T08:00Z"), Z("2026-11-01T08:50Z"), null), await TimesAsync(clone, "6101", ct));
+            // C edited in Unified would have to move: D is skipped entirely (dates and versions unchanged).
+            Assert.Equal("Excluded:OwnedTargetDrift", await OutcomeAsync(clone, run, "SheriffTraining", "6104", ct));
+            Assert.Equal("Migrated:ExistingCrosswalk", await OutcomeAsync(clone, run, "SheriffTraining", "6103", ct));
+            Assert.Equal(blocked[i], await GroupAsync(clone, 5, ct, true, 113, true));
+            await using (var context = clone.Db())
+            {
+                var counts = await context.DataMigrationRuns.AsNoTracking().SingleAsync(x => x.Id == run, ct);
+                Assert.Equal((0, 2), (counts.InsertedCount, counts.UpdatedCount));
+            }
+            Assert.Equal(
+                0,
+                await CountAsync(
+                    clone,
+                    """
+                    SELECT COUNT(*) FROM (SELECT 1 FROM "UserTrainings"
+                    GROUP BY "UserId","TrainingId","Version" HAVING COUNT(*) > 1) d
+                    """,
+                    ct
+                )
+            );
+            await AssertNoDuplicatesOrOrphansAsync(clone, ct);
+        }
+        // Same targets, refreshed crosswalk evidence, mutation receipts (renumber + update), outcomes and audit.
+        AssertEquivalent(
+            await SnapshotAsync(clones[0], false, ct),
+            await SnapshotAsync(clones[1], false, ct),
+            ["trainings", "usertrainings", "users", "outcomes", "records", "mutations", "runs", "audit"],
+            "vancouver correction reorder"
+        );
+
+        // Refreshed evidence: a further rerun is a no-op; D is reconsidered and skipped again.
+        foreach (var clone in clones)
+        {
+            var before = await SnapshotAsync(clone, true, ct);
+            var rerun = await RunAsync(clone, "Training", ct);
+            await AssertCleanAsync(clone, rerun, ct);
+            await using (var context = clone.Db())
+            {
+                var run = await context.DataMigrationRuns.AsNoTracking().SingleAsync(x => x.Id == rerun, ct);
+                Assert.Equal((0, 0), (run.InsertedCount, run.UpdatedCount));
+            }
+            foreach (var legacy in new[] { "6101", "6102", "6103" })
+                Assert.Equal(
+                    "Migrated:ExistingCrosswalk",
+                    await OutcomeAsync(clone, rerun, "SheriffTraining", legacy, ct)
+                );
+            Assert.Equal("Excluded:OwnedTargetDrift", await OutcomeAsync(clone, rerun, "SheriffTraining", "6104", ct));
+            Assert.Equal(["6102:1", "6101:2"], await GroupAsync(clone, 3, ct, false, 113, true));
+            AssertEquivalent(before, await SnapshotAsync(clone, true, ct), ["usertrainings", "records"], "no-op");
+        }
+    }
+
     /// <summary>
     /// User <paramref name="user"/>'s histories of SS course <paramref name="course"/> (First Aid by default) in
     /// Version order: owning source IDs, or (with <paramref name="details"/>) source ID, dates, notes, expiry and
