@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Unified.Common.Contracts;
 using Unified.Common.Events;
+using Unified.Common.Time;
 using Unified.Db;
 using Unified.Db.Models.Training;
 using Unified.Training.Helpers;
@@ -11,18 +12,24 @@ namespace Unified.Training.Handlers;
 /// <summary>
 /// Stages mandatory training assignments when a user-creation signal is published.
 /// </summary>
-public sealed class AssignMandatoryTrainingOnUserCreationHandler(UnifiedDbContext DB)
+public sealed class AssignMandatoryTrainingOnUserCreationHandler(UnifiedDbContext DB, ITimeZoneService timeZoneService)
     : IEntitySideEffect<UserCreatedSignal>
 {
     public async Task HandleAsync(UserCreatedSignal signal, CancellationToken cancellationToken)
     {
         var userId = signal.UserId;
         var now = signal.OccurredAtUtc.ToUniversalTime();
-        var userTrainingProfileId = await DB
+        var userDetails = await DB
             .Users.AsNoTracking()
             .Where(user => user.Id == userId)
-            .Select(user => user.TrainingProfileId)
+            .Select(user => new
+            {
+                user.TrainingProfileId,
+                TimeZoneId = user.HomeLocation != null ? user.HomeLocation.Timezone : null,
+            })
             .SingleOrDefaultAsync(cancellationToken);
+        var userTrainingProfileId = userDetails?.TrainingProfileId;
+        var timeZone = timeZoneService.ResolveOrUtc(userDetails?.TimeZoneId);
 
         var mandatoryTrainings = await DB
             .Trainings.AsNoTracking()
@@ -73,6 +80,9 @@ public sealed class AssignMandatoryTrainingOnUserCreationHandler(UnifiedDbContex
                     ExpiryDate = UserTrainingHelper.CalculateExpiryDate(
                         now,
                         training.ValidityDays,
+                        allDay: true,
+                        timeZone,
+                        timeZoneService,
                         training.AnnualValidityFromCompletionDate
                     ),
                     NoticeState = UserTrainingNoticeStates.None,

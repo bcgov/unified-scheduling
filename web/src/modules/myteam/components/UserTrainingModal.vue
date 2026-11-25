@@ -174,15 +174,7 @@ const schema = PostApiTrainingUserTrainingsBody.omit({ userId: true, allDay: tru
     notes: zod.string(),
   })
   .superRefine((data, context) => {
-    if (Boolean(data.awardedTime) !== Boolean(data.endingTime)) {
-      context.addIssue({
-        code: 'custom',
-        path: [data.awardedTime ? 'endingTime' : 'awardedTime'],
-        message: data.awardedTime ? 'Invalid to time.' : 'Invalid from time.',
-      });
-      return;
-    }
-    const zone = data.awardedTime ? trainingTimeZone.value : 'UTC';
+    const zone = data.awardedTime || data.endingTime ? trainingTimeZone.value : 'UTC';
     const start = DateTime.fromISO(`${data.awardedOn}T${data.awardedTime || '00:00'}`, { zone });
     const end = DateTime.fromISO(`${data.endingOn}T${data.endingTime || '00:00'}`, { zone });
     if (start.isValid && end.isValid && (data.awardedTime ? end <= start : end < start)) {
@@ -244,8 +236,6 @@ const generateExpiryDate = async (force = false) => {
     expiryDateAutoGenerateError.value = timeZoneValidationMessage;
     return;
   }
-  if (Boolean(formData.value.awardedTime) !== Boolean(formData.value.endingTime)) return;
-
   isGeneratingExpiryDate.value = true;
   expiryDateAutoGenerateError.value = '';
 

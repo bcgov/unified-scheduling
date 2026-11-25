@@ -25,7 +25,8 @@ const UaAutocompleteStub = defineComponent({
     items: { type: Array, required: true },
     clientFilter: { type: Boolean, default: false },
   },
-  template: '<div><slot name="prepend-inner" /></div>',
+  template:
+    '<div><div class="autocomplete-menu"><slot name="prepend-item" /></div><div class="autocomplete-input"><slot name="prepend-inner" /></div></div>',
 });
 
 const UaDataTableStub = defineComponent({
@@ -134,10 +135,12 @@ describe('UserTrainingReport', () => {
       autocompleteFilters.find((filter) => filter.props('id') === 'user-training-report-training-code')!.props('items'),
     ).not.toContainEqual(expect.objectContaining({ code: 'OPTIONAL' }));
 
-    const mandatoryOnlyToggle = wrapper
-      .findAllComponents(UaBtn)
-      .find((button) => button.attributes('aria-label') === 'Show mandatory trainings only')!;
-    expect(mandatoryOnlyToggle.attributes('aria-pressed')).toBe('true');
+    const mandatoryOnlyToggle = wrapper.find('button[aria-label="Show mandatory trainings only"]');
+    expect(mandatoryOnlyToggle.exists()).toBe(true);
+    expect(wrapper.find('.autocomplete-menu .mandatory-only-toggle').exists()).toBe(true);
+    expect(wrapper.find('.autocomplete-input .mandatory-only-toggle').exists()).toBe(false);
+    expect(mandatoryOnlyToggle.attributes('role')).toBe('switch');
+    expect(mandatoryOnlyToggle.attributes('aria-checked')).toBe('true');
     await mandatoryOnlyToggle.trigger('click');
     expect(
       wrapper
@@ -145,7 +148,7 @@ describe('UserTrainingReport', () => {
         .find((filter) => filter.props('id') === 'user-training-report-training-code')!
         .props('items'),
     ).toContainEqual({ code: 'OPTIONAL', description: 'OPTIONAL' });
-    expect(mandatoryOnlyToggle.attributes('aria-pressed')).toBe('false');
+    expect(mandatoryOnlyToggle.attributes('aria-checked')).toBe('false');
     await mandatoryOnlyToggle.trigger('click');
     expect(
       wrapper

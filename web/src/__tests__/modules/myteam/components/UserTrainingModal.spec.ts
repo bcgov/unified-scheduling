@@ -198,6 +198,29 @@ describe('UserTrainingModal', () => {
     expect(expiryQueries.at(-1)?.searchParams.get('AwardedOn')).toBe('2026-07-22T19:30:00.000-07:00');
   });
 
+  it('generates and saves expiry when only the To date has a time', async () => {
+    const wrapper = await mountModal();
+    await fillTraining(wrapper, '', '16:28');
+
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'Generate expiry')!
+      .trigger('click');
+    await flushPromises();
+
+    expect(expiryQueries.at(-1)?.searchParams.get('AllDay')).toBe('false');
+    expect(expiryQueries.at(-1)?.searchParams.get('AwardedOn')).toBe('2026-07-20T16:28:00.000-07:00');
+    expect((wrapper.get('input#user-training-expiry-date').element as HTMLInputElement).value).toBe('2026-12-31');
+
+    await save(wrapper);
+
+    expect(created[0]).toMatchObject({
+      allDay: false,
+      awardedOn: '2026-07-20T00:00:00.000-07:00',
+      endingOn: '2026-07-20T16:28:00.000-07:00',
+    });
+  });
+
   it('preserves a manually entered expiry when To changes', async () => {
     const wrapper = await mountModal();
     await fillTraining(wrapper);
@@ -365,17 +388,13 @@ describe('UserTrainingModal', () => {
     expect(wrapper.text()).toContain('home location with a valid timezone');
   });
 
-  it.each([
-    ['15:00', '', 'Invalid to time.'],
-    ['', '18:00', 'Invalid from time.'],
-    ['15:00', '15:00', 'To date and time must be after From.'],
-  ])('rejects an invalid timed pair (%s, %s)', async (startTime, endTime, message) => {
+  it('rejects a timed To value that is not after From when the From time is present', async () => {
     const wrapper = await mountModal();
-    await fillTraining(wrapper, startTime, endTime);
+    await fillTraining(wrapper, '15:00', '15:00');
     await save(wrapper);
 
     expect(created).toHaveLength(0);
-    expect(wrapper.text()).toContain(message);
+    expect(wrapper.text()).toContain('To date and time must be after From.');
   });
 
   it.each([

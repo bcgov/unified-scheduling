@@ -37,6 +37,9 @@ const model = defineModel<SelectValue>();
     single-line
     @update:search="emit('update:search', $event)"
   >
+    <template v-if="$slots['prepend-item']" #prepend-item="slotProps">
+      <slot name="prepend-item" v-bind="slotProps" />
+    </template>
     <template v-if="$slots['prepend-inner']" #prepend-inner="slotProps">
       <slot name="prepend-inner" v-bind="slotProps" />
     </template>

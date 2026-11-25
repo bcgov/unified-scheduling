@@ -309,21 +309,20 @@ function formatDateCellValue(value: unknown): unknown {
             closable-chips
             clearable
           >
-            <template #prepend-inner>
-              <UaBtn
+            <template #prepend-item>
+              <button
                 class="mandatory-only-toggle"
                 type="button"
-                size="small"
-                :variant="mandatoryTrainingsOnly ? 'flat' : 'outlined'"
-                :color="mandatoryTrainingsOnly ? 'primary' : undefined"
-                :aria-pressed="mandatoryTrainingsOnly"
+                role="switch"
+                :aria-checked="mandatoryTrainingsOnly"
                 aria-label="Show mandatory trainings only"
                 @pointerdown.stop
                 @mousedown.stop.prevent
-                @click.stop="mandatoryTrainingsOnly = !mandatoryTrainingsOnly"
+                @click.stop.prevent="mandatoryTrainingsOnly = !mandatoryTrainingsOnly"
               >
-                Mandatory
-              </UaBtn>
+                <span>Mandatory only</span>
+                <span class="mandatory-only-toggle__track" aria-hidden="true" />
+              </button>
             </template>
           </UaAutocomplete>
         </div>
@@ -446,15 +445,62 @@ function formatDateCellValue(value: unknown): unknown {
 }
 
 .mandatory-only-toggle {
-  min-width: 0;
-  height: 28px;
-  min-height: 28px;
-  padding-inline: 4px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  line-height: 1rem;
-  letter-spacing: 0;
-  text-transform: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 40px;
+  gap: 16px;
+  padding: 8px 16px;
+  border: 0;
+  border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.mandatory-only-toggle:hover {
+  background-color: rgba(var(--v-theme-on-surface), 0.04);
+}
+
+.mandatory-only-toggle:focus-visible {
+  outline: 2px solid rgb(var(--v-theme-primary));
+  outline-offset: -2px;
+}
+
+.mandatory-only-toggle__track {
+  position: relative;
+  display: inline-block;
+  flex: 0 0 36px;
+  width: 36px;
+  height: 20px;
+  border-radius: 999px;
+  background-color: rgba(var(--v-theme-on-surface), 0.38);
+  transition: background-color 120ms ease;
+}
+
+.mandatory-only-toggle__track::after {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background-color: rgb(var(--v-theme-primary));
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.24);
+  content: '';
+  transition: transform 120ms ease;
+}
+
+.mandatory-only-toggle[aria-checked='true'] .mandatory-only-toggle__track {
+  background-color: rgba(var(--v-theme-primary), 0.5);
+}
+
+.mandatory-only-toggle[aria-checked='true'] .mandatory-only-toggle__track::after {
+  background-color: rgb(var(--v-theme-primary));
+  transform: translateX(16px);
 }
 
 .report-table-actions {
