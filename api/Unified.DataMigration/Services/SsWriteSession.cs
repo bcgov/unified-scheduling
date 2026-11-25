@@ -685,6 +685,62 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run) : 
         return true;
     }
 
+    /// <summary>
+    /// Null when the job may renumber the owned target of <paramref name="record"/> (it has the original
+    /// version proof and still matches what the job last wrote); otherwise the reason it must stay untouched.
+    /// </summary>
+    internal async Task<string?> OwnedTargetBlockAsync(DataMigrationRecord record, CancellationToken ct)
+    {
+        if ((await Store.LatestMutationAsync(record.Id, ct))?.Version is null)
+            return "MissingOriginalTargetVersionProof";
+        return record.AfterHash == await TargetFingerprintAsync(record.TargetType, record.TargetKey, ct)
+            ? null
+            : "OwnedTargetDrift";
+    }
+
+    /// <summary>
+    /// Applies a job-internal change (version renumbering) to an owned, undrifted target and refreshes the
+    /// crosswalk evidence like an owned update, so later runs do not see it as drift. Source hashes are kept.
+    /// </summary>
+    internal async Task RenumberOwnedAsync(DataMigrationRecord record, Action apply, CancellationToken ct)
+    {
+        Store.BeforeOwnedUpdate($"OwnedRenumber:{record.EntityType}");
+        apply();
+        await Store.SaveAsync(ct);
+        record.AfterHash = await TargetFingerprintAsync(record.TargetType, record.TargetKey, ct);
+        record.LastAppliedRunId = run.Id;
+        var version = await TargetVersionAsync(record.TargetType, record.TargetKey, false, ct);
+        Store.AddMutation(
+            new DataMigrationMutation
+            {
+                RunId = run.Id,
+                DataMigrationRecordId = record.Id,
+                Sequence = await Store.NextSequenceAsync(run.Id, ct),
+                Operation = "Update",
+                AfterHash = record.AfterHash,
+                Version = version,
+            }
+        );
+        await Store.SaveAsync(ct);
+        foreach (var alias in await Store.AliasesAsync(record.TargetType, record.TargetKey, record.Id, ct))
+        {
+            alias.AfterHash = record.AfterHash;
+            Store.AddMutation(
+                new DataMigrationMutation
+                {
+                    RunId = run.Id,
+                    DataMigrationRecordId = alias.Id,
+                    Sequence = await Store.NextSequenceAsync(run.Id, ct),
+                    Operation = "GraphRefresh",
+                    AfterHash = record.AfterHash!,
+                    Version = version,
+                }
+            );
+            await Store.SaveAsync(ct);
+        }
+        updatedTargets.Add($"{record.TargetType}:{record.TargetKey}");
+    }
+
     public async Task LinkAsync(
         string type,
         SsRow source,

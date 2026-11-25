@@ -1,6 +1,8 @@
+using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using Unified.DataMigration.Sources;
 using Unified.Db;
+using Unified.Db.Models.DataMigration;
 using Unified.Db.Models.Training;
 
 namespace Unified.DataMigration.Services;
@@ -211,7 +213,37 @@ public sealed class SsTrainingWriter(UnifiedDbContext db)
                     var histories = await db
                         .UserTrainings.Where(x => x.UserId == userId && x.TrainingId == courseId)
                         .ToListAsync(ct);
-                    var version = SsTrainingRules.NextVersion(histories.Select(x => (int?)x.Version).Max());
+                    // Keep the first-run (EndDate, StartDate, ID) order so a backfilled older history never
+                    // displaces the current certificate (the highest version).
+                    var (placement, owners) = await PlaceAsync(session, histories, row.Id, dates, ct);
+                    if (placement.Skip is { } skip)
+                    {
+                        session.Outcome("SheriffTraining", row.Id, "Excluded", skip);
+                        return;
+                    }
+                    var byId = histories.ToDictionary(x => x.Id);
+                    foreach (var shifted in placement.Shift)
+                    {
+                        var existing = byId[shifted];
+                        await session.RenumberOwnedAsync(
+                            owners[shifted],
+                            () =>
+                            {
+                                existing.Version = SsTrainingRules.NextVersion(existing.Version);
+                                var updatedOn = db.Entry(existing).Property(x => x.UpdatedOn);
+                                if (existing.UpdatedOn == session.Now)
+                                {
+                                    // Shifted again in this run: AuditableEntityInterceptor would replace an
+                                    // unchanged UpdatedOn with the wall clock. Keep the run stamp like Bulk.
+                                    updatedOn.OriginalValue = null;
+                                    updatedOn.IsModified = true;
+                                }
+                                existing.UpdatedOn = session.Now;
+                            },
+                            ct
+                        );
+                    }
+                    var version = placement.Version;
                     var target = session.Stamp(
                         new UserTraining
                         {
@@ -272,6 +304,56 @@ public sealed class SsTrainingWriter(UnifiedDbContext db)
             );
         foreach (var row in rows["SheriffStandardTraining"])
             session.Outcome("SheriffStandardTraining", row.Id, "Excluded", "UnifiedMandatoryPolicyReplacesFutureRules");
+    }
+
+    private async Task<(
+        SsTrainingRules.HistoryPlacement Placement,
+        Dictionary<int, DataMigrationRecord> Owners
+    )> PlaceAsync(
+        SsWriteSession session,
+        List<UserTraining> histories,
+        string legacyId,
+        (DateTimeOffset Start, DateTimeOffset End) dates,
+        CancellationToken ct
+    )
+    {
+        var owners = new Dictionary<int, DataMigrationRecord>();
+        if (!SsTrainingRules.MayHaveNewerHistory(histories.Select(x => x.EndingOn), dates.End))
+            return (new(SsTrainingRules.NextVersion(histories.Select(x => (int?)x.Version).Max()), [], null), owners);
+        var keys = histories.Select(x => x.Id.ToString(CultureInfo.InvariantCulture)).ToList();
+        var records = (
+            await db
+                .DataMigrationRecords.Where(x =>
+                    x.Source == "SS"
+                    && x.EntityType == "SheriffTraining"
+                    && x.TargetType == "UserTraining"
+                    && keys.Contains(x.TargetKey)
+                )
+                .OrderBy(x => x.Id)
+                .ToListAsync(ct)
+        ).ToLookup(x => x.TargetKey, StringComparer.Ordinal);
+        var slots = new List<SsTrainingRules.HistorySlot>();
+        var blocks = new Dictionary<int, string?>();
+        foreach (var history in histories)
+        {
+            var linked = records[history.Id.ToString(CultureInfo.InvariantCulture)].ToList();
+            var owner = linked.FirstOrDefault(x => x.CreatedByRunId is not null);
+            if (owner is not null)
+                owners[history.Id] = owner;
+            blocks[history.Id] = owner is null
+                ? SsTrainingRules.UnownedNewerHistoryReason
+                : await session.OwnedTargetBlockAsync(owner, ct);
+            slots.Add(
+                new(
+                    history.Id,
+                    history.Version,
+                    history.AwardedOn,
+                    history.EndingOn,
+                    (owner ?? linked.FirstOrDefault())?.LegacyId
+                )
+            );
+        }
+        return (SsTrainingRules.PlaceHistory(slots, legacyId, dates.Start, dates.End, x => blocks[x.Id]), owners);
     }
 
     private async Task<TrainingProfileType> CarbineProfileAsync(DateTimeOffset now, CancellationToken ct)

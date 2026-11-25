@@ -222,4 +222,83 @@ internal static class SsTrainingRules
         max == int.MaxValue ? throw new SsReject("VersionOverflow")
         : max is null ? 1
         : max.Value + 1;
+
+    /// <summary>
+    /// One existing UserTraining in the new history's (user, course) group. <paramref name="LegacyId"/> is the
+    /// owning SheriffTraining ID (null for Unified-created rows).
+    /// </summary>
+    internal sealed record HistorySlot(
+        int Id,
+        int Version,
+        DateTimeOffset AwardedOn,
+        DateTimeOffset EndingOn,
+        string? LegacyId
+    );
+
+    /// <summary>
+    /// Where a new history goes: <paramref name="Version"/> for the new row, <paramref name="Shift"/> the
+    /// existing row IDs to move up one version (highest version first), or <paramref name="Skip"/> a reason.
+    /// </summary>
+    internal sealed record HistoryPlacement(int Version, IReadOnlyList<int> Shift, string? Skip);
+
+    /// <summary>Unified-created or linked-only newer row prevents an older SS history from taking a lower version.</summary>
+    internal const string UnownedNewerHistoryReason = "OlderHistoryBlockedByUnownedVersion";
+
+    /// <summary>
+    /// Only a row ending at or after the new history can sort after it; otherwise the cheap max+1 path applies.
+    /// </summary>
+    internal static bool MayHaveNewerHistory(IEnumerable<DateTimeOffset> endings, DateTimeOffset end) =>
+        endings.Any(x => x >= end);
+
+    /// <summary>
+    /// Version for a new SheriffTraining history so the group keeps the first-run <see cref="HistoryOrder"/>
+    /// (EndDate, StartDate, source ID): the current certificate stays the highest version. With no newer
+    /// row it is max+1 (a clean first run never renumbers). Otherwise the new row takes the lowest newer
+    /// version and the contiguous run of versions from there moves up one, but only when every row in that
+    /// run is migration-owned and undrifted. If not, the new row takes the highest free version below the
+    /// newer rows without touching them, or is skipped with the blocking row's reason.
+    /// <paramref name="block"/> is evaluated only for rows that would move: null when the row is
+    /// migration-owned, version-proven and undrifted (the job may renumber it), otherwise the reason it may not.
+    /// </summary>
+    internal static HistoryPlacement PlaceHistory(
+        IReadOnlyCollection<HistorySlot> group,
+        string legacyId,
+        DateTimeOffset start,
+        DateTimeOffset end,
+        Func<HistorySlot, string?> block
+    )
+    {
+        var id = int.TryParse(legacyId, CultureInfo.InvariantCulture, out var parsed) ? parsed : (int?)null;
+        bool Newer(HistorySlot x)
+        {
+            if (x.EndingOn != end)
+                return x.EndingOn > end;
+            if (x.AwardedOn != start)
+                return x.AwardedOn > start;
+            // Unified-created rows (no source ID) are treated as newer on an exact tie.
+            return x.LegacyId is null
+                || id is null
+                || !int.TryParse(x.LegacyId, CultureInfo.InvariantCulture, out var other)
+                || other > id;
+        }
+        var newer = group.Where(Newer).ToList();
+        if (newer.Count == 0)
+            return new(NextVersion(group.Select(x => (int?)x.Version).Max()), [], null);
+        var lowest = newer.Min(x => x.Version);
+        var byVersion = group.ToDictionary(x => x.Version);
+        var run = new List<HistorySlot>();
+        for (var version = lowest; byVersion.TryGetValue(version, out var slot); version++)
+        {
+            if (version == int.MaxValue)
+                throw new SsReject("VersionOverflow");
+            run.Add(slot);
+        }
+        var blocks = run.Select(x => block(x)).Where(x => x is not null).ToList();
+        if (blocks.Count == 0)
+            return new(lowest, [.. run.OrderByDescending(x => x.Version).Select(x => x.Id)], null);
+        for (var version = lowest - 1; version >= 1; version--)
+            if (!byVersion.ContainsKey(version))
+                return new(version, [], null);
+        return new(0, [], blocks.Contains("OwnedTargetDrift") ? "OwnedTargetDrift" : blocks[0]);
+    }
 }

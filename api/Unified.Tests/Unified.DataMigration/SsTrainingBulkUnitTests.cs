@@ -241,6 +241,70 @@ public sealed class SsTrainingBulkUnitTests
         Assert.False(SsMigrationExecutor.IsTriggerEvidence("not json", run, mode));
     }
 
+    private static SsTrainingRules.HistorySlot Slot(int id, int version, int year, string? legacy) =>
+        new(
+            id,
+            version,
+            new DateTimeOffset(year, 6, 15, 16, 0, 0, TimeSpan.Zero),
+            new DateTimeOffset(year, 6, 16, 0, 0, 0, TimeSpan.Zero),
+            legacy
+        );
+
+    private static SsTrainingRules.HistoryPlacement Place(
+        IReadOnlyCollection<SsTrainingRules.HistorySlot> group,
+        int year,
+        Func<SsTrainingRules.HistorySlot, string?>? block = null
+    ) =>
+        SsTrainingRules.PlaceHistory(
+            group,
+            "9000",
+            new DateTimeOffset(year, 6, 15, 16, 0, 0, TimeSpan.Zero),
+            new DateTimeOffset(year, 6, 16, 0, 0, 0, TimeSpan.Zero),
+            block ?? (_ => null)
+        );
+
+    [Fact]
+    public void PlaceHistory_NewestAppends_OlderBackfillKeepsCurrentCertificateHighest()
+    {
+        // First-run order: newest appends at max+1 and never touches existing rows.
+        var newest = Place([Slot(1, 1, 2020, "1"), Slot(2, 2, 2026, "2")], 2027);
+        Assert.Equal((3, 0, (string?)null), (newest.Version, newest.Shift.Count, newest.Skip));
+        Assert.Equal(1, Place([], 2009).Version);
+
+        // Backfilled 2009 below an owned 2020/2026 pair: takes version 1, the owned rows move up (top first).
+        var backfill = Place([Slot(1, 1, 2020, "1"), Slot(2, 2, 2026, "2")], 2009);
+        Assert.Equal(1, backfill.Version);
+        Assert.Equal([2, 1], backfill.Shift);
+        Assert.Null(backfill.Skip);
+
+        // Between two rows: only the contiguous run from the first newer version moves.
+        var between = Place([Slot(1, 1, 2015, "1"), Slot(2, 2, 2026, "2"), Slot(3, 5, 2027, "3")], 2020);
+        Assert.Equal((2, (string?)null), (between.Version, between.Skip));
+        Assert.Equal([2], between.Shift);
+
+        // Same dates: the source ID breaks the tie like HistoryOrder.
+        Assert.Equal(2, Place([Slot(1, 1, 2020, "8999"), Slot(2, 2, 2020, "9001")], 2020).Version);
+    }
+
+    [Fact]
+    public void PlaceHistory_NeverMovesUnownedOrDriftedRows()
+    {
+        List<SsTrainingRules.HistorySlot> group = [Slot(1, 2, 2015, "1"), Slot(2, 3, 2026, null)];
+        string? Unowned(SsTrainingRules.HistorySlot x) =>
+            x.LegacyId is null ? SsTrainingRules.UnownedNewerHistoryReason : null;
+
+        // A free version below the newer rows is used instead of moving them.
+        var below = Place(group, 2009, Unowned);
+        Assert.Equal((1, 0, (string?)null), (below.Version, below.Shift.Count, below.Skip));
+
+        // No free version below: skipped with the blocking reason (drift wins over unowned).
+        var full = Place([Slot(0, 1, 2014, "0"), .. group], 2009, Unowned);
+        Assert.Equal(SsTrainingRules.UnownedNewerHistoryReason, full.Skip);
+        Assert.Empty(full.Shift);
+        var drifted = Place([Slot(0, 1, 2014, "0"), .. group], 2009, x => x.Id == 0 ? "OwnedTargetDrift" : Unowned(x));
+        Assert.Equal("OwnedTargetDrift", drifted.Skip);
+    }
+
     private static IEnumerable<string> PrivateSet(string name) =>
         (IEnumerable<string>)
             typeof(SsWriteSession).GetField(name, BindingFlags.NonPublic | BindingFlags.Static)!.GetValue(null)!;

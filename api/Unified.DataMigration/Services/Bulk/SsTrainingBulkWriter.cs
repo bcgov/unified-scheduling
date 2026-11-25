@@ -44,6 +44,7 @@ public sealed class SsTrainingBulkWriter(UnifiedDbContext db, IOptions<AuditReco
         public int TrainingId { get; set; }
         public int Version { get; set; }
         public DateTimeOffset EndingOn { get; set; }
+        public DateTimeOffset AwardedOn { get; set; }
     }
 
     private sealed record Rec(
@@ -635,7 +636,7 @@ public sealed class SsTrainingBulkWriter(UnifiedDbContext db, IOptions<AuditReco
             foreach (
                 var ut in await QueryAsync(
                     """
-                    SELECT "Id","UserId","TrainingId","Version","EndingOn" FROM "UserTrainings"
+                    SELECT "Id","UserId","TrainingId","Version","EndingOn","AwardedOn" FROM "UserTrainings"
                     WHERE "Id" = ANY(@ids) ORDER BY "Id" FOR UPDATE
                     """,
                     ReadUt,
@@ -653,7 +654,7 @@ public sealed class SsTrainingBulkWriter(UnifiedDbContext db, IOptions<AuditReco
             foreach (
                 var ut in await QueryAsync(
                     """
-                    SELECT "Id","UserId","TrainingId","Version","EndingOn" FROM "UserTrainings"
+                    SELECT "Id","UserId","TrainingId","Version","EndingOn","AwardedOn" FROM "UserTrainings"
                     WHERE "UserId" = ANY(@users)
                     """,
                     ReadUt,
@@ -733,6 +734,21 @@ public sealed class SsTrainingBulkWriter(UnifiedDbContext db, IOptions<AuditReco
                         continue;
                     }
                     var course = ResolveCourse(row);
+                    // Version placement may renumber existing rows of the group; prefetch their pre-images.
+                    try
+                    {
+                        var target = Guid.Parse(ResolveUser(sourceUser));
+                        if (
+                            pairs.TryGetValue((target, course), out var group)
+                            && SsTrainingRules.MayHaveNewerHistory(
+                                group.Select(x => x.EndingOn),
+                                SsWriteSession.Dates(row).End
+                            )
+                        )
+                            foreach (var existing in group)
+                                driftCandidates.Add(existing.Id);
+                    }
+                    catch (SsReject) { }
                     if (
                         courseCodes.TryGetValue(course, out var code)
                         && SsTrainingRules.IsCarbineHistory(code, row.Int("TrainingTypeId"), shortenedCarbine)
@@ -756,6 +772,37 @@ public sealed class SsTrainingBulkWriter(UnifiedDbContext db, IOptions<AuditReco
             );
             var ownedBefore = await SsBulkTargets.ImagesAsync<UserTraining, int>(db, driftCandidates, auditOptions, ct);
             var usersBefore = await SsBulkTargets.ImagesAsync<User, Guid>(db, composeCandidates, auditOptions, ct);
+            // Crosswalk evidence for rows the version placement may renumber (same checks as PerRow).
+            var groupRecords = (
+                await QueryAsync(
+                    """
+                    SELECT "Id","LegacyId","TargetType","TargetKey","PayloadHash","AfterHash","CreatedByRunId","SourceUpdatedAtUtc"
+                    FROM "DataMigrationRecords"
+                    WHERE "Source"='SS' AND "EntityType"='SheriffTraining' AND "TargetType"='UserTraining'
+                      AND "TargetKey" = ANY(@keys)
+                    ORDER BY "Id"
+                    """,
+                    ReadRec,
+                    ct,
+                    new NpgsqlParameter("keys", driftCandidates.Select(Key).ToArray())
+                )
+            ).ToLookup(x => x.TargetKey, StringComparer.Ordinal);
+            var groupProofs = (
+                await QueryAsync(
+                    """
+                    SELECT DISTINCT ON ("DataMigrationRecordId") "DataMigrationRecordId","Version"
+                    FROM "DataMigrationMutations" WHERE "DataMigrationRecordId" = ANY(@ids)
+                    ORDER BY "DataMigrationRecordId","Id" DESC
+                    """,
+                    x => (x.GetInt64(0), x.IsDBNull(1) ? null : x.GetString(1)),
+                    ct,
+                    new NpgsqlParameter("ids", groupRecords.SelectMany(x => x).Select(x => x.Id).ToArray())
+                )
+            ).ToDictionary(x => x.Item1, x => x.Item2);
+            var recordsByTarget = records
+                .Values.Where(x => x.TargetType == "UserTraining")
+                .GroupBy(x => x.TargetKey, StringComparer.Ordinal)
+                .ToDictionary(x => x.Key, x => x.OrderBy(y => y.Id).ToList(), StringComparer.Ordinal);
             // Compose decisions must use the state read under the row lock, not the earlier unlocked read.
             foreach (
                 var locked in await QueryAsync(
@@ -779,6 +826,39 @@ public sealed class SsTrainingBulkWriter(UnifiedDbContext db, IOptions<AuditReco
             var intents = new List<Intent>();
             var nextTemp = -1;
             var touched = new HashSet<int>();
+            // Version placement: new rows' source IDs, untouched owned rows moved up (renumbered), and rows
+            // already written in this chunk whose version then moved (they must park like a rebind).
+            var newLegacy = new Dictionary<int, string>();
+            var renumbered = new Dictionary<int, Ut>();
+            var shiftedWrites = new HashSet<int>();
+
+            string? Legacy(Ut x)
+            {
+                if (newLegacy.TryGetValue(x.Id, out var legacy))
+                    return legacy;
+                var key = Key(x.Id);
+                var linked = groupRecords[key].ToList();
+                if (linked.Count == 0)
+                    linked = recordsByTarget.GetValueOrDefault(key) ?? [];
+                return (linked.FirstOrDefault(y => y.CreatedByRunId is not null) ?? linked.FirstOrDefault())?.LegacyId;
+            }
+            string? Block(int id)
+            {
+                // Written by this run in this chunk: its evidence is refreshed on persist (PerRow re-reads it).
+                if (id < 0 || touched.Contains(id) || renumbered.ContainsKey(id))
+                    return null;
+                var key = Key(id);
+                var owner = groupRecords[key].FirstOrDefault(x => x.CreatedByRunId is not null);
+                if (owner is null)
+                    return SsTrainingRules.UnownedNewerHistoryReason;
+                if (groupProofs.GetValueOrDefault(owner.Id) is null)
+                    return "MissingOriginalTargetVersionProof";
+                if (!ownedBefore.TryGetValue(key, out var image))
+                    throw new InvalidOperationException(
+                        "SS bulk training version placement target was not prefetched."
+                    );
+                return image.Fingerprint == owner.AfterHash ? null : "OwnedTargetDrift";
+            }
 
             foreach (var (_, row) in chunk)
                 Simulate(
@@ -877,6 +957,7 @@ public sealed class SsTrainingBulkWriter(UnifiedDbContext db, IOptions<AuditReco
                                 Pair(pairs, resolvedUser, resolvedCourse).Add(owned);
                             }
                             owned.EndingOn = dates.End;
+                            owned.AwardedOn = dates.Start;
                             writes.Add(
                                 new(
                                     owned,
@@ -903,7 +984,27 @@ public sealed class SsTrainingBulkWriter(UnifiedDbContext db, IOptions<AuditReco
                             ?? throw new RowFailure(nameof(InvalidOperationException));
                         var mappedNotes = SsTrainingRules.MappedNotes(row, courseCode);
                         var histories = pairs.GetValueOrDefault((userId, courseId)) ?? [];
-                        var next = SsTrainingRules.NextVersion(histories.Select(x => (int?)x.Version).Max());
+                        // Same first-run order as PerRow: an older backfilled history never takes the top version.
+                        var placement = SsTrainingRules.PlaceHistory(
+                            [
+                                .. histories.Select(x => new SsTrainingRules.HistorySlot(
+                                    x.Id,
+                                    x.Version,
+                                    x.AwardedOn,
+                                    x.EndingOn,
+                                    Legacy(x)
+                                )),
+                            ],
+                            row.Id,
+                            dates.Start,
+                            dates.End,
+                            x => Block(x.Id)
+                        );
+                        if (placement.Skip is { } skip)
+                        {
+                            ledger.Outcome("SheriffTraining", row.Id, "Excluded", skip);
+                            return;
+                        }
                         int? composeProfile = null;
                         if (SsTrainingRules.IsCarbineHistory(courseCode, row.Int("TrainingTypeId"), shortenedCarbine))
                         {
@@ -938,6 +1039,20 @@ public sealed class SsTrainingBulkWriter(UnifiedDbContext db, IOptions<AuditReco
                             throw new RowFailure(nameof(DbUpdateException));
                         EnsureNotesFit(mappedNotes);
                         var older = histories.Any(x => x.EndingOn > dates.End);
+                        var byVersionId = histories.ToDictionary(x => x.Id);
+                        foreach (var id in placement.Shift)
+                        {
+                            var moved = byVersionId[id];
+                            moved.Version = SsTrainingRules.NextVersion(moved.Version);
+                            if (id < 0)
+                                continue; // Inserted later in this chunk at its final version.
+                            if (touched.Contains(id))
+                                shiftedWrites.Add(id);
+                            else
+                                renumbered[id] = moved;
+                            intents.Add(new("Renumber", id));
+                            ledger.Update($"UserTraining:{Key(id)}");
+                        }
                         if (composeProfile is { } profile)
                         {
                             userState[userId] = (profile, userState[userId].Version);
@@ -949,9 +1064,11 @@ public sealed class SsTrainingBulkWriter(UnifiedDbContext db, IOptions<AuditReco
                             Id = nextTemp--,
                             UserId = userId,
                             TrainingId = courseId,
-                            Version = next,
+                            Version = placement.Version,
                             EndingOn = dates.End,
+                            AwardedOn = dates.Start,
                         };
+                        newLegacy[created.Id] = row.Id;
                         Pair(pairs, userId, courseId).Add(created);
                         writes.Add(
                             new(
@@ -977,7 +1094,20 @@ public sealed class SsTrainingBulkWriter(UnifiedDbContext db, IOptions<AuditReco
                     }
                 );
 
-            await PersistHistoriesAsync(connection, writes, composes, stamps, intents, ownedBefore, usersBefore, ct);
+            await PersistHistoriesAsync(
+                connection,
+                writes,
+                composes,
+                stamps,
+                intents,
+                ownedBefore,
+                usersBefore,
+                renumbered,
+                shiftedWrites,
+                groupRecords,
+                recordsByTarget,
+                ct
+            );
         }
 
         private async Task PersistHistoriesAsync(
@@ -988,6 +1118,10 @@ public sealed class SsTrainingBulkWriter(UnifiedDbContext db, IOptions<AuditReco
             List<Intent> intents,
             Dictionary<string, SsBulkTargetImage> ownedBefore,
             Dictionary<string, SsBulkTargetImage> usersBefore,
+            Dictionary<int, Ut> renumbered,
+            HashSet<int> shiftedWrites,
+            ILookup<string, Rec> groupRecords,
+            Dictionary<string, List<Rec>> recordsByTarget,
             CancellationToken ct
         )
         {
@@ -1012,13 +1146,31 @@ public sealed class SsTrainingBulkWriter(UnifiedDbContext db, IOptions<AuditReco
                 new("expiry", "timestamptz", NpgsqlDbType.TimestampTz, x => x.ExpiryDate),
                 new("notes", "text", NpgsqlDbType.Text, x => x.Notes),
                 new("notice", "text", NpgsqlDbType.Text, x => x.NoticeState),
-                new("rebind", "boolean", NpgsqlDbType.Boolean, x => x.VersionChanged),
+                new(
+                    "rebind",
+                    "boolean",
+                    NpgsqlDbType.Boolean,
+                    x => x.VersionChanged || shiftedWrites.Contains(x.State.Id)
+                ),
+            };
+            var renumberColumns = new SsBulkColumn<Ut>[]
+            {
+                new("id", "integer", NpgsqlDbType.Integer, x => x.Id),
+                new("version", "integer", NpgsqlDbType.Integer, x => x.Version),
             };
             if (updates.Count > 0)
-            {
                 await SsBulkStaging.StageAsync(connection, "ss_bulk_history_updates", historyColumns, updates, ct);
-                // Two-phase version move: park rebinding rows on unique negative versions first so moves
-                // between (user, course) pairs never collide transiently on the unique version index.
+            if (renumbered.Count > 0)
+                await SsBulkStaging.StageAsync(
+                    connection,
+                    "ss_bulk_history_renumbers",
+                    renumberColumns,
+                    renumbered.Values,
+                    ct
+                );
+            // Two-phase version move: park every row whose version changes (rebinds, renumbers) on unique
+            // negative versions first so moves never collide transiently on the unique version index.
+            if (updates.Count > 0)
                 await ExecuteAsync(
                     """
                     UPDATE "UserTrainings" t SET "Version" = -t."Id"
@@ -1026,6 +1178,32 @@ public sealed class SsTrainingBulkWriter(UnifiedDbContext db, IOptions<AuditReco
                     """,
                     ct
                 );
+            if (renumbered.Count > 0)
+            {
+                await ExecuteAsync(
+                    """
+                    UPDATE "UserTrainings" t SET "Version" = -t."Id"
+                    FROM ss_bulk_history_renumbers s WHERE t."Id"=s.id
+                    """,
+                    ct
+                );
+                // Only the version (and the migration update stamp) changes; dates and notes stay as they are.
+                var moved = await ExecuteAsync(
+                    """
+                    UPDATE "UserTrainings" t SET "Version"=s.version, "UpdatedOn"=@now,
+                      "UpdatedById"=CASE WHEN @stamp THEN @actor ELSE t."UpdatedById" END
+                    FROM ss_bulk_history_renumbers s WHERE t."Id"=s.id
+                    """,
+                    ct,
+                    new NpgsqlParameter("now", now),
+                    new NpgsqlParameter("stamp", actor is not null),
+                    actorParameter()
+                );
+                if (moved != renumbered.Count)
+                    throw new InvalidOperationException("SS bulk renumbered training target disappeared.");
+            }
+            if (updates.Count > 0)
+            {
                 var updated = await ExecuteAsync(
                     """
                     UPDATE "UserTrainings" t SET
@@ -1087,7 +1265,7 @@ public sealed class SsTrainingBulkWriter(UnifiedDbContext db, IOptions<AuditReco
 
             var historyAfter = await SsBulkTargets.ImagesAsync<UserTraining, int>(
                 db,
-                writes.Select(x => x.State.Id).ToList(),
+                writes.Select(x => x.State.Id).Concat(renumbered.Keys).Distinct().ToList(),
                 auditOptions,
                 ct
             );
@@ -1103,7 +1281,15 @@ public sealed class SsTrainingBulkWriter(UnifiedDbContext db, IOptions<AuditReco
                 if (usersAfter[key].Fingerprint != usersBefore[key].Fingerprint)
                     throw new InvalidOperationException("SS bulk compose changed MyTeam-mapped user fields.");
             }
-            var updatedKeys = updates.Select(x => x.Record!.TargetKey).ToArray();
+            var renumberEvents = intents
+                .Where(x => x.Kind == "Renumber")
+                .GroupBy(x => x.Index)
+                .ToDictionary(x => x.Key, x => x.Count());
+            var updatedKeys = updates
+                .Select(x => x.Record!.TargetKey)
+                .Concat(renumberEvents.Keys.Select(Key))
+                .Distinct(StringComparer.Ordinal)
+                .ToArray();
             var composedKeys = composes.Select(x => x.User.ToString("D")).ToArray();
             var aliases = await QueryAsync(
                 """
@@ -1178,6 +1364,35 @@ public sealed class SsTrainingBulkWriter(UnifiedDbContext db, IOptions<AuditReco
                         mutations.Add(new(alias.Id, null, null, "GraphRefresh", image.Fingerprint, image.Version));
                     }
                 }
+                else if (intent.Kind == "Renumber")
+                {
+                    // Version-only move of an owned row (PerRow: SsWriteSession.RenumberOwnedAsync). Source
+                    // hashes stay; the crosswalk after-hash follows the new version so reruns see no drift.
+                    var key = Key(intent.Index);
+                    var image = historyAfter[key];
+                    var linked = aliases.Where(x => x.TargetType == "UserTraining" && x.TargetKey == key).ToList();
+                    var owner =
+                        linked.FirstOrDefault(x => x.CreatedByRunId is not null)
+                        ?? throw new InvalidOperationException("SS bulk renumbered training target is not owned.");
+                    recordUpdates[owner.Id] = recordUpdates.TryGetValue(owner.Id, out var ownerPrior)
+                        ? ownerPrior with
+                        {
+                            AfterHash = image.Fingerprint,
+                            SetLastApplied = true,
+                        }
+                        : new(owner.Id, owner.PayloadHash, image.Fingerprint, owner.SourceUpdatedAtUtc, true);
+                    mutations.Add(new(owner.Id, null, null, "Update", image.Fingerprint, image.Version));
+                    foreach (var alias in linked.Where(x => x.Id != owner.Id))
+                    {
+                        recordUpdates[alias.Id] = recordUpdates.TryGetValue(alias.Id, out var prior)
+                            ? prior with
+                            {
+                                AfterHash = image.Fingerprint,
+                            }
+                            : new(alias.Id, alias.PayloadHash, image.Fingerprint, alias.SourceUpdatedAtUtc, false);
+                        mutations.Add(new(alias.Id, null, null, "GraphRefresh", image.Fingerprint, image.Version));
+                    }
+                }
                 else
                 {
                     var key = composes[intent.Index].User.ToString("D");
@@ -1191,13 +1406,40 @@ public sealed class SsTrainingBulkWriter(UnifiedDbContext db, IOptions<AuditReco
 
             var audit = new SsBulkAudit(db);
             audit.Added(nameof(UserTraining), "UserTrainings", inserts.Select(x => historyAfter[Key(x.State.Id)]));
+            // A renumbered row is saved once per move in PerRow (each move audits its own version step), so
+            // rebuild the intermediate images from the final one.
+            SsBulkTargetImage Step(int id, int movesLeft)
+            {
+                var image = historyAfter[Key(id)];
+                if (movesLeft == 0)
+                    return image;
+                var version = (int)image.PersistedValues["Version"]! - movesLeft;
+                return image with
+                {
+                    AuditValues = WithVersion(image.AuditValues, version),
+                    PersistedValues = WithVersion(image.PersistedValues, version),
+                };
+            }
             foreach (var write in updates)
                 audit.Modified(
                     nameof(UserTraining),
                     "UserTrainings",
                     ownedBefore[write.Record!.TargetKey],
-                    historyAfter[write.Record.TargetKey]
+                    shiftedWrites.Contains(write.State.Id)
+                        ? Step(write.State.Id, renumberEvents.GetValueOrDefault(write.State.Id))
+                        : historyAfter[write.Record.TargetKey]
                 );
+            var seen = new Dictionary<int, int>();
+            foreach (var intent in intents.Where(x => x.Kind == "Renumber"))
+            {
+                var done = seen[intent.Index] = seen.GetValueOrDefault(intent.Index) + 1;
+                var total = renumberEvents[intent.Index];
+                var before =
+                    done == 1 && !shiftedWrites.Contains(intent.Index)
+                        ? ownedBefore[Key(intent.Index)]
+                        : Step(intent.Index, total - done + 1);
+                audit.Modified(nameof(UserTraining), "UserTrainings", before, Step(intent.Index, total - done));
+            }
             foreach (var compose in composes)
             {
                 var key = compose.User.ToString("D");
@@ -1243,6 +1485,7 @@ public sealed class SsTrainingBulkWriter(UnifiedDbContext db, IOptions<AuditReco
             TrainingId = x.GetInt32(2),
             Version = x.GetInt32(3),
             EndingOn = x.GetFieldValue<DateTimeOffset>(4),
+            AwardedOn = x.GetFieldValue<DateTimeOffset>(5),
         };
 
     private static List<Ut> Pair(Dictionary<(Guid, int), List<Ut>> pairs, Guid user, int course)
@@ -1253,4 +1496,12 @@ public sealed class SsTrainingBulkWriter(UnifiedDbContext db, IOptions<AuditReco
     }
 
     private static string Key(int id) => id.ToString(CultureInfo.InvariantCulture);
+
+    private static IReadOnlyDictionary<string, object?> WithVersion(
+        IReadOnlyDictionary<string, object?> values,
+        int version
+    ) =>
+        values.ContainsKey("Version")
+            ? new Dictionary<string, object?>(values, StringComparer.Ordinal) { ["Version"] = version }
+            : values;
 }

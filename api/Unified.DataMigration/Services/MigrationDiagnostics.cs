@@ -34,7 +34,8 @@ public static class MigrationDiagnostics
         MissingOriginalTargetVersionProof MissingParent MissingPrimaryCrosswalk MissingRank MissingRole MissingRoleName MissingRoomCode
         MissingShiftLocation MissingSourceAssignment MissingSourceCoverage MissingSourceUser MissingStaffPermissionSnapshot
         MissingStandardRole MissingStart MissingStatsClassification MissingStatusTimezoneFallback MissingTraining MissingUnifiedSystemUser
-        MissingUser MixedShiftTimezones NegativeTrainingPeriod NoOverlappingShiftUserLinkDropped NullIdentityTextToEmpty OrderOverflow
+        MissingUser MixedShiftTimezones NegativeTrainingPeriod NoOverlappingShiftUserLinkDropped NullIdentityTextToEmpty
+        OlderHistoryBlockedByUnownedVersion OrderOverflow
         OriginalBeforeImageUnavailable OriginalRollbackKeyRequired OwnedFullGroupUpdate OwnedMappedUpdate OwnedTargetDrift OwnedUpdateRequiresReview
         ParentDutyNotMigrated PreviousPrivatePhotoCannotBeRestored PreviouslyMigratedNowExcludedRetained ReportMustRollbackFirst
         ReportRequiresMyTeamLineage RestoredRowAlsoDependsOnDeletedTarget RetainedLeaveTargetCollision ReversedDates RunNotApplied
