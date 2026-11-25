@@ -255,6 +255,7 @@ public class UserServiceTests : IAsyncLifetime
             .Locations.AsNoTracking()
             .FirstAsync(l => l.Id != 1 && l.Id != 2, TestContext.Current.CancellationToken);
         _dbContext.Users.AddRange(
+            CreateUser("Victor", "Johnstone", 1, true),
             CreateUser("Zed", "Johnstone", 2, true),
             CreateUser("Yan", "Johnstone", location3.Id, true),
             CreateUser("Xia", "Johnstone", null, true),
@@ -284,16 +285,30 @@ public class UserServiceTests : IAsyncLifetime
             new PagedUserQueryParams { LocationId = [location3.Id] },
             TestContext.Current.CancellationToken
         );
+        var paged = await _userService.GetPagedAsync(
+            new PagedUserQueryParams
+            {
+                LocationId = [1, 2],
+                Search = "Johnstone",
+                IsEnabled = true,
+                Page = 2,
+                PageSize = 1,
+            },
+            TestContext.Current.CancellationToken
+        );
 
         // Assert
-        Assert.Equal(5, union.TotalCount);
-        Assert.Equal(["Bob", "Jane", "John", "Walt", "Zed"], union.Data.Select(u => u.FirstName));
+        Assert.Equal(6, union.TotalCount);
+        Assert.Equal(["Bob", "Jane", "John", "Victor", "Walt", "Zed"], union.Data.Select(u => u.FirstName));
 
-        Assert.Equal(2, unionSearch.TotalCount);
-        Assert.Equal(["Walt", "Zed"], unionSearch.Data.Select(u => u.FirstName));
+        Assert.Equal(3, unionSearch.TotalCount);
+        Assert.Equal(["Victor", "Walt", "Zed"], unionSearch.Data.Select(u => u.FirstName));
 
-        Assert.Equal(1, unionSearchEnabled.TotalCount);
-        Assert.Equal("Zed", Assert.Single(unionSearchEnabled.Data).FirstName);
+        Assert.Equal(2, unionSearchEnabled.TotalCount);
+        Assert.Equal(["Victor", "Zed"], unionSearchEnabled.Data.Select(u => u.FirstName));
+
+        Assert.Equal(2, paged.TotalCount);
+        Assert.Equal("Zed", Assert.Single(paged.Data).FirstName);
 
         Assert.Equal(1, singleLocation.TotalCount);
         Assert.Equal("Yan", Assert.Single(singleLocation.Data).FirstName);
