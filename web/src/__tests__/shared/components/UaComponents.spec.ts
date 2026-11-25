@@ -175,6 +175,7 @@ describe('UaAutocomplete', () => {
     expect(wrapper.emitted('update:search')?.[0]).toEqual(['jan']);
     expect(wrapper.findComponent({ name: 'VAutocomplete' }).props('noFilter')).toBe(true);
     expect(wrapper.findComponent({ name: 'VAutocomplete' }).props('autocomplete')).toBe('on');
+    expect(wrapper.findComponent({ name: 'VAutocomplete' }).props('clearOnSelect')).toBe(true);
   });
 
   it('allows browser autocomplete to be disabled', () => {

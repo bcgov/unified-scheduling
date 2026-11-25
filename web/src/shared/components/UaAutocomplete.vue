@@ -29,6 +29,7 @@ const model = defineModel<SelectValue>();
     :loading="props.loading"
     :no-filter="!props.clientFilter"
     :autocomplete="props.browserAutocomplete"
+    clear-on-select
     v-model="model"
     item-title="description"
     item-value="code"
