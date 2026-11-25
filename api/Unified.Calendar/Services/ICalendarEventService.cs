@@ -7,7 +7,6 @@ public interface ICalendarEventService<TRequest, TEntity, TCalendarEntity>
     where TRequest : CalendarEventBase
     where TCalendarEntity : class
 {
-    /// <summary>
     Task<TEntity> BuildEventAsync(
         TRequest request,
         string sourceModule,
@@ -19,6 +18,9 @@ public interface ICalendarEventService<TRequest, TEntity, TCalendarEntity>
         CancellationToken cancellationToken = default
     );
 
+    /// <summary>
+    /// Applies an update with a draft-only default. A domain can supply its own editing status predicate.
+    /// </summary>
     Task<TEntity?> UpdateEventAsync<TUpdateRequest>(
         TUpdateRequest request,
         TEntity? existing,
@@ -27,6 +29,7 @@ public interface ICalendarEventService<TRequest, TEntity, TCalendarEntity>
         Func<TUpdateRequest, CancellationToken, Task>[]? validators = null,
         Action<TUpdateRequest>? additionalGuards = null,
         Action<TCalendarEntity>? overrides = null,
+        Func<string, bool>? canEditStatus = null,
         CancellationToken cancellationToken = default
     )
         where TUpdateRequest : TRequest;

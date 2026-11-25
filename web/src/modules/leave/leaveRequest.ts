@@ -1,6 +1,7 @@
 import type {
   SchedulingLeaveEntryRequest as LeaveEntryRequest,
   SchedulingLeaveSeriesRequest as LeaveSeriesRequest,
+  SchedulingLeaveSeriesResponse as LeaveSeriesResponse,
 } from '@/api-access/generated/models';
 import { defaultEndTime, defaultStartTime, toUtcIso } from '@/modules/scheduling/schedulingDateTime';
 import type { SelectOption } from '@/types/select';
@@ -19,6 +20,7 @@ export function buildLeaveRequest(
     timeZoneId: string;
     leaveSeriesId?: number | null;
     employeeOptions?: SelectOption[];
+    fixedSeriesSchedule?: LeaveSeriesResponse;
   },
 ): LeaveRequestResult {
   const userIds = (form.userIds ?? []).filter((id): id is string => typeof id === 'string' && id.length > 0);
@@ -34,6 +36,36 @@ export function buildLeaveRequest(
 
   if (options.locationId == null) {
     return { error: 'Select a location before adding leave.' };
+  }
+
+  const commonRequest = {
+    leaveTypeId,
+    title: buildLeaveTitle(
+      userIds.map(
+        (userId) => options.employeeOptions?.find((option) => String(option.code) === userId)?.description || userId,
+      ),
+    ),
+    notes: form.notes?.trim() || null,
+    locationId: options.locationId,
+    userIds,
+  };
+
+  if (options.fixedSeriesSchedule) {
+    // Copy the persisted interval without passing it through the form's minute-precision inputs.
+    const { allDay, leaveDate, startAtUtc, endAtUtc, timeZoneId, recurrenceRule } = options.fixedSeriesSchedule;
+    if (!recurrenceRule) return { error: 'Set a valid recurrence rule.' };
+    if (allDay && !leaveDate) return { error: 'Select a valid date.' };
+    if (!allDay && (!startAtUtc || !endAtUtc)) return { error: 'Select a valid date and time.' };
+    return {
+      kind: 'series',
+      request: {
+        ...commonRequest,
+        ...(allDay ? { leaveDate } : { startAtUtc, endAtUtc }),
+        allDay: allDay ?? false,
+        timeZoneId: timeZoneId ?? null,
+        recurrenceRule,
+      },
+    };
   }
 
   const allDay = form.allDay ?? false;
@@ -55,32 +87,18 @@ export function buildLeaveRequest(
     interval = { startAtUtc, endAtUtc };
   }
 
-  const commonRequest = {
-    leaveTypeId,
-    title: buildLeaveTitle(
-      userIds.map(
-        (userId) => options.employeeOptions?.find((option) => String(option.code) === userId)?.description || userId,
-      ),
-    ),
-    notes: form.notes?.trim() || null,
-    ...interval,
-    timeZoneId: options.timeZoneId,
-    allDay,
-    locationId: options.locationId,
-    userIds,
-  };
-
+  const request = { ...commonRequest, ...interval, timeZoneId: options.timeZoneId, allDay };
   if (form.repeatMode === 'custom') {
     if (!form.recurrenceRule) {
       return { error: 'Set a valid recurrence rule.' };
     }
     return {
       kind: 'series',
-      request: { ...commonRequest, recurrenceRule: form.recurrenceRule },
+      request: { ...request, recurrenceRule: form.recurrenceRule },
     };
   }
 
-  return { kind: 'entry', request: { ...commonRequest, leaveSeriesId: options.leaveSeriesId ?? null } };
+  return { kind: 'entry', request: { ...request, leaveSeriesId: options.leaveSeriesId ?? null } };
 }
 
 export function buildLeaveTitle(employeeNames: string[]) {

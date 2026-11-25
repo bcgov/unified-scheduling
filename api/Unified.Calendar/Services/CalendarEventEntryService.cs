@@ -44,6 +44,7 @@ public class CalendarEventEntryService<TRequest, TEntity>(
         Func<TUpdateRequest, CancellationToken, Task>[]? validators = null,
         Action<TUpdateRequest>? additionalGuards = null,
         Action<Event>? overrides = null,
+        Func<string, bool>? canEditStatus = null,
         CancellationToken cancellationToken = default
     )
         where TUpdateRequest : TRequest =>
@@ -56,6 +57,7 @@ public class CalendarEventEntryService<TRequest, TEntity>(
             validators,
             additionalGuards,
             overrides,
+            canEditStatus,
             cancellationToken
         );
 
@@ -68,6 +70,7 @@ public class CalendarEventEntryService<TRequest, TEntity>(
         Func<TUpdateRequest, CancellationToken, Task>[]? validators = null,
         Action<TUpdateRequest>? additionalGuards = null,
         Action<Event>? overrides = null,
+        Func<string, bool>? canEditStatus = null,
         CancellationToken cancellationToken = default
     )
         where TUpdateRequest : TRequest
@@ -82,7 +85,10 @@ public class CalendarEventEntryService<TRequest, TEntity>(
 
         var eventEntity = factory.GetEvent(existing);
         CalendarEventGuards.EnsureEventType(eventEntity, eventTypeCode, sourceModule);
-        CalendarEventGuards.EnsureEntryIsUpdatable(eventEntity, allowActive);
+        if (canEditStatus is null)
+            CalendarEventGuards.EnsureEntryIsUpdatable(eventEntity, allowActive);
+        else if (!canEditStatus(eventEntity.StatusTypeCode))
+            throw new InvalidOperationException("Calendar entry cannot be edited in its current status.");
 
         await RunValidationAsync(request, validators, additionalGuards, cancellationToken);
         calendarEventMapper.ApplyToEvent(eventEntity, request);

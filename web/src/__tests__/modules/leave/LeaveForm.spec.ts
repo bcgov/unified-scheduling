@@ -44,4 +44,25 @@ describe('LeaveForm', () => {
     expect(wrapper.findComponent({ name: 'VSwitch' }).props('modelValue')).toBe(true);
     wrapper.unmount();
   });
+
+  it('disables recurrence fields while leaving notes editable', async () => {
+    const wrapper = await mountForm();
+    await wrapper.setProps({
+      showRepeat: true,
+      recurrenceLocked: true,
+      modelValue: { ...wrapper.props('modelValue'), repeatMode: 'custom', recurrenceRule: 'FREQ=DAILY;COUNT=2' },
+    });
+    for (const selector of [
+      '#user-leave-date',
+      'input[aria-label="Repeat"]',
+      'input[aria-label="Start Time"]',
+      'input[aria-label="End Time"]',
+    ]) {
+      expect((wrapper.get(selector).element as HTMLInputElement).disabled).toBe(true);
+    }
+    expect(wrapper.getComponent({ name: 'VSwitch' }).props('disabled')).toBe(true);
+    expect(wrapper.getComponent({ name: 'RRuleEditor' }).props('disabled')).toBe(true);
+    expect((wrapper.get('textarea#user-leave-notes').element as HTMLTextAreaElement).disabled).toBe(false);
+    wrapper.unmount();
+  });
 });

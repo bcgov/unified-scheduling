@@ -19,6 +19,7 @@ import {
   updateLeaveEntry,
   updateLeaveSeries,
 } from '@/modules/leave/api/leaveApi';
+import { isActiveLeave, isLeaveEditable } from '@/modules/leave/leaveLifecycle';
 import { buildLeaveRequest } from '@/modules/leave/leaveRequest';
 import LeaveFormComponent, { type LeaveFormData } from '@/modules/leave/components/LeaveForm.vue';
 import { useLocationsStore } from '@/stores/LocationsStore';
@@ -44,6 +45,10 @@ const isEdit = computed(() => props.entry != null);
 const isLoadingEntry = ref(false);
 const isLoadingSeries = ref(false);
 const hasFormValidationError = ref(false);
+const recurrenceLocked = computed(() => isActiveLeave(loadedSeries.value?.statusTypeCode));
+const canSave = computed(
+  () => !isEdit.value || isLeaveEditable((isSeriesEdit.value ? loadedSeries.value : loadedEntry.value)?.statusTypeCode),
+);
 
 const buildInitialFormData = (series?: LeaveSeriesResponse): LeaveFormData => {
   const entry = loadedEntry.value ?? props.entry;
@@ -144,6 +149,9 @@ onMounted(async () => {
 
 const locationId = computed<number | null>(() => {
   const entry = loadedEntry.value ?? props.entry;
+  if (loadedSeries.value?.locationId != null) {
+    return loadedSeries.value.locationId;
+  }
   if (entry?.locationId != null) {
     return entry.locationId;
   }
@@ -162,13 +170,14 @@ const timeZoneId = computed(() =>
 );
 
 const handleSave = async () => {
-  if (isLoadingEntry.value || isLoadingSeries.value || (isSeriesEdit.value && !loadedSeries.value)) return;
+  if (isLoadingEntry.value || isLoadingSeries.value || !canSave.value) return;
   apiError.value = '';
   const built = buildLeaveRequest(formData.value, {
     locationId: locationId.value,
     timeZoneId: timeZoneId.value,
     leaveSeriesId: isSeriesEdit.value ? null : (loadedEntry.value?.leaveSeriesId ?? props.entry?.leaveSeriesId ?? null),
     employeeOptions: [{ code: props.user.id, description: formatUserOptionLabel(props.user) }],
+    fixedSeriesSchedule: recurrenceLocked.value ? (loadedSeries.value ?? undefined) : undefined,
   });
   if (built.error !== undefined) {
     apiError.value = built.error;
@@ -213,8 +222,9 @@ const handleSave = async () => {
     <UaAlert v-if="apiError" type="error" @close="apiError = ''">{{ apiError }}</UaAlert>
     <LeaveFormComponent
       v-model="formData"
-      :disabled="isSaving || isLoadingEntry || isLoadingSeries"
+      :disabled="isSaving || isLoadingEntry || isLoadingSeries || !canSave"
       :show-repeat="!isEdit || isSeriesEdit"
+      :recurrence-locked="recurrenceLocked"
       :time-zone-id="timeZoneId"
       show-required
       @validation-change="hasFormValidationError = $event"
@@ -226,13 +236,7 @@ const handleSave = async () => {
       >
       <UaBtn
         :loading="isSaving"
-        :disabled="
-          hasFormValidationError ||
-          isLoadingEntry ||
-          isLoadingSeries ||
-          (isEdit && !isSeriesEdit && !loadedEntry) ||
-          (isSeriesEdit && !loadedSeries)
-        "
+        :disabled="hasFormValidationError || isLoadingEntry || isLoadingSeries || !canSave"
         @click="handleSave"
         >Save</UaBtn
       >

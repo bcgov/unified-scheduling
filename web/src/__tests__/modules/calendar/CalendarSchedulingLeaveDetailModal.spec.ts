@@ -5,6 +5,7 @@ import type { CalendarSchedulingEvent } from '@/modules/scheduling/calendarSched
 import type { LeaveFormData } from '@/modules/leave/components/LeaveForm.vue';
 import CalendarSchedulingLeaveDetailModal from '@/modules/scheduling/CalendarSchedulingLeaveDetailModal.vue';
 import LeaveDetailsPanel from '@/modules/leave/components/LeaveDetailsPanel.vue';
+import { useLocationsStore } from '@/stores/LocationsStore';
 import { formatCalendarEventTimeRange } from '@/utils/date';
 import { flushPromises, mount } from '@vue/test-utils';
 import { defineComponent } from 'vue';
@@ -20,6 +21,7 @@ const entry = {
   endAtUtc: '2026-06-10T18:00:00Z',
   timeZoneId: 'America/Vancouver',
   locationId: 3,
+  statusTypeCode: 'Draft',
 };
 
 function createLeaveEvent(): CalendarSchedulingEvent {
@@ -38,8 +40,13 @@ function createLeaveEvent(): CalendarSchedulingEvent {
   };
 }
 
-async function mountModal(event = createLeaveEvent()) {
-  const app = await createTestApp({ loadConfig: false, permissions: [Permissions.LeaveEdit] });
+async function mountModal(
+  event = createLeaveEvent(),
+  permissions: Permissions[] = [Permissions.LeaveEdit],
+  viewingLocationId: number | null = null,
+) {
+  const app = await createTestApp({ loadConfig: false, permissions });
+  useLocationsStore(app.pinia).setSelectedLocationId(viewingLocationId);
   return mount(CalendarSchedulingLeaveDetailModal, {
     props: { event },
     global: {
@@ -184,9 +191,10 @@ describe('CalendarSchedulingLeaveDetailModal', () => {
     }
   });
 
-  it('sends the series ID when updating one occurrence from a leave series', async () => {
+  it('sends the series ID when updating an active occurrence', async () => {
     let saved: unknown;
     server.use(
+      http.get('*/api/scheduling/leave/entries/42', () => HttpResponse.json({ ...entry, statusTypeCode: 'Active' })),
       http.put('*/api/scheduling/leave/entries/42', async ({ request }) => {
         saved = await request.json();
         return HttpResponse.json(entry);
@@ -207,6 +215,61 @@ describe('CalendarSchedulingLeaveDetailModal', () => {
     await flushPromises();
 
     expect(saved).toMatchObject({ leaveSeriesId: 77 });
+    wrapper.unmount();
+  });
+
+  it.each([
+    { status: 'Draft', allowed: true, locationId: 3, tabs: ['Details', 'Edit', 'Delete'] },
+    { status: 'Active', allowed: true, locationId: 3, tabs: ['Details', 'Edit'] },
+    { status: 'Cancelled', allowed: true, locationId: 3, tabs: ['Details'] },
+    { status: 'Active', allowed: false, locationId: 3, tabs: ['Details'] },
+    { status: 'Active', allowed: true, locationId: 5, tabs: ['Details'] },
+  ])(
+    'shows $tabs for $status leave at location $locationId (permission: $allowed)',
+    async ({ status, allowed, locationId, tabs }) => {
+      const event = createLeaveEvent();
+      event.statusTypeCode = status;
+      event.metadata = { ...event.metadata, leaveSeriesId: undefined };
+      const wrapper = await mountModal(
+        event,
+        allowed ? [Permissions.LeaveEdit, Permissions.LeaveDelete] : [],
+        locationId,
+      );
+      expect(wrapper.findAll('[role="tab"]').map((tab) => tab.text())).toEqual(tabs);
+      wrapper.unmount();
+    },
+  );
+
+  it.each([
+    { status: 'Active', locked: true },
+    { status: 'Draft', locked: false },
+  ])('uses the $status series status to lock recurrence without fetching occurrences', async ({ status, locked }) => {
+    const series = {
+      ...entry,
+      id: 77,
+      statusTypeCode: status,
+      leaveEntryIds: [42],
+      recurrenceRule: 'FREQ=DAILY;COUNT=1',
+    };
+    const occurrenceRequests: string[] = [];
+    server.use(
+      http.get('*/api/scheduling/leave/series/77', () => HttpResponse.json(series)),
+      http.get('*/api/scheduling/leave/users/:userId/entries', ({ request }) => {
+        occurrenceRequests.push(request.url);
+        return HttpResponse.json([]);
+      }),
+      http.get('*/api/scheduling/leave/entries/:id', ({ request }) => {
+        occurrenceRequests.push(request.url);
+        return HttpResponse.json(entry);
+      }),
+    );
+    const wrapper = await mountModal();
+    const vm = wrapper.vm as unknown as { selectOpenScope: (scope: 'series') => Promise<void> };
+    await vm.selectOpenScope('series');
+    await wrapper.get('[role="tab"][aria-selected="false"]').trigger('click');
+    await flushPromises();
+    expect(wrapper.getComponent({ name: 'LeaveForm' }).props('recurrenceLocked')).toBe(locked);
+    expect(occurrenceRequests).toEqual([]);
     wrapper.unmount();
   });
 

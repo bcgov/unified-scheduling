@@ -20,6 +20,7 @@ import {
 import LeaveDetailsPanel from '@/modules/leave/components/LeaveDetailsPanel.vue';
 import LeaveForm, { type LeaveFormData } from '@/modules/leave/components/LeaveForm.vue';
 import { useLeaveTypeOptions } from '@/modules/leave/composables/useLeaveTypeOptions';
+import { isActiveLeave, isDraftLeave, isLeaveEditable } from '@/modules/leave/leaveLifecycle';
 import { buildLeaveRequest } from '@/modules/leave/leaveRequest';
 import UaAlert from '@/shared/components/UaAlert.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
@@ -35,7 +36,6 @@ import { formatAssigneeIds } from './calendarSchedulingShiftDetailRows';
 import type { ShiftDetailRow } from './calendarSchedulingShiftDetailTypes';
 import { formatUserOptionLabel } from './calendarSchedulingShiftForm';
 import { defaultEndTime, defaultStartTime, parseFormDateTime } from './schedulingDateTime';
-import { getSchedulingLifecycleCapabilities } from './schedulingLifecycle';
 import { resolveSchedulingTimeZoneId } from './schedulingTimeZone';
 import { getSchedulingLocationUsers } from './useSchedulingEmployeeOptions';
 
@@ -115,27 +115,31 @@ const isReadOnlyAtLocation = computed(() => {
       : (selectedEntry.value?.locationId ?? props.event.locationId);
   return viewingLocationId != null && leaveLocationId != null && Number(viewingLocationId) !== leaveLocationId;
 });
-const canEdit = computed(
-  () =>
-    !isReadOnlyAtLocation.value &&
-    (selectedOpenScope.value === 'series' ? leaveSeriesId.value != null : leaveEntryId.value != null) &&
-    accessControl.hasPermission(Permissions.LeaveEdit),
-);
 const isDeleteConfirmed = ref(false);
 const currentStatusTypeCode = computed(() =>
   selectedOpenScope.value === 'series'
     ? selectedSeries.value?.statusTypeCode
     : (selectedEntry.value?.statusTypeCode ?? props.event.statusTypeCode),
 );
+const canEdit = computed(
+  () =>
+    !isReadOnlyAtLocation.value &&
+    (selectedOpenScope.value === 'series' ? leaveSeriesId.value != null : leaveEntryId.value != null) &&
+    isLeaveEditable(currentStatusTypeCode.value) &&
+    accessControl.hasPermission(Permissions.LeaveEdit),
+);
 // Like shifts, only draft leave (a single occurrence or the whole series) can be deleted.
 const canDelete = computed(
   () =>
     !isReadOnlyAtLocation.value &&
     (selectedOpenScope.value === 'series' ? leaveSeriesId.value != null : leaveEntryId.value != null) &&
-    (!currentStatusTypeCode.value || getSchedulingLifecycleCapabilities(currentStatusTypeCode.value).canDelete) &&
+    (!currentStatusTypeCode.value || isDraftLeave(currentStatusTypeCode.value.trim())) &&
     accessControl.hasPermission(Permissions.LeaveDelete),
 );
 const shouldShowOpenScopeChoice = computed(() => leaveSeriesId.value != null && selectedOpenScope.value == null);
+const recurrenceLocked = computed(
+  () => selectedOpenScope.value === 'series' && isActiveLeave(selectedSeries.value?.statusTypeCode),
+);
 const entityLabel = computed(() => (selectedOpenScope.value === 'series' ? 'Leave Series' : 'Leave'));
 const selectedRecord = computed(() =>
   selectedOpenScope.value === 'series' ? selectedSeries.value : selectedEntry.value,
@@ -362,6 +366,7 @@ async function handleSave() {
     timeZoneId: timeZoneId.value,
     leaveSeriesId: selectedOpenScope.value === 'event' ? (leaveSeriesId.value ?? null) : null,
     employeeOptions: employeeOptions.value,
+    fixedSeriesSchedule: recurrenceLocked.value ? (selectedSeries.value ?? undefined) : undefined,
   });
   if (built.error !== undefined) {
     apiError.value = built.error;
@@ -525,6 +530,7 @@ function formatRRuleText(value?: string | null) {
         :leave-type-options="editLeaveTypeOptions"
         :time-zone-id="timeZoneId"
         :show-repeat="selectedOpenScope === 'series'"
+        :recurrence-locked="recurrenceLocked"
         @validation-change="hasEditFormValidationError = $event"
       />
 
