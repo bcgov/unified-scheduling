@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { mdiAlert, mdiAlertCircle } from '@mdi/js';
-import { computed, onMounted, ref } from 'vue';
+import { mdiAlert, mdiAlertCircle, mdiChevronDown, mdiChevronUp } from '@mdi/js';
+import { computed, onMounted, reactive, ref } from 'vue';
 import type {
+  CalendarRestrictedConflictWarningResponse,
+  SchedulePublishConflictResponse,
   SchedulePublishPreviewResponse,
   SchedulePublishRequest,
   SchedulePublishShiftEventResponse,
@@ -34,6 +36,7 @@ const isLoading = ref(false);
 const isPublishing = ref(false);
 const errorMessage = ref('');
 const previewUpdated = ref(false);
+const collapsedEmployeeIds = reactive(new Set<string>());
 const hasNoCandidates = computed(
   () => preview.value?.candidates.shiftEntryCount === 0 && preview.value.candidates.assignmentEntryCount === 0,
 );
@@ -72,13 +75,13 @@ const employeeGroups = computed(() => {
     group.findings.push(finding);
   }
 
-  for (const conflict of blockers.conflicts) {
+  function addConflict(conflict: SchedulePublishConflictResponse, tone: EmployeeFinding['tone']) {
     const details = [conflict.entry, conflict.overlaps].flatMap((event) =>
       event ? [`${event.title} · ${formatCalendarConflictEventRange(event, scope.timeZoneId)}`] : [],
     );
     addFinding(conflict.resourceId, {
       key: conflict.id,
-      tone: 'error',
+      tone,
       message: conflict.title || 'Unresolved calendar conflict',
       details: [
         ...details,
@@ -87,6 +90,17 @@ const employeeGroups = computed(() => {
     });
   }
 
+  function addRestrictedFinding(warning: CalendarRestrictedConflictWarningResponse, tone: EmployeeFinding['tone']) {
+    const event = warning.authorizedEvent;
+    addFinding(warning.resourceId, {
+      key: `restricted:${warning.sourceModule}:${warning.eventId}`,
+      tone,
+      message: warning.message,
+      details: event ? [`${event.title} · ${formatCalendarConflictEventRange(event, scope.timeZoneId)}`] : undefined,
+    });
+  }
+
+  for (const conflict of blockers.conflicts) addConflict(conflict, 'error');
   for (const blocker of blockers.shiftConflicts) {
     if (!blocker.userId) continue;
     addFinding(blocker.userId, {
@@ -99,13 +113,9 @@ const employeeGroups = computed(() => {
     });
   }
 
-  for (const warning of blockers.restrictedWarnings ?? []) {
-    addFinding(warning.resourceId, {
-      key: `restricted:${warning.sourceModule}:${warning.eventId}`,
-      tone: 'error',
-      message: warning.message,
-    });
-  }
+  for (const warning of blockers.restrictedWarnings ?? []) addRestrictedFinding(warning, 'error');
+  for (const conflict of warnings.conflicts ?? []) addConflict(conflict, 'warning');
+  for (const warning of warnings.restrictedWarnings ?? []) addRestrictedFinding(warning, 'warning');
 
   for (const employee of warnings.incompleteEmployees) {
     const missing = [employee.missingShift && 'a shift', employee.missingAssignment && 'an assignment'].filter(Boolean);
@@ -132,7 +142,7 @@ const generalFindings = computed(() => {
     (blockers.hasRestrictedConflicts && !blockers.restrictedWarnings?.length);
   if (hasUnattributed) {
     findings.push({
-      key: 'restricted',
+      key: 'restricted-blocker',
       tone: 'error',
       message: 'Unresolved conflicts include events you do not have permission to view.',
     });
@@ -140,6 +150,13 @@ const generalFindings = computed(() => {
   blockers.shiftConflicts.forEach((blocker, index) => {
     if (!blocker.userId) findings.push({ key: `shift:${index}`, tone: 'error', message: blocker.message });
   });
+  if (warnings.hasUnattributedRestrictedConflicts) {
+    findings.push({
+      key: 'restricted-warning',
+      tone: 'warning',
+      message: 'Unresolved conflicts on published schedule items include events you do not have permission to view.',
+    });
+  }
   const shifts = warnings.unassignedShifts.length;
   const assignments = warnings.unassignedAssignments.length;
   if (shifts) {
@@ -176,6 +193,14 @@ const publicationStatus = computed(() => {
 });
 
 onMounted(loadPreview);
+
+function toggleEmployeeFindings(userId: string) {
+  if (collapsedEmployeeIds.has(userId)) {
+    collapsedEmployeeIds.delete(userId);
+  } else {
+    collapsedEmployeeIds.add(userId);
+  }
+}
 
 async function loadPreview() {
   isLoading.value = true;
@@ -279,13 +304,13 @@ function toAvatarText(displayName: string) {
         <li class="schedule-publish__finding">
           <v-icon :icon="severity.error.icon" color="error" size="18" aria-hidden="true" />
           <span
-            ><strong>{{ severity.error.label }}</strong> · Must be resolved before publication.</span
+            ><strong>{{ severity.error.label }}</strong> · Must be resolved before publishing this schedule.</span
           >
         </li>
         <li class="schedule-publish__finding">
           <v-icon :icon="severity.warning.icon" color="warning" size="18" aria-hidden="true" />
           <span
-            ><strong>{{ severity.warning.label }}</strong> · Requires attention. Publication can proceed with
+            ><strong>{{ severity.warning.label }}</strong> · Requires attention. You can publish this schedule with
             warnings.</span
           >
         </li>
@@ -303,8 +328,28 @@ function toAvatarText(displayName: string) {
               {{ toAvatarText(employee.displayName) }}
             </span>
             <div class="schedule-publish__employee-content">
-              <h3 class="schedule-publish__employee-name">{{ employee.displayName }}</h3>
-              <ul class="schedule-publish__employee-findings" role="list">
+              <div class="schedule-publish__employee-header">
+                <h3 class="schedule-publish__employee-name">{{ employee.displayName }}</h3>
+                <UaBtn
+                  icon
+                  type="button"
+                  size="small"
+                  variant="text"
+                  :aria-label="`Findings for ${employee.displayName}`"
+                  :aria-expanded="!collapsedEmployeeIds.has(employee.userId)"
+                  @click="toggleEmployeeFindings(employee.userId)"
+                >
+                  <v-icon
+                    :icon="collapsedEmployeeIds.has(employee.userId) ? mdiChevronDown : mdiChevronUp"
+                    aria-hidden="true"
+                  />
+                </UaBtn>
+              </div>
+              <ul
+                v-if="!collapsedEmployeeIds.has(employee.userId)"
+                class="schedule-publish__employee-findings"
+                role="list"
+              >
                 <li v-for="finding in employee.findings" :key="finding.key" class="schedule-publish__finding">
                   <v-icon :icon="severity[finding.tone].icon" :color="finding.tone" size="18" aria-hidden="true" />
                   <div>
@@ -456,8 +501,16 @@ function toAvatarText(displayName: string) {
 
 .schedule-publish__employee-content {
   display: grid;
+  flex: 1;
   gap: var(--ua-spacing-xs);
   min-width: 0;
+}
+
+.schedule-publish__employee-header {
+  align-items: center;
+  display: flex;
+  gap: var(--ua-spacing-sm);
+  justify-content: space-between;
 }
 
 .schedule-publish__employee-name {

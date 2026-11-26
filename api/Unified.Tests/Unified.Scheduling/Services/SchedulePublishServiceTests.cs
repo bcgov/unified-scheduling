@@ -739,6 +739,193 @@ public sealed class SchedulePublishServiceTests : IAsyncLifetime
         await service.PublishAsync(CreateRequest(), null, TestContext.Current.CancellationToken);
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task PreviewAsync_WithPublishedShiftAndAssignmentConflicts_ReportsWarningsWithoutBlocking(
+        bool canViewAllEvents
+    )
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var assignment = await SeedLinkedDraftAssignmentAsync();
+        assignment.Event!.StatusTypeCode = CalendarEventStatusTypeCodes.Active;
+        assignment.Event.Title = "Published assignment";
+        var shift = await _db.ShiftEntries.Include(entry => entry.Event).SingleAsync(cancellationToken);
+        shift.Event!.Title = "Private shift";
+        _db.UserTrainings.Add(
+            new UserTraining
+            {
+                UserId = ResourceId,
+                TrainingId = 1,
+                AwardedOn = ShiftStart.AddMinutes(17),
+                EndingOn = ShiftStart.AddMinutes(42),
+                AllDay = false,
+            }
+        );
+        var draft = await SeedDraftShiftAsync();
+        var timeZoneService = new TimeZoneService();
+        var providers = new ICalendarConflictParticipantProvider[]
+        {
+            new SchedulingConflictParticipantProvider(
+                _db,
+                SchedulingLoanOutTestServices.CreateAvailability(_db, timeZoneService)
+            ),
+            new TrainingConflictParticipantProvider(
+                _db,
+                new CalendarTimeZoneResolver(
+                    Options.Create(new CalendarDateTimeOptions { DefaultTimeZoneId = "UTC" }),
+                    timeZoneService
+                ),
+                timeZoneService
+            ),
+        };
+        var accessor = CalendarConflictTestContext.Accessor(ResourceId);
+        if (!canViewAllEvents)
+            accessor.HttpContext!.User = CalendarConflictTestContext.Viewer(
+                ResourceId,
+                nameof(Permissions.AssignmentsView)
+            );
+        var projection = new CalendarConflictProjection(providers, accessor);
+        var conflictService = new CalendarConflictService(
+            providers,
+            _db,
+            projection,
+            CalendarConflictTestRules.Create(("assignment", ["training"]), ("shift", ["training"]))
+        );
+        var service = CreateService([], conflictService: conflictService, projection: projection);
+
+        var preview = await service.PreviewAsync(CreateRequest(), cancellationToken);
+
+        Assert.True(preview.CanPublish);
+        Assert.Empty(preview.Blockers.Conflicts);
+        Assert.False(preview.Blockers.HasRestrictedConflicts);
+        Assert.Empty(preview.Warnings.IncompleteEmployees);
+        Assert.Equal(ResourceId, Assert.Single(preview.AffectedEmployees).UserId);
+        if (canViewAllEvents)
+        {
+            Assert.Equal(2, preview.Warnings.Conflicts.Count);
+            Assert.Contains(preview.Warnings.Conflicts, conflict => conflict.Title!.Contains("Assignment"));
+            Assert.Contains(preview.Warnings.Conflicts, conflict => conflict.Title!.Contains("Shift"));
+            Assert.False(preview.Warnings.HasRestrictedConflicts);
+        }
+        else
+        {
+            Assert.Empty(preview.Warnings.Conflicts);
+            Assert.True(preview.Warnings.HasRestrictedConflicts);
+            Assert.True(preview.Warnings.HasUnattributedRestrictedConflicts);
+            var warning = Assert.Single(preview.Warnings.RestrictedWarnings);
+            var authorizedEvent = Assert.IsType<CalendarConflictEventResponse>(warning.AuthorizedEvent);
+            Assert.Equal(assignment.EventId.ToString(), warning.EventId);
+            Assert.Equal(warning.EventId, authorizedEvent.EventId);
+            Assert.Equal("Published assignment", authorizedEvent.Title);
+            Assert.Equal(ShiftStart, authorizedEvent.Start);
+            Assert.Equal(ShiftEnd, authorizedEvent.End);
+            var json = System.Text.Json.JsonSerializer.Serialize(preview);
+            Assert.DoesNotContain("training.user-training.", json);
+            Assert.DoesNotContain("FIRST-AID", json);
+            Assert.DoesNotContain("Private shift", json);
+            Assert.DoesNotContain("16:17:00", json);
+        }
+
+        var result = await service.PublishAsync(CreateRequest(), ResourceId, cancellationToken);
+        Assert.Equal(1, result.PublishedShiftEntryCount);
+        Assert.Equal(CalendarEventStatusTypeCodes.Active, draft.Event!.StatusTypeCode);
+    }
+
+    [Fact]
+    public async Task Publication_WithMixedConflicts_FiltersWarningsAndPreservesAllCandidateBlockers()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var assignment = await SeedLinkedDraftAssignmentAsync();
+        var shift = await _db.ShiftEntries.Include(entry => entry.Event).SingleAsync(cancellationToken);
+        var otherLocation = await SeedDraftShiftAsync(ShiftStart, ShiftEnd, 6);
+        otherLocation.Event!.StatusTypeCode = CalendarEventStatusTypeCodes.Active;
+        shift.Event!.EndAtUtc = assignment.Event!.EndAtUtc = ShiftEnd.AddHours(4);
+        await _db.SaveChangesAsync(cancellationToken);
+
+        var published = new CalendarConflictParticipant(
+            shift.EventId.ToString(),
+            "scheduling",
+            ResourceId,
+            ShiftStart,
+            ShiftEnd.AddHours(4),
+            "Published shift"
+        );
+        var draft = published with { EventId = assignment.EventId.ToString(), Title = "Draft assignment" };
+        CalendarConflict ConflictWithTraining(
+            CalendarConflictParticipant scheduleEvent,
+            string trainingId,
+            DateTimeOffset start
+        ) =>
+            new(
+                scheduleEvent,
+                new(trainingId, "training", ResourceId, start, start.AddHours(1), "Training"),
+                ResourceId,
+                start,
+                start.AddHours(1),
+                ReportOnEntry: true
+            );
+
+        var duplicate = new CalendarConflict(
+            draft,
+            published,
+            ResourceId,
+            ShiftStart,
+            ShiftEnd.AddHours(4),
+            ReportOnEntry: true,
+            ReportOnOverlaps: true
+        );
+        var outsideRangeBlocker = ConflictWithTraining(draft, "candidate-next-day", ShiftEnd.AddHours(1));
+        var warning = ConflictWithTraining(published, "in-scope", ShiftStart);
+        var conflictService = new FakeCalendarConflictService(
+            [duplicate, outsideRangeBlocker],
+            [
+                duplicate with
+                {
+                    Entry = published,
+                    Overlaps = draft,
+                },
+                warning,
+                warning,
+                ConflictWithTraining(published, "outside", ShiftEnd),
+                ConflictWithTraining(published, "overridden", ShiftStart) with
+                {
+                    IsOverridden = true,
+                },
+                ConflictWithTraining(published, "wrong-direction", ShiftStart) with
+                {
+                    ReportOnEntry = false,
+                    ReportOnOverlaps = true,
+                },
+                ConflictWithTraining(draft, "draft-only", ShiftStart),
+                ConflictWithTraining(
+                    published with
+                    {
+                        EventId = otherLocation.EventId.ToString(),
+                    },
+                    "elsewhere",
+                    ShiftStart
+                ),
+            ]
+        );
+        var service = CreateService([], conflictService: conflictService);
+
+        var preview = await service.PreviewAsync(CreateRequest(), cancellationToken);
+        var rejection = await Assert.ThrowsAsync<SchedulePublishBlockedException>(() =>
+            service.PublishAsync(CreateRequest(), ResourceId, cancellationToken)
+        );
+
+        foreach (var response in new[] { preview, rejection.Preview })
+        {
+            Assert.False(response.CanPublish);
+            Assert.Equal(
+                new[] { duplicate.Id, outsideRangeBlocker.Id },
+                response.Blockers.Conflicts.Select(conflict => conflict.Id)
+            );
+            Assert.Equal(warning.Id, Assert.Single(response.Warnings.Conflicts).Id);
+        }
+    }
+
     private async Task<AssignmentEntry> SeedLinkedDraftAssignmentAsync()
     {
         _db.EventTypes.Add(
@@ -838,6 +1025,12 @@ public sealed class SchedulePublishServiceTests : IAsyncLifetime
         var shift = await _db
             .ShiftEntries.Include(entry => entry.Event)
             .SingleAsync(TestContext.Current.CancellationToken);
+        var secondShift = await SeedDraftShiftAsync(ShiftStart, ShiftEnd.AddHours(1));
+        secondShift.Event!.StatusTypeCode = CalendarEventStatusTypeCodes.Active;
+        secondShift.Event.Title = "Authorized relief shift";
+        secondShift.Users.Add(new ShiftEntryUser { UserId = ResourceId });
+        shift.Event!.Title = "Authorized morning shift";
+        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
         var hiddenStart = ShiftStart.AddMinutes(17);
         var hidden = new CalendarConflict(
             new(
@@ -858,7 +1051,17 @@ public sealed class SchedulePublishServiceTests : IAsyncLifetime
         var hiddenUserId = Guid.NewGuid();
         var conflicts = new List<CalendarConflict>();
         if (hasAuthorizedAnchor)
-            conflicts.Add(hidden with { ReportOnOverlaps = true });
+            conflicts.Add(
+                hidden with
+                {
+                    Overlaps = hidden.Overlaps with
+                    {
+                        EventId = assignment.EventId.ToString(),
+                        Title = "SECRET assignment",
+                    },
+                    ReportOnOverlaps = true,
+                }
+            );
         if (hasUnattributedConflict)
             conflicts.Add(
                 hidden with
@@ -870,7 +1073,21 @@ public sealed class SchedulePublishServiceTests : IAsyncLifetime
                 }
             );
         var service = CreateService(
-            conflicts,
+            [],
+            conflictService: new FakeCalendarConflictService(
+                conflicts,
+                [
+                    hidden with
+                    {
+                        ReportOnOverlaps = true,
+                    },
+                    hidden with
+                    {
+                        Overlaps = hidden.Overlaps with { EventId = secondShift.EventId.ToString() },
+                        ReportOnOverlaps = true,
+                    },
+                ]
+            ),
             projection: new CalendarConflictProjection(
                 [
                     new SchedulingConflictParticipantProvider(
@@ -895,13 +1112,27 @@ public sealed class SchedulePublishServiceTests : IAsyncLifetime
                 var warning = Assert.Single(response.Blockers.RestrictedWarnings);
                 Assert.Equal(ResourceId, warning.ResourceId);
                 Assert.Equal(shift.EventId.ToString(), warning.EventId);
-                Assert.Equal(ResourceId, Assert.Single(response.AffectedEmployees).UserId);
             }
             else
             {
                 Assert.Empty(response.Blockers.RestrictedWarnings);
-                Assert.Empty(response.AffectedEmployees);
             }
+            var attributedFinding = Assert.Single(
+                response.Blockers.RestrictedWarnings.Concat(response.Warnings.RestrictedWarnings),
+                warning => warning.EventId == shift.EventId.ToString()
+            );
+            var distinctWarning = Assert.Single(
+                response.Warnings.RestrictedWarnings,
+                warning => warning.EventId == secondShift.EventId.ToString()
+            );
+            Assert.Equal("Authorized relief shift", distinctWarning.AuthorizedEvent?.Title);
+            Assert.True(response.Warnings.HasRestrictedConflicts);
+            var authorizedEvent = Assert.IsType<CalendarConflictEventResponse>(attributedFinding.AuthorizedEvent);
+            Assert.Equal(shift.EventId.ToString(), authorizedEvent.EventId);
+            Assert.Equal("Authorized morning shift", authorizedEvent.Title);
+            Assert.Equal(ShiftStart, authorizedEvent.Start);
+            Assert.Equal(ShiftEnd, authorizedEvent.End);
+            Assert.Equal(ResourceId, Assert.Single(response.AffectedEmployees).UserId);
             Assert.True(response.Blockers.HasRestrictedConflicts);
             Assert.Equal(hasUnattributedConflict, response.Blockers.HasUnattributedRestrictedConflicts);
             var json = System.Text.Json.JsonSerializer.Serialize(response);
@@ -1035,15 +1266,17 @@ public sealed class SchedulePublishServiceTests : IAsyncLifetime
     }
 }
 
-internal sealed class FakeCalendarConflictService(IReadOnlyCollection<CalendarConflict> conflicts)
-    : ICalendarConflictService
+internal sealed class FakeCalendarConflictService(
+    IReadOnlyCollection<CalendarConflict> conflicts,
+    IReadOnlyCollection<CalendarConflict>? scopedConflicts = null
+) : ICalendarConflictService
 {
     public IReadOnlyCollection<CalendarConflictParticipant>? LastCandidates { get; private set; }
 
     public Task<IReadOnlyCollection<CalendarConflict>> GetConflictsAsync(
         CalendarConflictQuery query,
         CancellationToken cancellationToken = default
-    ) => Task.FromResult(conflicts);
+    ) => Task.FromResult(scopedConflicts ?? conflicts);
 
     public Task<IReadOnlyCollection<CalendarConflict>> GetConflictsForCandidatesAsync(
         IReadOnlyCollection<CalendarConflictParticipant> candidates,

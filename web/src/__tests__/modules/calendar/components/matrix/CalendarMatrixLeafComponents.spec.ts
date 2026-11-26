@@ -1,6 +1,8 @@
+import { mdiDotsVertical } from '@mdi/js';
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ref, toRaw } from 'vue';
+import { mdi } from 'vuetify/iconsets/mdi-svg';
 import { CALENDAR_ALL_DAY_LABEL } from '@/utils/date';
 import { createTestApp } from '@/__tests__/helpers/createTestApp';
 import { useCalendarStore } from '@/modules/calendar/calendarStore';
@@ -129,9 +131,11 @@ describe('CalendarMatrixHeader', () => {
 });
 
 describe('CalendarMatrixCellHeader', () => {
-  it('opens a single menu repeatedly and dispatches each item without activating the header', async () => {
+  it.each([
+    ['warning', 'View overridden conflicts'],
+    ['error', 'View unresolved conflicts'],
+  ] as const)('uses %s for the ellipsis and dispatches both menu actions', async (tone, conflictLabel) => {
     const overtime = { shiftEntryId: 42, userId: 'resource-1', overtimeMinutes: 30 };
-    const conflictLabel = 'View overridden conflicts';
     const menuLabel = `${conflictLabel} and potential overtime`;
     const registry = new CalendarActionRegistry();
     registry.registerMatrixCellHeaderAction(calendarSchedulingHeaderShowConflictAction);
@@ -143,27 +147,34 @@ describe('CalendarMatrixCellHeader', () => {
       status: CalendarEventStatus.Active,
       action: {
         actionId: 'menu-trigger',
-        icon: 'dots',
+        icon: mdiDotsVertical,
         ariaLabel: menuLabel,
         tooltip: menuLabel,
         type: CalendarMatrixActionType.Menu,
-        tone: 'warning',
+        tone,
         menuItems: [
           {
             actionId: calendarSchedulingActionIds.showConflict,
             label: conflictLabel,
             tooltip: conflictLabel,
-            tone: 'warning',
+            tone,
           },
           { actionId: calendarSchedulingActionIds.showOvertime, label: 'View potential overtime', payload: overtime },
         ],
       },
     };
-    const wrapper = await mountWithApp(CalendarMatrixCellHeader, { props: { cell, header }, attachTo: document.body });
+    const app = await createTestApp({ loadConfig: false });
+    app.vuetify.icons.sets.mdi = mdi;
+    const wrapper = mount(CalendarMatrixCellHeader, {
+      props: { cell, header },
+      attachTo: document.body,
+      global: { plugins: app.mountPlugins },
+    });
     const trigger = wrapper.get('button.calendar-matrix-cell-header__action');
     await flushPromises();
     expect(wrapper.classes()).toContain('is-active');
-    expect(trigger.attributes('data-tone')).toBe('warning');
+    expect(trigger.attributes('data-tone')).toBe(tone);
+    expect(trigger.get('svg path').attributes('d')).toBe(mdiDotsVertical);
     expect(trigger.attributes('aria-label')).toBe(menuLabel);
     expect(trigger.attributes('aria-describedby')).toBeTruthy();
     expect(wrapper.findAll('button.calendar-matrix-cell-header__action')).toHaveLength(1);
@@ -172,7 +183,7 @@ describe('CalendarMatrixCellHeader', () => {
     expect(document.body.textContent).toContain(conflictLabel);
     expect(document.body.textContent).toContain('View potential overtime');
     const conflicts = document.querySelector<HTMLElement>(`[aria-label="${conflictLabel}"]`)!;
-    expect(conflicts.querySelector('[data-tone="warning"]')?.textContent).toBe(conflictLabel);
+    expect(conflicts.querySelector(`[data-tone="${tone}"]`)?.textContent).toBe(conflictLabel);
     expect(conflicts.getAttribute('aria-describedby')).toBeTruthy();
     expect(wrapper.get('article').element.contains(conflicts)).toBe(false);
     conflicts.click();
