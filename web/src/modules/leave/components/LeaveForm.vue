@@ -21,6 +21,7 @@ export type LeaveFormData = {
   date?: string;
   allDay?: boolean;
   startTime?: string;
+  endDate?: string;
   /** Null preserves an intentionally absent entry end; undefined uses the creation default. */
   endTime?: string | null;
   repeatMode?: RepeatMode;
@@ -204,7 +205,9 @@ const updateEmployees = (value: SelectValue | undefined) => {
       </p>
     </div>
 
-    <label class="user-leave__label" for="user-leave-date">Date<UaRequiredIndicator v-if="showRequired" /></label>
+    <label class="user-leave__label" for="user-leave-date">
+      {{ modelValue.allDay ? 'Date' : 'Start Date' }}<UaRequiredIndicator v-if="showRequired" />
+    </label>
     <UaTextField
       id="user-leave-date"
       label=""
@@ -255,6 +258,16 @@ const updateEmployees = (value: SelectValue | undefined) => {
     />
 
     <template v-if="!modelValue.allDay">
+      <UaTextField
+        id="user-leave-end-date"
+        label="End Date"
+        :required="showRequired && modelValue.endTime !== null"
+        type="date"
+        :model-value="modelValue.endDate ?? modelValue.date"
+        :disabled="scheduleDisabled"
+        @update:model-value="(value: string) => updateField('endDate', value)"
+      />
+
       <span id="user-leave-time-label" class="user-leave__label">Time</span>
       <div class="user-leave__time-fields" aria-labelledby="user-leave-time-label">
         <div class="user-leave__field">

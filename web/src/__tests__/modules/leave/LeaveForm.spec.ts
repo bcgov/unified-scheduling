@@ -41,7 +41,22 @@ describe('LeaveForm', () => {
     const wrapper = await mountForm(true);
     expect(wrapper.find('[aria-label="Start Time"]').exists()).toBe(false);
     expect(wrapper.find('[aria-label="End Time"]').exists()).toBe(false);
+    expect(wrapper.find('#user-leave-end-date').exists()).toBe(false);
     expect(wrapper.findComponent({ name: 'VSwitch' }).props('modelValue')).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('uses the start date as the default and keeps a selected end date independent', async () => {
+    const wrapper = await mountForm();
+    const startDate = wrapper.get('#user-leave-date');
+    const endDate = wrapper.get('#user-leave-end-date');
+    expect((endDate.element as HTMLInputElement).value).toBe('2026-06-01');
+    await startDate.setValue('2026-06-02');
+    expect((endDate.element as HTMLInputElement).value).toBe('2026-06-02');
+    await endDate.setValue('2026-06-04');
+    await startDate.setValue('2026-06-03');
+    expect(wrapper.props('modelValue')).toMatchObject({ date: '2026-06-03', endDate: '2026-06-04' });
+    expect((endDate.element as HTMLInputElement).value).toBe('2026-06-04');
     wrapper.unmount();
   });
 
@@ -54,6 +69,7 @@ describe('LeaveForm', () => {
     });
     for (const selector of [
       '#user-leave-date',
+      '#user-leave-end-date',
       'input[aria-label="Repeat"]',
       'input[aria-label="Start Time"]',
       'input[aria-label="End Time"]',

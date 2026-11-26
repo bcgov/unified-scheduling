@@ -14,7 +14,7 @@ const requestOptions = { locationId: 3, timeZoneId: 'America/Vancouver' };
 describe('leaveRequest', () => {
   it('submits an all-day date without temporarily retained times', () => {
     const result = buildLeaveRequest(
-      { userIds: ['user-1'], leaveType: 1, date: '2026-03-08', allDay: true, startTime: '17:00', endTime: '09:00' },
+      { ...entryForm, date: '2026-03-08', allDay: true, endDate: '2026-03-09', endTime: '09:00' },
       { locationId: 1, timeZoneId: 'Asia/Tokyo' },
     );
     expect(result).toMatchObject({ kind: 'entry', request: { allDay: true, leaveDate: '2026-03-08' } });
@@ -60,7 +60,47 @@ describe('leaveRequest', () => {
       kind: 'entry',
       request: { allDay: false, startAtUtc: '2026-06-01T16:00:00Z', endAtUtc: '2026-06-02T00:00:00Z' },
     });
-    if ('request' in result) expect(result.request).not.toHaveProperty('leaveDate');
+    if ('request' in result) {
+      expect(result.request).not.toHaveProperty('leaveDate');
+      expect(result.request).not.toHaveProperty('description');
+    }
+  });
+
+  // Use Vancouver's 2025 fall-back before B.C. adopted permanent daylight time.
+  it.each([
+    { startAtUtc: '2025-11-02T08:30:00.123456Z', endAtUtc: '2025-11-02T09:30:00.654321Z' },
+    { startAtUtc: '2025-11-02T08:30:00.123456Z', endAtUtc: '2025-11-02T08:30:00.123457Z' },
+  ])('preserves distinct instants shown as the same local minute ($endAtUtc)', ({ startAtUtc, endAtUtc }) => {
+    expect(
+      buildLeaveRequest(
+        { ...entryForm, date: '2025-11-02', startTime: '01:30', endDate: '2025-11-02', endTime: '01:30' },
+        { ...requestOptions, persistedLeave: { startAtUtc, endAtUtc } },
+      ),
+    ).toMatchObject({ kind: 'entry', request: { startAtUtc, endAtUtc } });
+  });
+
+  const overnightForm = { ...entryForm, startTime: '22:00', endDate: '2026-06-11', endTime: '06:00' };
+  const overnight = { startAtUtc: '2026-06-11T05:00:00.123456Z', endAtUtc: '2026-06-11T13:00:00.654321Z' };
+
+  it.each([
+    { change: { date: '2026-06-09' }, interval: { ...overnight, startAtUtc: '2026-06-10T05:00:00Z' } },
+    { change: { startTime: '21:00' }, interval: { ...overnight, startAtUtc: '2026-06-11T04:00:00Z' } },
+    { change: { endDate: '2026-06-12' }, interval: { ...overnight, endAtUtc: '2026-06-12T13:00:00Z' } },
+    { change: { endTime: '07:00' }, interval: { ...overnight, endAtUtc: '2026-06-11T14:00:00Z' } },
+  ])('updates $change while keeping the other endpoint exact', ({ change, interval }) => {
+    expect(
+      buildLeaveRequest({ ...overnightForm, ...change }, { ...requestOptions, persistedLeave: overnight }),
+    ).toMatchObject({ kind: 'entry', request: interval });
+  });
+
+  it.each([
+    { endDate: '', error: 'Select a valid date and time.' },
+    { endDate: '2026-02-30', error: 'Select a valid date and time.' },
+    { endDate: '2026-06-10', error: 'End time must be after start time.' },
+  ])('rejects an invalid end date ($endDate)', ({ endDate, error }) => {
+    expect(
+      buildLeaveRequest({ ...overnightForm, endDate }, { ...requestOptions, persistedLeave: overnight }),
+    ).toEqual({ error });
   });
 
   it('serializes an intentionally absent entry end as null even when the start is after 17:00', () => {

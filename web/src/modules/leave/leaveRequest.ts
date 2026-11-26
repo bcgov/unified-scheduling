@@ -3,10 +3,26 @@ import type {
   SchedulingLeaveSeriesRequest as LeaveSeriesRequest,
   SchedulingLeaveSeriesResponse as LeaveSeriesResponse,
 } from '@/api-access/generated/models';
-import { defaultEndTime, defaultStartTime, toUtcIso } from '@/modules/scheduling/schedulingDateTime';
+import { defaultEndTime, defaultStartTime, parseFormDateTime, toUtcIso } from '@/modules/scheduling/schedulingDateTime';
 import type { SelectOption } from '@/types/select';
 import type { LeaveFormData } from './components/LeaveForm.vue';
 import { DateTime } from 'luxon';
+import { Temporal } from 'temporal-polyfill';
+
+type LeaveSchedule = Pick<LeaveSeriesResponse, 'allDay' | 'leaveDate' | 'startAtUtc' | 'endAtUtc'>;
+
+export function getLeaveScheduleFields(schedule: LeaveSchedule, timeZoneId: string) {
+  const { allDay = false, leaveDate, startAtUtc, endAtUtc } = schedule;
+  const start = startAtUtc ? parseFormDateTime(startAtUtc, timeZoneId) : null;
+  const end = endAtUtc ? parseFormDateTime(endAtUtc, timeZoneId) : null;
+  return {
+    allDay,
+    date: (allDay ? leaveDate : undefined) ?? start?.date ?? '',
+    startTime: allDay ? defaultStartTime : (start?.time ?? defaultStartTime),
+    endDate: allDay ? undefined : end?.date,
+    endTime: allDay ? defaultEndTime : (end?.time ?? null),
+  };
+}
 
 export type LeaveRequestResult =
   | { kind: 'entry'; request: LeaveEntryRequest; error?: undefined }
@@ -20,6 +36,7 @@ export function buildLeaveRequest(
     timeZoneId: string;
     leaveSeriesId?: number | null;
     employeeOptions?: SelectOption[];
+    persistedLeave?: LeaveSchedule & Pick<LeaveSeriesResponse, 'description'>;
     fixedSeriesSchedule?: LeaveSeriesResponse;
   },
 ): LeaveRequestResult {
@@ -38,6 +55,7 @@ export function buildLeaveRequest(
     return { error: 'Select a location before adding leave.' };
   }
 
+  const persistedLeave = options.fixedSeriesSchedule ?? options.persistedLeave;
   const commonRequest = {
     leaveTypeId,
     title: buildLeaveTitle(
@@ -45,6 +63,7 @@ export function buildLeaveRequest(
         (userId) => options.employeeOptions?.find((option) => String(option.code) === userId)?.description || userId,
       ),
     ),
+    ...(persistedLeave && { description: persistedLeave.description ?? null }),
     notes: form.notes?.trim() || null,
     locationId: options.locationId,
     userIds,
@@ -76,14 +95,29 @@ export function buildLeaveRequest(
     }
     interval = { leaveDate: form.date };
   } else {
-    const startAtUtc = toUtcIso(form.date, form.startTime || defaultStartTime, options.timeZoneId);
+    const persisted =
+      persistedLeave && !persistedLeave.allDay ? getLeaveScheduleFields(persistedLeave, options.timeZoneId) : undefined;
+    const startTime = form.startTime || defaultStartTime;
+    const endDate = form.endDate ?? form.date;
     // Preserve explicit absence on entries; uninitialized creation values still use the default.
     const endTime = form.endTime === null ? null : form.endTime || defaultEndTime;
-    const endAtUtc = endTime === null ? null : toUtcIso(form.date, endTime, options.timeZoneId);
+    // The form only captures minutes, and repeated local times can refer to different instants.
+    const startAtUtc =
+      persisted?.date && form.date === persisted.date && startTime === persisted.startTime
+        ? persistedLeave?.startAtUtc
+        : toUtcIso(form.date, startTime, options.timeZoneId);
+    const endAtUtc =
+      endTime === null
+        ? null
+        : endDate === persisted?.endDate && endTime === persisted?.endTime
+          ? (persistedLeave?.endAtUtc ?? null)
+          : toUtcIso(endDate, endTime, options.timeZoneId);
     if (!startAtUtc || (endTime !== null && !endAtUtc) || (form.repeatMode === 'custom' && !endAtUtc)) {
       return { error: 'Select a valid date and time.' };
     }
-    if (endAtUtc && endAtUtc <= startAtUtc) return { error: 'End time must be after start time.' };
+    if (endAtUtc && Temporal.Instant.compare(endAtUtc, startAtUtc) <= 0) {
+      return { error: 'End time must be after start time.' };
+    }
     interval = { startAtUtc, endAtUtc };
   }
 

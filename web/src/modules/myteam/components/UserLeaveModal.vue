@@ -9,7 +9,7 @@ import type {
   UserResponse,
 } from '@/api-access/generated/models';
 import { resolveSchedulingTimeZoneId } from '@/modules/scheduling/schedulingTimeZone';
-import { defaultEndTime, defaultStartTime, parseFormDateTime } from '@/modules/scheduling/schedulingDateTime';
+import { defaultEndTime, defaultStartTime } from '@/modules/scheduling/schedulingDateTime';
 import { formatUserOptionLabel } from '@/modules/scheduling/calendarSchedulingShiftForm';
 import {
   createLeaveEntry,
@@ -20,7 +20,7 @@ import {
   updateLeaveSeries,
 } from '@/modules/leave/api/leaveApi';
 import { isActiveLeave, isLeaveEditable } from '@/modules/leave/leaveLifecycle';
-import { buildLeaveRequest } from '@/modules/leave/leaveRequest';
+import { buildLeaveRequest, getLeaveScheduleFields } from '@/modules/leave/leaveRequest';
 import LeaveFormComponent, { type LeaveFormData } from '@/modules/leave/components/LeaveForm.vue';
 import { useLocationsStore } from '@/stores/LocationsStore';
 
@@ -50,6 +50,28 @@ const canSave = computed(
   () => !isEdit.value || isLeaveEditable((isSeriesEdit.value ? loadedSeries.value : loadedEntry.value)?.statusTypeCode),
 );
 
+const locationId = computed<number | null>(() => {
+  const entry = loadedEntry.value ?? props.entry;
+  if (loadedSeries.value?.locationId != null) {
+    return loadedSeries.value.locationId;
+  }
+  if (entry?.locationId != null) {
+    return entry.locationId;
+  }
+  const selected = Number(locationsStore.selectedLocationId);
+  if (locationsStore.selectedLocationId !== '' && Number.isFinite(selected)) {
+    return selected;
+  }
+  return props.user.homeLocationId ?? null;
+});
+
+const timeZoneId = computed(() =>
+  resolveSchedulingTimeZoneId(
+    loadedSeries.value?.timeZoneId ?? loadedEntry.value?.timeZoneId ?? props.entry?.timeZoneId,
+    locationId.value ? locationsStore.entitiesMap[locationId.value]?.timezone : undefined,
+  ),
+);
+
 const buildInitialFormData = (series?: LeaveSeriesResponse): LeaveFormData => {
   const entry = loadedEntry.value ?? props.entry;
   const entrySeries =
@@ -68,29 +90,18 @@ const buildInitialFormData = (series?: LeaveSeriesResponse): LeaveFormData => {
     };
   }
 
-  const zone = resolveSchedulingTimeZoneId(
-    series?.timeZoneId ?? (isSeriesEdit.value ? entrySeries?.timeZoneId : null) ?? entry.timeZoneId,
+  const schedule = series ?? (isSeriesEdit.value ? entrySeries : undefined) ?? entry;
+  const scheduleFields = getLeaveScheduleFields(
+    schedule,
+    resolveSchedulingTimeZoneId(schedule.timeZoneId, timeZoneId.value),
   );
-  const startAtUtc = series?.startAtUtc ?? (isSeriesEdit.value ? entrySeries?.startAtUtc : null) ?? entry.startAtUtc;
-  const endAtUtc = series?.endAtUtc ?? (isSeriesEdit.value ? entrySeries?.endAtUtc : null) ?? entry.endAtUtc;
-  const start = startAtUtc ? parseFormDateTime(startAtUtc, zone) : null;
-  const end = endAtUtc ? parseFormDateTime(endAtUtc, zone) : null;
-  const allDay = series?.allDay ?? (isSeriesEdit.value ? entrySeries?.allDay : null) ?? entry.allDay ?? false;
   return {
     userIds: [series?.userIds, isSeriesEdit.value ? entrySeries?.userIds : null, entry.userIds].find(
       (ids) => ids && ids.length > 0,
     ) ?? [props.user.id],
     leaveType: series?.leaveTypeId ?? entry.leaveTypeId ?? null,
-    date: allDay
-      ? (series?.leaveDate ??
-        (isSeriesEdit.value ? entrySeries?.leaveDate : null) ??
-        entry.leaveDate ??
-        start?.date ??
-        '')
-      : (start?.date ?? ''),
-    allDay,
-    startTime: allDay ? defaultStartTime : (start?.time ?? defaultStartTime),
-    endTime: allDay ? defaultEndTime : (end?.time ?? (isSeriesEdit.value ? defaultEndTime : null)),
+    ...scheduleFields,
+    endTime: scheduleFields.endTime ?? (isSeriesEdit.value ? defaultEndTime : null),
     repeatMode: isSeriesEdit.value
       ? (series?.recurrenceRule ?? entrySeries?.recurrenceRule)
         ? 'custom'
@@ -147,28 +158,6 @@ onMounted(async () => {
   }
 });
 
-const locationId = computed<number | null>(() => {
-  const entry = loadedEntry.value ?? props.entry;
-  if (loadedSeries.value?.locationId != null) {
-    return loadedSeries.value.locationId;
-  }
-  if (entry?.locationId != null) {
-    return entry.locationId;
-  }
-  const selected = Number(locationsStore.selectedLocationId);
-  if (locationsStore.selectedLocationId !== '' && Number.isFinite(selected)) {
-    return selected;
-  }
-  return props.user.homeLocationId ?? null;
-});
-
-const timeZoneId = computed(() =>
-  resolveSchedulingTimeZoneId(
-    loadedSeries.value?.timeZoneId ?? loadedEntry.value?.timeZoneId ?? props.entry?.timeZoneId,
-    locationId.value ? locationsStore.entitiesMap[locationId.value]?.timezone : undefined,
-  ),
-);
-
 const handleSave = async () => {
   if (isLoadingEntry.value || isLoadingSeries.value || !canSave.value) return;
   apiError.value = '';
@@ -177,6 +166,7 @@ const handleSave = async () => {
     timeZoneId: timeZoneId.value,
     leaveSeriesId: isSeriesEdit.value ? null : (loadedEntry.value?.leaveSeriesId ?? props.entry?.leaveSeriesId ?? null),
     employeeOptions: [{ code: props.user.id, description: formatUserOptionLabel(props.user) }],
+    persistedLeave: (isSeriesEdit.value ? loadedSeries.value : loadedEntry.value) ?? undefined,
     fixedSeriesSchedule: recurrenceLocked.value ? (loadedSeries.value ?? undefined) : undefined,
   });
   if (built.error !== undefined) {
