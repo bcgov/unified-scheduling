@@ -348,6 +348,7 @@ const deleteOtherEmployeeNames = computed(() => {
       v-else-if="tableRows.length"
       :headers="headers"
       :items="tableRows"
+      :sort-by="[{ key: 'date', order: 'desc' }]"
       :items-per-page="-1"
       item-value="rowId"
       show-expand
