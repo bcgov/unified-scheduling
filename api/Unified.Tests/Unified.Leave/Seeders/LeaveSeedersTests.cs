@@ -29,7 +29,7 @@ public sealed class LeaveSeedersTests : IAsyncLifetime
             var row = rows.Single(x => x.Code == code);
             Assert.Equal(details.Description, row.Description);
             Assert.Equal(details.IsPaid, row.IsPaid);
-            Assert.Null(row.ExpiryDate);
+            Assert.Equal(details.ExpiryDate, row.ExpiryDate);
         }
     }
 
@@ -45,6 +45,45 @@ public sealed class LeaveSeedersTests : IAsyncLifetime
             LeaveTypeConstants.LeaveTypes.Count,
             await _database.Db.LeaveTypes.CountAsync(TestContext.Current.CancellationToken)
         );
+    }
+
+    [Fact]
+    public async Task LeaveTypeSeeder_SeedAsync_ExpiresVacationCto()
+    {
+        var seeder = new LeaveTypeSeeder(NullLogger<LeaveTypeSeeder>.Instance);
+
+        await seeder.SeedAsync(_database.Db, TestContext.Current.CancellationToken);
+
+        var rows = await _database.Db.LeaveTypes.ToListAsync(TestContext.Current.CancellationToken);
+        var vacationCto = rows.Single(x => x.Code == "Vacation/CTO");
+        Assert.Equal(new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero), vacationCto.ExpiryDate);
+        Assert.Null(rows.Single(x => x.Code == "Vacation").ExpiryDate);
+    }
+
+    [Fact]
+    public async Task LeaveTypeSeeder_SeedAsync_ExpiresExistingActiveVacationCto()
+    {
+        _database.Db.LeaveTypes.Add(
+            new LeaveType
+            {
+                Code = "Vacation/CTO",
+                Description = "Old",
+                IsPaid = true,
+                EffectiveDate = new DateTimeOffset(2020, 6, 10, 0, 0, 0, TimeSpan.Zero),
+            }
+        );
+        await _database.Db.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        await new LeaveTypeSeeder(NullLogger<LeaveTypeSeeder>.Instance).SeedAsync(
+            _database.Db,
+            TestContext.Current.CancellationToken
+        );
+
+        var row = await _database.Db.LeaveTypes.SingleAsync(
+            x => x.Code == "Vacation/CTO",
+            TestContext.Current.CancellationToken
+        );
+        Assert.Equal(new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero), row.ExpiryDate);
     }
 
     [Fact]

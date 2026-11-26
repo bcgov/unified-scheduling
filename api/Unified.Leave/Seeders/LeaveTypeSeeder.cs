@@ -32,6 +32,7 @@ public sealed class LeaveTypeSeeder(ILogger<LeaveTypeSeeder> logger) : SeederBas
                         Description = details.Description,
                         IsPaid = details.IsPaid,
                         EffectiveDate = SeedEffectiveDate,
+                        ExpiryDate = details.ExpiryDate,
                     }
                 );
 
@@ -41,7 +42,7 @@ public sealed class LeaveTypeSeeder(ILogger<LeaveTypeSeeder> logger) : SeederBas
             existingLeaveType.Description = details.Description;
             existingLeaveType.IsPaid = details.IsPaid;
             existingLeaveType.EffectiveDate = SeedEffectiveDate;
-            existingLeaveType.ExpiryDate = null;
+            existingLeaveType.ExpiryDate = details.ExpiryDate;
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
