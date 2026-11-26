@@ -30,6 +30,8 @@ public sealed class AssignMandatoryTrainingOnUserCreationHandler(UnifiedDbContex
             .SingleOrDefaultAsync(cancellationToken);
         var userTrainingProfileId = userDetails?.TrainingProfileId;
         var timeZone = timeZoneService.ResolveOrUtc(userDetails?.TimeZoneId);
+        var localNow = TimeZoneInfo.ConvertTime(now, timeZone);
+        var allDayDate = new DateTimeOffset(localNow.Date, TimeSpan.Zero);
 
         var mandatoryTrainings = await DB
             .Trainings.AsNoTracking()
@@ -74,11 +76,11 @@ public sealed class AssignMandatoryTrainingOnUserCreationHandler(UnifiedDbContex
                     UserId = userId,
                     TrainingId = training.Id,
                     Version = 1,
-                    AwardedOn = now,
-                    EndingOn = now,
+                    AwardedOn = allDayDate,
+                    EndingOn = allDayDate,
                     AllDay = true,
                     ExpiryDate = UserTrainingHelper.CalculateExpiryDate(
-                        now,
+                        localNow,
                         training.ValidityDays,
                         allDay: true,
                         timeZone,

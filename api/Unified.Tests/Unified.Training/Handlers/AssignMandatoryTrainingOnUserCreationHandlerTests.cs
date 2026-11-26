@@ -70,7 +70,7 @@ public sealed class AssignMandatoryTrainingOnUserCreationHandlerTests : IAsyncLi
     [Fact]
     public async Task HandleAsync_AnnualValidityFromCompletionDate_UsesUsersHomeTimezoneForExpiry()
     {
-        var now = new DateTimeOffset(2025, 10, 17, 20, 0, 0, TimeSpan.Zero);
+        var now = new DateTimeOffset(2025, 10, 18, 1, 0, 0, TimeSpan.Zero);
         var location = new Location
         {
             Id = 10,
@@ -96,6 +96,7 @@ public sealed class AssignMandatoryTrainingOnUserCreationHandlerTests : IAsyncLi
         await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var assignedTraining = await _db.UserTrainings.SingleAsync(TestContext.Current.CancellationToken);
+        var expectedAllDayDate = new DateTimeOffset(2025, 10, 17, 0, 0, 0, TimeSpan.Zero);
         var expectedExpiry = new DateTimeOffset(
             2026,
             10,
@@ -106,6 +107,8 @@ public sealed class AssignMandatoryTrainingOnUserCreationHandlerTests : IAsyncLi
             999,
             TimeSpan.FromHours(-7)
         ).ToUniversalTime();
+        Assert.Equal(expectedAllDayDate, assignedTraining.AwardedOn);
+        Assert.Equal(expectedAllDayDate, assignedTraining.EndingOn);
         Assert.Equal(expectedExpiry, assignedTraining.ExpiryDate);
     }
 
