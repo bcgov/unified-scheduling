@@ -9,13 +9,9 @@ import type { MaybeRef } from 'vue';
 export type OriginalGetApiTrainingUserTrainingsExpiryDateParams = {
   TrainingId?: number;
   AwardedOn?: string;
-  /**
-   * @nullable
-   */
+  /** @nullable */
   UserId?: string | null;
-  /**
-   * @nullable
-   */
+  /** @nullable */
   AllDay?: boolean | null;
 };
 

@@ -7,9 +7,9 @@
 import { faker } from '@faker-js/faker';
 
 import { HttpResponse, http } from 'msw';
-import type { RequestHandlerOptions } from 'msw';
+import type { HttpResponseResolver, PathParams, RequestHandlerOptions } from 'msw';
 
-import type { StatRecordResponse } from '../models';
+import type { SaveDayRequest, StatRecordRequest, StatRecordResponse } from '../models';
 
 export const getGetApiStatsRecordsResponseMock = (): StatRecordResponse[] =>
   faker.helpers.arrayElement([
@@ -341,12 +341,12 @@ export const getPutApiStatsRecordsDayResponseMock = (): StatRecordResponse[] =>
 export const getGetApiStatsRecordsMockHandler = (
   overrideResponse?:
     | StatRecordResponse[]
-    | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<StatRecordResponse[]> | StatRecordResponse[]),
+    | ((info: Parameters<HttpResponseResolver>[0]) => Promise<StatRecordResponse[]> | StatRecordResponse[]),
   options?: RequestHandlerOptions,
 ) => {
   return http.get(
     '*/api/stats/records',
-    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -363,12 +363,14 @@ export const getGetApiStatsRecordsMockHandler = (
 export const getPostApiStatsRecordsMockHandler = (
   overrideResponse?:
     | StatRecordResponse
-    | ((info: Parameters<Parameters<typeof http.post>[1]>[0]) => Promise<StatRecordResponse> | StatRecordResponse),
+    | ((
+        info: Parameters<HttpResponseResolver<PathParams, StatRecordRequest>>[0],
+      ) => Promise<StatRecordResponse> | StatRecordResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.post(
+  return http.post<PathParams, StatRecordRequest>(
     '*/api/stats/records',
-    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<PathParams, StatRecordRequest>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -385,12 +387,12 @@ export const getPostApiStatsRecordsMockHandler = (
 export const getGetApiStatsRecordsIdMockHandler = (
   overrideResponse?:
     | StatRecordResponse
-    | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<StatRecordResponse> | StatRecordResponse),
+    | ((info: Parameters<HttpResponseResolver<{ id: string }>>[0]) => Promise<StatRecordResponse> | StatRecordResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.get(
+  return http.get<{ id: string }>(
     '*/api/stats/records/:id',
-    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ id: string }>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -407,12 +409,14 @@ export const getGetApiStatsRecordsIdMockHandler = (
 export const getPutApiStatsRecordsIdMockHandler = (
   overrideResponse?:
     | StatRecordResponse
-    | ((info: Parameters<Parameters<typeof http.put>[1]>[0]) => Promise<StatRecordResponse> | StatRecordResponse),
+    | ((
+        info: Parameters<HttpResponseResolver<{ id: string }, StatRecordRequest>>[0],
+      ) => Promise<StatRecordResponse> | StatRecordResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.put(
+  return http.put<{ id: string }, StatRecordRequest>(
     '*/api/stats/records/:id',
-    async (info: Parameters<Parameters<typeof http.put>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ id: string }, StatRecordRequest>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -427,12 +431,12 @@ export const getPutApiStatsRecordsIdMockHandler = (
 };
 
 export const getDeleteApiStatsRecordsIdMockHandler = (
-  overrideResponse?: void | ((info: Parameters<Parameters<typeof http.delete>[1]>[0]) => Promise<void> | void),
+  overrideResponse?: void | ((info: Parameters<HttpResponseResolver<{ id: string }>>[0]) => Promise<void> | void),
   options?: RequestHandlerOptions,
 ) => {
-  return http.delete(
+  return http.delete<{ id: string }>(
     '*/api/stats/records/:id',
-    async (info: Parameters<Parameters<typeof http.delete>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ id: string }>>[0]) => {
       if (typeof overrideResponse === 'function') {
         await overrideResponse(info);
       }
@@ -446,12 +450,14 @@ export const getDeleteApiStatsRecordsIdMockHandler = (
 export const getPostApiStatsRecordsBatchMockHandler = (
   overrideResponse?:
     | StatRecordResponse[]
-    | ((info: Parameters<Parameters<typeof http.post>[1]>[0]) => Promise<StatRecordResponse[]> | StatRecordResponse[]),
+    | ((
+        info: Parameters<HttpResponseResolver<PathParams, StatRecordRequest[]>>[0],
+      ) => Promise<StatRecordResponse[]> | StatRecordResponse[]),
   options?: RequestHandlerOptions,
 ) => {
-  return http.post(
+  return http.post<PathParams, StatRecordRequest[]>(
     '*/api/stats/records/batch',
-    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<PathParams, StatRecordRequest[]>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -468,12 +474,14 @@ export const getPostApiStatsRecordsBatchMockHandler = (
 export const getPutApiStatsRecordsDayMockHandler = (
   overrideResponse?:
     | StatRecordResponse[]
-    | ((info: Parameters<Parameters<typeof http.put>[1]>[0]) => Promise<StatRecordResponse[]> | StatRecordResponse[]),
+    | ((
+        info: Parameters<HttpResponseResolver<PathParams, SaveDayRequest>>[0],
+      ) => Promise<StatRecordResponse[]> | StatRecordResponse[]),
   options?: RequestHandlerOptions,
 ) => {
-  return http.put(
+  return http.put<PathParams, SaveDayRequest>(
     '*/api/stats/records/day',
-    async (info: Parameters<Parameters<typeof http.put>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<PathParams, SaveDayRequest>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'

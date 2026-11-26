@@ -7,10 +7,10 @@
 import { faker } from '@faker-js/faker';
 
 import { HttpResponse, http } from 'msw';
-import type { RequestHandlerOptions } from 'msw';
+import type { HttpResponseResolver, PathParams, RequestHandlerOptions } from 'msw';
 
 import { CalendarEventExceptionReasonCode } from '../models';
-import type { LoanOutEntryResponse, LoanOutSeriesResponse } from '../models';
+import type { LoanOutEntryRequest, LoanOutEntryResponse, LoanOutSeriesRequest, LoanOutSeriesResponse } from '../models';
 
 export const getGetApiSchedulingLoanOutUsersUserIdEntriesResponseMock = (): LoanOutEntryResponse[] =>
   faker.helpers.arrayElement([
@@ -834,13 +834,13 @@ export const getGetApiSchedulingLoanOutUsersUserIdEntriesMockHandler = (
   overrideResponse?:
     | LoanOutEntryResponse[]
     | ((
-        info: Parameters<Parameters<typeof http.get>[1]>[0],
+        info: Parameters<HttpResponseResolver<{ userId: string }>>[0],
       ) => Promise<LoanOutEntryResponse[]> | LoanOutEntryResponse[]),
   options?: RequestHandlerOptions,
 ) => {
-  return http.get(
+  return http.get<{ userId: string }>(
     '*/api/scheduling/loan-out/users/:userId/entries',
-    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ userId: string }>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -858,13 +858,13 @@ export const getGetApiSchedulingLoanOutUsersUserIdSeriesMockHandler = (
   overrideResponse?:
     | LoanOutSeriesResponse[]
     | ((
-        info: Parameters<Parameters<typeof http.get>[1]>[0],
+        info: Parameters<HttpResponseResolver<{ userId: string }>>[0],
       ) => Promise<LoanOutSeriesResponse[]> | LoanOutSeriesResponse[]),
   options?: RequestHandlerOptions,
 ) => {
-  return http.get(
+  return http.get<{ userId: string }>(
     '*/api/scheduling/loan-out/users/:userId/series',
-    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ userId: string }>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -881,12 +881,14 @@ export const getGetApiSchedulingLoanOutUsersUserIdSeriesMockHandler = (
 export const getGetApiSchedulingLoanOutSeriesIdMockHandler = (
   overrideResponse?:
     | LoanOutSeriesResponse
-    | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<LoanOutSeriesResponse> | LoanOutSeriesResponse),
+    | ((
+        info: Parameters<HttpResponseResolver<{ id: string }>>[0],
+      ) => Promise<LoanOutSeriesResponse> | LoanOutSeriesResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.get(
+  return http.get<{ id: string }>(
     '*/api/scheduling/loan-out/series/:id',
-    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ id: string }>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -903,12 +905,14 @@ export const getGetApiSchedulingLoanOutSeriesIdMockHandler = (
 export const getPutApiSchedulingLoanOutSeriesIdMockHandler = (
   overrideResponse?:
     | LoanOutSeriesResponse
-    | ((info: Parameters<Parameters<typeof http.put>[1]>[0]) => Promise<LoanOutSeriesResponse> | LoanOutSeriesResponse),
+    | ((
+        info: Parameters<HttpResponseResolver<{ id: string }, LoanOutSeriesRequest>>[0],
+      ) => Promise<LoanOutSeriesResponse> | LoanOutSeriesResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.put(
+  return http.put<{ id: string }, LoanOutSeriesRequest>(
     '*/api/scheduling/loan-out/series/:id',
-    async (info: Parameters<Parameters<typeof http.put>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ id: string }, LoanOutSeriesRequest>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -923,12 +927,12 @@ export const getPutApiSchedulingLoanOutSeriesIdMockHandler = (
 };
 
 export const getDeleteApiSchedulingLoanOutSeriesIdMockHandler = (
-  overrideResponse?: void | ((info: Parameters<Parameters<typeof http.delete>[1]>[0]) => Promise<void> | void),
+  overrideResponse?: void | ((info: Parameters<HttpResponseResolver<{ id: string }>>[0]) => Promise<void> | void),
   options?: RequestHandlerOptions,
 ) => {
-  return http.delete(
+  return http.delete<{ id: string }>(
     '*/api/scheduling/loan-out/series/:id',
-    async (info: Parameters<Parameters<typeof http.delete>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ id: string }>>[0]) => {
       if (typeof overrideResponse === 'function') {
         await overrideResponse(info);
       }
@@ -943,13 +947,13 @@ export const getPostApiSchedulingLoanOutSeriesMockHandler = (
   overrideResponse?:
     | LoanOutSeriesResponse
     | ((
-        info: Parameters<Parameters<typeof http.post>[1]>[0],
+        info: Parameters<HttpResponseResolver<PathParams, LoanOutSeriesRequest>>[0],
       ) => Promise<LoanOutSeriesResponse> | LoanOutSeriesResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.post(
+  return http.post<PathParams, LoanOutSeriesRequest>(
     '*/api/scheduling/loan-out/series',
-    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<PathParams, LoanOutSeriesRequest>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -966,12 +970,14 @@ export const getPostApiSchedulingLoanOutSeriesMockHandler = (
 export const getGetApiSchedulingLoanOutEntriesIdMockHandler = (
   overrideResponse?:
     | LoanOutEntryResponse
-    | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<LoanOutEntryResponse> | LoanOutEntryResponse),
+    | ((
+        info: Parameters<HttpResponseResolver<{ id: string }>>[0],
+      ) => Promise<LoanOutEntryResponse> | LoanOutEntryResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.get(
+  return http.get<{ id: string }>(
     '*/api/scheduling/loan-out/entries/:id',
-    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ id: string }>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -988,12 +994,14 @@ export const getGetApiSchedulingLoanOutEntriesIdMockHandler = (
 export const getPutApiSchedulingLoanOutEntriesIdMockHandler = (
   overrideResponse?:
     | LoanOutEntryResponse
-    | ((info: Parameters<Parameters<typeof http.put>[1]>[0]) => Promise<LoanOutEntryResponse> | LoanOutEntryResponse),
+    | ((
+        info: Parameters<HttpResponseResolver<{ id: string }, LoanOutEntryRequest>>[0],
+      ) => Promise<LoanOutEntryResponse> | LoanOutEntryResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.put(
+  return http.put<{ id: string }, LoanOutEntryRequest>(
     '*/api/scheduling/loan-out/entries/:id',
-    async (info: Parameters<Parameters<typeof http.put>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ id: string }, LoanOutEntryRequest>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -1008,12 +1016,12 @@ export const getPutApiSchedulingLoanOutEntriesIdMockHandler = (
 };
 
 export const getDeleteApiSchedulingLoanOutEntriesIdMockHandler = (
-  overrideResponse?: void | ((info: Parameters<Parameters<typeof http.delete>[1]>[0]) => Promise<void> | void),
+  overrideResponse?: void | ((info: Parameters<HttpResponseResolver<{ id: string }>>[0]) => Promise<void> | void),
   options?: RequestHandlerOptions,
 ) => {
-  return http.delete(
+  return http.delete<{ id: string }>(
     '*/api/scheduling/loan-out/entries/:id',
-    async (info: Parameters<Parameters<typeof http.delete>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ id: string }>>[0]) => {
       if (typeof overrideResponse === 'function') {
         await overrideResponse(info);
       }
@@ -1027,12 +1035,14 @@ export const getDeleteApiSchedulingLoanOutEntriesIdMockHandler = (
 export const getPostApiSchedulingLoanOutEntriesMockHandler = (
   overrideResponse?:
     | LoanOutEntryResponse
-    | ((info: Parameters<Parameters<typeof http.post>[1]>[0]) => Promise<LoanOutEntryResponse> | LoanOutEntryResponse),
+    | ((
+        info: Parameters<HttpResponseResolver<PathParams, LoanOutEntryRequest>>[0],
+      ) => Promise<LoanOutEntryResponse> | LoanOutEntryResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.post(
+  return http.post<PathParams, LoanOutEntryRequest>(
     '*/api/scheduling/loan-out/entries',
-    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<PathParams, LoanOutEntryRequest>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'

@@ -7,7 +7,7 @@
 import { faker } from '@faker-js/faker';
 
 import { HttpResponse, http } from 'msw';
-import type { RequestHandlerOptions } from 'msw';
+import type { HttpResponseResolver, RequestHandlerOptions } from 'msw';
 
 import type { PagedResponse } from '../models';
 
@@ -22,12 +22,13 @@ export const getGetApiReportsReportKeyResponseMock = (
 
 export const getGetApiReportsReportKeyMockHandler = (
   overrideResponse?:
-    PagedResponse | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<PagedResponse> | PagedResponse),
+    | PagedResponse
+    | ((info: Parameters<HttpResponseResolver<{ reportKey: string }>>[0]) => Promise<PagedResponse> | PagedResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.get(
+  return http.get<{ reportKey: string }>(
     '*/api/reports/:reportKey',
-    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ reportKey: string }>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'

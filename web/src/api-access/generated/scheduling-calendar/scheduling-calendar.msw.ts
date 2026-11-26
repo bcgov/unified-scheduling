@@ -7,10 +7,10 @@
 import { faker } from '@faker-js/faker';
 
 import { HttpResponse, http } from 'msw';
-import type { RequestHandlerOptions } from 'msw';
+import type { HttpResponseResolver, PathParams, RequestHandlerOptions } from 'msw';
 
 import { CalendarEventExceptionReasonCode } from '../models';
-import type { SchedulingCalendarDataResponse } from '../models';
+import type { SchedulingCalendarDataResponse, SchedulingCalendarRequest } from '../models';
 
 export const getPostApiSchedulingCalendarEventsResponseMock = (
   overrideResponse: Partial<Extract<SchedulingCalendarDataResponse, object>> = {},
@@ -259,13 +259,13 @@ export const getPostApiSchedulingCalendarEventsMockHandler = (
   overrideResponse?:
     | SchedulingCalendarDataResponse
     | ((
-        info: Parameters<Parameters<typeof http.post>[1]>[0],
+        info: Parameters<HttpResponseResolver<PathParams, SchedulingCalendarRequest>>[0],
       ) => Promise<SchedulingCalendarDataResponse> | SchedulingCalendarDataResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.post(
+  return http.post<PathParams, SchedulingCalendarRequest>(
     '*/api/scheduling/calendar/events',
-    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<PathParams, SchedulingCalendarRequest>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'

@@ -7,9 +7,9 @@
 import { faker } from '@faker-js/faker';
 
 import { HttpResponse, http } from 'msw';
-import type { RequestHandlerOptions } from 'msw';
+import type { HttpResponseResolver, PathParams, RequestHandlerOptions } from 'msw';
 
-import type { ScheduleDistributionResult } from '../models';
+import type { ScheduleDistributionRequest, ScheduleDistributionResult } from '../models';
 
 export const getPostApiSchedulingDistributeResponseMock = (
   overrideResponse: Partial<Extract<ScheduleDistributionResult, object>> = {},
@@ -24,13 +24,13 @@ export const getPostApiSchedulingDistributeMockHandler = (
   overrideResponse?:
     | ScheduleDistributionResult
     | ((
-        info: Parameters<Parameters<typeof http.post>[1]>[0],
+        info: Parameters<HttpResponseResolver<PathParams, ScheduleDistributionRequest>>[0],
       ) => Promise<ScheduleDistributionResult> | ScheduleDistributionResult),
   options?: RequestHandlerOptions,
 ) => {
-  return http.post(
+  return http.post<PathParams, ScheduleDistributionRequest>(
     '*/api/scheduling/distribute',
-    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<PathParams, ScheduleDistributionRequest>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'

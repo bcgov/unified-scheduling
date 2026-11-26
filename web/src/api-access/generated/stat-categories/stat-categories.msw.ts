@@ -7,7 +7,7 @@
 import { faker } from '@faker-js/faker';
 
 import { HttpResponse, http } from 'msw';
-import type { RequestHandlerOptions } from 'msw';
+import type { HttpResponseResolver, RequestHandlerOptions } from 'msw';
 
 import type { StatCategoryResponse } from '../models';
 
@@ -69,14 +69,12 @@ export const getGetApiStatsCategoriesIdResponseMock = (
 export const getGetApiStatsCategoriesMockHandler = (
   overrideResponse?:
     | StatCategoryResponse[]
-    | ((
-        info: Parameters<Parameters<typeof http.get>[1]>[0],
-      ) => Promise<StatCategoryResponse[]> | StatCategoryResponse[]),
+    | ((info: Parameters<HttpResponseResolver>[0]) => Promise<StatCategoryResponse[]> | StatCategoryResponse[]),
   options?: RequestHandlerOptions,
 ) => {
   return http.get(
     '*/api/stats/categories',
-    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -93,12 +91,14 @@ export const getGetApiStatsCategoriesMockHandler = (
 export const getGetApiStatsCategoriesIdMockHandler = (
   overrideResponse?:
     | StatCategoryResponse
-    | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<StatCategoryResponse> | StatCategoryResponse),
+    | ((
+        info: Parameters<HttpResponseResolver<{ id: string }>>[0],
+      ) => Promise<StatCategoryResponse> | StatCategoryResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.get(
+  return http.get<{ id: string }>(
     '*/api/stats/categories/:id',
-    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ id: string }>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'

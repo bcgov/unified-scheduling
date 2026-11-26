@@ -7,9 +7,9 @@
 import { faker } from '@faker-js/faker';
 
 import { HttpResponse, http } from 'msw';
-import type { RequestHandlerOptions } from 'msw';
+import type { HttpResponseResolver, PathParams, RequestHandlerOptions } from 'msw';
 
-import type { LoanOutCalendarUser } from '../models';
+import type { LoanOutCalendarUser, LoanOutUserSearchRequest } from '../models';
 
 export const getPostApiLoanOutSchedulingUsersResponseMock = (): LoanOutCalendarUser[] =>
   faker.helpers.arrayElement([
@@ -100,13 +100,13 @@ export const getPostApiLoanOutSchedulingUsersMockHandler = (
   overrideResponse?:
     | LoanOutCalendarUser[]
     | ((
-        info: Parameters<Parameters<typeof http.post>[1]>[0],
+        info: Parameters<HttpResponseResolver<PathParams, LoanOutUserSearchRequest>>[0],
       ) => Promise<LoanOutCalendarUser[]> | LoanOutCalendarUser[]),
   options?: RequestHandlerOptions,
 ) => {
-  return http.post(
+  return http.post<PathParams, LoanOutUserSearchRequest>(
     '*/api/loan-out/scheduling/users',
-    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<PathParams, LoanOutUserSearchRequest>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
