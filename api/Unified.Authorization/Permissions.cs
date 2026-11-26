@@ -20,6 +20,7 @@ public enum Permissions
     UsersView,
     UsersExpire,
     UsersViewOtherProfiles,
+    UserGlobalSearch,
     UsersLeaveCreate,
     UsersLeaveEdit,
     UsersLeaveDelete,

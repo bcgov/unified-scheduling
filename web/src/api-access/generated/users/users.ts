@@ -7,7 +7,9 @@
 import type {
   AssignUserRoleRequestDto,
   ExpireUserRoleRequestDto,
+  GetApiUsersPagedParams,
   GetApiUsersParams,
+  PagedUserResponse,
   PostApiUsersIdUploadPhotoBody,
   UserRequestDto,
   UserResponse,
@@ -32,6 +34,12 @@ export const postApiUsers = (
     { url: `/api/users`, method: 'POST', headers: { 'Content-Type': 'application/json' }, data: userRequestDto },
     options,
   );
+};
+export const getApiUsersPaged = (
+  params?: GetApiUsersPagedParams,
+  options?: SecondParameter<typeof useFetchAPI<PagedUserResponse>>,
+) => {
+  return useFetchAPI<PagedUserResponse>({ url: `/api/users/paged`, method: 'GET', params }, options);
 };
 export const getApiUsersId = (id: string, options?: SecondParameter<typeof useFetchAPI<UserResponse>>) => {
   return useFetchAPI<UserResponse>({ url: `/api/users/${id}`, method: 'GET' }, options);
@@ -107,6 +115,7 @@ export const postApiUsersIdUploadPhoto = (
 };
 export type GetApiUsersResult = NonNullable<Awaited<ReturnType<typeof getApiUsers>>>;
 export type PostApiUsersResult = NonNullable<Awaited<ReturnType<typeof postApiUsers>>>;
+export type GetApiUsersPagedResult = NonNullable<Awaited<ReturnType<typeof getApiUsersPaged>>>;
 export type GetApiUsersIdResult = NonNullable<Awaited<ReturnType<typeof getApiUsersId>>>;
 export type PutApiUsersIdResult = NonNullable<Awaited<ReturnType<typeof putApiUsersId>>>;
 export type GetApiUsersIdRolesResult = NonNullable<Awaited<ReturnType<typeof getApiUsersIdRoles>>>;
