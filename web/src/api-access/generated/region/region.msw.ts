@@ -7,7 +7,7 @@
 import { faker } from '@faker-js/faker';
 
 import { HttpResponse, http } from 'msw';
-import type { RequestHandlerOptions } from 'msw';
+import type { HttpResponseResolver, RequestHandlerOptions } from 'msw';
 
 import type { RegionDto } from '../models';
 
@@ -37,13 +37,12 @@ export const getGetApiRegionResponseMock = (): RegionDto[] =>
   ]);
 
 export const getGetApiRegionMockHandler = (
-  overrideResponse?:
-    RegionDto[] | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<RegionDto[]> | RegionDto[]),
+  overrideResponse?: RegionDto[] | ((info: Parameters<HttpResponseResolver>[0]) => Promise<RegionDto[]> | RegionDto[]),
   options?: RequestHandlerOptions,
 ) => {
   return http.get(
     '*/api/region',
-    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'

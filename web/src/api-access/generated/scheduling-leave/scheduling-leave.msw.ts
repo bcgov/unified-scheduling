@@ -7,10 +7,15 @@
 import { faker } from '@faker-js/faker';
 
 import { HttpResponse, http } from 'msw';
-import type { RequestHandlerOptions } from 'msw';
+import type { HttpResponseResolver, PathParams, RequestHandlerOptions } from 'msw';
 
 import { CalendarEventExceptionReasonCode } from '../models';
-import type { SchedulingLeaveEntryResponse, SchedulingLeaveSeriesResponse } from '../models';
+import type {
+  SchedulingLeaveEntryRequest,
+  SchedulingLeaveEntryResponse,
+  SchedulingLeaveSeriesRequest,
+  SchedulingLeaveSeriesResponse,
+} from '../models';
 
 export const getGetApiSchedulingLeaveUsersUserIdEntriesResponseMock = (): SchedulingLeaveEntryResponse[] =>
   faker.helpers.arrayElement([
@@ -858,13 +863,13 @@ export const getGetApiSchedulingLeaveUsersUserIdEntriesMockHandler = (
   overrideResponse?:
     | SchedulingLeaveEntryResponse[]
     | ((
-        info: Parameters<Parameters<typeof http.get>[1]>[0],
+        info: Parameters<HttpResponseResolver<{ userId: string }>>[0],
       ) => Promise<SchedulingLeaveEntryResponse[]> | SchedulingLeaveEntryResponse[]),
   options?: RequestHandlerOptions,
 ) => {
-  return http.get(
+  return http.get<{ userId: string }>(
     '*/api/scheduling/leave/users/:userId/entries',
-    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ userId: string }>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -882,13 +887,13 @@ export const getGetApiSchedulingLeaveUsersUserIdSeriesMockHandler = (
   overrideResponse?:
     | SchedulingLeaveSeriesResponse[]
     | ((
-        info: Parameters<Parameters<typeof http.get>[1]>[0],
+        info: Parameters<HttpResponseResolver<{ userId: string }>>[0],
       ) => Promise<SchedulingLeaveSeriesResponse[]> | SchedulingLeaveSeriesResponse[]),
   options?: RequestHandlerOptions,
 ) => {
-  return http.get(
+  return http.get<{ userId: string }>(
     '*/api/scheduling/leave/users/:userId/series',
-    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ userId: string }>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -906,13 +911,13 @@ export const getGetApiSchedulingLeaveSeriesIdMockHandler = (
   overrideResponse?:
     | SchedulingLeaveSeriesResponse
     | ((
-        info: Parameters<Parameters<typeof http.get>[1]>[0],
+        info: Parameters<HttpResponseResolver<{ id: string }>>[0],
       ) => Promise<SchedulingLeaveSeriesResponse> | SchedulingLeaveSeriesResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.get(
+  return http.get<{ id: string }>(
     '*/api/scheduling/leave/series/:id',
-    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ id: string }>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -930,13 +935,13 @@ export const getPutApiSchedulingLeaveSeriesIdMockHandler = (
   overrideResponse?:
     | SchedulingLeaveSeriesResponse
     | ((
-        info: Parameters<Parameters<typeof http.put>[1]>[0],
+        info: Parameters<HttpResponseResolver<{ id: string }, SchedulingLeaveSeriesRequest>>[0],
       ) => Promise<SchedulingLeaveSeriesResponse> | SchedulingLeaveSeriesResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.put(
+  return http.put<{ id: string }, SchedulingLeaveSeriesRequest>(
     '*/api/scheduling/leave/series/:id',
-    async (info: Parameters<Parameters<typeof http.put>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ id: string }, SchedulingLeaveSeriesRequest>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -951,12 +956,12 @@ export const getPutApiSchedulingLeaveSeriesIdMockHandler = (
 };
 
 export const getDeleteApiSchedulingLeaveSeriesIdMockHandler = (
-  overrideResponse?: void | ((info: Parameters<Parameters<typeof http.delete>[1]>[0]) => Promise<void> | void),
+  overrideResponse?: void | ((info: Parameters<HttpResponseResolver<{ id: string }>>[0]) => Promise<void> | void),
   options?: RequestHandlerOptions,
 ) => {
-  return http.delete(
+  return http.delete<{ id: string }>(
     '*/api/scheduling/leave/series/:id',
-    async (info: Parameters<Parameters<typeof http.delete>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ id: string }>>[0]) => {
       if (typeof overrideResponse === 'function') {
         await overrideResponse(info);
       }
@@ -971,13 +976,13 @@ export const getPostApiSchedulingLeaveSeriesMockHandler = (
   overrideResponse?:
     | SchedulingLeaveSeriesResponse
     | ((
-        info: Parameters<Parameters<typeof http.post>[1]>[0],
+        info: Parameters<HttpResponseResolver<PathParams, SchedulingLeaveSeriesRequest>>[0],
       ) => Promise<SchedulingLeaveSeriesResponse> | SchedulingLeaveSeriesResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.post(
+  return http.post<PathParams, SchedulingLeaveSeriesRequest>(
     '*/api/scheduling/leave/series',
-    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<PathParams, SchedulingLeaveSeriesRequest>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -995,13 +1000,13 @@ export const getGetApiSchedulingLeaveEntriesIdMockHandler = (
   overrideResponse?:
     | SchedulingLeaveEntryResponse
     | ((
-        info: Parameters<Parameters<typeof http.get>[1]>[0],
+        info: Parameters<HttpResponseResolver<{ id: string }>>[0],
       ) => Promise<SchedulingLeaveEntryResponse> | SchedulingLeaveEntryResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.get(
+  return http.get<{ id: string }>(
     '*/api/scheduling/leave/entries/:id',
-    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ id: string }>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -1019,13 +1024,13 @@ export const getPutApiSchedulingLeaveEntriesIdMockHandler = (
   overrideResponse?:
     | SchedulingLeaveEntryResponse
     | ((
-        info: Parameters<Parameters<typeof http.put>[1]>[0],
+        info: Parameters<HttpResponseResolver<{ id: string }, SchedulingLeaveEntryRequest>>[0],
       ) => Promise<SchedulingLeaveEntryResponse> | SchedulingLeaveEntryResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.put(
+  return http.put<{ id: string }, SchedulingLeaveEntryRequest>(
     '*/api/scheduling/leave/entries/:id',
-    async (info: Parameters<Parameters<typeof http.put>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ id: string }, SchedulingLeaveEntryRequest>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -1040,12 +1045,12 @@ export const getPutApiSchedulingLeaveEntriesIdMockHandler = (
 };
 
 export const getDeleteApiSchedulingLeaveEntriesIdMockHandler = (
-  overrideResponse?: void | ((info: Parameters<Parameters<typeof http.delete>[1]>[0]) => Promise<void> | void),
+  overrideResponse?: void | ((info: Parameters<HttpResponseResolver<{ id: string }>>[0]) => Promise<void> | void),
   options?: RequestHandlerOptions,
 ) => {
-  return http.delete(
+  return http.delete<{ id: string }>(
     '*/api/scheduling/leave/entries/:id',
-    async (info: Parameters<Parameters<typeof http.delete>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ id: string }>>[0]) => {
       if (typeof overrideResponse === 'function') {
         await overrideResponse(info);
       }
@@ -1060,13 +1065,13 @@ export const getPostApiSchedulingLeaveEntriesMockHandler = (
   overrideResponse?:
     | SchedulingLeaveEntryResponse
     | ((
-        info: Parameters<Parameters<typeof http.post>[1]>[0],
+        info: Parameters<HttpResponseResolver<PathParams, SchedulingLeaveEntryRequest>>[0],
       ) => Promise<SchedulingLeaveEntryResponse> | SchedulingLeaveEntryResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.post(
+  return http.post<PathParams, SchedulingLeaveEntryRequest>(
     '*/api/scheduling/leave/entries',
-    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<PathParams, SchedulingLeaveEntryRequest>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'

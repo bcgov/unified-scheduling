@@ -7,7 +7,7 @@
 import { faker } from '@faker-js/faker';
 
 import { HttpResponse, http } from 'msw';
-import type { RequestHandlerOptions } from 'msw';
+import type { HttpResponseResolver, PathParams, RequestHandlerOptions } from 'msw';
 
 import {
   CalendarEventExceptionReasonCode,
@@ -16,7 +16,7 @@ import {
   CalendarEventType,
   CalendarEventTypeCode,
 } from '../models';
-import type { CalendarDataResponse } from '../models';
+import type { CalendarConflictAcknowledgement, CalendarDataRequest, CalendarDataResponse } from '../models';
 
 export const getPostApiCalendarEventsResponseMock = (
   overrideResponse: Partial<Extract<CalendarDataResponse, object>> = {},
@@ -351,12 +351,14 @@ export const getPostApiCalendarEventsResponseMock = (
 export const getPostApiCalendarEventsMockHandler = (
   overrideResponse?:
     | CalendarDataResponse
-    | ((info: Parameters<Parameters<typeof http.post>[1]>[0]) => Promise<CalendarDataResponse> | CalendarDataResponse),
+    | ((
+        info: Parameters<HttpResponseResolver<PathParams, CalendarDataRequest>>[0],
+      ) => Promise<CalendarDataResponse> | CalendarDataResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.post(
+  return http.post<PathParams, CalendarDataRequest>(
     '*/api/calendar/events',
-    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<PathParams, CalendarDataRequest>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -371,12 +373,16 @@ export const getPostApiCalendarEventsMockHandler = (
 };
 
 export const getPostApiCalendarConflictsOverridesMockHandler = (
-  overrideResponse?: void | ((info: Parameters<Parameters<typeof http.post>[1]>[0]) => Promise<void> | void),
+  overrideResponse?:
+    | void
+    | ((
+        info: Parameters<HttpResponseResolver<PathParams, CalendarConflictAcknowledgement>>[0],
+      ) => Promise<void> | void),
   options?: RequestHandlerOptions,
 ) => {
-  return http.post(
+  return http.post<PathParams, CalendarConflictAcknowledgement>(
     '*/api/calendar/conflicts/overrides',
-    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<PathParams, CalendarConflictAcknowledgement>>[0]) => {
       if (typeof overrideResponse === 'function') {
         await overrideResponse(info);
       }
