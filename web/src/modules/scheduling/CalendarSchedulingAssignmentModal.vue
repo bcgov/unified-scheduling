@@ -61,7 +61,6 @@ import {
   getSchedulingLifecycleCapabilities,
   isSchedulingLinkable,
   isSchedulingCancelled,
-  isSchedulingPublished,
 } from './schedulingLifecycle';
 import { resolveSchedulingTimeZoneId } from './schedulingTimeZone';
 import { expandSchedulingRecurrence } from './schedulingRecurrence';
@@ -119,12 +118,6 @@ type AssignmentDetailRow = {
   recurrenceStartDate?: string | null;
 };
 
-const publishedAssignmentMessage =
-  'This assignment has been published, and cannot be edited or deleted, only cancelled';
-const publishedShiftLinkError = 'Shift already published. To link a new assignment, please create a new shift.';
-const publishedShiftLinkMessage =
-  'This assignment is linked to a published shift. New links to published shifts cannot be added.';
-
 const isSaving = ref(false);
 const isAssignmentDefinitionModalOpen = ref(false);
 const apiError = ref('');
@@ -152,7 +145,7 @@ const restrictedConflictMessage =
 const pendingConflictErrorMessage = computed(() =>
   [hasRestrictedConflicts.value ? restrictedConflictMessage : '', conflictRetryError.value].filter(Boolean).join(' '),
 );
-const existingShiftEntryLinks = ref<ShiftEntryLinkFormData[]>([]);
+const existingShiftEntryLinks = ref<ShiftEntryLinkFormData[]>();
 const existingShiftSeriesLinks = ref<ShiftSeriesLinkFormData[]>([]);
 const users = ref<UserResponse[]>([]);
 const loanOutUsers = ref<LoanOutCalendarUser[]>([]);
@@ -170,6 +163,9 @@ const selectedShiftEntryId = ref<number | null>(null);
 const modalMode = ref<'create' | 'view' | 'edit'>(props.mode ?? 'create');
 const activeTab = ref<AssignmentDetailTabId>(props.mode === 'edit' ? 'edit' : 'details');
 const selectedOpenScope = ref<AssignmentOpenScope | null>(getInitialOpenScope());
+const isSeriesScope = computed(() => selectedOpenScope.value === 'series');
+const assignmentLifecycle = computed(() => getSchedulingLifecycleCapabilities(assignmentStatusTypeCode.value));
+const isPublishedOccurrence = computed(() => !isSeriesScope.value && assignmentLifecycle.value.status === 'published');
 
 const appBarLocationId = computed<number | null>(() => {
   const candidate = locationsStore.selectedLocationId;
@@ -229,7 +225,6 @@ const assignmentOccurrences = computed(() => {
   return expandSchedulingRecurrence(range.start, range.end.diff(range.start), formData.value.recurrenceRule);
 });
 const assignmentShiftQueryRange = computed(() => {
-  if (!hasAssignmentRecurrence.value) return null;
   const first = assignmentOccurrences.value[0]?.start;
   const last = assignmentOccurrences.value.at(-1)?.start;
   if (!first || !last) return null;
@@ -257,36 +252,34 @@ const eventBelongsToSeries = computed(() => Boolean(props.assignmentEntryId && p
 const shouldShowOpenScopeChoice = computed(() => eventBelongsToSeries.value && selectedOpenScope.value === null);
 const shouldShowDetailTabs = computed(() => props.mode === 'view' && !shouldShowOpenScopeChoice.value);
 const isDeleteTab = computed(() => shouldShowDetailTabs.value && activeTab.value === 'delete');
+const canEditAssignmentScope = computed(
+  () =>
+    canEditAssignment.value &&
+    (isSeriesScope.value ? assignmentLifecycle.value.canEditSeries : assignmentLifecycle.value.canEditOccurrence),
+);
+const canChangeEntryLinks = computed(
+  () =>
+    canAssignAssignment.value &&
+    (!isPublishedOccurrence.value ||
+      (canViewShifts.value && assignmentLoadState.value === 'loaded' && existingShiftEntryLinks.value != null)),
+);
 const isReadOnly = computed(
   () =>
     modalMode.value === 'view' ||
     (modalMode.value === 'create' && !canCreateAssignment.value) ||
-    (modalMode.value === 'edit' &&
-      (!canEditAssignment.value || assignmentLoadState.value !== 'loaded' || !assignmentLifecycle.value.canEdit)),
+    (modalMode.value === 'edit' && (assignmentLoadState.value !== 'loaded' || !canEditAssignmentScope.value)),
 );
 const isEditMode = computed(() => modalMode.value === 'edit');
 const shouldShowReadOnlyDetails = computed(
   () => isReadOnly.value && !isDeleteTab.value && activeTab.value === 'details',
 );
-const isSeriesScope = computed(() => selectedOpenScope.value === 'series');
 const shouldShowRecurrenceFields = computed(() => !isEditMode.value || isSeriesScope.value);
 const isBusy = computed(() => isSaving.value || isLoadingAssignment.value);
 const fieldsDisabled = computed(() => isBusy.value || isReadOnly.value);
 const assignmentEntityLabel = computed(() => (isSeriesScope.value ? 'Assignment Series' : 'Assignment'));
-const assignmentLinkedToPublishedShift = computed(() => {
-  const hasPublishedEntryLink = (formData.value.shiftEntryLinks ?? []).some((link) =>
-    isSchedulingPublished(getShiftEntry(link.shiftEntryId)?.statusTypeCode),
-  );
-  const hasPublishedSeriesLink = (formData.value.shiftSeriesLinks ?? []).some((link) =>
-    isSchedulingPublished(getShiftSeries(link.shiftSeriesId)?.statusTypeCode),
-  );
-
-  return hasPublishedEntryLink || hasPublishedSeriesLink;
-});
-const assignmentLifecycle = computed(() => getSchedulingLifecycleCapabilities(assignmentStatusTypeCode.value));
 const visibleAssignmentDetailTabs = computed<Array<{ id: AssignmentDetailTabId; label: string }>>(() => [
   { id: 'details', label: 'Details' },
-  ...(assignmentLoadState.value === 'loaded' && assignmentLifecycle.value.canEdit && canEditAssignment.value
+  ...(assignmentLoadState.value === 'loaded' && canEditAssignmentScope.value
     ? [{ id: 'edit' as const, label: 'Edit' }]
     : []),
   ...(assignmentLoadState.value === 'loaded' &&
@@ -356,16 +349,10 @@ const locationOptionsWithSelected = computed(() => {
 });
 const shouldShowSingleShiftLinks = computed(() => canViewShifts.value && !hasAssignmentRecurrence.value);
 const shouldShowRecurringShiftLinks = computed(() => canViewShifts.value && hasAssignmentRecurrence.value);
-const targetDateStart = computed(() => {
-  const targetDate = formData.value.date || props.initialDate;
-  const parsedTargetDate = targetDate ? DateTime.fromISO(targetDate, { zone: timeZoneId.value }).startOf('day') : null;
-
-  return parsedTargetDate?.isValid ? parsedTargetDate : DateTime.now().setZone(timeZoneId.value).startOf('day');
-});
-const futureShiftEntries = computed(() =>
+const eligibleShiftEntries = computed(() =>
   shiftEntries.value
-    .filter((entry) => isSchedulingLinkable(entry.statusTypeCode))
-    .filter((entry) => shiftEntryDaysOverlapAssignment(entry)),
+    .filter((entry) => canAddAssignmentLinkToShift(entry.statusTypeCode, 'entry'))
+    .filter((entry) => assignmentStartsOnShiftDay(entry)),
 );
 const allUsersById = computed(
   () => new Map([...loanOutUsers.value, ...users.value, ...allUsers.value].map((user) => [user.id, user])),
@@ -406,7 +393,7 @@ const shiftSeriesOptions = computed<ShiftOption[]>(() =>
     .sort((left, right) => left.description.localeCompare(right.description)),
 );
 const shiftEntryOptions = computed<ShiftOption[]>(() =>
-  futureShiftEntries.value
+  eligibleShiftEntries.value
     .filter((entry) => typeof entry.id === 'number')
     .filter((entry) => !selectedShiftEntryIds.value.has(entry.id as number))
     .map((entry) => ({
@@ -694,7 +681,7 @@ function updateField<TKey extends keyof AssignmentFormData>(key: TKey, value: As
 function updateAssignmentDate(value: string) {
   updateField('date', value);
 
-  if (isSeriesScope.value) {
+  if (isSeriesScope.value || isPublishedOccurrence.value) {
     return;
   }
 
@@ -745,8 +732,8 @@ function updateLocation(value: SelectValue | undefined) {
     categoryId: undefined,
     subCategoryId: undefined,
     capacity: 1,
-    shiftEntryIds: [],
-    shiftEntryLinks: [],
+    shiftEntryIds: isPublishedOccurrence.value ? formData.value.shiftEntryIds : [],
+    shiftEntryLinks: isPublishedOccurrence.value ? formData.value.shiftEntryLinks : [],
     shiftSeriesIds: [],
     shiftSeriesLinks: [],
   };
@@ -812,7 +799,8 @@ function applyInitialSelections() {
   const hasExplicitInitialShiftEntryIds = props.initialShiftEntryIds !== undefined;
   const shiftEntryIds = props.initialShiftEntryIds ?? [];
 
-  if (shiftEntryIds.length && !initialShiftEntriesAreLoaded(shiftEntryIds)) {
+  if (isPublishedOccurrence.value || !canChangeEntryLinks.value) return;
+  if (shiftEntryIds.some((id) => !eligibleShiftEntries.value.some((entry) => entry.id === id))) {
     return;
   }
 
@@ -863,14 +851,6 @@ function applyInitialSelections() {
   }
 }
 
-function initialShiftEntriesAreLoaded(shiftEntryIds: number[]) {
-  const loadedShiftEntryIds = new Set(
-    shiftEntries.value.flatMap((entry) => (typeof entry.id === 'number' ? [entry.id] : [])),
-  );
-
-  return shiftEntryIds.every((shiftEntryId) => loadedShiftEntryIds.has(shiftEntryId));
-}
-
 function updateSelectedShiftSeries(value: SelectValue | undefined) {
   if (!canAssignAssignment.value) {
     return;
@@ -880,7 +860,7 @@ function updateSelectedShiftSeries(value: SelectValue | undefined) {
 }
 
 function updateSelectedShiftEntry(value: SelectValue | undefined) {
-  if (!canAssignAssignment.value) {
+  if (!canChangeEntryLinks.value) {
     return;
   }
   selectedShiftEntryId.value = parsePositiveInteger(value);
@@ -893,8 +873,8 @@ function addSelectedShiftSeries() {
     return;
   }
 
-  if (!canAddAssignmentLinkToShift(getShiftSeries(shiftSeriesId)?.statusTypeCode)) {
-    apiError.value = publishedShiftLinkError;
+  if (!canAddAssignmentLinkToShift(getShiftSeries(shiftSeriesId)?.statusTypeCode, 'series')) {
+    apiError.value = 'Select a draft shift series to add a new series link.';
     selectedShiftSeriesId.value = null;
     return;
   }
@@ -920,8 +900,9 @@ function addSelectedShiftEntry() {
     return;
   }
 
-  if (!canAddAssignmentLinkToShift(getShiftEntry(shiftEntryId)?.statusTypeCode)) {
-    apiError.value = publishedShiftLinkError;
+  const shift = eligibleShiftEntries.value.find((entry) => entry.id === shiftEntryId);
+  if (!shift) {
+    apiError.value = 'Select a shift that starts or ends on the assignment date.';
     selectedShiftEntryId.value = null;
     return;
   }
@@ -930,7 +911,7 @@ function addSelectedShiftEntry() {
     ...(formData.value.shiftEntryLinks ?? []),
     {
       shiftEntryId,
-      assignedUserIds: getShiftEntryUserIds(shiftEntryId),
+      assignedUserIds: shift.userIds ?? [],
     },
   ];
   updateField('shiftEntryLinks', nextLinks);
@@ -955,7 +936,7 @@ function removeShiftSeriesLink(index: number) {
 }
 
 function removeShiftEntryLink(index: number) {
-  if (!canAssignAssignment.value) {
+  if (!canChangeEntryLinks.value) {
     return;
   }
   const nextLinks = [...(formData.value.shiftEntryLinks ?? [])];
@@ -982,7 +963,7 @@ function updateShiftSeriesLinkUsers(index: number, value: SelectValue | undefine
 }
 
 function updateShiftEntryLinkUsers(index: number, value: SelectValue | undefined) {
-  if (!canAssignAssignment.value) {
+  if (!canChangeEntryLinks.value) {
     return;
   }
   const nextLinks = [...(formData.value.shiftEntryLinks ?? [])];
@@ -1298,36 +1279,6 @@ function getLinkUserError(type: 'shiftSeriesLinks' | 'shiftEntryLinks', index: n
   );
 }
 
-function getAssignmentDayRange() {
-  const assignmentRange = buildLocalDateTimeRange(
-    formData.value.date,
-    formData.value.startTime,
-    formData.value.endTime,
-    timeZoneId.value,
-  );
-  const fallback = targetDateStart.value;
-
-  return (
-    getDateTimeDayRange(assignmentRange?.start ?? fallback, assignmentRange?.end ?? fallback) ?? {
-      start: fallback,
-      end: fallback,
-    }
-  );
-}
-
-function shiftEntryDaysOverlapAssignment(entry: ShiftEntryResponse) {
-  if (!entry.startAtUtc) {
-    return false;
-  }
-
-  const zone = entry.timeZoneId || timeZoneId.value;
-  const start = DateTime.fromISO(entry.startAtUtc, { setZone: true }).setZone(zone);
-  const end = entry.endAtUtc ? DateTime.fromISO(entry.endAtUtc, { setZone: true }).setZone(zone) : start;
-  const shiftDayRange = getDateTimeDayRange(start, end);
-
-  return Boolean(shiftDayRange && dayRangesOverlap(getAssignmentDayRange(), shiftDayRange));
-}
-
 function assignmentStartsOnShiftDay(
   entry: ShiftEntryResponse,
   occurrenceStart: DateTime | undefined = buildLocalDateTimeRange(
@@ -1345,7 +1296,7 @@ function assignmentStartsOnShiftDay(
     return false;
   }
 
-  const zone = entry.timeZoneId || timeZoneId.value;
+  const zone = entry.timeZoneId?.trim() || 'UTC';
   const assignmentStart = occurrenceStart.setZone(zone);
   const shiftStart = DateTime.fromISO(entry.startAtUtc, { setZone: true }).setZone(zone);
   const shiftEnd = entry.endAtUtc ? DateTime.fromISO(entry.endAtUtc, { setZone: true }).setZone(zone) : null;
@@ -1353,23 +1304,6 @@ function assignmentStartsOnShiftDay(
   return (
     assignmentStart.hasSame(shiftStart, 'day') || Boolean(shiftEnd?.isValid && assignmentStart.hasSame(shiftEnd, 'day'))
   );
-}
-
-function getDateTimeDayRange(start: DateTime, end: DateTime) {
-  if (!start.isValid || !end.isValid) {
-    return null;
-  }
-
-  const adjustedEnd = end > start && end.equals(end.startOf('day')) ? end.minus({ milliseconds: 1 }) : end;
-
-  return {
-    start: start.startOf('day'),
-    end: adjustedEnd.startOf('day'),
-  };
-}
-
-function dayRangesOverlap(left: { start: DateTime; end: DateTime }, right: { start: DateTime; end: DateTime }) {
-  return left.start <= right.end && right.start <= left.end;
 }
 
 function getShiftOptionDescription(item: ShiftOption | { raw?: ShiftOption }) {
@@ -1395,11 +1329,14 @@ function getCustomListItemProps(itemProps: Record<string, unknown>) {
   return result;
 }
 
-function validateForm(): AssignmentFormData | null {
+function validateForm(includeEntryLinks: boolean): AssignmentFormData | null {
   formErrors.value = {};
   formData.value = normalizeAssignmentFormTimes(formData.value);
 
-  const result = validateAssignmentFormData(formData.value, {
+  const data = includeEntryLinks
+    ? formData.value
+    : { ...formData.value, shiftEntryLinks: undefined, shiftEntryIds: undefined };
+  const result = validateAssignmentFormData(data, {
     timeZoneId: timeZoneId.value,
     recurrenceError: recurrenceError.value,
   });
@@ -1415,13 +1352,24 @@ function validateForm(): AssignmentFormData | null {
 async function handleSave() {
   if (isBusy.value || hasConcurrencyConflict.value) return;
   apiInformation.value = '';
-  const hasMutationPermission = isEditMode.value ? canEditAssignment.value : canCreateAssignment.value;
+  const hasMutationPermission = isEditMode.value ? canEditAssignmentScope.value : canCreateAssignment.value;
   if (isReadOnly.value || !hasMutationPermission) {
     apiError.value = 'You do not have permission to save assignments.';
     return;
   }
 
-  const validated = validateForm();
+  const entryLinksChanged =
+    !hasAssignmentRecurrence.value &&
+    !haveSameShiftEntryLinks(formData.value.shiftEntryLinks, existingShiftEntryLinks.value);
+  const seriesLinksChanged =
+    hasAssignmentRecurrence.value &&
+    !haveSameShiftSeriesLinks(formData.value.shiftSeriesLinks, existingShiftSeriesLinks.value);
+  if ((entryLinksChanged && !canChangeEntryLinks.value) || (seriesLinksChanged && !canAssignAssignment.value)) {
+    apiError.value = 'You do not have permission to change assignment links.';
+    return;
+  }
+
+  const validated = validateForm(!isPublishedOccurrence.value || entryLinksChanged);
   if (!validated) {
     apiError.value = 'Could not save the assignment. Check the highlighted fields.';
     return;
@@ -1432,26 +1380,17 @@ async function handleSave() {
     timeZoneId: timeZoneId.value,
     locationId: validated.locationId ?? activeLocationId.value,
     assignmentOptions: assignmentDefinitionOptions.value,
-    includeShiftEntryLinks:
-      !isEditMode.value || !haveSameShiftEntryLinks(validated.shiftEntryLinks, existingShiftEntryLinks.value),
-    includeShiftSeriesLinks:
-      !isEditMode.value || !haveSameShiftSeriesLinks(validated.shiftSeriesLinks, existingShiftSeriesLinks.value),
+    includeShiftEntryLinks: !isEditMode.value || entryLinksChanged,
+    includeShiftSeriesLinks: !isEditMode.value || seriesLinksChanged,
   });
   if (!payload) {
     apiError.value = 'Could not resolve the selected assignment date, time, and location.';
     return;
   }
 
-  const relationshipsChanged =
-    !haveSameShiftEntryLinks(validated.shiftEntryLinks, existingShiftEntryLinks.value) ||
-    !haveSameShiftSeriesLinks(validated.shiftSeriesLinks, existingShiftSeriesLinks.value);
-  if (relationshipsChanged && !canAssignAssignment.value) {
-    apiError.value = 'You do not have permission to change assignment links.';
-    return;
-  }
-
   isSaving.value = true;
   apiError.value = '';
+  const requestId = mutationGuard.begin();
 
   try {
     if (isEditMode.value && isSeriesScope.value && payload.kind !== 'series') {
@@ -1466,8 +1405,8 @@ async function handleSave() {
       assignmentEntryId: props.assignmentEntryId,
       assignmentSeriesId: props.assignmentSeriesId,
     };
-    const requestId = mutationGuard.begin();
     const saveResult = await assignmentMutation.save(saveOptions);
+    if (!saveResult.error.value) calendarStore.refresh();
     if (!mutationGuard.isCurrent(requestId)) return;
 
     if (saveResult.error.value) {
@@ -1512,10 +1451,11 @@ async function handleSave() {
     }
 
     concurrencyToken.value = saveResult.data.value?.concurrencyToken ?? null;
-    calendarStore.refresh();
     emit('close');
   } catch (error: unknown) {
-    apiError.value = error instanceof Error ? error.message : 'An unexpected error occurred.';
+    if (mutationGuard.isCurrent(requestId)) {
+      apiError.value = error instanceof Error ? error.message : 'An unexpected error occurred.';
+    }
   } finally {
     isSaving.value = false;
   }
@@ -1524,7 +1464,19 @@ async function handleSave() {
 async function handleConflictOverride(note: string) {
   const conflict = pendingConflict.value;
   const saveOptions = pendingSaveOptions.value;
-  if (!conflict || !saveOptions || !canOverrideConflicts.value || hasRestrictedConflicts.value) {
+  if (
+    isBusy.value ||
+    isReadOnly.value ||
+    !conflict ||
+    !saveOptions ||
+    isSeriesScope.value ||
+    saveOptions.assignmentEntryId !== props.assignmentEntryId ||
+    saveOptions.concurrencyToken !== concurrencyToken.value ||
+    saveOptions.payload.kind !== 'entry' ||
+    (saveOptions.payload.body.shiftEntryLinks != null && !canChangeEntryLinks.value) ||
+    !canOverrideConflicts.value ||
+    hasRestrictedConflicts.value
+  ) {
     return;
   }
 
@@ -1544,13 +1496,14 @@ async function handleConflictOverride(note: string) {
   ];
   isSaving.value = true;
   conflictRetryError.value = '';
+  const requestId = mutationGuard.begin();
 
   try {
-    const requestId = mutationGuard.begin();
     const saveResult = await assignmentMutation.save({
       ...saveOptions,
       conflictOverrides: conflictOverrides.value,
     });
+    if (!saveResult.error.value) calendarStore.refresh();
     if (!mutationGuard.isCurrent(requestId)) return;
     if (saveResult.error.value) {
       if (isSchedulingConcurrencyConflict(saveResult)) {
@@ -1587,10 +1540,11 @@ async function handleConflictOverride(note: string) {
 
     clearPendingConflict();
     concurrencyToken.value = saveResult.data.value?.concurrencyToken ?? null;
-    calendarStore.refresh();
     emit('close');
   } catch (error: unknown) {
-    conflictRetryError.value = error instanceof Error ? error.message : 'An unexpected error occurred.';
+    if (mutationGuard.isCurrent(requestId)) {
+      conflictRetryError.value = error instanceof Error ? error.message : 'An unexpected error occurred.';
+    }
   } finally {
     isSaving.value = false;
   }
@@ -1786,6 +1740,7 @@ async function handleLifecycleAction() {
 
 async function loadInitialAssignment() {
   concurrencyToken.value = null;
+  existingShiftEntryLinks.value = undefined;
   loadedAssignmentSeries.value = null;
   if (modalMode.value === 'create') {
     assignmentLoadState.value = 'loaded';
@@ -1801,10 +1756,11 @@ async function loadInitialAssignment() {
       formData.value = createFormDataFromAssignmentSeries(assignment as AssignmentSeriesResponse);
       existingShiftSeriesLinks.value = (formData.value.shiftSeriesLinks ?? []).map((link) => ({ ...link }));
     } else {
-      formData.value = createFormDataFromAssignmentEntry(assignment as AssignmentEntryResponse);
-      existingShiftEntryLinks.value = (formData.value.shiftEntryLinks ?? []).map((link) => ({ ...link }));
+      const entry = assignment as AssignmentEntryResponse;
+      formData.value = createFormDataFromAssignmentEntry(entry);
+      existingShiftEntryLinks.value = formData.value.shiftEntryLinks?.map((link) => ({ ...link }));
     }
-    if (!assignmentLifecycle.value.canEdit) {
+    if (!canEditAssignmentScope.value) {
       modalMode.value = 'view';
       activeTab.value = 'details';
     }
@@ -1855,14 +1811,17 @@ function applyScopeRestrictions() {
 }
 
 function createFormDataFromAssignmentEntry(entry: AssignmentEntryResponse): AssignmentFormData {
-  const shiftEntryLinks = resolveShiftEntryLinksFromAssignmentEntry(entry);
+  const shiftEntryLinks =
+    isPublishedOccurrence.value && entry.assignmentLinks == null
+      ? undefined
+      : resolveShiftEntryLinksFromAssignmentEntry(entry);
 
   return {
     ...createAssignmentFormDataBase(entry),
     assignmentSeriesId: entry.assignmentSeriesId ?? null,
     seriesStartAtUtc: entry.seriesStartAtUtc ?? null,
     seriesEndAtUtc: entry.seriesEndAtUtc ?? null,
-    shiftEntryIds: shiftEntryLinks.map((link) => link.shiftEntryId),
+    shiftEntryIds: shiftEntryLinks?.map((link) => link.shiftEntryId),
     shiftEntryLinks,
   };
 }
@@ -1976,11 +1935,8 @@ function getInitialOpenScope(): AssignmentOpenScope | null {
       <UaAlert v-if="apiInformation" type="info" @close="apiInformation = ''">
         {{ apiInformation }}
       </UaAlert>
-      <UaAlert v-if="assignmentLifecycle.status === 'published'" type="info">
-        {{ publishedAssignmentMessage }}
-      </UaAlert>
-      <UaAlert v-if="assignmentLinkedToPublishedShift" type="info">
-        {{ publishedShiftLinkMessage }}
+      <UaAlert v-if="isPublishedOccurrence" type="info">
+        This assignment is published. Saved changes will be applied immediately to the published schedule.
       </UaAlert>
     </template>
 
@@ -2257,7 +2213,7 @@ function getInitialOpenScope(): AssignmentOpenScope | null {
           item-title="description"
           item-value="code"
           hide-details="auto"
-          :disabled="fieldsDisabled || isLoadingShiftOptions || !canAssignAssignment"
+          :disabled="fieldsDisabled || isLoadingShiftOptions || !canChangeEntryLinks"
           :loading="isLoadingShiftOptions"
           @update:model-value="updateSelectedShiftEntry"
         >
@@ -2282,7 +2238,7 @@ function getInitialOpenScope(): AssignmentOpenScope | null {
             <div class="assignment-modal__link-section-header">
               <h3 class="assignment-modal__link-section-title">Shift {{ index + 1 }}</h3>
               <UaBtn
-                v-if="!isReadOnly && canAssignAssignment"
+                v-if="!isReadOnly && canChangeEntryLinks"
                 variant="text"
                 :disabled="fieldsDisabled"
                 :aria-label="`Remove Shift ${index + 1}`"
@@ -2307,7 +2263,7 @@ function getInitialOpenScope(): AssignmentOpenScope | null {
               closable-chips
               hide-details="auto"
               :error="Boolean(getLinkUserError('shiftEntryLinks', index))"
-              :disabled="fieldsDisabled || !canAssignAssignment"
+              :disabled="fieldsDisabled || !canChangeEntryLinks"
               @update:model-value="(value: SelectValue | undefined) => updateShiftEntryLinkUsers(index, value)"
             >
               <template #label>Assigned Shift Users<UaRequiredIndicator /></template>

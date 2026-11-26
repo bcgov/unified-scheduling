@@ -7,9 +7,15 @@
 import { faker } from '@faker-js/faker';
 
 import { HttpResponse, http } from 'msw';
-import type { RequestHandlerOptions } from 'msw';
+import type { HttpResponseResolver, PathParams, RequestHandlerOptions } from 'msw';
 
-import type { TrainingDetailResponse, TrainingLookupResponse, TrainingProfileTypeResponse } from '../models';
+import type {
+  TrainingDetailResponse,
+  TrainingLookupMoveOrderRequest,
+  TrainingLookupRequest,
+  TrainingLookupResponse,
+  TrainingProfileTypeResponse,
+} from '../models';
 
 export const getGetApiLookupTrainingsResponseMock = (): TrainingLookupResponse[] =>
   faker.helpers.arrayElement([
@@ -448,14 +454,12 @@ export const getGetApiTrainingProfileTypesResponseMock = (): TrainingProfileType
 export const getGetApiLookupTrainingsMockHandler = (
   overrideResponse?:
     | TrainingLookupResponse[]
-    | ((
-        info: Parameters<Parameters<typeof http.get>[1]>[0],
-      ) => Promise<TrainingLookupResponse[]> | TrainingLookupResponse[]),
+    | ((info: Parameters<HttpResponseResolver>[0]) => Promise<TrainingLookupResponse[]> | TrainingLookupResponse[]),
   options?: RequestHandlerOptions,
 ) => {
   return http.get(
     '*/api/lookup/trainings',
-    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -473,13 +477,13 @@ export const getPostApiLookupTrainingsMockHandler = (
   overrideResponse?:
     | TrainingLookupResponse
     | ((
-        info: Parameters<Parameters<typeof http.post>[1]>[0],
+        info: Parameters<HttpResponseResolver<PathParams, TrainingLookupRequest>>[0],
       ) => Promise<TrainingLookupResponse> | TrainingLookupResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.post(
+  return http.post<PathParams, TrainingLookupRequest>(
     '*/api/lookup/trainings',
-    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<PathParams, TrainingLookupRequest>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -497,13 +501,13 @@ export const getGetApiLookupTrainingsIdMockHandler = (
   overrideResponse?:
     | TrainingDetailResponse
     | ((
-        info: Parameters<Parameters<typeof http.get>[1]>[0],
+        info: Parameters<HttpResponseResolver<{ id: string }>>[0],
       ) => Promise<TrainingDetailResponse> | TrainingDetailResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.get(
+  return http.get<{ id: string }>(
     '*/api/lookup/trainings/:id',
-    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ id: string }>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -521,13 +525,13 @@ export const getPutApiLookupTrainingsIdMockHandler = (
   overrideResponse?:
     | TrainingLookupResponse
     | ((
-        info: Parameters<Parameters<typeof http.put>[1]>[0],
+        info: Parameters<HttpResponseResolver<{ id: string }, TrainingLookupRequest>>[0],
       ) => Promise<TrainingLookupResponse> | TrainingLookupResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.put(
+  return http.put<{ id: string }, TrainingLookupRequest>(
     '*/api/lookup/trainings/:id',
-    async (info: Parameters<Parameters<typeof http.put>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ id: string }, TrainingLookupRequest>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -545,13 +549,13 @@ export const getPatchApiLookupTrainingsIdOrderMockHandler = (
   overrideResponse?:
     | TrainingLookupResponse
     | ((
-        info: Parameters<Parameters<typeof http.patch>[1]>[0],
+        info: Parameters<HttpResponseResolver<{ id: string }, TrainingLookupMoveOrderRequest>>[0],
       ) => Promise<TrainingLookupResponse> | TrainingLookupResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.patch(
+  return http.patch<{ id: string }, TrainingLookupMoveOrderRequest>(
     '*/api/lookup/trainings/:id/order',
-    async (info: Parameters<Parameters<typeof http.patch>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ id: string }, TrainingLookupMoveOrderRequest>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -566,12 +570,12 @@ export const getPatchApiLookupTrainingsIdOrderMockHandler = (
 };
 
 export const getPatchApiLookupTrainingsIdExpireMockHandler = (
-  overrideResponse?: void | ((info: Parameters<Parameters<typeof http.patch>[1]>[0]) => Promise<void> | void),
+  overrideResponse?: void | ((info: Parameters<HttpResponseResolver<{ id: string }>>[0]) => Promise<void> | void),
   options?: RequestHandlerOptions,
 ) => {
-  return http.patch(
+  return http.patch<{ id: string }>(
     '*/api/lookup/trainings/:id/expire',
-    async (info: Parameters<Parameters<typeof http.patch>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ id: string }>>[0]) => {
       if (typeof overrideResponse === 'function') {
         await overrideResponse(info);
       }
@@ -583,12 +587,12 @@ export const getPatchApiLookupTrainingsIdExpireMockHandler = (
 };
 
 export const getPatchApiLookupTrainingsIdUnexpireMockHandler = (
-  overrideResponse?: void | ((info: Parameters<Parameters<typeof http.patch>[1]>[0]) => Promise<void> | void),
+  overrideResponse?: void | ((info: Parameters<HttpResponseResolver<{ id: string }>>[0]) => Promise<void> | void),
   options?: RequestHandlerOptions,
 ) => {
-  return http.patch(
+  return http.patch<{ id: string }>(
     '*/api/lookup/trainings/:id/unexpire',
-    async (info: Parameters<Parameters<typeof http.patch>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ id: string }>>[0]) => {
       if (typeof overrideResponse === 'function') {
         await overrideResponse(info);
       }
@@ -603,13 +607,13 @@ export const getGetApiTrainingProfileTypesMockHandler = (
   overrideResponse?:
     | TrainingProfileTypeResponse[]
     | ((
-        info: Parameters<Parameters<typeof http.get>[1]>[0],
+        info: Parameters<HttpResponseResolver>[0],
       ) => Promise<TrainingProfileTypeResponse[]> | TrainingProfileTypeResponse[]),
   options?: RequestHandlerOptions,
 ) => {
   return http.get(
     '*/api/training/profile-types',
-    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'

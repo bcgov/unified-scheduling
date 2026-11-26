@@ -6,6 +6,12 @@ namespace Unified.Scheduling.Services;
 
 internal static class ShiftAssignmentGuards
 {
+    public static bool HasAllocationOnShift(ShiftAssignmentEntry link) =>
+        link.Users.Count > 0 && link.ShiftEntry?.Event?.StatusTypeCode != CalendarEventStatusTypeCodes.Cancelled;
+
+    public static bool HasAllocationOnAssignment(ShiftAssignmentEntry link) =>
+        link.Users.Count > 0 && link.AssignmentEntry?.Event?.StatusTypeCode != CalendarEventStatusTypeCodes.Cancelled;
+
     public static IReadOnlyCollection<Guid> NormalizeRequiredUserIds(IReadOnlyCollection<Guid> userIds)
     {
         if (userIds.Count == 0)
@@ -77,8 +83,7 @@ internal static class ShiftAssignmentGuards
         var activeLinks = shiftEntry
             .ShiftAssignmentEntries.Where(link =>
                 (retainedAssignmentEntryIds is null || retainedAssignmentEntryIds.Contains(link.AssignmentEntryId))
-                && link.Users.Count > 0
-                && link.AssignmentEntry?.Event?.StatusTypeCode != CalendarEventStatusTypeCodes.Cancelled
+                && HasAllocationOnAssignment(link)
             )
             .ToList();
         var proposedUserIdSet = proposedUserIds.ToHashSet();
@@ -143,9 +148,8 @@ internal static class ShiftAssignmentGuards
         var invalidatesLink = assignmentEntry
             .ShiftAssignmentEntries.Where(link =>
                 (retainedShiftEntryIds is null || retainedShiftEntryIds.Contains(link.ShiftEntryId))
-                && link.Users.Count > 0
+                && HasAllocationOnShift(link)
             )
-            .Where(link => link.ShiftEntry?.Event?.StatusTypeCode != CalendarEventStatusTypeCodes.Cancelled)
             .Any(link =>
                 link.ShiftEntry?.Event is not Event shiftEvent
                 || !AssignmentStartsOnShiftDate(
@@ -159,7 +163,7 @@ internal static class ShiftAssignmentGuards
 
         if (invalidatesLink)
             throw new InvalidOperationException(
-                "Assignment time cannot be changed because it would no longer start on the linked shift start date or shift end date."
+                "Remove incompatible shift links or choose an assignment start date that matches the linked shifts."
             );
     }
 

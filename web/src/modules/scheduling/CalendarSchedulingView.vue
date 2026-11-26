@@ -84,8 +84,9 @@ import {
   showCalendarSchedulingAssignmentModal,
   showCalendarSchedulingEventDetail,
 } from './calendarSchedulingState';
-import { canEditShifts } from './calendarSchedulingPermissions';
+import { canEditAssignments, canEditShifts } from './calendarSchedulingPermissions';
 import { isCalendarSchedulingEvent, isLeaveEvent } from './calendarSchedulingData';
+import { getSchedulingLifecycleCapabilities } from './schedulingLifecycle';
 
 const props = defineProps<{
   model: CalendarMatrixViewModel;
@@ -105,7 +106,6 @@ const calendarAlertStore = useCalendarAlertStore();
 const route = useRoute();
 const assignmentDefinitionId = ref<number>();
 const conflictEventCellKey = ref<string>();
-const canEditShift = computed(() => Boolean(props.runtimeContext && canEditShifts(props.runtimeContext)));
 const includeAssignmentTimes = computed(
   () =>
     props.runtimeContext?.presentationMode !== 'print' ||
@@ -182,12 +182,14 @@ const selectedConflictEventId = ref<CalendarMatrixConflictItem['currentEventId']
 const conflictOverrideLoading = ref(false);
 const conflictErrorMessage = ref('');
 function canEditConflictEvent(event: CalendarConflictEvent) {
-  if (event.sourceModule !== 'scheduling') return false;
+  const runtimeContext = props.runtimeContext;
+  if (event.sourceModule !== 'scheduling' || !runtimeContext) return false;
   const scheduledEvent = findScheduledEvent(Number(event.eventId));
   if (!scheduledEvent) return false;
-  return isAssignmentEvent(scheduledEvent)
-    ? props.runtimeContext?.permissions?.includes(Permissions.AssignmentsEdit) === true
-    : canEditShift.value;
+  const canEdit = isAssignmentEvent(scheduledEvent)
+    ? canEditAssignments(runtimeContext)
+    : canEditShifts(runtimeContext);
+  return canEdit && getSchedulingLifecycleCapabilities(scheduledEvent.statusTypeCode).canEditOccurrence;
 }
 const canOverrideConflicts = computed(
   () => props.runtimeContext?.permissions?.includes(Permissions.CalendarConflictsOverride) === true,
@@ -255,6 +257,7 @@ async function overrideConflict(note: string) {
 }
 
 function editConflictEvent(event: CalendarConflictEvent) {
+  if (!canEditConflictEvent(event)) return;
   const eventId = parsePositiveInteger(event.eventId);
   if (!eventId) return;
 
@@ -284,7 +287,7 @@ function editConflictEvent(event: CalendarConflictEvent) {
 
   selectedConflict.value = undefined;
   selectedConflictEventId.value = undefined;
-  showCalendarSchedulingEventDetail(scheduledEvent);
+  showCalendarSchedulingEventDetail(scheduledEvent, { initialOpenScope: 'event', initialTab: 'edit' });
 }
 
 function findScheduledEvent(eventId: number) {

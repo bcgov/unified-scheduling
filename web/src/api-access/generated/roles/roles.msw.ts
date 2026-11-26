@@ -7,9 +7,16 @@
 import { faker } from '@faker-js/faker';
 
 import { HttpResponse, http } from 'msw';
-import type { RequestHandlerOptions } from 'msw';
+import type { HttpResponseResolver, PathParams, RequestHandlerOptions } from 'msw';
 
-import type { DeletedRoleDto, RoleAssignedUserDto, RoleDto } from '../models';
+import type {
+  DeleteRoleWithReassignmentRequestDto,
+  DeletedRoleDto,
+  RoleAssignedUserDto,
+  RoleDto,
+  RoleRequestDto,
+  UpdateRoleRequestDto,
+} from '../models';
 
 export const getGetApiRolesResponseMock = (): RoleDto[] =>
   faker.helpers.arrayElement([
@@ -232,13 +239,12 @@ export const getPostApiRolesIdReassignAndDeleteResponseMock = (
   ]);
 
 export const getGetApiRolesMockHandler = (
-  overrideResponse?:
-    RoleDto[] | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<RoleDto[]> | RoleDto[]),
+  overrideResponse?: RoleDto[] | ((info: Parameters<HttpResponseResolver>[0]) => Promise<RoleDto[]> | RoleDto[]),
   options?: RequestHandlerOptions,
 ) => {
   return http.get(
     '*/api/roles',
-    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -253,12 +259,13 @@ export const getGetApiRolesMockHandler = (
 };
 
 export const getPostApiRolesMockHandler = (
-  overrideResponse?: RoleDto | ((info: Parameters<Parameters<typeof http.post>[1]>[0]) => Promise<RoleDto> | RoleDto),
+  overrideResponse?:
+    RoleDto | ((info: Parameters<HttpResponseResolver<PathParams, RoleRequestDto>>[0]) => Promise<RoleDto> | RoleDto),
   options?: RequestHandlerOptions,
 ) => {
-  return http.post(
+  return http.post<PathParams, RoleRequestDto>(
     '*/api/roles',
-    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<PathParams, RoleRequestDto>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -275,12 +282,14 @@ export const getPostApiRolesMockHandler = (
 export const getGetApiRolesIdUsersMockHandler = (
   overrideResponse?:
     | RoleAssignedUserDto[]
-    | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<RoleAssignedUserDto[]> | RoleAssignedUserDto[]),
+    | ((
+        info: Parameters<HttpResponseResolver<{ id: string }>>[0],
+      ) => Promise<RoleAssignedUserDto[]> | RoleAssignedUserDto[]),
   options?: RequestHandlerOptions,
 ) => {
-  return http.get(
+  return http.get<{ id: string }>(
     '*/api/roles/:id/users',
-    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ id: string }>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -295,12 +304,14 @@ export const getGetApiRolesIdUsersMockHandler = (
 };
 
 export const getPutApiRolesIdMockHandler = (
-  overrideResponse?: RoleDto | ((info: Parameters<Parameters<typeof http.put>[1]>[0]) => Promise<RoleDto> | RoleDto),
+  overrideResponse?:
+    | RoleDto
+    | ((info: Parameters<HttpResponseResolver<{ id: string }, UpdateRoleRequestDto>>[0]) => Promise<RoleDto> | RoleDto),
   options?: RequestHandlerOptions,
 ) => {
-  return http.put(
+  return http.put<{ id: string }, UpdateRoleRequestDto>(
     '*/api/roles/:id',
-    async (info: Parameters<Parameters<typeof http.put>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ id: string }, UpdateRoleRequestDto>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -317,12 +328,14 @@ export const getPutApiRolesIdMockHandler = (
 export const getPostApiRolesIdReassignAndDeleteMockHandler = (
   overrideResponse?:
     | DeletedRoleDto
-    | ((info: Parameters<Parameters<typeof http.post>[1]>[0]) => Promise<DeletedRoleDto> | DeletedRoleDto),
+    | ((
+        info: Parameters<HttpResponseResolver<{ id: string }, DeleteRoleWithReassignmentRequestDto>>[0],
+      ) => Promise<DeletedRoleDto> | DeletedRoleDto),
   options?: RequestHandlerOptions,
 ) => {
-  return http.post(
+  return http.post<{ id: string }, DeleteRoleWithReassignmentRequestDto>(
     '*/api/roles/:id/reassign-and-delete',
-    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ id: string }, DeleteRoleWithReassignmentRequestDto>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'

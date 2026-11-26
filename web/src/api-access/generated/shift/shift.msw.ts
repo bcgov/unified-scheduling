@@ -7,10 +7,18 @@
 import { faker } from '@faker-js/faker';
 
 import { HttpResponse, http } from 'msw';
-import type { RequestHandlerOptions } from 'msw';
+import type { HttpResponseResolver, PathParams, RequestHandlerOptions } from 'msw';
 
 import { CalendarEventExceptionReasonCode } from '../models';
-import type { ShiftEntryResponse, ShiftSeriesResponse } from '../models';
+import type {
+  ExpireShiftRequest,
+  ShiftEntryRequest,
+  ShiftEntryResponse,
+  ShiftEntryUpdateRequest,
+  ShiftSeriesRequest,
+  ShiftSeriesResponse,
+  ShiftSeriesUpdateRequest,
+} from '../models';
 
 export const getGetApiSchedulingShiftsSeriesResponseMock = (): ShiftSeriesResponse[] =>
   faker.helpers.arrayElement([
@@ -1913,12 +1921,12 @@ export const getPostApiSchedulingShiftsEntriesIdExpireResponseMock = (
 export const getGetApiSchedulingShiftsSeriesMockHandler = (
   overrideResponse?:
     | ShiftSeriesResponse[]
-    | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<ShiftSeriesResponse[]> | ShiftSeriesResponse[]),
+    | ((info: Parameters<HttpResponseResolver>[0]) => Promise<ShiftSeriesResponse[]> | ShiftSeriesResponse[]),
   options?: RequestHandlerOptions,
 ) => {
   return http.get(
     '*/api/scheduling/shifts/series',
-    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -1935,12 +1943,14 @@ export const getGetApiSchedulingShiftsSeriesMockHandler = (
 export const getPostApiSchedulingShiftsSeriesMockHandler = (
   overrideResponse?:
     | ShiftSeriesResponse
-    | ((info: Parameters<Parameters<typeof http.post>[1]>[0]) => Promise<ShiftSeriesResponse> | ShiftSeriesResponse),
+    | ((
+        info: Parameters<HttpResponseResolver<PathParams, ShiftSeriesRequest>>[0],
+      ) => Promise<ShiftSeriesResponse> | ShiftSeriesResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.post(
+  return http.post<PathParams, ShiftSeriesRequest>(
     '*/api/scheduling/shifts/series',
-    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<PathParams, ShiftSeriesRequest>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -1957,12 +1967,14 @@ export const getPostApiSchedulingShiftsSeriesMockHandler = (
 export const getGetApiSchedulingShiftsSeriesIdMockHandler = (
   overrideResponse?:
     | ShiftSeriesResponse
-    | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<ShiftSeriesResponse> | ShiftSeriesResponse),
+    | ((
+        info: Parameters<HttpResponseResolver<{ id: string }>>[0],
+      ) => Promise<ShiftSeriesResponse> | ShiftSeriesResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.get(
+  return http.get<{ id: string }>(
     '*/api/scheduling/shifts/series/:id',
-    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ id: string }>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -1979,12 +1991,14 @@ export const getGetApiSchedulingShiftsSeriesIdMockHandler = (
 export const getPutApiSchedulingShiftsSeriesIdMockHandler = (
   overrideResponse?:
     | ShiftSeriesResponse
-    | ((info: Parameters<Parameters<typeof http.put>[1]>[0]) => Promise<ShiftSeriesResponse> | ShiftSeriesResponse),
+    | ((
+        info: Parameters<HttpResponseResolver<{ id: string }, ShiftSeriesUpdateRequest>>[0],
+      ) => Promise<ShiftSeriesResponse> | ShiftSeriesResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.put(
+  return http.put<{ id: string }, ShiftSeriesUpdateRequest>(
     '*/api/scheduling/shifts/series/:id',
-    async (info: Parameters<Parameters<typeof http.put>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ id: string }, ShiftSeriesUpdateRequest>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -1999,12 +2013,12 @@ export const getPutApiSchedulingShiftsSeriesIdMockHandler = (
 };
 
 export const getDeleteApiSchedulingShiftsSeriesIdMockHandler = (
-  overrideResponse?: void | ((info: Parameters<Parameters<typeof http.delete>[1]>[0]) => Promise<void> | void),
+  overrideResponse?: void | ((info: Parameters<HttpResponseResolver<{ id: string }>>[0]) => Promise<void> | void),
   options?: RequestHandlerOptions,
 ) => {
-  return http.delete(
+  return http.delete<{ id: string }>(
     '*/api/scheduling/shifts/series/:id',
-    async (info: Parameters<Parameters<typeof http.delete>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ id: string }>>[0]) => {
       if (typeof overrideResponse === 'function') {
         await overrideResponse(info);
       }
@@ -2018,12 +2032,14 @@ export const getDeleteApiSchedulingShiftsSeriesIdMockHandler = (
 export const getPostApiSchedulingShiftsSeriesIdPublishMockHandler = (
   overrideResponse?:
     | ShiftSeriesResponse
-    | ((info: Parameters<Parameters<typeof http.post>[1]>[0]) => Promise<ShiftSeriesResponse> | ShiftSeriesResponse),
+    | ((
+        info: Parameters<HttpResponseResolver<{ id: string }>>[0],
+      ) => Promise<ShiftSeriesResponse> | ShiftSeriesResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.post(
+  return http.post<{ id: string }>(
     '*/api/scheduling/shifts/series/:id/publish',
-    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ id: string }>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -2040,12 +2056,14 @@ export const getPostApiSchedulingShiftsSeriesIdPublishMockHandler = (
 export const getPostApiSchedulingShiftsSeriesIdExpireMockHandler = (
   overrideResponse?:
     | ShiftSeriesResponse
-    | ((info: Parameters<Parameters<typeof http.post>[1]>[0]) => Promise<ShiftSeriesResponse> | ShiftSeriesResponse),
+    | ((
+        info: Parameters<HttpResponseResolver<{ id: string }, null | ExpireShiftRequest>>[0],
+      ) => Promise<ShiftSeriesResponse> | ShiftSeriesResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.post(
+  return http.post<{ id: string }, null | ExpireShiftRequest>(
     '*/api/scheduling/shifts/series/:id/expire',
-    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ id: string }, null | ExpireShiftRequest>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -2062,12 +2080,12 @@ export const getPostApiSchedulingShiftsSeriesIdExpireMockHandler = (
 export const getGetApiSchedulingShiftsEntriesMockHandler = (
   overrideResponse?:
     | ShiftEntryResponse[]
-    | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<ShiftEntryResponse[]> | ShiftEntryResponse[]),
+    | ((info: Parameters<HttpResponseResolver>[0]) => Promise<ShiftEntryResponse[]> | ShiftEntryResponse[]),
   options?: RequestHandlerOptions,
 ) => {
   return http.get(
     '*/api/scheduling/shifts/entries',
-    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -2084,12 +2102,14 @@ export const getGetApiSchedulingShiftsEntriesMockHandler = (
 export const getPostApiSchedulingShiftsEntriesMockHandler = (
   overrideResponse?:
     | ShiftEntryResponse
-    | ((info: Parameters<Parameters<typeof http.post>[1]>[0]) => Promise<ShiftEntryResponse> | ShiftEntryResponse),
+    | ((
+        info: Parameters<HttpResponseResolver<PathParams, ShiftEntryRequest>>[0],
+      ) => Promise<ShiftEntryResponse> | ShiftEntryResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.post(
+  return http.post<PathParams, ShiftEntryRequest>(
     '*/api/scheduling/shifts/entries',
-    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<PathParams, ShiftEntryRequest>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -2106,12 +2126,12 @@ export const getPostApiSchedulingShiftsEntriesMockHandler = (
 export const getGetApiSchedulingShiftsEntriesIdMockHandler = (
   overrideResponse?:
     | ShiftEntryResponse
-    | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<ShiftEntryResponse> | ShiftEntryResponse),
+    | ((info: Parameters<HttpResponseResolver<{ id: string }>>[0]) => Promise<ShiftEntryResponse> | ShiftEntryResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.get(
+  return http.get<{ id: string }>(
     '*/api/scheduling/shifts/entries/:id',
-    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ id: string }>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -2128,12 +2148,14 @@ export const getGetApiSchedulingShiftsEntriesIdMockHandler = (
 export const getPutApiSchedulingShiftsEntriesIdMockHandler = (
   overrideResponse?:
     | ShiftEntryResponse
-    | ((info: Parameters<Parameters<typeof http.put>[1]>[0]) => Promise<ShiftEntryResponse> | ShiftEntryResponse),
+    | ((
+        info: Parameters<HttpResponseResolver<{ id: string }, ShiftEntryUpdateRequest>>[0],
+      ) => Promise<ShiftEntryResponse> | ShiftEntryResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.put(
+  return http.put<{ id: string }, ShiftEntryUpdateRequest>(
     '*/api/scheduling/shifts/entries/:id',
-    async (info: Parameters<Parameters<typeof http.put>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ id: string }, ShiftEntryUpdateRequest>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -2148,12 +2170,12 @@ export const getPutApiSchedulingShiftsEntriesIdMockHandler = (
 };
 
 export const getDeleteApiSchedulingShiftsEntriesIdMockHandler = (
-  overrideResponse?: void | ((info: Parameters<Parameters<typeof http.delete>[1]>[0]) => Promise<void> | void),
+  overrideResponse?: void | ((info: Parameters<HttpResponseResolver<{ id: string }>>[0]) => Promise<void> | void),
   options?: RequestHandlerOptions,
 ) => {
-  return http.delete(
+  return http.delete<{ id: string }>(
     '*/api/scheduling/shifts/entries/:id',
-    async (info: Parameters<Parameters<typeof http.delete>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ id: string }>>[0]) => {
       if (typeof overrideResponse === 'function') {
         await overrideResponse(info);
       }
@@ -2167,12 +2189,12 @@ export const getDeleteApiSchedulingShiftsEntriesIdMockHandler = (
 export const getPostApiSchedulingShiftsEntriesIdPublishMockHandler = (
   overrideResponse?:
     | ShiftEntryResponse
-    | ((info: Parameters<Parameters<typeof http.post>[1]>[0]) => Promise<ShiftEntryResponse> | ShiftEntryResponse),
+    | ((info: Parameters<HttpResponseResolver<{ id: string }>>[0]) => Promise<ShiftEntryResponse> | ShiftEntryResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.post(
+  return http.post<{ id: string }>(
     '*/api/scheduling/shifts/entries/:id/publish',
-    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ id: string }>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -2189,12 +2211,14 @@ export const getPostApiSchedulingShiftsEntriesIdPublishMockHandler = (
 export const getPostApiSchedulingShiftsEntriesIdExpireMockHandler = (
   overrideResponse?:
     | ShiftEntryResponse
-    | ((info: Parameters<Parameters<typeof http.post>[1]>[0]) => Promise<ShiftEntryResponse> | ShiftEntryResponse),
+    | ((
+        info: Parameters<HttpResponseResolver<{ id: string }, null | ExpireShiftRequest>>[0],
+      ) => Promise<ShiftEntryResponse> | ShiftEntryResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.post(
+  return http.post<{ id: string }, null | ExpireShiftRequest>(
     '*/api/scheduling/shifts/entries/:id/expire',
-    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ id: string }, null | ExpireShiftRequest>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'

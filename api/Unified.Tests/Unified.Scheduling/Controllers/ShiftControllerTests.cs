@@ -2,6 +2,7 @@ using System.Security.Claims;
 using FluentValidation;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Unified.Authorization;
 using Unified.Authorization.Claims;
 using Unified.Db.Models.Scheduling;
 using Unified.Scheduling.Controllers;
@@ -352,6 +353,23 @@ public class ShiftControllerTests
         Assert.IsType<NotFoundResult>(result.Result);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task UpdateShiftEntry_WhenCallerHasAssignmentPermission_ForwardsClaim(bool canAssign)
+    {
+        var service = new FakeShiftService();
+        var controller = CreateShiftController(service);
+        if (canAssign)
+            ((ClaimsIdentity)controller.User.Identity!).AddClaim(
+                new Claim(UnifiedClaimTypes.Permission, nameof(Permissions.AssignmentsAssign))
+            );
+
+        await controller.UpdateShiftEntry(8, CreateShiftEntryRequest(), TestContext.Current.CancellationToken);
+
+        Assert.Equal(canAssign, service.CanAssign);
+    }
+
     [Fact]
     public async Task PublishShiftEntry_WhenFound_ReturnsOk()
     {
@@ -468,7 +486,7 @@ public class ShiftControllerTests
             claims.Add(new Claim(UnifiedClaimTypes.UserId, userId.Value.ToString()));
         controller.ControllerContext = new ControllerContext
         {
-            HttpContext = new DefaultHttpContext { User = new ClaimsPrincipal(new ClaimsIdentity(claims)) },
+            HttpContext = new DefaultHttpContext { User = new ClaimsPrincipal(new ClaimsIdentity(claims, "Test")) },
         };
 
         return controller;
@@ -619,14 +637,18 @@ public class ShiftControllerTests
             return Task.FromResult(CreatedShiftEntry!);
         }
 
+        public bool CanAssign { get; private set; }
+
         public Task<ShiftEntryResponse?> UpdateShiftEntryAsync(
             int id,
             ShiftEntryUpdateRequest request,
             CancellationToken cancellationToken = default,
-            Guid? conflictOverrideActorId = null
+            Guid? conflictOverrideActorId = null,
+            bool canAssign = false
         )
         {
             LastShiftEntryRequest = request;
+            CanAssign = canAssign;
             return Task.FromResult(UpdatedShiftEntry);
         }
 

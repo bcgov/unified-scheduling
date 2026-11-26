@@ -7,7 +7,7 @@
 import { faker } from '@faker-js/faker';
 
 import { HttpResponse, http } from 'msw';
-import type { RequestHandlerOptions } from 'msw';
+import type { HttpResponseResolver, RequestHandlerOptions } from 'msw';
 
 import type { StatMetricResponse } from '../models';
 
@@ -63,12 +63,12 @@ export const getGetApiStatsMetricsIdResponseMock = (
 export const getGetApiStatsMetricsMockHandler = (
   overrideResponse?:
     | StatMetricResponse[]
-    | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<StatMetricResponse[]> | StatMetricResponse[]),
+    | ((info: Parameters<HttpResponseResolver>[0]) => Promise<StatMetricResponse[]> | StatMetricResponse[]),
   options?: RequestHandlerOptions,
 ) => {
   return http.get(
     '*/api/stats/metrics',
-    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -85,12 +85,12 @@ export const getGetApiStatsMetricsMockHandler = (
 export const getGetApiStatsMetricsIdMockHandler = (
   overrideResponse?:
     | StatMetricResponse
-    | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<StatMetricResponse> | StatMetricResponse),
+    | ((info: Parameters<HttpResponseResolver<{ id: string }>>[0]) => Promise<StatMetricResponse> | StatMetricResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.get(
+  return http.get<{ id: string }>(
     '*/api/stats/metrics/:id',
-    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ id: string }>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'

@@ -11,6 +11,7 @@ using Unified.Db;
 using Unified.Db.Extensions;
 using Unified.Db.Models.Calendar;
 using Unified.Db.Models.Scheduling;
+using Unified.Infrastructure.ErrorHandling;
 using Unified.Scheduling.Factories;
 using Unified.Scheduling.Guards;
 using Unified.Scheduling.Mappings;
@@ -195,7 +196,8 @@ public sealed class ShiftEntryService(
         int id,
         ShiftEntryUpdateRequest request,
         CancellationToken cancellationToken = default,
-        Guid? conflictOverrideActorId = null
+        Guid? conflictOverrideActorId = null,
+        bool canAssign = false
     )
     {
         return await SchedulingUpdateConcurrency.ExecuteAsync<ShiftEntryResponse?>(async () =>
@@ -209,17 +211,30 @@ public sealed class ShiftEntryService(
             if (entity is null)
                 return null;
 
+            var isPublished = entity.Event?.StatusTypeCode == CalendarEventStatusTypeCodes.Active;
+            if (isPublished)
+            {
+                if (request.AssignmentEntryLinks is not null && !canAssign)
+                    throw new ForbiddenException();
+
+                if (request.ShiftSeriesId.HasValue && request.ShiftSeriesId != entity.ShiftSeriesId)
+                    throw new InvalidOperationException("A published shift cannot be moved to another series.");
+            }
+            var effectiveRequest = isPublished ? request with { ShiftSeriesId = entity.ShiftSeriesId } : request;
+
             db.RequireVersion(entity, request.ConcurrencyToken);
 
-            var shiftSeries = request.ShiftSeriesId.HasValue
-                ? await GetValidatedShiftSeriesAsync(request.ShiftSeriesId.Value, cancellationToken)
-                : null;
+            var shiftSeries =
+                !isPublished && request.ShiftSeriesId.HasValue
+                    ? await GetValidatedShiftSeriesAsync(request.ShiftSeriesId.Value, cancellationToken)
+                    : null;
 
             var updated = await calendarEventEntryService.UpdateEventAsync(
-                request,
+                effectiveRequest,
                 entity,
                 SchedulingConstants.SourceModule,
                 SchedulingConstants.ShiftEventTypeCode,
+                allowActive: true,
                 validators:
                 [
                     (input, _) =>
@@ -252,10 +267,10 @@ public sealed class ShiftEntryService(
                             token
                         ),
                 ],
-                additionalGuards: input =>
+                additionalGuards: _ =>
                 {
-                    entity.Event!.EventSeriesId = shiftSeries?.EventSeriesId;
-                    entity.ShiftSeriesId = input.ShiftSeriesId;
+                    if (!isPublished)
+                        entity.Event!.EventSeriesId = shiftSeries?.EventSeriesId;
                 },
                 cancellationToken: cancellationToken
             );
@@ -264,14 +279,45 @@ public sealed class ShiftEntryService(
             entity = updated;
 
             await db.SaveChangesAsync(cancellationToken);
+            if (isPublished)
+                await shiftConflictService.EnsureShiftsDoNotConflictAsync([entity], [entity.Id], cancellationToken);
+
             if (request.AssignmentEntryLinks is not null)
+            {
                 await shiftAssignmentService.ReplaceShiftEntryLinksAsync(
                     entity.Id,
                     request.AssignmentEntryLinks,
-                    cancellationToken
+                    cancellationToken,
+                    preserveInactiveLinks: isPublished
                 );
+                if (isPublished)
+                {
+                    try
+                    {
+                        await AssignmentUniquenessValidator.EnsureAssignmentsAreUniqueAsync(
+                            db,
+                            timeZoneService,
+                            request.AssignmentEntryLinks.Select(link => link.AssignmentEntryId).ToList(),
+                            cancellationToken
+                        );
+                    }
+                    catch (InformationValidationException)
+                    {
+                        throw new InformationValidationException(
+                            "An assignment of this type already exists for a selected employee on the assignment date."
+                        );
+                    }
+                }
+            }
 
-            await InvalidateOverridesAsync([entity.EventId], conflictOverrideActorId, cancellationToken);
+            IReadOnlyCollection<int> linkedAssignmentEventIds = isPublished
+                ? await LoadLinkedAssignmentEventIdsAsync([entity.Id], cancellationToken)
+                : [];
+            await InvalidateOverridesAsync(
+                [entity.EventId, .. linkedAssignmentEventIds],
+                conflictOverrideActorId,
+                cancellationToken
+            );
             var conflictCandidates = await SchedulingConflictParticipantProvider.GetParticipantsForShiftEntriesAsync(
                 db,
                 loanOutAvailabilityService,

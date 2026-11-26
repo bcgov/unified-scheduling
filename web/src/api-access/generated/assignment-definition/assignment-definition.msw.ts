@@ -7,9 +7,9 @@
 import { faker } from '@faker-js/faker';
 
 import { HttpResponse, http } from 'msw';
-import type { RequestHandlerOptions } from 'msw';
+import type { HttpResponseResolver, PathParams, RequestHandlerOptions } from 'msw';
 
-import type { AssignmentDefinitionResponse } from '../models';
+import type { AssignmentDefinitionRequest, AssignmentDefinitionResponse } from '../models';
 
 export const getGetApiSchedulingAssignmentDefinitionsResponseMock = (): AssignmentDefinitionResponse[] =>
   faker.helpers.arrayElement([
@@ -238,13 +238,13 @@ export const getGetApiSchedulingAssignmentDefinitionsMockHandler = (
   overrideResponse?:
     | AssignmentDefinitionResponse[]
     | ((
-        info: Parameters<Parameters<typeof http.get>[1]>[0],
+        info: Parameters<HttpResponseResolver>[0],
       ) => Promise<AssignmentDefinitionResponse[]> | AssignmentDefinitionResponse[]),
   options?: RequestHandlerOptions,
 ) => {
   return http.get(
     '*/api/scheduling/assignment-definitions',
-    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -262,13 +262,13 @@ export const getPostApiSchedulingAssignmentDefinitionsMockHandler = (
   overrideResponse?:
     | AssignmentDefinitionResponse
     | ((
-        info: Parameters<Parameters<typeof http.post>[1]>[0],
+        info: Parameters<HttpResponseResolver<PathParams, AssignmentDefinitionRequest>>[0],
       ) => Promise<AssignmentDefinitionResponse> | AssignmentDefinitionResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.post(
+  return http.post<PathParams, AssignmentDefinitionRequest>(
     '*/api/scheduling/assignment-definitions',
-    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<PathParams, AssignmentDefinitionRequest>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -286,13 +286,13 @@ export const getGetApiSchedulingAssignmentDefinitionsIdMockHandler = (
   overrideResponse?:
     | AssignmentDefinitionResponse
     | ((
-        info: Parameters<Parameters<typeof http.get>[1]>[0],
+        info: Parameters<HttpResponseResolver<{ id: string }>>[0],
       ) => Promise<AssignmentDefinitionResponse> | AssignmentDefinitionResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.get(
+  return http.get<{ id: string }>(
     '*/api/scheduling/assignment-definitions/:id',
-    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ id: string }>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -310,13 +310,13 @@ export const getPutApiSchedulingAssignmentDefinitionsIdMockHandler = (
   overrideResponse?:
     | AssignmentDefinitionResponse
     | ((
-        info: Parameters<Parameters<typeof http.put>[1]>[0],
+        info: Parameters<HttpResponseResolver<{ id: string }, AssignmentDefinitionRequest>>[0],
       ) => Promise<AssignmentDefinitionResponse> | AssignmentDefinitionResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.put(
+  return http.put<{ id: string }, AssignmentDefinitionRequest>(
     '*/api/scheduling/assignment-definitions/:id',
-    async (info: Parameters<Parameters<typeof http.put>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ id: string }, AssignmentDefinitionRequest>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'

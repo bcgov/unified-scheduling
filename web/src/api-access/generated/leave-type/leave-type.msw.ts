@@ -7,9 +7,9 @@
 import { faker } from '@faker-js/faker';
 
 import { HttpResponse, http } from 'msw';
-import type { RequestHandlerOptions } from 'msw';
+import type { HttpResponseResolver, PathParams, RequestHandlerOptions } from 'msw';
 
-import type { LeaveTypeResponse } from '../models';
+import type { LeaveTypeRequest, LeaveTypeResponse } from '../models';
 
 export const getGetApiLeaveLeaveTypesResponseMock = (): LeaveTypeResponse[] =>
   faker.helpers.arrayElement([
@@ -141,12 +141,12 @@ export const getPutApiLeaveLeaveTypesIdResponseMock = (
 export const getGetApiLeaveLeaveTypesMockHandler = (
   overrideResponse?:
     | LeaveTypeResponse[]
-    | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<LeaveTypeResponse[]> | LeaveTypeResponse[]),
+    | ((info: Parameters<HttpResponseResolver>[0]) => Promise<LeaveTypeResponse[]> | LeaveTypeResponse[]),
   options?: RequestHandlerOptions,
 ) => {
   return http.get(
     '*/api/leave/leave-types',
-    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -163,12 +163,14 @@ export const getGetApiLeaveLeaveTypesMockHandler = (
 export const getPostApiLeaveLeaveTypesMockHandler = (
   overrideResponse?:
     | LeaveTypeResponse
-    | ((info: Parameters<Parameters<typeof http.post>[1]>[0]) => Promise<LeaveTypeResponse> | LeaveTypeResponse),
+    | ((
+        info: Parameters<HttpResponseResolver<PathParams, LeaveTypeRequest>>[0],
+      ) => Promise<LeaveTypeResponse> | LeaveTypeResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.post(
+  return http.post<PathParams, LeaveTypeRequest>(
     '*/api/leave/leave-types',
-    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<PathParams, LeaveTypeRequest>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -185,12 +187,12 @@ export const getPostApiLeaveLeaveTypesMockHandler = (
 export const getGetApiLeaveLeaveTypesIdMockHandler = (
   overrideResponse?:
     | LeaveTypeResponse
-    | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<LeaveTypeResponse> | LeaveTypeResponse),
+    | ((info: Parameters<HttpResponseResolver<{ id: string }>>[0]) => Promise<LeaveTypeResponse> | LeaveTypeResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.get(
+  return http.get<{ id: string }>(
     '*/api/leave/leave-types/:id',
-    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ id: string }>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -207,12 +209,14 @@ export const getGetApiLeaveLeaveTypesIdMockHandler = (
 export const getPutApiLeaveLeaveTypesIdMockHandler = (
   overrideResponse?:
     | LeaveTypeResponse
-    | ((info: Parameters<Parameters<typeof http.put>[1]>[0]) => Promise<LeaveTypeResponse> | LeaveTypeResponse),
+    | ((
+        info: Parameters<HttpResponseResolver<{ id: string }, LeaveTypeRequest>>[0],
+      ) => Promise<LeaveTypeResponse> | LeaveTypeResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.put(
+  return http.put<{ id: string }, LeaveTypeRequest>(
     '*/api/leave/leave-types/:id',
-    async (info: Parameters<Parameters<typeof http.put>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ id: string }, LeaveTypeRequest>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -227,12 +231,12 @@ export const getPutApiLeaveLeaveTypesIdMockHandler = (
 };
 
 export const getDeleteApiLeaveLeaveTypesIdMockHandler = (
-  overrideResponse?: void | ((info: Parameters<Parameters<typeof http.delete>[1]>[0]) => Promise<void> | void),
+  overrideResponse?: void | ((info: Parameters<HttpResponseResolver<{ id: string }>>[0]) => Promise<void> | void),
   options?: RequestHandlerOptions,
 ) => {
-  return http.delete(
+  return http.delete<{ id: string }>(
     '*/api/leave/leave-types/:id',
-    async (info: Parameters<Parameters<typeof http.delete>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ id: string }>>[0]) => {
       if (typeof overrideResponse === 'function') {
         await overrideResponse(info);
       }

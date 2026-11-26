@@ -378,41 +378,55 @@ describe('CalendarSchedulingView', () => {
     expect(calendarStore.refreshNonce).toBe(1);
   });
 
-  it('opens the assignment edit modal from a conflict event edit action', async () => {
-    const event = createEvent();
-    const conflict = createConflict(101, 102, 'Second assignment', 'user-1');
-    const conflictModel = createModel(event, [conflict]);
-    const app = await createTestApp({ loadConfig: false });
-    const wrapper = mount(CalendarSchedulingView, {
-      props: { model: conflictModel },
-      global: {
-        plugins: app.mountPlugins,
-        stubs: {
-          CalendarMatrixView: createMatrixViewStub(),
-          CalendarMatrixEventBlock: createEventBlockStub(),
-          CalendarSchedulingAssignmentModal: true,
-          CalendarSchedulingShiftDetailModal: true,
-          CalendarSchedulingAddResourceModal: true,
-          CalendarConflictDetailModal: createConflictDetailStub(),
-          VIcon: true,
+  it.each([
+    ['Draft', Permissions.AssignmentsEdit, true],
+    ['Active', Permissions.AssignmentsEdit, true],
+    ['Active', Permissions.SchedulePublish, false],
+    ['Cancelled', Permissions.AssignmentsEdit, false],
+  ] as const)(
+    'checks edit eligibility for a %s assignment with %s from a conflict',
+    async (statusTypeCode, permission, canEdit) => {
+      const event = { ...createEvent(), statusTypeCode };
+      const conflict = createConflict(101, 102, 'Second assignment', 'user-1');
+      const conflictModel = createModel(event, [conflict]);
+      const permissions = [permission];
+      const app = await createTestApp({ loadConfig: false, permissions });
+      const wrapper = mount(CalendarSchedulingView, {
+        props: { model: conflictModel, runtimeContext: { featureFlags: {}, permissions } },
+        global: {
+          plugins: app.mountPlugins,
+          stubs: {
+            CalendarMatrixView: createMatrixViewStub(),
+            CalendarMatrixEventBlock: createEventBlockStub(),
+            CalendarSchedulingAssignmentModal: true,
+            CalendarSchedulingShiftDetailModal: true,
+            CalendarSchedulingAddResourceModal: true,
+            CalendarConflictDetailModal: createConflictDetailStub(),
+            VIcon: true,
+          },
         },
-      },
-    });
+      });
 
-    await wrapper.findAll('[data-test="event-conflict-trigger"]')[1]!.trigger('click');
-    await wrapper.get('.calendar-scheduling-conflict-overlay__resolve').trigger('click');
-    wrapper.getComponent({ name: 'CalendarConflictDetailModalStub' }).vm.$emit('editEvent', conflict.entry);
-    await wrapper.vm.$nextTick();
+      await wrapper.findAll('[data-test="event-conflict-trigger"]')[1]!.trigger('click');
+      await wrapper.get('.calendar-scheduling-conflict-overlay__resolve').trigger('click');
+      wrapper.getComponent({ name: 'CalendarConflictDetailModalStub' }).vm.$emit('editEvent', conflict.entry);
+      await wrapper.vm.$nextTick();
 
-    expect(wrapper.findComponent(CalendarSchedulingAssignmentModal).props()).toMatchObject({
-      mode: 'edit',
-      editScope: 'event',
-      initialDate: '2025-01-13',
-      assignmentEntryId: 201,
-    });
-    expect(wrapper.findComponent(CalendarSchedulingShiftDetailModal).exists()).toBe(false);
-    expect(wrapper.findComponent({ name: 'CalendarConflictDetailModalStub' }).exists()).toBe(false);
-  });
+      if (!canEdit) {
+        expect(wrapper.findComponent(CalendarSchedulingAssignmentModal).exists()).toBe(false);
+        expect(wrapper.findComponent({ name: 'CalendarConflictDetailModalStub' }).exists()).toBe(true);
+        return;
+      }
+      expect(wrapper.findComponent(CalendarSchedulingAssignmentModal).props()).toMatchObject({
+        mode: 'edit',
+        editScope: 'event',
+        initialDate: '2025-01-13',
+        assignmentEntryId: 201,
+      });
+      expect(wrapper.findComponent(CalendarSchedulingShiftDetailModal).exists()).toBe(false);
+      expect(wrapper.findComponent({ name: 'CalendarConflictDetailModalStub' }).exists()).toBe(false);
+    },
+  );
 
   it.each([false, true])(
     'opens a header conflict with its current participant (training: %s)',

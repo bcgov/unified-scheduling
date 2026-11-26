@@ -29,14 +29,26 @@ internal static class AssignmentUniquenessValidator
     {
         if (assignmentEntryIds.Count == 0)
             return;
-        var candidates = await db
+        // Use the same allocation graph for both key sets. Cancelled shifts retain their links for history.
+        var assignments = db
             .AssignmentEntries.AsNoTracking()
             .Include(entry => entry.Event)
-            .Include(entry => entry.ShiftAssignmentEntries)
+            .Include(entry =>
+                entry.ShiftAssignmentEntries.Where(link =>
+                    link.ShiftEntry!.Event!.StatusTypeCode != CalendarEventStatusTypeCodes.Cancelled
+                )
+            )
                 .ThenInclude(link => link.Users)
+            .Where(entry =>
+                entry.Event != null && entry.Event.StatusTypeCode != CalendarEventStatusTypeCodes.Cancelled
+            );
+        var candidates = await assignments
             .Where(entry => assignmentEntryIds.Contains(entry.Id))
-            .Where(entry => entry.Event != null && entry.Event.StatusTypeCode != CalendarEventStatusTypeCodes.Cancelled)
-            .Where(entry => entry.ShiftAssignmentEntries.Any(link => link.Users.Any()))
+            .Where(entry =>
+                entry.ShiftAssignmentEntries.Any(link =>
+                    link.ShiftEntry!.Event!.StatusTypeCode != CalendarEventStatusTypeCodes.Cancelled && link.Users.Any()
+                )
+            )
             .ToListAsync(cancellationToken);
         if (candidates.Count == 0)
             return;
@@ -93,21 +105,19 @@ internal static class AssignmentUniquenessValidator
         var earliest = ranges.Min(range => range.StartAtUtc);
         var latest = ranges.Max(range => range.EndAtUtc);
         var userIds = keys.Select(key => key.UserId).Distinct().ToList();
-        var existing = await db
-            .AssignmentEntries.AsNoTracking()
-            .Include(entry => entry.Event)
-            .Include(entry => entry.ShiftAssignmentEntries)
-                .ThenInclude(link => link.Users)
+        var existing = await assignments
             .Where(entry => !assignmentEntryIds.Contains(entry.Id))
             .Where(entry => definitionIds.Contains(entry.AssignmentDefinitionId))
             .Where(entry =>
-                entry.ShiftAssignmentEntries.Any(link => link.Users.Any(user => userIds.Contains(user.UserId)))
+                entry.ShiftAssignmentEntries.Any(link =>
+                    link.ShiftEntry!.Event!.StatusTypeCode != CalendarEventStatusTypeCodes.Cancelled
+                    && link.Users.Any(user => userIds.Contains(user.UserId))
+                )
             )
             .Where(entry =>
                 entry.Event != null
                 && entry.Event.LocationId.HasValue
                 && locationIds.Contains(entry.Event.LocationId.Value)
-                && entry.Event.StatusTypeCode != CalendarEventStatusTypeCodes.Cancelled
                 && entry.Event.StartAtUtc >= earliest
                 && entry.Event.StartAtUtc < latest
             )

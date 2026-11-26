@@ -45,19 +45,25 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
-async function setup(scope: 'entry' | 'series' = 'entry') {
+async function setup(scope: 'entry' | 'series' = 'entry', statusTypeCode = 'Draft', canPublish = true) {
   const path = `/api/scheduling/shifts/${scope === 'entry' ? 'entries/41' : 'series/42'}`;
   const saveStarted = deferred<void>();
   const saveResponse = deferred<Response>();
+  const update = vi.fn<(_body: unknown) => void>();
   const publish = vi.fn((_request: Request) => HttpResponse.json({ ...resource(), statusTypeCode: 'Published' }));
   server.use(
     http.get('*/api/*', ({ request }) => {
       const pathname = new URL(request.url).pathname;
       return HttpResponse.json(
-        pathname === path ? resource() : pathname.endsWith('/entries/43') ? resource(43, 11) : [],
+        pathname === path
+          ? { ...resource(), statusTypeCode }
+          : pathname.endsWith('/entries/43')
+            ? resource(43, 11)
+            : [],
       );
     }),
-    http.put(`*${path}`, async () => {
+    http.put(`*${path}`, async ({ request }) => {
+      update(await request.json());
       saveStarted.resolve();
       return saveResponse.promise;
     }),
@@ -67,7 +73,7 @@ async function setup(scope: 'entry' | 'series' = 'entry') {
     loadConfig: false,
     permissions: [
       Permissions.ShiftsEdit,
-      Permissions.SchedulePublish,
+      ...(canPublish ? [Permissions.SchedulePublish] : []),
       Permissions.ShiftsDelete,
       Permissions.ShiftsExpire,
     ],
@@ -97,7 +103,7 @@ async function setup(scope: 'entry' | 'series' = 'entry') {
   await vm.selectOpenScope(scope === 'entry' ? 'event' : 'series');
   vm.selectTab('edit');
   await flushPromises();
-  return { wrapper, vm, path, refresh, saveStarted, saveResponse, publish };
+  return { wrapper, vm, path, refresh, saveStarted, saveResponse, publish, update };
 }
 
 afterEach(() => {
@@ -106,6 +112,42 @@ afterEach(() => {
 });
 
 describe('shift save response ownership', () => {
+  it.each([false, true])('saves a published occurrence with publication permission %s', async (canPublish) => {
+    const { wrapper, vm, publish, update, refresh, saveStarted, saveResponse } = await setup(
+      'entry',
+      'Active',
+      canPublish,
+    );
+    expect(vm.activeTab).toBe('edit');
+    expect(document.querySelector('[aria-label="Publish"]')).toBeNull();
+    vm.editFormData.publish = 'yes';
+    vm.editFormData.title = 'Corrected published shift';
+    const saving = vm.handleSaveEdit();
+    await saveStarted.promise;
+    saveResponse.resolve(HttpResponse.json({ ...resource(41, 8), statusTypeCode: 'Active' }));
+    await saving;
+
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({ title: 'Corrected published shift', concurrencyToken: 7 }),
+    );
+    expect(update.mock.calls[0]?.[0]).not.toHaveProperty('assignmentEntryLinks');
+    expect(publish).not.toHaveBeenCalled();
+    expect(refresh).toHaveBeenCalledTimes(1);
+    expect(wrapper.emitted('close')).toHaveLength(1);
+  });
+
+  it('keeps a published series read-only even with publish permission', async () => {
+    const { vm, update, publish } = await setup('series', 'Active');
+    expect(vm.activeTab).toBe('details');
+    expect(Array.from(document.querySelectorAll('[role="tab"]'), (tab) => tab.textContent)).toEqual([
+      'Details',
+      'Cancel',
+    ]);
+    await vm.handleSaveEdit();
+    expect(update).not.toHaveBeenCalled();
+    expect(publish).not.toHaveBeenCalled();
+  });
+
   it.each([
     ['entry', 'close'],
     ['series', 'close'],

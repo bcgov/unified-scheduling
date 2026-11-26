@@ -58,6 +58,7 @@ const canPublishShift = computed(() => accessControl.hasPermission(Permissions.S
 const hasShiftDeletePermission = computed(() => accessControl.hasPermission(Permissions.ShiftsDelete));
 const hasShiftExpirePermission = computed(() => accessControl.hasPermission(Permissions.ShiftsExpire));
 const canViewAssignments = computed(() => accessControl.hasPermission(Permissions.AssignmentsView));
+const canAssignAssignments = computed(() => accessControl.hasPermission(Permissions.AssignmentsAssign));
 
 const activeTab = ref<ShiftDetailTabId>('details');
 const selectedOpenScope = ref<ShiftOpenScope | null>(getInitialOpenScope());
@@ -122,8 +123,21 @@ const currentStatusTypeCode = computed(() =>
     : (selectedEntry.value?.statusTypeCode ?? props.event.statusTypeCode),
 );
 const shiftLifecycle = computed(() => getSchedulingLifecycleCapabilities(currentStatusTypeCode.value));
-const canEditShift = computed(() => shiftLifecycle.value.canEdit && hasShiftEditPermission.value);
 const isPublishedShift = computed(() => shiftLifecycle.value.canCancel);
+const canEditShift = computed(
+  () =>
+    hasShiftEditPermission.value &&
+    (isSeriesScope.value
+      ? selectedSeries.value !== null && shiftLifecycle.value.canEditSeries
+      : selectedOpenScope.value === 'event' &&
+        getSchedulingLifecycleCapabilities(selectedEntry.value?.statusTypeCode).canEditOccurrence),
+);
+const canPublishCurrentShift = computed(() => canPublishShift.value && shiftLifecycle.value.status === 'draft');
+const canEditAssignmentLinks = computed(
+  () =>
+    canViewAssignments.value &&
+    (!isPublishedShift.value || (canAssignAssignments.value && selectedEntry.value?.assignmentLinks != null)),
+);
 const tabs = computed<Array<{ id: ShiftDetailTabId; label: string }>>(() => [
   { id: 'details', label: 'Details' },
   ...(canEditShift.value ? [{ id: 'edit' as const, label: 'Edit' }] : []),
@@ -354,6 +368,7 @@ async function reloadLatest() {
     const loaded = selectedOpenScope.value === 'series' ? await loadSelectedSeries() : await loadSelectedEntry();
     if (!loaded) return;
     editFormData.value = createEditFormData();
+    if (activeTab.value === 'edit' && !canEditShift.value) activeTab.value = 'details';
     formErrors.value = {};
     recurrenceError.value = '';
     hasConcurrencyConflict.value = false;
@@ -383,11 +398,19 @@ function handleRecurrenceChange(value: string | null) {
   editFormData.value.recurrenceRule = value;
 }
 
-function validateForm(): ShiftResourceFormData | null {
+function validateForm(includeEntryLinks: boolean): ShiftResourceFormData | null {
   formErrors.value = {};
   editFormData.value = normalizeShiftFormTimes(editFormData.value);
 
-  const result = validateShiftFormData(editFormData.value, {
+  const data = !includeEntryLinks
+    ? {
+        ...editFormData.value,
+        assignmentEntryId: undefined,
+        assignmentEntryIds: undefined,
+        assignmentEntryLinks: undefined,
+      }
+    : editFormData.value;
+  const result = validateShiftFormData(data, {
     timeZoneId: activeTimeZoneId.value,
     recurrenceError: recurrenceError.value,
     requireCancel: true,
@@ -403,17 +426,34 @@ function validateForm(): ShiftResourceFormData | null {
 
 async function handleSaveEdit() {
   if (isSaving.value || hasConcurrencyConflict.value || isLoadingEntry.value || isLoadingSeries.value) return;
-  if (!hasShiftEditPermission.value) {
+  if (!canEditShift.value) {
     apiError.value = 'You do not have permission to edit shifts.';
     return;
   }
 
-  const validated = validateForm();
+  const original = createEditFormData();
+  const published = isPublishedShift.value;
+  const publishedLinksChanged =
+    published &&
+    !haveSameAssignmentLinks(
+      editFormData.value.assignmentEntryLinks,
+      original.assignmentEntryLinks,
+      'assignmentEntryId',
+    );
+  if (publishedLinksChanged && !canEditAssignmentLinks.value) {
+    apiError.value = 'You do not have permission to change assignment links, or the links could not be loaded.';
+    return;
+  }
+
+  const validated = validateForm(!published || publishedLinksChanged);
   if (!validated) {
     return;
   }
 
-  const payload = buildRequestPayload(validated);
+  const entryLinksChanged = published
+    ? publishedLinksChanged
+    : !haveSameAssignmentLinks(validated.assignmentEntryLinks, original.assignmentEntryLinks, 'assignmentEntryId');
+  const payload = buildRequestPayload(validated, original, entryLinksChanged);
   if (!payload) {
     return;
   }
@@ -424,23 +464,6 @@ async function handleSaveEdit() {
   apiError.value = '';
 
   try {
-    if (payload.cancel) {
-      const cancelled =
-        payload.kind === 'series'
-          ? await cancelShiftSeries(shiftId, payload.cancel, revision)
-          : await cancelShiftEntry(shiftId, payload.cancel, revision);
-      if (!cancelled) {
-        return;
-      }
-
-      if (isCurrentResource(revision)) {
-        refreshCalendarAndClose();
-      } else {
-        calendarStore.refresh();
-      }
-      return;
-    }
-
     const saved =
       payload.kind === 'series'
         ? await updateShiftSeries(payload.body, revision)
@@ -450,7 +473,7 @@ async function handleSaveEdit() {
     }
 
     // Publication belongs to the saved resource, even if its UI has changed or unmounted.
-    const published =
+    const publicationSucceeded =
       payload.kind === 'series'
         ? await publishShiftSeries(shiftId, payload.publish, revision)
         : await publishShiftEntry(shiftId, payload.publish, revision);
@@ -458,7 +481,7 @@ async function handleSaveEdit() {
       calendarStore.refresh();
       return;
     }
-    if (!published) {
+    if (!publicationSucceeded) {
       const publicationError = apiError.value;
       await reloadShiftAfterPublicationFailure(payload.kind);
       if (!isCurrentResource(revision)) return;
@@ -632,11 +655,17 @@ async function updateShiftEntry(body: ShiftEntryRequest, revision: number) {
   }
 
   if (result.error.value) {
-    if (applyServerValidationErrors(result.data.value)) {
+    const errorData = result.error.value.data;
+    if (applyServerValidationErrors(result.data.value) || applyServerValidationErrors(errorData)) {
       return null;
     }
 
-    apiError.value = result.error.value.message || 'Failed to update shift entry.';
+    apiError.value = resolveShiftSaveError(
+      result.data.value,
+      result.error.value,
+      'Failed to update shift entry.',
+      'The shift has unresolved conflicts. Resolve or override the conflicts, then try again.',
+    );
     return null;
   }
 
@@ -677,6 +706,15 @@ async function publishShiftEntry(id: number | null, shouldPublish: boolean, revi
 }
 
 function resolveShiftPublishError(data: unknown, error: unknown) {
+  return resolveShiftSaveError(
+    data,
+    error,
+    'Shift updated but failed to publish.',
+    'The shift could not be published because linked assignments have unresolved conflicts. Resolve or override the conflicts, then try again.',
+  );
+}
+
+function resolveShiftSaveError(data: unknown, error: unknown, fallback: string, conflictMessage: string) {
   const errorData = error && typeof error === 'object' ? (error as { data?: unknown }).data : undefined;
   if (
     [data, errorData].some(
@@ -706,10 +744,12 @@ function resolveShiftPublishError(data: unknown, error: unknown) {
   });
 
   if (hasConflicts) {
-    return 'The shift could not be published because linked assignments have unresolved conflicts. Resolve or override the conflicts, then try again.';
+    return conflictMessage;
   }
 
-  return error instanceof Error && error.message ? error.message : 'Shift updated but failed to publish.';
+  const detail = errorData && typeof errorData === 'object' && 'detail' in errorData ? errorData.detail : undefined;
+  const message = error && typeof error === 'object' && 'message' in error ? error.message : undefined;
+  return [detail, message].find((value): value is string => typeof value === 'string' && Boolean(value)) ?? fallback;
 }
 
 async function cancelShiftSeries(id: number | null, shouldCancel: boolean, revision = resourceRevision) {
@@ -744,22 +784,21 @@ async function cancelShiftEntry(id: number | null, shouldCancel: boolean, revisi
   return true;
 }
 
-function buildRequestPayload(validated: ShiftResourceFormData) {
-  const original = createEditFormData();
+function buildRequestPayload(
+  validated: ShiftResourceFormData,
+  original: ShiftResourceFormData,
+  includeAssignmentEntryLinks: boolean,
+) {
   const payload = buildUpdateShiftPayload({
     formData: validated,
     scope: selectedOpenScope.value === 'series' ? 'series' : 'entry',
     timeZoneId: activeTimeZoneId.value,
     locationId: validated.locationId ?? null,
     fallbackTitle: buildShiftTitle(props.event.title),
-    allowPublish: canPublishShift.value,
-    shiftSeriesId: resolveShiftSeriesId(),
+    allowPublish: canPublishCurrentShift.value,
+    shiftSeriesId: isPublishedShift.value ? (selectedEntry.value?.shiftSeriesId ?? null) : resolveShiftSeriesId(),
     existingRecurrenceRule: selectedSeries.value?.recurrenceRule ?? null,
-    includeAssignmentEntryLinks: !haveSameAssignmentLinks(
-      validated.assignmentEntryLinks,
-      original.assignmentEntryLinks,
-      'assignmentEntryId',
-    ),
+    includeAssignmentEntryLinks,
     includeAssignmentSeriesLinks: !haveSameAssignmentLinks(
       validated.assignmentSeriesLinks,
       original.assignmentSeriesLinks,
@@ -882,10 +921,11 @@ function getInitialOpenScope(): ShiftOpenScope | null {
         </button>
       </div>
 
+      <UaAlert v-if="isPublishedShift && !isSeriesScope && activeTab !== 'delete'" type="info">
+        This shift is published. Saved changes will be applied immediately to the published schedule.
+      </UaAlert>
+
       <section v-if="activeTab === 'details'" class="shift-detail-modal__panel" aria-label="Shift details panel">
-        <UaAlert v-if="isPublishedShift" type="info">
-          This shift has been published, and cannot be edited or deleted, only cancelled
-        </UaAlert>
         <dl class="shift-detail-modal__details">
           <template v-for="detail in detailRows" :key="detail.label">
             <dt>{{ detail.label }}</dt>
@@ -907,8 +947,8 @@ function getInitialOpenScope(): ShiftOpenScope | null {
           v-model="editFormData"
           id-prefix="edit-shift"
           :form-errors="formErrors"
-          :disabled="isSaving"
-          :can-publish="canPublishShift"
+          :disabled="isSaving || !canEditShift"
+          :can-publish="canPublishCurrentShift"
           :show-recurrence="isSeriesScope"
           :disable-repeat-mode="isSeriesScope"
           :location-options="locationOptions"
@@ -919,7 +959,7 @@ function getInitialOpenScope(): ShiftOpenScope | null {
           :assignment-warning="assignmentWarning"
           :is-loading-assignments="isLoadingAssignments"
           :show-series-assignment="isSeriesScope"
-          :show-assignment-links="canViewAssignments"
+          :show-assignment-links="canEditAssignmentLinks"
           @recurrence-change="handleRecurrenceChange"
           @recurrence-invalid="handleRecurrenceInvalid"
         />
@@ -956,7 +996,9 @@ function getInitialOpenScope(): ShiftOpenScope | null {
           color="primary"
           variant="flat"
           :loading="isSaving"
-          :disabled="hasConcurrencyConflict || concurrencyToken === null || isLoadingEntry || isLoadingSeries"
+          :disabled="
+            !canEditShift || hasConcurrencyConflict || concurrencyToken === null || isLoadingEntry || isLoadingSeries
+          "
           @click="handleSaveEdit"
           >Save</UaBtn
         >
