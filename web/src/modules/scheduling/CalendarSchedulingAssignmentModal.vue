@@ -1978,7 +1978,7 @@ function getInitialOpenScope(): AssignmentOpenScope | null {
       :detail-rows="assignmentDetailRows"
       :is-loading="isLoadingAssignment"
       :audit="modalMode === 'view' && assignmentLoadState === 'loaded' ? loadedAssignmentAudit : null"
-      :time-zone="timeZoneId"
+      :time-zone="resolveSchedulingTimeZoneId(loadedAssignmentAudit?.timeZoneId, timeZoneId)"
     />
 
     <UaFormGrid v-else-if="!isDeleteTab" label-width="150px">
