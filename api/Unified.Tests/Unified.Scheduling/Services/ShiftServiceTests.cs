@@ -1,3 +1,4 @@
+using System.Text.Json;
 using FluentValidation;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
@@ -22,6 +23,7 @@ using Unified.Db.Models.Lookup;
 using Unified.Db.Models.Scheduling;
 using Unified.Db.Models.Stats;
 using Unified.Db.Models.UserManagement;
+using Unified.Infrastructure.ErrorHandling;
 using Unified.Leave.Conflicts;
 using Unified.Leave.FeatureFlags;
 using Unified.LoanOut.Constants;
@@ -2115,11 +2117,16 @@ public class ShiftServiceTests : IAsyncLifetime
     }
 
     [Theory]
-    [InlineData(CalendarEventStatusTypeCodes.Active)]
     [InlineData(CalendarEventStatusTypeCodes.Cancelled)]
-    public async Task UpdateShiftEntryAsync_WhenEntryIsNotDraft_ThrowsAndDoesNotMutate(string statusTypeCode)
+    [InlineData("unsupported")]
+    public async Task UpdateShiftEntryAsync_WhenStatusIsUnsupported_ThrowsAndDoesNotMutate(string statusTypeCode)
     {
         // Arrange
+        if (statusTypeCode == "unsupported")
+        {
+            _dbContext.Add(CreateStatusType(statusTypeCode));
+            await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
         var entry = await AddShiftEntryAsync(title: "Original", userIds: [UserA], statusTypeCode: statusTypeCode);
 
         // Act / Assert
@@ -2137,6 +2144,166 @@ public class ShiftServiceTests : IAsyncLifetime
             .SingleAsync(shiftEntry => shiftEntry.Id == entry.Id, TestContext.Current.CancellationToken);
         Assert.Equal("Original", unchanged.Event!.Title);
         Assert.Equal([UserA], unchanged.Users.Select(user => user.UserId).ToArray());
+    }
+
+    [Fact]
+    public async Task UpdateShiftEntryAsync_WhenPublishedAfterLoadingDraft_RequiresAssignmentPermissionForReplacement()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var request = CreateShiftEntryRequest();
+        var draft = await _service.CreateShiftEntryAsync(request, ct);
+        var published = (await _service.PublishShiftEntryAsync(draft.Id, ct))!;
+        _dbContext.ChangeTracker.Clear();
+
+        await Assert.ThrowsAsync<ForbiddenException>(() =>
+            _service.UpdateShiftEntryAsync(
+                draft.Id,
+                request with
+                {
+                    AssignmentEntryLinks = [],
+                    ConcurrencyToken = published.ConcurrencyToken,
+                },
+                ct
+            )
+        );
+
+        var updated = await _service.UpdateShiftEntryAsync(
+            draft.Id,
+            request with
+            {
+                Title = "Corrected shift",
+                ConcurrencyToken = published.ConcurrencyToken,
+            },
+            ct
+        );
+        Assert.Equal("Corrected shift", updated!.Title);
+        Assert.Equal(CalendarEventStatusTypeCodes.Active, updated.StatusTypeCode);
+    }
+
+    [Fact]
+    public async Task UpdateShiftEntryAsync_WhenPublishedAndVersionIsStale_PreservesPublishedShift()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var request = CreateShiftEntryRequest();
+        var draft = await _service.CreateShiftEntryAsync(request, ct);
+        var published = (await _service.PublishShiftEntryAsync(draft.Id, ct))!;
+        _dbContext.ChangeTracker.Clear();
+
+        await Assert.ThrowsAsync<DbUpdateConcurrencyException>(() =>
+            _service.UpdateShiftEntryAsync(
+                published.Id,
+                request with
+                {
+                    Title = "Stale edit",
+                    ConcurrencyToken = published.ConcurrencyToken + 1u,
+                },
+                ct
+            )
+        );
+
+        var stored = (await _service.GetShiftEntryByIdAsync(published.Id, ct))!;
+        Assert.Equal(published.Title, stored.Title);
+        Assert.Equal(CalendarEventStatusTypeCodes.Active, stored.StatusTypeCode);
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    [InlineData(true, null)]
+    public async Task UpdateShiftEntryAsync_WhenPublished_PreservesIdentityAndSeries(bool recurring, bool? omitSeriesId)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        ShiftSeriesResponse? series = recurring
+            ? await _service.CreateShiftSeriesAsync(CreateShiftSeriesRequest(recurrenceRule: "FREQ=DAILY;COUNT=2"), ct)
+            : null;
+        ShiftEntryResponse[] entries = series is null
+            ? [await _service.CreateShiftEntryAsync(CreateShiftEntryRequest(), ct)]
+            : (await _service.GetShiftEntriesAsync(new ShiftEntryQueryParams { ShiftSeriesId = series.Id }, ct))
+                .OrderBy(entry => entry.StartAtUtc)
+                .ToArray();
+        var published = (await _service.PublishShiftEntryAsync(entries[0].Id, ct))!;
+        var request = CreateShiftEntryRequest(
+            title: "Corrected shift",
+            userIds: [UserB],
+            startAtUtc: published.StartAtUtc.AddHours(1),
+            endAtUtc: published.EndAtUtc!.Value.AddHours(1)
+        ) with
+        {
+            ConcurrencyToken = published.ConcurrencyToken,
+        };
+
+        // Both an omitted JSON field and explicit null must bind to a request that preserves the persisted series.
+        var body = JsonSerializer.SerializeToNode(request)!.AsObject();
+        if (omitSeriesId == true)
+            body.Remove(nameof(ShiftEntryUpdateRequest.ShiftSeriesId));
+        else if (omitSeriesId is null)
+            body[nameof(ShiftEntryUpdateRequest.ShiftSeriesId)] = JsonSerializer.SerializeToNode(
+                published.ShiftSeriesId
+            );
+        var updated = await _service.UpdateShiftEntryAsync(
+            published.Id,
+            body.Deserialize<ShiftEntryUpdateRequest>()!,
+            ct
+        );
+
+        Assert.NotNull(updated);
+        Assert.Equal(published.Id, updated.Id);
+        Assert.Equal(published.EventId, updated.EventId);
+        Assert.Equal(published.ShiftSeriesId, updated.ShiftSeriesId);
+        Assert.Equal(published.EventSeriesId, updated.EventSeriesId);
+        Assert.Equal(published.SeriesStartAtUtc, updated.SeriesStartAtUtc);
+        Assert.Equal(CalendarEventStatusTypeCodes.Active, updated.StatusTypeCode);
+        Assert.Equal(request.StartAtUtc, updated.StartAtUtc);
+        Assert.Equal([UserB], updated.UserIds);
+        _dbContext.ChangeTracker.Clear();
+        var stored = await _dbContext
+            .ShiftEntries.Include(entry => entry.Event)
+            .SingleAsync(entry => entry.Id == published.Id, ct);
+        Assert.Equal(published.ShiftSeriesId, stored.ShiftSeriesId);
+        Assert.Equal(published.EventSeriesId, stored.Event!.EventSeriesId);
+        if (series is not null)
+        {
+            Assert.True(updated.IsException);
+            var sibling = (await _service.GetShiftEntryByIdAsync(entries[1].Id, ct))!;
+            Assert.Equal(entries[1].StartAtUtc, sibling.StartAtUtc);
+            Assert.Equal(entries[1].Title, sibling.Title);
+            Assert.Equal(CalendarEventStatusTypeCodes.Draft, sibling.StatusTypeCode);
+            var parent = (await _service.GetShiftSeriesByIdAsync(series.Id, ct))!;
+            Assert.Equal(series.Title, parent.Title);
+            Assert.Equal(CalendarEventStatusTypeCodes.Draft, parent.StatusTypeCode);
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task UpdateShiftEntryAsync_WhenPublishedAndDifferentSeriesRequested_RejectsMove(bool recurring)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var series = recurring ? await _service.CreateShiftSeriesAsync(CreateShiftSeriesRequest(), ct) : null;
+        var entry = series is null
+            ? await _service.CreateShiftEntryAsync(CreateShiftEntryRequest(), ct)
+            : (
+                await _service.GetShiftEntriesAsync(new ShiftEntryQueryParams { ShiftSeriesId = series.Id }, ct)
+            ).Single();
+        var published = (await _service.PublishShiftEntryAsync(entry.Id, ct))!;
+        var other = await _service.CreateShiftSeriesAsync(CreateShiftSeriesRequest(title: "Other series"), ct);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            _service.UpdateShiftEntryAsync(
+                entry.Id,
+                CreateShiftEntryRequest(shiftSeriesId: other.Id) with
+                {
+                    ConcurrencyToken = published.ConcurrencyToken,
+                },
+                ct
+            )
+        );
+        var stored = (await _service.GetShiftEntryByIdAsync(entry.Id, ct))!;
+        Assert.Equal(published.ShiftSeriesId, stored.ShiftSeriesId);
+        Assert.Equal(published.EventSeriesId, stored.EventSeriesId);
     }
 
     [Fact]

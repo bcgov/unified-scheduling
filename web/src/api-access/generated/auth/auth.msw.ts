@@ -7,7 +7,7 @@
 import { faker } from '@faker-js/faker';
 
 import { HttpResponse, http } from 'msw';
-import type { RequestHandlerOptions } from 'msw';
+import type { HttpResponseResolver, RequestHandlerOptions } from 'msw';
 
 import { Permissions } from '../models';
 import type { UserInfo } from '../models';
@@ -59,12 +59,12 @@ export const getGetApiAuthUserResponseMock = (overrideResponse: Partial<Extract<
   ]);
 
 export const getGetApiAuthLoginMockHandler = (
-  overrideResponse?: void | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<void> | void),
+  overrideResponse?: void | ((info: Parameters<HttpResponseResolver>[0]) => Promise<void> | void),
   options?: RequestHandlerOptions,
 ) => {
   return http.get(
     '*/api/auth/login',
-    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver>[0]) => {
       if (typeof overrideResponse === 'function') {
         await overrideResponse(info);
       }
@@ -76,12 +76,12 @@ export const getGetApiAuthLoginMockHandler = (
 };
 
 export const getGetApiAuthLogoutMockHandler = (
-  overrideResponse?: void | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<void> | void),
+  overrideResponse?: void | ((info: Parameters<HttpResponseResolver>[0]) => Promise<void> | void),
   options?: RequestHandlerOptions,
 ) => {
   return http.get(
     '*/api/auth/logout',
-    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver>[0]) => {
       if (typeof overrideResponse === 'function') {
         await overrideResponse(info);
       }
@@ -93,12 +93,12 @@ export const getGetApiAuthLogoutMockHandler = (
 };
 
 export const getGetApiAuthUserMockHandler = (
-  overrideResponse?: UserInfo | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<UserInfo> | UserInfo),
+  overrideResponse?: UserInfo | ((info: Parameters<HttpResponseResolver>[0]) => Promise<UserInfo> | UserInfo),
   options?: RequestHandlerOptions,
 ) => {
   return http.get(
     '*/api/auth/user',
-    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'

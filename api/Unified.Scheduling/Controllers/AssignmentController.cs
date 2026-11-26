@@ -2,6 +2,7 @@ using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Unified.Authorization;
 using Unified.Authorization.Claims;
 using Unified.Calendar.Conflicts;
 using Unified.Calendar.Models;
@@ -174,7 +175,8 @@ public sealed class AssignmentController(
             id,
             request,
             cancellationToken,
-            conflictOverrideActorId
+            conflictOverrideActorId,
+            canAssign: User.HasClaim(UnifiedClaimTypes.Permission, nameof(Permissions.AssignmentsAssign))
         );
         return result is null ? NotFound() : Ok(result);
     }

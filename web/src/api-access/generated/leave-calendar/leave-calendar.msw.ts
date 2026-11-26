@@ -7,10 +7,10 @@
 import { faker } from '@faker-js/faker';
 
 import { HttpResponse, http } from 'msw';
-import type { RequestHandlerOptions } from 'msw';
+import type { HttpResponseResolver, PathParams, RequestHandlerOptions } from 'msw';
 
 import { CalendarEventExceptionReasonCode } from '../models';
-import type { LeaveCalendarEvent } from '../models';
+import type { CalendarEventQueryContext, LeaveCalendarEvent } from '../models';
 
 export const getPostApiLeaveCalendarEventsResponseMock = (): LeaveCalendarEvent[] =>
   faker.helpers.arrayElement([
@@ -127,12 +127,14 @@ export const getPostApiLeaveCalendarEventsResponseMock = (): LeaveCalendarEvent[
 export const getPostApiLeaveCalendarEventsMockHandler = (
   overrideResponse?:
     | LeaveCalendarEvent[]
-    | ((info: Parameters<Parameters<typeof http.post>[1]>[0]) => Promise<LeaveCalendarEvent[]> | LeaveCalendarEvent[]),
+    | ((
+        info: Parameters<HttpResponseResolver<PathParams, CalendarEventQueryContext>>[0],
+      ) => Promise<LeaveCalendarEvent[]> | LeaveCalendarEvent[]),
   options?: RequestHandlerOptions,
 ) => {
-  return http.post(
+  return http.post<PathParams, CalendarEventQueryContext>(
     '*/api/leave/calendar/events',
-    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<PathParams, CalendarEventQueryContext>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'

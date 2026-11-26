@@ -7,9 +7,9 @@
 import { faker } from '@faker-js/faker';
 
 import { HttpResponse, http } from 'msw';
-import type { RequestHandlerOptions } from 'msw';
+import type { HttpResponseResolver, PathParams, RequestHandlerOptions } from 'msw';
 
-import type { UserTrainingExpiryDateResponse, UserTrainingResponse } from '../models';
+import type { UserTrainingExpiryDateResponse, UserTrainingRequest, UserTrainingResponse } from '../models';
 
 export const getGetApiTrainingsUsersUserIdResponseMock = (): UserTrainingResponse[] =>
   faker.helpers.arrayElement([
@@ -256,13 +256,13 @@ export const getGetApiTrainingsUsersUserIdMockHandler = (
   overrideResponse?:
     | UserTrainingResponse[]
     | ((
-        info: Parameters<Parameters<typeof http.get>[1]>[0],
+        info: Parameters<HttpResponseResolver<{ userId: string }>>[0],
       ) => Promise<UserTrainingResponse[]> | UserTrainingResponse[]),
   options?: RequestHandlerOptions,
 ) => {
-  return http.get(
+  return http.get<{ userId: string }>(
     '*/api/trainings/users/:userId',
-    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ userId: string }>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -279,12 +279,14 @@ export const getGetApiTrainingsUsersUserIdMockHandler = (
 export const getGetApiTrainingsTrainingIdUsersUserIdMockHandler = (
   overrideResponse?:
     | UserTrainingResponse
-    | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<UserTrainingResponse> | UserTrainingResponse),
+    | ((
+        info: Parameters<HttpResponseResolver<{ trainingId: string; userId: string }>>[0],
+      ) => Promise<UserTrainingResponse> | UserTrainingResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.get(
+  return http.get<{ trainingId: string; userId: string }>(
     '*/api/trainings/:trainingId/users/:userId',
-    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ trainingId: string; userId: string }>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -302,13 +304,13 @@ export const getGetApiTrainingUserTrainingsExpiryDateMockHandler = (
   overrideResponse?:
     | UserTrainingExpiryDateResponse
     | ((
-        info: Parameters<Parameters<typeof http.get>[1]>[0],
+        info: Parameters<HttpResponseResolver>[0],
       ) => Promise<UserTrainingExpiryDateResponse> | UserTrainingExpiryDateResponse),
   options?: RequestHandlerOptions,
 ) => {
   return http.get(
     '*/api/training/user-trainings/expiry-date',
-    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -325,12 +327,14 @@ export const getGetApiTrainingUserTrainingsExpiryDateMockHandler = (
 export const getPostApiTrainingUserTrainingsMockHandler = (
   overrideResponse?:
     | UserTrainingResponse
-    | ((info: Parameters<Parameters<typeof http.post>[1]>[0]) => Promise<UserTrainingResponse> | UserTrainingResponse),
+    | ((
+        info: Parameters<HttpResponseResolver<PathParams, UserTrainingRequest>>[0],
+      ) => Promise<UserTrainingResponse> | UserTrainingResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.post(
+  return http.post<PathParams, UserTrainingRequest>(
     '*/api/training/user-trainings',
-    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<PathParams, UserTrainingRequest>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -347,12 +351,14 @@ export const getPostApiTrainingUserTrainingsMockHandler = (
 export const getPutApiTrainingUserTrainingsIdMockHandler = (
   overrideResponse?:
     | UserTrainingResponse
-    | ((info: Parameters<Parameters<typeof http.put>[1]>[0]) => Promise<UserTrainingResponse> | UserTrainingResponse),
+    | ((
+        info: Parameters<HttpResponseResolver<{ id: string }, UserTrainingRequest>>[0],
+      ) => Promise<UserTrainingResponse> | UserTrainingResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.put(
+  return http.put<{ id: string }, UserTrainingRequest>(
     '*/api/training/user-trainings/:id',
-    async (info: Parameters<Parameters<typeof http.put>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ id: string }, UserTrainingRequest>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -367,12 +373,12 @@ export const getPutApiTrainingUserTrainingsIdMockHandler = (
 };
 
 export const getDeleteApiTrainingUserTrainingsIdMockHandler = (
-  overrideResponse?: void | ((info: Parameters<Parameters<typeof http.delete>[1]>[0]) => Promise<void> | void),
+  overrideResponse?: void | ((info: Parameters<HttpResponseResolver<{ id: string }>>[0]) => Promise<void> | void),
   options?: RequestHandlerOptions,
 ) => {
-  return http.delete(
+  return http.delete<{ id: string }>(
     '*/api/training/user-trainings/:id',
-    async (info: Parameters<Parameters<typeof http.delete>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ id: string }>>[0]) => {
       if (typeof overrideResponse === 'function') {
         await overrideResponse(info);
       }

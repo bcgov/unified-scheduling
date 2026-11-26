@@ -7,7 +7,7 @@
 import { faker } from '@faker-js/faker';
 
 import { HttpResponse, http } from 'msw';
-import type { RequestHandlerOptions } from 'msw';
+import type { HttpResponseResolver, RequestHandlerOptions } from 'msw';
 
 import type { LookupCodeResponse } from '../models';
 
@@ -39,12 +39,14 @@ export const getGetApiLookupCodeTypeResponseMock = (): LookupCodeResponse[] =>
 export const getGetApiLookupCodeTypeMockHandler = (
   overrideResponse?:
     | LookupCodeResponse[]
-    | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<LookupCodeResponse[]> | LookupCodeResponse[]),
+    | ((
+        info: Parameters<HttpResponseResolver<{ codeType: string }>>[0],
+      ) => Promise<LookupCodeResponse[]> | LookupCodeResponse[]),
   options?: RequestHandlerOptions,
 ) => {
-  return http.get(
+  return http.get<{ codeType: string }>(
     '*/api/lookup/:codeType',
-    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ codeType: string }>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'

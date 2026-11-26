@@ -7,7 +7,7 @@ import {
 } from '@/api-access/generated/users/users.msw';
 import { server } from '../../../mocks/server';
 import { createTestApp } from '../../../helpers/createTestApp';
-import type { RoleDto, UserRoleResponseDto } from '@/api-access/generated/models';
+import type { AssignUserRoleRequestDto, RoleDto, UserRoleResponseDto } from '@/api-access/generated/models';
 
 afterEach(() => {
   document.body.innerHTML = '';
@@ -63,11 +63,11 @@ describe('AssignRoleModal', () => {
       expiryReason: null,
     };
 
-    let requestBody: Record<string, unknown> | null = null;
+    let requestBody: AssignUserRoleRequestDto | null = null;
 
     server.use(
       getPostApiUsersIdRolesMockHandler(async (info) => {
-        requestBody = (await info.request.json()) as unknown as Record<string, unknown>;
+        requestBody = await info.request.json();
         return getPostApiUsersIdRolesResponseMock({
           roleId: 7,
           userId: 'test-user-id',

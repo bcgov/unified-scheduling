@@ -171,14 +171,14 @@ describe('assignment shift link options', () => {
     expect(vm.shiftSeriesOptions).toEqual([]);
   });
 
-  it('preserves single-shift selection and its one-day query', async () => {
+  it('filters single-shift selection within the expanded three-day query', async () => {
     const { vm, entryQueries } = await mountShiftOptions([
       shiftEntry,
       { ...shiftEntry, id: 43, startAtUtc: '2026-07-14T13:00:00Z', endAtUtc: '2026-07-14T14:00:00Z' },
       { ...shiftEntry, id: 44, statusTypeCode: 'Cancelled' },
     ]);
     expect(vm.shiftEntryOptions.map((option) => option.code)).toEqual([42]);
-    expect(entryQueries.at(-1)!.get('StartAtUtc')).toBe('2026-07-13T07:00:00Z');
-    expect(entryQueries.at(-1)!.get('EndAtUtc')).toBe('2026-07-14T07:00:00Z');
+    expect(entryQueries.at(-1)!.get('StartAtUtc')).toBe('2026-07-12T07:00:00Z');
+    expect(entryQueries.at(-1)!.get('EndAtUtc')).toBe('2026-07-15T07:00:00Z');
   });
 });

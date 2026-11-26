@@ -7,7 +7,7 @@
 import { faker } from '@faker-js/faker';
 
 import { HttpResponse, http } from 'msw';
-import type { RequestHandlerOptions } from 'msw';
+import type { HttpResponseResolver, RequestHandlerOptions } from 'msw';
 
 import type { BrandHeaderOptions, ConfigResponse } from '../models';
 
@@ -403,13 +403,12 @@ export const getGetApiConfigResponseMock = (
 
 export const getGetApiConfigMockHandler = (
   overrideResponse?:
-    | ConfigResponse
-    | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<ConfigResponse> | ConfigResponse),
+    ConfigResponse | ((info: Parameters<HttpResponseResolver>[0]) => Promise<ConfigResponse> | ConfigResponse),
   options?: RequestHandlerOptions,
 ) => {
   return http.get(
     '*/api/config',
-    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'

@@ -7,9 +7,9 @@
 import { faker } from '@faker-js/faker';
 
 import { HttpResponse, http } from 'msw';
-import type { RequestHandlerOptions } from 'msw';
+import type { HttpResponseResolver, PathParams, RequestHandlerOptions } from 'msw';
 
-import type { WorkingHoursResult } from '../models';
+import type { WorkingHoursQuery, WorkingHoursResult } from '../models';
 
 export const getPostApiSchedulingWorkingHoursQueryResponseMock = (): WorkingHoursResult[] =>
   faker.helpers.arrayElement([
@@ -60,12 +60,14 @@ export const getPostApiSchedulingWorkingHoursQueryResponseMock = (): WorkingHour
 export const getPostApiSchedulingWorkingHoursQueryMockHandler = (
   overrideResponse?:
     | WorkingHoursResult[]
-    | ((info: Parameters<Parameters<typeof http.post>[1]>[0]) => Promise<WorkingHoursResult[]> | WorkingHoursResult[]),
+    | ((
+        info: Parameters<HttpResponseResolver<PathParams, WorkingHoursQuery>>[0],
+      ) => Promise<WorkingHoursResult[]> | WorkingHoursResult[]),
   options?: RequestHandlerOptions,
 ) => {
-  return http.post(
+  return http.post<PathParams, WorkingHoursQuery>(
     '*/api/scheduling/working-hours/query',
-    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<PathParams, WorkingHoursQuery>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'

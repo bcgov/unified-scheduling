@@ -474,11 +474,16 @@ describe('CalendarSchedulingShiftDetailModal', () => {
     wrapper.unmount();
   });
 
-  it.each(['Active', 'Cancelled'])('does not expose editable controls for %s shifts', async (statusTypeCode) => {
+  it.each([
+    ['Active', Permissions.ShiftsEdit],
+    ['Cancelled', undefined],
+  ] as const)('keeps %s shifts read-only when permission %s is missing', async (statusTypeCode, missingPermission) => {
+    hasPermission.mockImplementation((permission) => permission !== missingPermission);
     const wrapper = await mountShiftDetailModal(statusTypeCode);
     const vm = wrapper.vm as unknown as {
       activeTab: string;
       selectTab: (tabId: 'edit') => void;
+      handleSaveEdit: () => Promise<void>;
     };
 
     expect(Array.from(document.querySelectorAll('button')).some((button) => button.textContent === 'Edit')).toBe(false);
@@ -488,17 +493,42 @@ describe('CalendarSchedulingShiftDetailModal', () => {
 
     expect(vm.activeTab).toBe('details');
     expect(document.body.textContent).not.toContain('Linked assignments');
+    await vm.handleSaveEdit();
+    const shiftApi = await import('@/modules/scheduling/calendarSchedulingShiftApi');
+    expect(shiftApi.updateShiftEntry).not.toHaveBeenCalled();
 
     wrapper.unmount();
   });
 
-  it('shows a published shift message for active shifts', async () => {
+  it('shows Details, Edit and Cancel tabs for authorized published shift occurrences', async () => {
+    hasPermission.mockImplementation((permission) => permission !== Permissions.SchedulePublish);
     const wrapper = await mountShiftDetailModal('Active');
 
-    expect(document.body.textContent).toContain(
-      'This shift has been published, and cannot be edited or deleted, only cancelled',
-    );
+    expect(Array.from(document.querySelectorAll('[role="tab"]'), (tab) => tab.textContent)).toEqual([
+      'Details',
+      'Edit',
+      'Cancel',
+    ]);
+    expect(document.body.textContent).toContain('Saved changes will be applied immediately to the published schedule.');
 
+    wrapper.unmount();
+  });
+
+  it('rejects a published link replacement without assignment permission', async () => {
+    hasPermission.mockImplementation((permission) => permission !== Permissions.AssignmentsAssign);
+    const wrapper = await mountShiftDetailModal('Active', false, {}, 'edit');
+    const vm = wrapper.vm as unknown as {
+      editFormData: { assignmentEntryLinks: unknown[] };
+      handleSaveEdit: () => Promise<void>;
+    };
+    expect(document.body.textContent).not.toContain('Linked assignments');
+    vm.editFormData.assignmentEntryLinks = [];
+    await vm.handleSaveEdit();
+    await flushPromises();
+
+    expect(document.body.textContent).toContain('You do not have permission to change assignment links');
+    const shiftApi = await import('@/modules/scheduling/calendarSchedulingShiftApi');
+    expect(shiftApi.updateShiftEntry).not.toHaveBeenCalled();
     wrapper.unmount();
   });
 

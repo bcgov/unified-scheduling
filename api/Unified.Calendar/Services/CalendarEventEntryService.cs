@@ -36,12 +36,35 @@ public class CalendarEventEntryService<TRequest, TEntity>(
         return factory.CreateEntry(request, eventEntity);
     }
 
-    /// <summary>
+    public Task<TEntity?> UpdateEventAsync<TUpdateRequest>(
+        TUpdateRequest request,
+        TEntity? existing,
+        string sourceModule,
+        string eventTypeCode,
+        Func<TUpdateRequest, CancellationToken, Task>[]? validators = null,
+        Action<TUpdateRequest>? additionalGuards = null,
+        Action<Event>? overrides = null,
+        CancellationToken cancellationToken = default
+    )
+        where TUpdateRequest : TRequest =>
+        UpdateEventAsync(
+            request,
+            existing,
+            sourceModule,
+            eventTypeCode,
+            false,
+            validators,
+            additionalGuards,
+            overrides,
+            cancellationToken
+        );
+
     public async Task<TEntity?> UpdateEventAsync<TUpdateRequest>(
         TUpdateRequest request,
         TEntity? existing,
         string sourceModule,
         string eventTypeCode,
+        bool allowActive,
         Func<TUpdateRequest, CancellationToken, Task>[]? validators = null,
         Action<TUpdateRequest>? additionalGuards = null,
         Action<Event>? overrides = null,
@@ -59,7 +82,7 @@ public class CalendarEventEntryService<TRequest, TEntity>(
 
         var eventEntity = factory.GetEvent(existing);
         CalendarEventGuards.EnsureEventType(eventEntity, eventTypeCode, sourceModule);
-        CalendarEventGuards.EnsureEntryIsDraft(eventEntity);
+        CalendarEventGuards.EnsureEntryIsUpdatable(eventEntity, allowActive);
 
         await RunValidationAsync(request, validators, additionalGuards, cancellationToken);
         calendarEventMapper.ApplyToEvent(eventEntity, request);

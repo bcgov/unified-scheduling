@@ -1,8 +1,8 @@
 using Unified.Calendar.Mappings;
 using Unified.Calendar.Services;
-using Unified.Db.Models.Calendar;
 using Unified.Db.Models.Scheduling;
 using Unified.Scheduling.Models;
+using Unified.Scheduling.Services;
 
 namespace Unified.Scheduling.Mappings;
 
@@ -43,7 +43,9 @@ internal static class AssignmentResponseMapper
 
     public static AssignmentEntryResponse ToAssignmentEntryResponse(AssignmentEntry assignmentEntry)
     {
-        var activeLinks = assignmentEntry.ShiftAssignmentEntries.Where(IsActiveShiftAssignmentLink).ToList();
+        var activeLinks = assignmentEntry
+            .ShiftAssignmentEntries.Where(ShiftAssignmentGuards.HasAllocationOnShift)
+            .ToList();
         var assignedUserIds = activeLinks
             .SelectMany(link => link.Users)
             .Select(user => user.UserId)
@@ -93,7 +95,9 @@ internal static class AssignmentResponseMapper
     public static SchedulingCalendarEventResponse ToCalendarEventResponse(AssignmentEntry assignmentEntry)
     {
         var eventEntity = assignmentEntry.Event!;
-        var activeLinks = assignmentEntry.ShiftAssignmentEntries.Where(IsActiveShiftAssignmentLink).ToList();
+        var activeLinks = assignmentEntry
+            .ShiftAssignmentEntries.Where(ShiftAssignmentGuards.HasAllocationOnShift)
+            .ToList();
         var assignedUserIds = activeLinks
             .SelectMany(link => link.Users)
             .Select(user => user.UserId)
@@ -138,9 +142,6 @@ internal static class AssignmentResponseMapper
             AssignedUserIds = assignedUserIds,
         };
     }
-
-    internal static bool IsActiveShiftAssignmentLink(ShiftAssignmentEntry link) =>
-        link.Users.Count > 0 && link.ShiftEntry?.Event?.StatusTypeCode != CalendarEventStatusTypeCodes.Cancelled;
 }
 
 internal sealed record AssignmentSeriesEntryIds(int AssignmentSeriesId, int AssignmentEntryId, int EventId);

@@ -272,7 +272,7 @@ describe('calendarSchedulingEventsContribution', () => {
               userIds: [userId],
               type: 'scheduling.shift',
               sourceModule: 'scheduling',
-              title: 'Published standalone shift',
+              title: 'Corrected published shift',
               start: '2026-08-26T16:00:00+00:00',
               end: '2026-08-27T00:00:00+00:00',
               eventTypeCode: 'shift',
@@ -317,7 +317,7 @@ describe('calendarSchedulingEventsContribution', () => {
               eventId: 210,
               type: 'scheduling.assignment',
               sourceModule: 'scheduling',
-              title: 'Published assignment linked to draft shift',
+              title: 'Corrected published assignment',
               start: '2026-08-25T17:00:00+00:00',
               end: '2026-08-25T18:00:00+00:00',
               eventTypeCode: 'assignment',
@@ -384,20 +384,23 @@ describe('calendarSchedulingEventsContribution', () => {
       },
     });
 
-    const printResult = await calendarSchedulingEventsContribution.load(
-      {
-        startDate: '2026-08-24',
-        endDate: '2026-08-31',
-        locationId: 1,
-        filters: { timeZoneId: 'America/Vancouver' },
-      },
-      undefined,
-      { featureFlags: {}, permissions: [], presentationMode: 'print' },
-    );
-    expect(printResult.events.map((event) => event.id)).toEqual([
-      'scheduling.shift-entry.207',
-      'scheduling.assignment-entry.210',
-    ]);
+    for (const activeViewId of ['calendar.matrix-schedule', 'calendar.matrix-assignment']) {
+      const printResult = await calendarSchedulingEventsContribution.load(
+        {
+          activeViewId,
+          startDate: '2026-08-24',
+          endDate: '2026-08-31',
+          locationId: 1,
+          filters: { timeZoneId: 'America/Vancouver' },
+        },
+        undefined,
+        { featureFlags: {}, permissions: [], presentationMode: 'print' },
+      );
+      expect(printResult.events.map(({ id, title }) => ({ id, title }))).toEqual([
+        { id: 'scheduling.shift-entry.207', title: 'Corrected published shift' },
+        { id: 'scheduling.assignment-entry.210', title: 'Corrected published assignment' },
+      ]);
+    }
 
     const { buildCalendarSchedulingViewModel } = await import('@/modules/scheduling/calendarSchedulingMappers');
     const viewModel = buildCalendarSchedulingViewModel(

@@ -2,7 +2,8 @@ export type SchedulingLifecycleStatus = 'draft' | 'published' | 'cancelled' | 'u
 
 export interface SchedulingLifecycleCapabilities {
   status: SchedulingLifecycleStatus;
-  canEdit: boolean;
+  canEditOccurrence: boolean;
+  canEditSeries: boolean;
   canDelete: boolean;
   canCancel: boolean;
 }
@@ -27,14 +28,17 @@ export function getSchedulingLifecycleCapabilities(statusTypeCode?: string | nul
 
   return {
     status,
-    canEdit: status === 'draft',
+    canEditOccurrence: status === 'draft' || status === 'published',
+    canEditSeries: status === 'draft',
     canDelete: status === 'draft',
     canCancel: status === 'published',
   };
 }
 
-export function canAddAssignmentLinkToShift(statusTypeCode?: string | null) {
-  return normalizeSchedulingLifecycleStatus(statusTypeCode) === 'draft';
+export function canAddAssignmentLinkToShift(statusTypeCode: string | null | undefined, scope: 'entry' | 'series') {
+  return scope === 'entry'
+    ? isSchedulingLinkable(statusTypeCode)
+    : normalizeSchedulingLifecycleStatus(statusTypeCode) === 'draft';
 }
 
 export function isSchedulingCancelled(statusTypeCode?: string | null) {
