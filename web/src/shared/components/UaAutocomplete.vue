@@ -14,17 +14,6 @@ const props = withDefaults(
     browserAutocomplete: 'on',
   },
 );
-const props = withDefaults(
-  defineProps<{
-    items: SelectOption[];
-    loading?: boolean;
-    clientFilter?: boolean;
-    browserAutocomplete?: 'on' | 'off';
-  }>(),
-  {
-    browserAutocomplete: 'on',
-  },
-);
 
 const emit = defineEmits<{
   'update:search': [value: string];
