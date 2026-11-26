@@ -12,13 +12,17 @@ export interface AuditFields {
   updatedOn?: string | null;
 }
 
-const props = defineProps<{
-  audit: AuditFields;
-  timeZone?: string;
-}>();
+const props = withDefaults(
+  defineProps<{
+    audit: AuditFields;
+    timeZone?: string;
+    mode?: 'latest' | 'created' | 'updated';
+  }>(),
+  { mode: 'latest' },
+);
 
-const latestAudit = computed(() =>
-  props.audit.updatedOn
+const selectedAudit = computed(() =>
+  props.mode === 'updated' || (props.mode === 'latest' && props.audit.updatedOn)
     ? { userId: props.audit.updatedById, date: props.audit.updatedOn }
     : { userId: props.audit.createdById, date: props.audit.createdOn },
 );
@@ -26,7 +30,7 @@ const auditUser = ref<UserResponse>();
 let userRequestSequence = 0;
 
 watch(
-  () => latestAudit.value.userId,
+  () => selectedAudit.value.userId,
   async (userId) => {
     const requestSequence = ++userRequestSequence;
     auditUser.value = undefined;
@@ -45,12 +49,12 @@ watch(
 
 const userName = computed(() => (auditUser.value ? formatUserName(auditUser.value) : 'Unknown user'));
 const dateTime = computed(() => {
-  if (!latestAudit.value.date) {
+  if (!selectedAudit.value.date) {
     return '';
   }
 
-  const date = formatCalendarEventDate(latestAudit.value.date, { timeZone: props.timeZone });
-  const time = formatCalendarTime(latestAudit.value.date, props.timeZone);
+  const date = formatCalendarEventDate(selectedAudit.value.date, { timeZone: props.timeZone });
+  const time = formatCalendarTime(selectedAudit.value.date, props.timeZone);
   return date && time ? `${date} at ${time}` : '';
 });
 </script>

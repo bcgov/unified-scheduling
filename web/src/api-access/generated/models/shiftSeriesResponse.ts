@@ -9,6 +9,14 @@ import type { ShiftAssignmentSeriesLinkSummaryResponse } from './shiftAssignment
 export interface ShiftSeriesResponse {
   concurrencyToken?: number;
   /** @nullable */
+  createdById?: string | null;
+  /** @nullable */
+  createdOn?: string | null;
+  /** @nullable */
+  updatedById?: string | null;
+  /** @nullable */
+  updatedOn?: string | null;
+  /** @nullable */
   lunchAvailableMinutes?: number | null;
   /** @nullable */
   workedLunchMinutes?: number | null;

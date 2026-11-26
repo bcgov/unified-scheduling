@@ -30,6 +30,10 @@ internal static class ShiftResponseMapper
         {
             Id = shiftSeries.Id,
             ConcurrencyToken = shiftSeries.ConcurrencyToken,
+            CreatedById = shiftSeries.CreatedById,
+            CreatedOn = shiftSeries.CreatedOn == default ? null : shiftSeries.CreatedOn,
+            UpdatedById = shiftSeries.UpdatedById,
+            UpdatedOn = shiftSeries.UpdatedOn,
             LunchAvailableMinutes = shiftSeries.LunchAvailableMinutes,
             WorkedLunchMinutes = shiftSeries.WorkedLunchMinutes,
             ShiftEntryIds = entryIds.Select(entry => entry.ShiftEntryId).ToList(),
@@ -57,6 +61,10 @@ internal static class ShiftResponseMapper
         {
             Id = shiftEntry.Id,
             ConcurrencyToken = shiftEntry.ConcurrencyToken,
+            CreatedById = shiftEntry.CreatedById,
+            CreatedOn = shiftEntry.CreatedOn == default ? null : shiftEntry.CreatedOn,
+            UpdatedById = shiftEntry.UpdatedById,
+            UpdatedOn = shiftEntry.UpdatedOn,
             LunchAvailableMinutes = shiftEntry.LunchAvailableMinutes,
             WorkedLunchMinutes = shiftEntry.WorkedLunchMinutes,
             ShiftSeriesId = shiftEntry.ShiftSeriesId,

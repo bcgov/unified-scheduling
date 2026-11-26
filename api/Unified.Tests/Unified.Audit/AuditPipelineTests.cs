@@ -22,8 +22,9 @@ public sealed class AuditPipelineCollection;
 /// Exercises the real Audit.NET pipeline end-to-end against a relational (SQLite) <see cref="UnifiedDbContext"/> -
 /// the in-memory provider used by other Audit tests doesn't support transactions, so it can't verify the
 /// rollback guarantees covered here. <c>Audit.Core.Configuration</c> is a process-wide static (disabled by
-/// default for the whole assembly by <see cref="ModuleInitialization"/>); each test re-enables and
-/// re-disables it around its own body via <see cref="InitializeAsync"/>/<see cref="DisposeAsync"/>.
+/// default for the whole assembly by <see cref="ModuleInitialization"/>). Each test re-enables and
+/// re-disables it via <see cref="InitializeAsync"/> and <see cref="DisposeAsync"/>. The collection runs
+/// in isolation so other tests cannot observe those temporary settings.
 /// </summary>
 [Collection(nameof(AuditPipelineCollection))]
 public sealed class AuditPipelineTests : IAsyncLifetime

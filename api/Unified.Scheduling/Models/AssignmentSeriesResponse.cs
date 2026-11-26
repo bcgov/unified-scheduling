@@ -6,6 +6,14 @@ public sealed record AssignmentSeriesResponse : CalendarEventSeriesResponse
 {
     public uint ConcurrencyToken { get; init; }
 
+    public Guid? CreatedById { get; init; }
+
+    public DateTimeOffset? CreatedOn { get; init; }
+
+    public Guid? UpdatedById { get; init; }
+
+    public DateTimeOffset? UpdatedOn { get; init; }
+
     public int AssignmentDefinitionId { get; init; }
 
     public int CategoryId { get; init; }
