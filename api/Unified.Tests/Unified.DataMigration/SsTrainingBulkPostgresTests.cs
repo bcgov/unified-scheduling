@@ -893,12 +893,13 @@ public sealed class SsTrainingBulkPostgresTests : IAsyncLifetime
         }
     }
 
-    // America/Vancouver permanent UTC-07:00 (2026-11-01): trainings of sheriffs whose SS home location is
-    // America/Vancouver move -1h for old-rule standard-time instants from the change on; others are untouched.
-    // Rows migrated before the adjustment existed are corrected on rerun unless edited in Unified; a row a user
-    // already fixed by hand is adopted without a write. PerRow and Bulk end in the same state.
+    // America/Vancouver permanent UTC-07:00 (2026-11-01): incoming SS trainings of sheriffs whose SS home location
+    // is America/Vancouver move -1h for old-rule standard-time instants from the change on; others are untouched.
+    // Times already in Unified are never adjusted (they were fixed by hand): a rerun leaves migrated rows as they
+    // are, and an owned update for a real SS change keeps each Unified time unless that SS value changed.
+    // PerRow and Bulk end in the same state.
     [Fact(Skip = SkipReason, SkipUnless = nameof(IsConfigured))]
-    public async Task Training_VancouverStandardTime_ShiftedOnce_CorrectsUneditedRows_AdoptsManualFixes()
+    public async Task Training_VancouverStandardTime_ShiftsIncomingSsValuesOnly_NeverAdjustsMigratedRows()
     {
         var ct = TestContext.Current.CancellationToken;
         var clones = new[]
@@ -974,25 +975,30 @@ public sealed class SsTrainingBulkPostgresTests : IAsyncLifetime
                 }
             );
 
-        // The adjustment applies: U(1)'s home location is America/Vancouver, and a new row arrives.
+        // The adjustment applies: U(1)'s home location is America/Vancouver, and a new row arrives. SS also changes
+        // 6001 (end date + notice) and 6007 (notice only) after migration.
         await ExecuteAsync(
             sourceConnection,
             $"""
             UPDATE "User" SET "HomeLocationId"=901 WHERE "Id"='{U(1)}';
+            UPDATE "SheriffTraining" SET "EndDate"='2026-12-02T03:00Z',"FirstNotice"=true WHERE "Id"=6001;
+            UPDATE "SheriffTraining" SET "FirstNotice"=true WHERE "Id"=6007;
             INSERT INTO "SheriffTraining" ("Id","SheriffId","TrainingTypeId","StartDate","EndDate","ExpiryDate",
                 "TrainingCertificationExpiry","FirstNotice","Comment","Note","Timezone","CreatedOn") VALUES
             (6008,'{U(1)}',100,'2027-02-20T17:00Z','2027-02-21T01:00Z',NULL,NULL,false,NULL,'new',NULL,'2024-01-01Z');
             """,
             ct
         );
+        // The adjustment alone changes no hash: unchanged SS rows (including the hand-fixed 6005 and the edited
+        // 6006) are not touched.
         var expected = new Dictionary<string, string>
         {
             ["6001"] = "Migrated:OwnedMappedUpdate",
             ["6002"] = "Migrated:ExistingCrosswalk",
             ["6003"] = "Migrated:ExistingCrosswalk",
             ["6004"] = "Migrated:ExistingCrosswalk",
-            ["6005"] = "Migrated:TargetAlreadyMatchesMappedSource",
-            ["6006"] = "Excluded:OwnedTargetDrift",
+            ["6005"] = "Migrated:ExistingCrosswalk",
+            ["6006"] = "Migrated:ExistingCrosswalk",
             ["6007"] = "Migrated:OwnedMappedUpdate",
         };
 
@@ -1022,21 +1028,22 @@ public sealed class SsTrainingBulkPostgresTests : IAsyncLifetime
             await using (var context = clone.Db())
             {
                 var counts = await context.DataMigrationRuns.AsNoTracking().SingleAsync(x => x.Id == run, ct);
-                // 6001 and 6007 corrected; 6002 (July 2027) renumbered above the new February 2027 row 6008.
+                // 6001 and 6007 updated from SS; 6002 (July 2027) renumbered above the new February 2027 row 6008.
                 Assert.Equal((1, 3), (counts.InsertedCount, counts.UpdatedCount));
             }
-            // Vancouver standard time from the change: -1h (start, end, certification expiry).
+            // New SS row: shifted on insert.
+            Assert.Equal((Z("2027-02-20T16:00Z"), Z("2027-02-21T00:00Z"), null), await TimesAsync(clone, "6008", ct));
+            // Owned update: unchanged SS values keep the Unified (unshifted) times; only the changed end is mapped.
             Assert.Equal(
-                (Z("2026-12-01T16:00Z"), Z("2026-12-02T00:00Z"), (DateTimeOffset?)Z("2028-01-01T06:59:59Z")),
+                (Z("2026-12-01T17:00Z"), Z("2026-12-02T02:00Z"), (DateTimeOffset?)Z("2028-01-01T07:59:59Z")),
                 await TimesAsync(clone, "6001", ct)
             );
-            Assert.Equal((Z("2026-12-15T16:00Z"), Z("2026-12-16T00:00Z"), null), await TimesAsync(clone, "6007", ct));
-            Assert.Equal((Z("2027-02-20T16:00Z"), Z("2027-02-21T00:00Z"), null), await TimesAsync(clone, "6008", ct));
-            // Old-rule DST, before the change, and other zones: unchanged.
+            Assert.Equal((Z("2026-12-15T17:00Z"), Z("2026-12-16T01:00Z"), null), await TimesAsync(clone, "6007", ct));
+            // Unchanged SS rows: Unified times untouched.
             Assert.Equal((Z("2027-07-15T16:00Z"), Z("2027-07-15T23:00Z"), null), await TimesAsync(clone, "6002", ct));
             Assert.Equal((Z("2026-01-20T17:00Z"), Z("2026-01-21T01:00Z"), null), await TimesAsync(clone, "6003", ct));
             Assert.Equal((Z("2026-12-01T17:00Z"), Z("2026-12-02T01:00Z"), null), await TimesAsync(clone, "6004", ct));
-            // Manually fixed (no write) and edited (never overwritten) rows keep the Unified values.
+            // Hand-fixed and edited rows keep the Unified values.
             foreach (var (legacy, value) in edited[i])
                 Assert.Equal(value, await TargetHistoryAsync(clone, legacy, ct));
             Assert.Equal((Z("2027-01-12T16:00Z"), Z("2027-01-13T00:00Z"), null), await TimesAsync(clone, "6005", ct));
@@ -1049,7 +1056,7 @@ public sealed class SsTrainingBulkPostgresTests : IAsyncLifetime
             "tz adjustment rerun"
         );
 
-        // Further reruns are no-ops; the adopted row no longer drifts, the edited row is still skipped.
+        // Further reruns are no-ops.
         foreach (var clone in clones)
         {
             var before = await SnapshotAsync(clone, true, ct);
@@ -1062,7 +1069,7 @@ public sealed class SsTrainingBulkPostgresTests : IAsyncLifetime
             }
             foreach (var legacy in ids.Append("6008"))
                 Assert.Equal(
-                    legacy == "6006" ? "Excluded:OwnedTargetDrift" : "Migrated:ExistingCrosswalk",
+                    "Migrated:ExistingCrosswalk",
                     await OutcomeAsync(clone, run, "SheriffTraining", legacy, ct)
                 );
             AssertEquivalent(before, await SnapshotAsync(clone, true, ct), business, "tz rerun no-op");
@@ -1394,12 +1401,13 @@ public sealed class SsTrainingBulkPostgresTests : IAsyncLifetime
         }
     }
 
-    // Copilot review (round 3) on #514: a pre-adjustment migration stored the 2026-11-01 fall-back pair as
-    // A=v1 (ends 08:50Z, PDT) and B=v2 (ends 09:10Z, PST). The Vancouver correction moves B to 08:10Z, before A,
-    // so B must become v1 and A v2 (A is the current certificate). Only migration-owned, undrifted rows move; if A
-    // was edited in Unified the whole correction of B is skipped (no date fix with a stale order).
+    // Copilot review (round 3) on #514, revised: times already in Unified are never adjusted, so the Vancouver rule
+    // alone leaves an already-migrated 2026-11-01 fall-back pair A=v1 (ends 08:50Z, PDT) / B=v2 (ends 09:10Z, PST)
+    // as it is. When SS really changes B (dates + notice; dates alone are not hashed) its incoming PST dates map
+    // -1h to end 08:12Z, before A, so B must become v1 and A v2 (A is the current certificate). Only
+    // migration-owned, undrifted rows move; if A was edited in Unified the whole update of B is skipped.
     [Fact(Skip = SkipReason, SkipUnless = nameof(IsConfigured))]
-    public async Task Training_VancouverCorrection_ReordersAlreadyMigratedFallBackPair()
+    public async Task Training_ChangedSsDates_ReorderAlreadyMigratedFallBackPair_VancouverAloneDoesNot()
     {
         var ct = TestContext.Current.CancellationToken;
         var clones = new[]
@@ -1448,6 +1456,32 @@ public sealed class SsTrainingBulkPostgresTests : IAsyncLifetime
             ct
         );
 
+        // Vancouver alone: no hash changes, so nothing in Unified moves (times and versions as migrated).
+        foreach (var clone in clones)
+        {
+            var before = await SnapshotAsync(clone, true, ct);
+            var run = await RunAsync(clone, "Training", ct);
+            await AssertCleanAsync(clone, run, ct);
+            foreach (var legacy in new[] { "6101", "6102", "6103", "6104" })
+                Assert.Equal(
+                    "Migrated:ExistingCrosswalk",
+                    await OutcomeAsync(clone, run, "SheriffTraining", legacy, ct)
+                );
+            Assert.Equal(["6101:1", "6102:2"], await GroupAsync(clone, 3, ct, false, 113, true));
+            Assert.Equal((Z("2026-11-01T09:05Z"), Z("2026-11-01T09:10Z"), null), await TimesAsync(clone, "6102", ct));
+            AssertEquivalent(before, await SnapshotAsync(clone, true, ct), ["usertrainings"], "vancouver alone");
+        }
+
+        // SS changes B and D (PST dates + notice).
+        await ExecuteAsync(
+            sourceConnection,
+            """
+            UPDATE "SheriffTraining" SET "StartDate"='2026-11-01T09:01Z',"EndDate"='2026-11-01T09:12Z',
+                "FirstNotice"=true WHERE "Id" IN (6102,6104);
+            """,
+            ct
+        );
+
         for (var i = 0; i < clones.Length; i++)
         {
             var clone = clones[i];
@@ -1455,9 +1489,9 @@ public sealed class SsTrainingBulkPostgresTests : IAsyncLifetime
             await AssertCleanAsync(clone, run, ct);
             Assert.Equal("Migrated:OwnedMappedUpdate", await OutcomeAsync(clone, run, "SheriffTraining", "6102", ct));
             Assert.Equal("Migrated:ExistingCrosswalk", await OutcomeAsync(clone, run, "SheriffTraining", "6101", ct));
-            // B corrected (-1h at both PST endpoints) and placed below A; A renumbered to the current certificate.
+            // B's changed SS dates mapped (-1h at both PST endpoints) and placed below A; A renumbered to current.
             Assert.Equal(["6102:1", "6101:2"], await GroupAsync(clone, 3, ct, false, 113, true));
-            Assert.Equal((Z("2026-11-01T08:05Z"), Z("2026-11-01T08:10Z"), null), await TimesAsync(clone, "6102", ct));
+            Assert.Equal((Z("2026-11-01T08:01Z"), Z("2026-11-01T08:12Z"), null), await TimesAsync(clone, "6102", ct));
             Assert.Equal((Z("2026-11-01T08:00Z"), Z("2026-11-01T08:50Z"), null), await TimesAsync(clone, "6101", ct));
             // C edited in Unified would have to move: D is skipped entirely (dates and versions unchanged).
             Assert.Equal("Excluded:OwnedTargetDrift", await OutcomeAsync(clone, run, "SheriffTraining", "6104", ct));
@@ -1486,7 +1520,7 @@ public sealed class SsTrainingBulkPostgresTests : IAsyncLifetime
             await SnapshotAsync(clones[0], false, ct),
             await SnapshotAsync(clones[1], false, ct),
             ["trainings", "usertrainings", "users", "outcomes", "records", "mutations", "runs", "audit"],
-            "vancouver correction reorder"
+            "changed ss dates reorder"
         );
 
         // Refreshed evidence: a further rerun is a no-op; D is reconsidered and skipped again.
@@ -1514,10 +1548,11 @@ public sealed class SsTrainingBulkPostgresTests : IAsyncLifetime
     // Copilot review (round 4) on #514: the journaled PerRow rollback of the reorder swap (B=v1/A=v2 back to
     // A=v1/B=v2) restored A to v1 while B still held v1 (unique UserId/TrainingId/Version violation), because rows
     // are restored one at a time to their first before-image and the -Id parking step is not replayed. Rollback now
-    // parks every affected history first. Bulk Training runs are not journaled and their Update/Renumber runs are
-    // refused by the Bulk undo, so nothing changes there.
+    // parks every affected history first. The swap comes from a real SS date change of B (mapped for Vancouver).
+    // Bulk Training runs are not journaled and their Update/Renumber runs are refused by the Bulk undo, so nothing
+    // changes there.
     [Fact(Skip = SkipReason, SkipUnless = nameof(IsConfigured))]
-    public async Task Training_VancouverReorder_JournaledRollbackRestoresOriginalVersions()
+    public async Task Training_ChangedSsDatesReorder_JournaledRollbackRestoresOriginalVersions()
     {
         var ct = TestContext.Current.CancellationToken;
         const string rehearsal = "unified_ss_rehearsal_ready_v4_rollback";
@@ -1573,7 +1608,11 @@ public sealed class SsTrainingBulkPostgresTests : IAsyncLifetime
             }
             await ExecuteAsync(
                 sourceConnection,
-                $"""UPDATE "User" SET "HomeLocationId"=901 WHERE "Id"='{U(3)}';""",
+                $"""
+                UPDATE "User" SET "HomeLocationId"=901 WHERE "Id"='{U(3)}';
+                UPDATE "SheriffTraining" SET "StartDate"='2026-11-01T09:01Z',"EndDate"='2026-11-01T09:12Z',
+                    "FirstNotice"=true WHERE "Id"=6102;
+                """,
                 ct
             );
             var snapshots = new List<Dictionary<string, List<string>>>();
@@ -1622,7 +1661,7 @@ public sealed class SsTrainingBulkPostgresTests : IAsyncLifetime
                 WithoutUpdatedOn(restored["usertrainings"]).Order()
             );
             await AssertNoDuplicatesOrOrphansAsync(perRow, ct);
-            // The restored pre-adjustment state is corrected again by the next run, which is then journaled too.
+            // The restored pre-update state is updated again by the next run, which is then journaled too.
             var again = await RunAsync(perRow, "Training", ct);
             await AssertCleanAsync(perRow, again, ct);
             Assert.Equal(

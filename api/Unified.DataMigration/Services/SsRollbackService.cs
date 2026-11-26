@@ -513,7 +513,8 @@ public sealed class SsRollbackService(UnifiedDbContext db, SsRollbackJournal cry
     }
 
     // Unique (UserId, TrainingId, Version) of training histories. Training permutes versions (backfill shift
-    // chains, the re-placement swap of a corrected history, rebinds, and in general any cycle), parking rows on
+    // chains, the re-placement swap of an owned history whose SS dates changed, rebinds, and in general any
+    // cycle), parking rows on
     // -Id in between; that step is not a separate undo entry because rows are restored to their FIRST before
     // image one at a time. Restoring one row into a version another restored row still holds would violate the
     // index for any order, so every restored history whose key columns changed, and every history this run

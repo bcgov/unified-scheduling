@@ -729,17 +729,25 @@ public sealed class SsTrainingBulkWriter(UnifiedDbContext db, IOptions<AuditReco
                             row,
                             SsTrainingRules.IsVancouverSheriff(row, vancouver)
                         );
-                        var hash = SsTrainingRules.HistoryHash(row, sourceUser, dates);
+                        var hash = SsTrainingRules.HistoryHash(row, sourceUser);
                         if (
                             record.PayloadHash != SsWriteSession.ProposalHash("SheriffTraining", row, hash)
                             && int.TryParse(record.TargetKey, CultureInfo.InvariantCulture, out var id)
                         )
                         {
                             driftCandidates.Add(id);
-                            // Corrected dates may re-place its version (PlaceHistory): prefetch the group.
+                            // Changed SS dates may re-place its version (PlaceHistory): prefetch the group.
                             if (
                                 byId.TryGetValue(id, out var current)
-                                && (current.AwardedOn != dates.Start || current.EndingOn != dates.End)
+                                && SsTrainingRules.KeepTargetTimes(
+                                    row,
+                                    dates,
+                                    current.AwardedOn,
+                                    current.EndingOn,
+                                    null
+                                )
+                                    is var kept
+                                && (current.AwardedOn != kept.Start || current.EndingOn != kept.End)
                                 && pairs.TryGetValue((current.UserId, current.TrainingId), out var siblings)
                             )
                                 foreach (var sibling in siblings)
@@ -851,7 +859,7 @@ public sealed class SsTrainingBulkWriter(UnifiedDbContext db, IOptions<AuditReco
             var shiftedWrites = new HashSet<int>();
             // Shifted first, then written by its own changed source: persisted only through the full update.
             var shiftedBeforeWrite = new HashSet<int>();
-            // Owned updates whose corrected dates re-placed their version: parked on -Id with their full update.
+            // Owned updates whose changed SS dates re-placed their version: parked on -Id with their full update.
             var reordered = new HashSet<int>();
 
             string? Legacy(Ut x)
@@ -902,7 +910,7 @@ public sealed class SsTrainingBulkWriter(UnifiedDbContext db, IOptions<AuditReco
                     ledger.Update($"UserTraining:{Key(id)}");
                 }
             }
-            // Same as PerRow TargetMatchesMappedAsync: the drifted target already holds the mapped values.
+            // Same as PerRow TargetMatchesMappedAsync: the drifted target already holds what the job would write.
             bool TargetMatchesMapped(
                 SsBulkTargetImage image,
                 SsRow row,
@@ -927,7 +935,14 @@ public sealed class SsTrainingBulkWriter(UnifiedDbContext db, IOptions<AuditReco
                         (string?)values["Notes"],
                         (string?)values["NoticeState"]
                     );
-                    return actual == SsTrainingRules.MappedTarget(row, user, course, code, dates);
+                    var kept = SsTrainingRules.KeepTargetTimes(
+                        row,
+                        dates,
+                        actual.AwardedOn,
+                        actual.EndingOn,
+                        actual.ExpiryDate
+                    );
+                    return actual == SsTrainingRules.MappedTarget(row, user, course, code, kept);
                 }
                 catch (SsReject)
                 {
@@ -962,7 +977,7 @@ public sealed class SsTrainingBulkWriter(UnifiedDbContext db, IOptions<AuditReco
                             SsTrainingRules.IsVancouverSheriff(row, vancouver)
                         );
                         SsWriteSession.Timezone(row, false);
-                        var hash = SsTrainingRules.HistoryHash(row, sourceUser, dates);
+                        var hash = SsTrainingRules.HistoryHash(row, sourceUser);
                         var mapped = SsWriteSession.ProposalHash("SheriffTraining", row, hash);
                         var changed = row.Date("UpdatedOn") ?? row.Date("CreatedOn");
                         if (record is not null)
@@ -1047,11 +1062,19 @@ public sealed class SsTrainingBulkWriter(UnifiedDbContext db, IOptions<AuditReco
                             if (owned.UserId != resolvedUser && !userState.ContainsKey(resolvedUser))
                                 throw new RowFailure(nameof(DbUpdateException));
                             EnsureNotesFit(notes);
-                            // Same as PerRow (PlanReorderAsync): corrected dates that change the history's order
+                            // Same as PerRow: Unified times are kept unless the SS value changed (KeepTargetTimes).
+                            var kept = SsTrainingRules.KeepTargetTimes(
+                                row,
+                                dates,
+                                owned.AwardedOn,
+                                owned.EndingOn,
+                                (DateTimeOffset?)ownedBefore[record.TargetKey].PersistedValues["ExpiryDate"]
+                            );
+                            // Same as PerRow (PlanReorderAsync): changed SS dates that change the history's order
                             // within its group re-place its version, or skip the whole update when a row that
-                            // would have to move is unowned/drifted (never a date fix with a stale order).
+                            // would have to move is unowned/drifted (never a date change with a stale order).
                             SsTrainingRules.HistoryPlacement? reorder = null;
-                            if (!rebind && (owned.AwardedOn != dates.Start || owned.EndingOn != dates.End))
+                            if (!rebind && (owned.AwardedOn != kept.Start || owned.EndingOn != kept.End))
                             {
                                 var others = pairs[(owned.UserId, owned.TrainingId)]
                                     .Where(x => x.Id != owned.Id)
@@ -1069,16 +1092,16 @@ public sealed class SsTrainingBulkWriter(UnifiedDbContext db, IOptions<AuditReco
                                         row.Id,
                                         owned.AwardedOn,
                                         owned.EndingOn,
-                                        dates.Start,
-                                        dates.End
+                                        kept.Start,
+                                        kept.End
                                     )
                                 )
                                 {
                                     reorder = SsTrainingRules.PlaceHistory(
                                         others,
                                         row.Id,
-                                        dates.Start,
-                                        dates.End,
+                                        kept.Start,
+                                        kept.End,
                                         x => Block(x.Id)
                                     );
                                     if (reorder.Skip is { } blocked)
@@ -1103,21 +1126,21 @@ public sealed class SsTrainingBulkWriter(UnifiedDbContext db, IOptions<AuditReco
                             }
                             if (reorder is not null)
                             {
-                                // PerRow parks the corrected row, then moves the newer owned run up one version.
+                                // PerRow parks the updated row, then moves the newer owned run up one version.
                                 ShiftVersions(pairs[(owned.UserId, owned.TrainingId)], reorder.Shift);
                                 owned.Version = reorder.Version;
                                 reordered.Add(ownedId);
                             }
-                            owned.EndingOn = dates.End;
-                            owned.AwardedOn = dates.Start;
+                            owned.EndingOn = kept.End;
+                            owned.AwardedOn = kept.Start;
                             writes.Add(
                                 new(
                                     owned,
                                     row,
                                     mapped,
-                                    dates.Start,
-                                    dates.End,
-                                    dates.Expiry,
+                                    kept.Start,
+                                    kept.End,
+                                    kept.Expiry,
                                     notes,
                                     SsTrainingRules.NoticeState(row),
                                     record,
@@ -1595,7 +1618,7 @@ public sealed class SsTrainingBulkWriter(UnifiedDbContext db, IOptions<AuditReco
                     : historyAfter[write.Record!.TargetKey];
                 if (reordered.Contains(write.State.Id))
                 {
-                    // PerRow saves the corrected row parked on -Id before moving the newer run and updating it.
+                    // PerRow saves the updated row parked on -Id before moving the newer run and updating it.
                     var parked = before with
                     {
                         AuditValues = WithMove(before.AuditValues, after.AuditValues, -write.State.Id),

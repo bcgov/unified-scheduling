@@ -148,27 +148,86 @@ public sealed class SsTrainingVancouverTimeTests
     }
 
     [Fact]
-    public void HistoryHash_UnadjustedKeepsLegacyShape_AdjustedAddsMappedInstants()
+    public void HistoryHash_AlwaysLegacyShape_IgnoresVancouverAdjustment()
     {
-        // Nothing in the affected window (expiry is a pre-change date): legacy hash shape.
-        var row = History("2026-01-20T17:00:00Z", "2026-01-21T01:00:00Z", "2026-06-20T07:00:00Z");
-        var legacy = SsWriteSession.Hash(
-            new
+        // The adjustment must never make a history already in Unified look changed (times fixed by hand there).
+        foreach (
+            var row in new[]
             {
-                User = "u1",
-                Course = row.Int("TrainingTypeId"),
-                dates = (Start: row.Date("StartDate")!.Value, End: row.Date("EndDate")!.Value),
-                Expiry = row.Date("TrainingCertificationExpiry"),
-                Notice = row.Bool("FirstNotice"),
+                History("2026-01-20T17:00:00Z", "2026-01-21T01:00:00Z", "2026-06-20T07:00:00Z"),
+                History("2026-12-01T17:00:00Z", "2026-12-02T01:00:00Z", "2027-12-01T17:00:00Z"),
             }
-        );
-        Assert.Equal(legacy, SsTrainingRules.HistoryHash(row, "u1", SsTrainingRules.MapHistoryTimes(row, true)));
+        )
+        {
+            var legacy = SsWriteSession.Hash(
+                new
+                {
+                    User = "u1",
+                    Course = row.Int("TrainingTypeId"),
+                    dates = (Start: row.Date("StartDate")!.Value, End: row.Date("EndDate")!.Value),
+                    Expiry = row.Date("TrainingCertificationExpiry"),
+                    Notice = row.Bool("FirstNotice"),
+                }
+            );
+            Assert.Equal(legacy, SsTrainingRules.HistoryHash(row, "u1"));
+        }
+    }
 
-        var later = History("2026-12-01T17:00:00Z", "2026-12-02T01:00:00Z", null);
-        var unadjusted = SsTrainingRules.HistoryHash(later, "u1", SsTrainingRules.MapHistoryTimes(later, false));
-        var adjusted = SsTrainingRules.HistoryHash(later, "u1", SsTrainingRules.MapHistoryTimes(later, true));
-        Assert.NotEqual(unadjusted, adjusted);
-        Assert.Equal(adjusted, SsTrainingRules.HistoryHash(later, "u1", SsTrainingRules.MapHistoryTimes(later, true)));
+    [Fact]
+    public void KeepTargetTimes_KeepsUnifiedTimes_ShiftsOnlyChangedSsValues()
+    {
+        var row = History("2026-12-01T17:00:00Z", "2026-12-01T18:00:00Z", "2027-12-01T17:00:00Z");
+        var mapped = SsTrainingRules.MapHistoryTimes(row, true);
+        DateTimeOffset? hand = Z("2027-12-01T16:00:00Z");
+
+        // Migrated unshifted and never fixed: Unified keeps its times (no adjustment of existing rows).
+        var raw = SsTrainingRules.KeepTargetTimes(
+            row,
+            mapped,
+            Z("2026-12-01T17:00:00Z"),
+            Z("2026-12-01T18:00:00Z"),
+            Z("2027-12-01T17:00:00Z")
+        );
+        Assert.Equal(
+            (Z("2026-12-01T17:00:00Z"), Z("2026-12-01T18:00:00Z"), (DateTimeOffset?)Z("2027-12-01T17:00:00Z")),
+            (raw.Start, raw.End, raw.Expiry)
+        );
+
+        // Fixed by hand to the shifted values: kept as they are.
+        var fixedByHand = SsTrainingRules.KeepTargetTimes(
+            row,
+            mapped,
+            Z("2026-12-01T16:00:00Z"),
+            Z("2026-12-01T17:00:00Z"),
+            hand
+        );
+        Assert.Equal(
+            (mapped.Start, mapped.End, mapped.Expiry),
+            (fixedByHand.Start, fixedByHand.End, fixedByHand.Expiry)
+        );
+
+        // SS changed the end and expiry since migration: only those incoming values are written, shifted.
+        var changed = SsTrainingRules.KeepTargetTimes(
+            row,
+            mapped,
+            Z("2026-12-01T17:00:00Z"),
+            Z("2026-12-01T20:00:00Z"),
+            Z("2027-06-01T07:00:00Z")
+        );
+        Assert.Equal(
+            (Z("2026-12-01T17:00:00Z"), mapped.End, mapped.Expiry),
+            (changed.Start, changed.End, changed.Expiry)
+        );
+
+        // A kept start after a replaced end is clamped so EndingOn >= AwardedOn.
+        var clamped = SsTrainingRules.KeepTargetTimes(
+            History("2026-11-01T08:30:00Z", "2026-11-01T09:15:00Z", null),
+            SsTrainingRules.MapHistoryTimes(History("2026-11-01T08:30:00Z", "2026-11-01T09:15:00Z", null), true),
+            Z("2026-11-01T08:30:00Z"),
+            Z("2026-11-01T07:00:00Z"),
+            null
+        );
+        Assert.True(clamped.End >= clamped.Start);
     }
 
     [Fact]
@@ -186,9 +245,9 @@ public sealed class SsTrainingVancouverTimeTests
     }
 
     [Fact]
-    public void CorrectedFallBackHistory_ChangesOrder_AndIsPlacedBeforeItsPredecessor()
+    public void ChangedSsDates_ChangingOrder_ArePlacedBeforeThePredecessor()
     {
-        // Already migrated unshifted: A=v1 (ends 08:50Z), B=v2 (ends 09:10Z). The correction moves B to 08:10Z.
+        // Owned update applying changed SS dates: B moves from ending 09:10Z to 08:10Z, before A (v1).
         var a = new SsTrainingRules.HistorySlot(10, 1, Z("2026-11-01T08:00:00Z"), Z("2026-11-01T08:50:00Z"), "1");
         var oldStart = Z("2026-11-01T08:05:00Z");
         var oldEnd = Z("2026-11-01T09:10:00Z");
@@ -198,7 +257,7 @@ public sealed class SsTrainingVancouverTimeTests
         Assert.Equal(1, placement.Version);
         Assert.Equal([10], placement.Shift);
         Assert.Null(placement.Skip);
-        // A history that must move but may not (unowned/drifted) blocks the whole correction.
+        // A history that must move but may not (unowned/drifted) blocks the whole update.
         Assert.Equal(
             "OwnedTargetDrift",
             SsTrainingRules.PlaceHistory([a], "2", oldStart, newEnd, _ => "OwnedTargetDrift").Skip
@@ -206,7 +265,7 @@ public sealed class SsTrainingVancouverTimeTests
     }
 
     [Fact]
-    public void CorrectedHistory_KeepingItsRelativeOrder_KeepsItsVersion()
+    public void ChangedSsDates_KeepingRelativeOrder_KeepTheVersion()
     {
         var a = new SsTrainingRules.HistorySlot(10, 1, Z("2026-06-01T08:00:00Z"), Z("2026-06-01T09:00:00Z"), "1");
         var start = Z("2026-12-01T17:00:00Z");

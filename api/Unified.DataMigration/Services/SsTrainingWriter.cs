@@ -158,16 +158,18 @@ public sealed class SsTrainingWriter(UnifiedDbContext db)
                         return;
                     }
                     // America/Vancouver home location: old-rule standard-time instants from 2026-11-01 move -1h.
+                    // Applies to incoming SS values only (inserts, changed SS times); Unified times are kept.
                     var dates = SsTrainingRules.MapHistoryTimes(
                         row,
                         SsTrainingRules.IsVancouverSheriff(row, vancouver)
                     );
                     SsWriteSession.Timezone(row, false); // Target UserTraining has no timezone column; report the loss.
-                    var hash = SsTrainingRules.HistoryHash(row, sourceUser, dates);
-                    // Unchanged source: no write (ExistingCrosswalk/UnchangedMappedSource). Changed source with a
-                    // target edited in Unified since migration (e.g. 2026-11-01 time zone fix): skipped, not
-                    // overwritten, unless the edit already equals the mapped values (adopted, no write).
-                    // A corrected history whose new dates change its order within the user/course group is
+                    var hash = SsTrainingRules.HistoryHash(row, sourceUser);
+                    // Unchanged source: no write (ExistingCrosswalk/UnchangedMappedSource); the time adjustment is
+                    // not part of the hash, so it never rewrites a migrated history. Changed source with a target
+                    // edited in Unified since migration: skipped, not overwritten, unless the edit already equals
+                    // what the job would write (adopted, no write). An owned update keeps the target's times
+                    // (KeepTargetTimes); changed SS dates that change its order within the user/course group are
                     // placed again (PlaceHistory) so the newest history stays the highest version.
                     Reorder? reorder = null;
                     if (
@@ -182,6 +184,13 @@ public sealed class SsTrainingWriter(UnifiedDbContext db)
                                 var owned = await db
                                     .UserTrainings.Include(x => x.Training)
                                     .SingleAsync(x => x.Id == id, ct);
+                                var kept = SsTrainingRules.KeepTargetTimes(
+                                    row,
+                                    dates,
+                                    owned.AwardedOn,
+                                    owned.EndingOn,
+                                    owned.ExpiryDate
+                                );
                                 var resolvedUser = Guid.Parse(await session.ResolveAsync("User", sourceUser, ct));
                                 var resolvedCourse =
                                     await session.ResolveIntAsync("Training", row.Int("TrainingTypeId"), ct)
@@ -208,9 +217,9 @@ public sealed class SsTrainingWriter(UnifiedDbContext db)
                                 }
                                 else if (reorder is { } move)
                                     await ReorderAsync(session, owned, move, ct);
-                                owned.AwardedOn = dates.Start;
-                                owned.EndingOn = dates.End;
-                                owned.ExpiryDate = dates.Expiry;
+                                owned.AwardedOn = kept.Start;
+                                owned.EndingOn = kept.End;
+                                owned.ExpiryDate = kept.Expiry;
                                 owned.Notes = SsTrainingRules.MappedNotes(row, owned.Training.Code);
                                 owned.NoticeState = SsTrainingRules.NoticeState(row);
                                 StampRun(owned, session.Now);
@@ -340,9 +349,9 @@ public sealed class SsTrainingWriter(UnifiedDbContext db)
     }
 
     /// <summary>
-    /// True when the drifted owned target already holds exactly what this job would write (e.g. a Unified
-    /// user applied the 2026-11-01 time zone correction by hand). Any mismatch, or a mapping that would reject,
-    /// keeps the OwnedTargetDrift skip.
+    /// True when the drifted owned target already holds exactly what this job would write (its times kept per
+    /// <see cref="SsTrainingRules.KeepTargetTimes"/>). Any mismatch, or a mapping that would reject, keeps the
+    /// OwnedTargetDrift skip.
     /// </summary>
     private async Task<bool> TargetMatchesMappedAsync(
         SsWriteSession session,
@@ -370,7 +379,14 @@ public sealed class SsTrainingWriter(UnifiedDbContext db)
                 owned.Notes,
                 owned.NoticeState
             );
-            return actual == SsTrainingRules.MappedTarget(row, user, course.Value, owned.Training.Code, dates);
+            return actual
+                == SsTrainingRules.MappedTarget(
+                    row,
+                    user,
+                    course.Value,
+                    owned.Training.Code,
+                    SsTrainingRules.KeepTargetTimes(row, dates, owned.AwardedOn, owned.EndingOn, owned.ExpiryDate)
+                );
         }
         catch (SsReject)
         {
@@ -398,7 +414,7 @@ public sealed class SsTrainingWriter(UnifiedDbContext db)
         return (SsTrainingRules.PlaceHistory(slots, legacyId, dates.Start, dates.End, x => blocks[x.Id]), owners);
     }
 
-    /// <summary>A planned re-placement of a corrected owned history (see <see cref="PlanReorderAsync"/>).</summary>
+    /// <summary>A planned re-placement of an updated owned history (see <see cref="PlanReorderAsync"/>).</summary>
     private sealed record Reorder(
         SsTrainingRules.HistoryPlacement Placement,
         Dictionary<int, DataMigrationRecord> Owners,
@@ -406,18 +422,19 @@ public sealed class SsTrainingWriter(UnifiedDbContext db)
     );
 
     /// <summary>
-    /// For an undrifted owned history whose mapped dates change (e.g. the Vancouver correction) without a
-    /// user/course rebind: when the new dates change its order among the other histories of the group, plans
-    /// its new version with <see cref="SsTrainingRules.PlaceHistory"/> (its current version is a free gap, so
-    /// only the newer owned run between moves). Returns the plan, or the blocking reason (an unowned/drifted
-    /// row would have to move) so the caller skips the whole update instead of correcting the dates while
-    /// leaving a stale version order. Null plan and reason: keep the existing version.
+    /// For an undrifted owned history whose SS dates changed (times kept per
+    /// <see cref="SsTrainingRules.KeepTargetTimes"/>; the Vancouver adjustment alone never moves a migrated
+    /// history) without a user/course rebind: when the new dates change its order among the other histories of
+    /// the group, plans its new version with <see cref="SsTrainingRules.PlaceHistory"/> (its current version is a
+    /// free gap, so only the newer owned run between moves). Returns the plan, or the blocking reason (an
+    /// unowned/drifted row would have to move) so the caller skips the whole update instead of changing the
+    /// dates while leaving a stale version order. Null plan and reason: keep the existing version.
     /// </summary>
     private async Task<(Reorder? Plan, string? Skip)> PlanReorderAsync(
         SsWriteSession session,
         SsRow row,
         string sourceUser,
-        SsTrainingRules.HistoryTimes dates,
+        SsTrainingRules.HistoryTimes mapped,
         CancellationToken ct
     )
     {
@@ -425,6 +442,7 @@ public sealed class SsTrainingWriter(UnifiedDbContext db)
         var owned = await db.UserTrainings.SingleAsync(x => x.Id == id, ct);
         var user = Guid.Parse(await session.ResolveAsync("User", sourceUser, ct));
         var course = await session.ResolveIntAsync("Training", row.Int("TrainingTypeId"), ct);
+        var dates = SsTrainingRules.KeepTargetTimes(row, mapped, owned.AwardedOn, owned.EndingOn, owned.ExpiryDate);
         if (
             course is null
             || owned.UserId != user
@@ -448,9 +466,9 @@ public sealed class SsTrainingWriter(UnifiedDbContext db)
     }
 
     /// <summary>
-    /// Applies a <see cref="Reorder"/> plan: parks the corrected history on -Id (Version is unique per
+    /// Applies a <see cref="Reorder"/> plan: parks the updated history on -Id (Version is unique per
     /// user/course), moves the newer owned run up one version with refreshed crosswalk evidence, then gives
-    /// the corrected history its placed version (saved with the owned update).
+    /// the updated history its placed version (saved with the owned update).
     /// </summary>
     private async Task ReorderAsync(SsWriteSession session, UserTraining owned, Reorder plan, CancellationToken ct)
     {

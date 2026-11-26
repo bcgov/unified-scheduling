@@ -267,17 +267,16 @@ migrate wrong wall-clock times. The dry-run configuration hash already changes w
 PerRow, Bulk and dry run share `SsTrainingRules.MapHistoryTimes`. Version ordering (EndDate, StartDate,
 source ID) uses the mapped values.
 
-The payload hash keeps its previous shape for unadjusted rows. Adjusted rows add the mapped instants,
-so rows migrated before the adjustment take the owned-update path once on rerun:
-- unedited targets are corrected (`Migrated/OwnedMappedUpdate`);
-- a target a Unified user already set to exactly the mapped values (user, course, AwardedOn, EndingOn,
-  AllDay=false, ExpiryDate, Notes, NoticeState) is adopted without any business write
-  (`Migrated/TargetAlreadyMatchesMappedSource`, counted unchanged; only the crosswalk payload/after hash
-  move, so later reruns are `ExistingCrosswalk`);
-- any other edit stays `Excluded/OwnedTargetDrift` and is never overwritten.
-Adoption limits: alias crosswalks are not refreshed. A rollback treats the user-edited row as a later edit
-(conservative). Bulk undo of the original insert run compares the crosswalk after-hash, which now matches
-the adopted row, so that undo would delete it like any other row it created.
+The adjustment manages only incoming SS values still captured at -08:00. Times already in Unified are
+never adjusted (already-migrated rows were fixed by hand in Unified). The history payload hash keeps its
+original shape and hashes only raw SS values, never the mapped instants, so the adjustment alone never
+makes an already-migrated history look changed: a rerun leaves it `ExistingCrosswalk`/`UnchangedMappedSource`
+with no write and no drift check. New histories are inserted with the mapped instants. When a real SS change
+(hash change) takes the owned-update path, `SsTrainingRules.KeepTargetTimes` decides each of AwardedOn,
+EndingOn and ExpiryDate: the Unified value is kept while it equals the raw SS value or its mapped value
+(unchanged in SS, fixed by hand or not); only an SS value that changed is written, with its mapped instant.
+EndingOn is clamped to AwardedOn if the kept/replaced mix would reverse the interval. Drift detection and
+`Migrated/TargetAlreadyMatchesMappedSource` adoption compare against these kept values.
 Known limitation (unchanged): the history payload hash serializes the start/end ValueTuple as `{}`, so an SS
 edit to only StartDate/EndDate of an otherwise unchanged history is not reapplied
 (`UnchangedMappedSource`). Fixing it would rewrite every SheriffTraining hash.
@@ -297,13 +296,13 @@ Excluded as OlderHistoryBlockedByUnownedVersion (or OwnedTargetDrift) and recons
 Either way it records an out-of-order finding. Use tracked migration inserts with
 audit/FK/unique validation; do not invoke renewal or user-creation side effects.
 
-An owned update that changes a history's dates without a user/course rebind (e.g. the Vancouver
-correction of an already migrated row) keeps its version unless the new dates change its order among
+An owned update that changes a history's dates without a user/course rebind (a real SS date change, with
+incoming Vancouver values mapped) keeps its version unless the new dates change its order among
 the other histories of the group. Example: the 2026-11-01 fall-back pair A (ends 08:50Z, PDT) and B
-(ends 09:10Z, PST) was migrated as A=v1, B=v2; corrected B ends 08:10Z, before A. Then the history is
+(ends 09:10Z, PST) was migrated as A=v1, B=v2; SS then changes B to end 09:12 PST, mapped to 08:12Z, before A. Then the history is
 placed again with the same rule as a backfill (its current version is a free gap): it takes the lowest
 version of the histories now newer than it, and the migration-owned, undrifted run between moves up one
-version (B=v1, A=v2, so A stays the current certificate). The corrected row is parked on `-Id` first so
+version (B=v1, A=v2, so A stays the current certificate). The updated row is parked on `-Id` first so
 the unique (UserId, TrainingId, Version) index never collides; moved rows get the same Version-only
 update, mutation receipt and refreshed crosswalk evidence as a backfill shift, so the next rerun is a
 no-op. If a row that would have to move is Unified-created, drifted or lacks version proof, the whole

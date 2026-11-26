@@ -280,6 +280,36 @@ internal static class SsTrainingRules
         return MapTimes(start, end, row.Date("TrainingCertificationExpiry"), vancouver);
     }
 
+    /// <summary>
+    /// Times an owned update writes to an already-migrated UserTraining. The Vancouver adjustment manages only
+    /// incoming SS values; times already in Unified are never adjusted (they were corrected by hand). Each
+    /// value keeps the target's current instant while it still represents the SS value (equals the raw SS
+    /// instant or its <paramref name="mapped"/> instant); only an SS value that changed is replaced, with its
+    /// mapped instant. The end is clamped to the start if a kept/replaced mix would reverse the interval.
+    /// </summary>
+    internal static HistoryTimes KeepTargetTimes(
+        SsRow row,
+        HistoryTimes mapped,
+        DateTimeOffset targetStart,
+        DateTimeOffset targetEnd,
+        DateTimeOffset? targetExpiry
+    )
+    {
+        var (start, end) = SsWriteSession.Dates(row);
+        var expiry = row.Date("TrainingCertificationExpiry");
+        var keptStart = KeepTarget(targetStart, start, mapped.Start);
+        var keptEnd = KeepTarget(targetEnd, end, mapped.End);
+        if (keptEnd < keptStart)
+            keptEnd = keptStart;
+        var keptExpiry = KeepTarget(targetExpiry, expiry, mapped.Expiry);
+        return new(keptStart, keptEnd, keptExpiry, keptStart != start || keptEnd != end || keptExpiry != expiry);
+    }
+
+    private static T KeepTarget<T>(T target, T source, T mapped) =>
+        EqualityComparer<T>.Default.Equals(target, source) || EqualityComparer<T>.Default.Equals(target, mapped)
+            ? target
+            : mapped;
+
     internal static HistoryTimes MapTimes(
         DateTimeOffset start,
         DateTimeOffset end,
@@ -341,42 +371,24 @@ internal static class SsTrainingRules
         : "DeletedHistory";
 
     /// <summary>
-    /// Mapped history payload hash. Unadjusted rows keep the original hash shape byte for byte (existing
-    /// crosswalks stay unchanged). A Vancouver-adjusted row adds the mapped instants, so rows migrated before
-    /// the adjustment existed replay through the owned-update path (corrected, or skipped/adopted on drift)
-    /// and later reruns are no-ops.
+    /// Mapped history payload hash (original shape, byte for byte). It hashes only raw SS values, never the
+    /// Vancouver-adjusted instants, so the adjustment alone never makes an already-migrated history look
+    /// changed: UserTrainings already in Unified (corrected by hand) are not rewritten because of it.
     /// </summary>
-    internal static string HistoryHash(SsRow row, string sourceUser, HistoryTimes times)
+    internal static string HistoryHash(SsRow row, string sourceUser)
     {
         // Kept for hash compatibility; System.Text.Json serializes the ValueTuple (fields only) as {}.
         var dates = (Start: row.Date("StartDate"), End: row.Date("EndDate"));
-        return times.Adjusted
-            ? SsWriteSession.Hash(
-                new
-                {
-                    User = sourceUser,
-                    Course = row.Int("TrainingTypeId"),
-                    dates,
-                    Expiry = row.Date("TrainingCertificationExpiry"),
-                    Notice = row.Bool("FirstNotice"),
-                    VancouverAdjusted = new
-                    {
-                        times.Start,
-                        times.End,
-                        times.Expiry,
-                    },
-                }
-            )
-            : SsWriteSession.Hash(
-                new
-                {
-                    User = sourceUser,
-                    Course = row.Int("TrainingTypeId"),
-                    dates,
-                    Expiry = row.Date("TrainingCertificationExpiry"),
-                    Notice = row.Bool("FirstNotice"),
-                }
-            );
+        return SsWriteSession.Hash(
+            new
+            {
+                User = sourceUser,
+                Course = row.Int("TrainingTypeId"),
+                dates,
+                Expiry = row.Date("TrainingCertificationExpiry"),
+                Notice = row.Bool("FirstNotice"),
+            }
+        );
     }
 
     internal static string? MappedNotes(SsRow row, string courseCode)
@@ -456,8 +468,8 @@ internal static class SsTrainingRules
     /// <summary>
     /// True when moving an existing history from (<paramref name="oldStart"/>, <paramref name="oldEnd"/>) to
     /// (<paramref name="start"/>, <paramref name="end"/>) changes which of the <paramref name="others"/> in its
-    /// user/course group sort after it, i.e. its version must be placed again (e.g. the Vancouver correction
-    /// moving a fall-back history before its predecessor). Same dates or same relative order: keep the version.
+    /// user/course group sort after it, i.e. its version must be placed again (an owned update applying
+    /// changed SS dates). Same dates or same relative order: keep the version.
     /// </summary>
     internal static bool HistoryOrderChanged(
         IEnumerable<HistorySlot> others,
