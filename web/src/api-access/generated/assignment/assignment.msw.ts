@@ -24,6 +24,10 @@ export const getGetApiSchedulingAssignmentsSeriesResponseMock = (): AssignmentSe
   faker.helpers.arrayElement([
     Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
       concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      createdById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
@@ -76,6 +80,10 @@ export const getGetApiSchedulingAssignmentsSeriesResponseMock = (): AssignmentSe
     })),
     Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
       concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      createdById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
@@ -128,6 +136,10 @@ export const getGetApiSchedulingAssignmentsSeriesResponseMock = (): AssignmentSe
     })),
     Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
       concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      createdById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
@@ -186,6 +198,10 @@ export const getPostApiSchedulingAssignmentsSeriesResponseMock = (
   faker.helpers.arrayElement([
     {
       concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      createdById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
@@ -239,6 +255,10 @@ export const getPostApiSchedulingAssignmentsSeriesResponseMock = (
     },
     {
       concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      createdById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
@@ -292,6 +312,10 @@ export const getPostApiSchedulingAssignmentsSeriesResponseMock = (
     },
     {
       concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      createdById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
@@ -351,6 +375,10 @@ export const getGetApiSchedulingAssignmentsSeriesIdResponseMock = (
   faker.helpers.arrayElement([
     {
       concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      createdById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
@@ -404,6 +432,10 @@ export const getGetApiSchedulingAssignmentsSeriesIdResponseMock = (
     },
     {
       concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      createdById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
@@ -457,6 +489,10 @@ export const getGetApiSchedulingAssignmentsSeriesIdResponseMock = (
     },
     {
       concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      createdById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
@@ -516,6 +552,10 @@ export const getPutApiSchedulingAssignmentsSeriesIdResponseMock = (
   faker.helpers.arrayElement([
     {
       concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      createdById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
@@ -569,6 +609,10 @@ export const getPutApiSchedulingAssignmentsSeriesIdResponseMock = (
     },
     {
       concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      createdById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
@@ -622,6 +666,10 @@ export const getPutApiSchedulingAssignmentsSeriesIdResponseMock = (
     },
     {
       concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      createdById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
@@ -681,6 +729,10 @@ export const getPostApiSchedulingAssignmentsSeriesIdPublishResponseMock = (
   faker.helpers.arrayElement([
     {
       concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      createdById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
@@ -734,6 +786,10 @@ export const getPostApiSchedulingAssignmentsSeriesIdPublishResponseMock = (
     },
     {
       concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      createdById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
@@ -787,6 +843,10 @@ export const getPostApiSchedulingAssignmentsSeriesIdPublishResponseMock = (
     },
     {
       concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      createdById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
@@ -846,6 +906,10 @@ export const getPostApiSchedulingAssignmentsSeriesIdExpireResponseMock = (
   faker.helpers.arrayElement([
     {
       concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      createdById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
@@ -899,6 +963,10 @@ export const getPostApiSchedulingAssignmentsSeriesIdExpireResponseMock = (
     },
     {
       concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      createdById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
@@ -952,6 +1020,10 @@ export const getPostApiSchedulingAssignmentsSeriesIdExpireResponseMock = (
     },
     {
       concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      createdById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
@@ -1009,6 +1081,10 @@ export const getGetApiSchedulingAssignmentsEntriesResponseMock = (): AssignmentE
   faker.helpers.arrayElement([
     Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
       concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      createdById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       assignmentSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1074,6 +1150,10 @@ export const getGetApiSchedulingAssignmentsEntriesResponseMock = (): AssignmentE
     })),
     Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
       concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      createdById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       assignmentSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1139,6 +1219,10 @@ export const getGetApiSchedulingAssignmentsEntriesResponseMock = (): AssignmentE
     })),
     Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
       concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      createdById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       assignmentSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1210,6 +1294,10 @@ export const getPostApiSchedulingAssignmentsEntriesResponseMock = (
   faker.helpers.arrayElement([
     {
       concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      createdById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       assignmentSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1276,6 +1364,10 @@ export const getPostApiSchedulingAssignmentsEntriesResponseMock = (
     },
     {
       concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      createdById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       assignmentSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1342,6 +1434,10 @@ export const getPostApiSchedulingAssignmentsEntriesResponseMock = (
     },
     {
       concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      createdById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       assignmentSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1414,6 +1510,10 @@ export const getGetApiSchedulingAssignmentsEntriesIdResponseMock = (
   faker.helpers.arrayElement([
     {
       concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      createdById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       assignmentSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1480,6 +1580,10 @@ export const getGetApiSchedulingAssignmentsEntriesIdResponseMock = (
     },
     {
       concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      createdById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       assignmentSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1546,6 +1650,10 @@ export const getGetApiSchedulingAssignmentsEntriesIdResponseMock = (
     },
     {
       concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      createdById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       assignmentSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1618,6 +1726,10 @@ export const getPutApiSchedulingAssignmentsEntriesIdResponseMock = (
   faker.helpers.arrayElement([
     {
       concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      createdById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       assignmentSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1684,6 +1796,10 @@ export const getPutApiSchedulingAssignmentsEntriesIdResponseMock = (
     },
     {
       concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      createdById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       assignmentSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1750,6 +1866,10 @@ export const getPutApiSchedulingAssignmentsEntriesIdResponseMock = (
     },
     {
       concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      createdById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       assignmentSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1822,6 +1942,10 @@ export const getPostApiSchedulingAssignmentsEntriesIdPublishResponseMock = (
   faker.helpers.arrayElement([
     {
       concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      createdById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       assignmentSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1888,6 +2012,10 @@ export const getPostApiSchedulingAssignmentsEntriesIdPublishResponseMock = (
     },
     {
       concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      createdById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       assignmentSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1954,6 +2082,10 @@ export const getPostApiSchedulingAssignmentsEntriesIdPublishResponseMock = (
     },
     {
       concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      createdById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       assignmentSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -2026,6 +2158,10 @@ export const getPostApiSchedulingAssignmentsEntriesIdExpireResponseMock = (
   faker.helpers.arrayElement([
     {
       concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      createdById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       assignmentSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -2092,6 +2228,10 @@ export const getPostApiSchedulingAssignmentsEntriesIdExpireResponseMock = (
     },
     {
       concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      createdById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       assignmentSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -2158,6 +2298,10 @@ export const getPostApiSchedulingAssignmentsEntriesIdExpireResponseMock = (
     },
     {
       concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      createdById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       assignmentSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),

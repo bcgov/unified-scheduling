@@ -24,6 +24,10 @@ export const getGetApiSchedulingShiftsSeriesResponseMock = (): ShiftSeriesRespon
   faker.helpers.arrayElement([
     Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
       concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      createdById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       lunchAvailableMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       shiftEntryIds: faker.helpers.arrayElement([
@@ -72,6 +76,10 @@ export const getGetApiSchedulingShiftsSeriesResponseMock = (): ShiftSeriesRespon
     })),
     Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
       concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      createdById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       lunchAvailableMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       shiftEntryIds: faker.helpers.arrayElement([
@@ -120,6 +128,10 @@ export const getGetApiSchedulingShiftsSeriesResponseMock = (): ShiftSeriesRespon
     })),
     Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
       concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      createdById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       lunchAvailableMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       shiftEntryIds: faker.helpers.arrayElement([
@@ -174,6 +186,10 @@ export const getPostApiSchedulingShiftsSeriesResponseMock = (
   faker.helpers.arrayElement([
     {
       concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      createdById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       lunchAvailableMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       shiftEntryIds: faker.helpers.arrayElement([
@@ -223,6 +239,10 @@ export const getPostApiSchedulingShiftsSeriesResponseMock = (
     },
     {
       concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      createdById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       lunchAvailableMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       shiftEntryIds: faker.helpers.arrayElement([
@@ -272,6 +292,10 @@ export const getPostApiSchedulingShiftsSeriesResponseMock = (
     },
     {
       concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      createdById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       lunchAvailableMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       shiftEntryIds: faker.helpers.arrayElement([
@@ -327,6 +351,10 @@ export const getGetApiSchedulingShiftsSeriesIdResponseMock = (
   faker.helpers.arrayElement([
     {
       concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      createdById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       lunchAvailableMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       shiftEntryIds: faker.helpers.arrayElement([
@@ -376,6 +404,10 @@ export const getGetApiSchedulingShiftsSeriesIdResponseMock = (
     },
     {
       concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      createdById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       lunchAvailableMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       shiftEntryIds: faker.helpers.arrayElement([
@@ -425,6 +457,10 @@ export const getGetApiSchedulingShiftsSeriesIdResponseMock = (
     },
     {
       concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      createdById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       lunchAvailableMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       shiftEntryIds: faker.helpers.arrayElement([
@@ -480,6 +516,10 @@ export const getPutApiSchedulingShiftsSeriesIdResponseMock = (
   faker.helpers.arrayElement([
     {
       concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      createdById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       lunchAvailableMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       shiftEntryIds: faker.helpers.arrayElement([
@@ -529,6 +569,10 @@ export const getPutApiSchedulingShiftsSeriesIdResponseMock = (
     },
     {
       concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      createdById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       lunchAvailableMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       shiftEntryIds: faker.helpers.arrayElement([
@@ -578,6 +622,10 @@ export const getPutApiSchedulingShiftsSeriesIdResponseMock = (
     },
     {
       concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      createdById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       lunchAvailableMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       shiftEntryIds: faker.helpers.arrayElement([
@@ -633,6 +681,10 @@ export const getPostApiSchedulingShiftsSeriesIdPublishResponseMock = (
   faker.helpers.arrayElement([
     {
       concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      createdById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       lunchAvailableMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       shiftEntryIds: faker.helpers.arrayElement([
@@ -682,6 +734,10 @@ export const getPostApiSchedulingShiftsSeriesIdPublishResponseMock = (
     },
     {
       concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      createdById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       lunchAvailableMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       shiftEntryIds: faker.helpers.arrayElement([
@@ -731,6 +787,10 @@ export const getPostApiSchedulingShiftsSeriesIdPublishResponseMock = (
     },
     {
       concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      createdById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       lunchAvailableMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       shiftEntryIds: faker.helpers.arrayElement([
@@ -786,6 +846,10 @@ export const getPostApiSchedulingShiftsSeriesIdExpireResponseMock = (
   faker.helpers.arrayElement([
     {
       concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      createdById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       lunchAvailableMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       shiftEntryIds: faker.helpers.arrayElement([
@@ -835,6 +899,10 @@ export const getPostApiSchedulingShiftsSeriesIdExpireResponseMock = (
     },
     {
       concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      createdById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       lunchAvailableMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       shiftEntryIds: faker.helpers.arrayElement([
@@ -884,6 +952,10 @@ export const getPostApiSchedulingShiftsSeriesIdExpireResponseMock = (
     },
     {
       concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      createdById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       lunchAvailableMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       shiftEntryIds: faker.helpers.arrayElement([
@@ -937,6 +1009,10 @@ export const getGetApiSchedulingShiftsEntriesResponseMock = (): ShiftEntryRespon
   faker.helpers.arrayElement([
     Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
       concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      createdById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       lunchAvailableMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
@@ -989,6 +1065,10 @@ export const getGetApiSchedulingShiftsEntriesResponseMock = (): ShiftEntryRespon
     })),
     Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
       concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      createdById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       lunchAvailableMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
@@ -1041,6 +1121,10 @@ export const getGetApiSchedulingShiftsEntriesResponseMock = (): ShiftEntryRespon
     })),
     Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
       concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      createdById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       lunchAvailableMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
@@ -1099,6 +1183,10 @@ export const getPostApiSchedulingShiftsEntriesResponseMock = (
   faker.helpers.arrayElement([
     {
       concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      createdById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       lunchAvailableMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
@@ -1152,6 +1240,10 @@ export const getPostApiSchedulingShiftsEntriesResponseMock = (
     },
     {
       concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      createdById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       lunchAvailableMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
@@ -1205,6 +1297,10 @@ export const getPostApiSchedulingShiftsEntriesResponseMock = (
     },
     {
       concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      createdById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       lunchAvailableMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
@@ -1264,6 +1360,10 @@ export const getGetApiSchedulingShiftsEntriesIdResponseMock = (
   faker.helpers.arrayElement([
     {
       concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      createdById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       lunchAvailableMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
@@ -1317,6 +1417,10 @@ export const getGetApiSchedulingShiftsEntriesIdResponseMock = (
     },
     {
       concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      createdById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       lunchAvailableMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
@@ -1370,6 +1474,10 @@ export const getGetApiSchedulingShiftsEntriesIdResponseMock = (
     },
     {
       concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      createdById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       lunchAvailableMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
@@ -1429,6 +1537,10 @@ export const getPutApiSchedulingShiftsEntriesIdResponseMock = (
   faker.helpers.arrayElement([
     {
       concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      createdById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       lunchAvailableMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
@@ -1482,6 +1594,10 @@ export const getPutApiSchedulingShiftsEntriesIdResponseMock = (
     },
     {
       concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      createdById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       lunchAvailableMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
@@ -1535,6 +1651,10 @@ export const getPutApiSchedulingShiftsEntriesIdResponseMock = (
     },
     {
       concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      createdById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       lunchAvailableMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
@@ -1594,6 +1714,10 @@ export const getPostApiSchedulingShiftsEntriesIdPublishResponseMock = (
   faker.helpers.arrayElement([
     {
       concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      createdById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       lunchAvailableMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
@@ -1647,6 +1771,10 @@ export const getPostApiSchedulingShiftsEntriesIdPublishResponseMock = (
     },
     {
       concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      createdById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       lunchAvailableMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
@@ -1700,6 +1828,10 @@ export const getPostApiSchedulingShiftsEntriesIdPublishResponseMock = (
     },
     {
       concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      createdById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       lunchAvailableMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
@@ -1759,6 +1891,10 @@ export const getPostApiSchedulingShiftsEntriesIdExpireResponseMock = (
   faker.helpers.arrayElement([
     {
       concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      createdById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       lunchAvailableMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
@@ -1812,6 +1948,10 @@ export const getPostApiSchedulingShiftsEntriesIdExpireResponseMock = (
     },
     {
       concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      createdById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       lunchAvailableMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
@@ -1865,6 +2005,10 @@ export const getPostApiSchedulingShiftsEntriesIdExpireResponseMock = (
     },
     {
       concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      createdById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedById: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       lunchAvailableMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),

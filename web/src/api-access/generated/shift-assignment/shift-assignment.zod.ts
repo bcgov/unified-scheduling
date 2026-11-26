@@ -20,6 +20,10 @@ export const PostApiSchedulingShiftAssignmentsOptionsResponse = zod.object({
     .array(
       zod.object({
         concurrencyToken: zod.int().optional(),
+        createdById: zod.uuid().nullish(),
+        createdOn: zod.iso.datetime({ offset: true }).nullish(),
+        updatedById: zod.uuid().nullish(),
+        updatedOn: zod.iso.datetime({ offset: true }).nullish(),
         assignmentSeriesId: zod.int().nullish(),
         assignmentDefinitionId: zod.int().optional(),
         categoryId: zod.int().optional(),
@@ -73,6 +77,10 @@ export const PostApiSchedulingShiftAssignmentsOptionsResponse = zod.object({
     .array(
       zod.object({
         concurrencyToken: zod.int().optional(),
+        createdById: zod.uuid().nullish(),
+        createdOn: zod.iso.datetime({ offset: true }).nullish(),
+        updatedById: zod.uuid().nullish(),
+        updatedOn: zod.iso.datetime({ offset: true }).nullish(),
         assignmentDefinitionId: zod.int().optional(),
         categoryId: zod.int().optional(),
         categoryName: zod.string().nullish(),

@@ -10,6 +10,14 @@ import type { ShiftAssignmentEntryResponse } from './shiftAssignmentEntryRespons
 export interface AssignmentEntryResponse {
   concurrencyToken?: number;
   /** @nullable */
+  createdById?: string | null;
+  /** @nullable */
+  createdOn?: string | null;
+  /** @nullable */
+  updatedById?: string | null;
+  /** @nullable */
+  updatedOn?: string | null;
+  /** @nullable */
   assignmentSeriesId?: number | null;
   assignmentDefinitionId?: number;
   categoryId?: number;

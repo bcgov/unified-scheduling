@@ -6,6 +6,46 @@ namespace Unified.Tests.Scheduling.Mappings;
 
 public sealed class ShiftResponseMapperTests
 {
+    [Fact]
+    public void ToShiftEntryResponse_UsesShiftEntryAudit()
+    {
+        var shift = new ShiftEntry
+        {
+            Event = new Event(),
+            CreatedById = Guid.NewGuid(),
+            CreatedOn = new DateTimeOffset(2026, 11, 20, 17, 15, 0, TimeSpan.Zero),
+            UpdatedById = Guid.NewGuid(),
+            UpdatedOn = new DateTimeOffset(2026, 11, 24, 22, 30, 0, TimeSpan.Zero),
+        };
+
+        var response = ShiftResponseMapper.ToShiftEntryResponse(shift);
+
+        Assert.Equal(shift.CreatedById, response.CreatedById);
+        Assert.Equal(shift.CreatedOn, response.CreatedOn);
+        Assert.Equal(shift.UpdatedById, response.UpdatedById);
+        Assert.Equal(shift.UpdatedOn, response.UpdatedOn);
+    }
+
+    [Fact]
+    public void ToShiftSeriesResponse_UsesShiftSeriesAudit()
+    {
+        var series = new ShiftSeries
+        {
+            EventSeries = new EventSeries(),
+            CreatedById = Guid.NewGuid(),
+            CreatedOn = new DateTimeOffset(2026, 11, 20, 17, 15, 0, TimeSpan.Zero),
+            UpdatedById = Guid.NewGuid(),
+            UpdatedOn = new DateTimeOffset(2026, 11, 24, 22, 30, 0, TimeSpan.Zero),
+        };
+
+        var response = ShiftResponseMapper.ToShiftSeriesResponse(series, series.EventSeries, [], []);
+
+        Assert.Equal(series.CreatedById, response.CreatedById);
+        Assert.Equal(series.CreatedOn, response.CreatedOn);
+        Assert.Equal(series.UpdatedById, response.UpdatedById);
+        Assert.Equal(series.UpdatedOn, response.UpdatedOn);
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

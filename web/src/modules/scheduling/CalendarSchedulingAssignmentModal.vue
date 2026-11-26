@@ -15,6 +15,7 @@ import type { CalendarConflictRejectionResponse } from '@/api-access/generated/m
 import { useCalendarStore } from '@/modules/calendar/calendarStore';
 import CalendarConflictDetailModal from '@/modules/calendar/components/CalendarConflictDetailModal.vue';
 import UaAlert from '@/shared/components/UaAlert.vue';
+import type { AuditFields } from '@/shared/components/UaAuditDisplay.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
 import UaPromptedButton from '@/shared/components/UaPromptedButton.vue';
 import UaFormGrid from '@/shared/components/UaFormGrid.vue';
@@ -126,6 +127,7 @@ const concurrencyToken = ref<number | null>(null);
 const hasConcurrencyConflict = ref(false);
 const mutationGuard = createLatestRequestGuard();
 const assignmentLoad = useSchedulingAssignmentLoad();
+const loadedAssignmentAudit = ref<((AssignmentEntryResponse | AssignmentSeriesResponse) & AuditFields) | null>(null);
 const loadedAssignmentSeries = ref<AssignmentSeriesResponse | null>(null);
 const assignmentSeriesEntries = ref<AssignmentEntryResponse[]>([]);
 const assignmentEntriesRequestGuard = createLatestRequestGuard();
@@ -1741,6 +1743,7 @@ async function handleLifecycleAction() {
 async function loadInitialAssignment() {
   concurrencyToken.value = null;
   existingShiftEntryLinks.value = undefined;
+  loadedAssignmentAudit.value = null;
   loadedAssignmentSeries.value = null;
   if (modalMode.value === 'create') {
     assignmentLoadState.value = 'loaded';
@@ -1765,6 +1768,7 @@ async function loadInitialAssignment() {
       activeTab.value = 'details';
     }
     applyScopeRestrictions();
+    loadedAssignmentAudit.value = assignment;
   });
   if (assignmentLoadState.value === 'loaded' && props.initialShiftEntryIds !== undefined) {
     hasAppliedInitialShiftEntrySelection.value = false;
@@ -1973,6 +1977,8 @@ function getInitialOpenScope(): AssignmentOpenScope | null {
       v-else-if="shouldShowReadOnlyDetails"
       :detail-rows="assignmentDetailRows"
       :is-loading="isLoadingAssignment"
+      :audit="modalMode === 'view' && assignmentLoadState === 'loaded' ? loadedAssignmentAudit : null"
+      :time-zone="timeZoneId"
     />
 
     <UaFormGrid v-else-if="!isDeleteTab" label-width="150px">

@@ -16,6 +16,10 @@ export const GetApiSchedulingShiftsSeriesQueryParams = zod.strictObject({
 
 export const GetApiSchedulingShiftsSeriesResponseItem = zod.object({
   concurrencyToken: zod.int().optional(),
+  createdById: zod.uuid().nullish(),
+  createdOn: zod.iso.datetime({ offset: true }).nullish(),
+  updatedById: zod.uuid().nullish(),
+  updatedOn: zod.iso.datetime({ offset: true }).nullish(),
   lunchAvailableMinutes: zod.int().nullish(),
   workedLunchMinutes: zod.int().nullish(),
   shiftEntryIds: zod.array(zod.int()).optional(),
@@ -77,6 +81,10 @@ export const PostApiSchedulingShiftsSeriesBody = zod.strictObject({
 
 export const PostApiSchedulingShiftsSeriesResponse = zod.object({
   concurrencyToken: zod.int().optional(),
+  createdById: zod.uuid().nullish(),
+  createdOn: zod.iso.datetime({ offset: true }).nullish(),
+  updatedById: zod.uuid().nullish(),
+  updatedOn: zod.iso.datetime({ offset: true }).nullish(),
   lunchAvailableMinutes: zod.int().nullish(),
   workedLunchMinutes: zod.int().nullish(),
   shiftEntryIds: zod.array(zod.int()).optional(),
@@ -117,6 +125,10 @@ export const GetApiSchedulingShiftsSeriesIdParams = zod.strictObject({
 
 export const GetApiSchedulingShiftsSeriesIdResponse = zod.object({
   concurrencyToken: zod.int().optional(),
+  createdById: zod.uuid().nullish(),
+  createdOn: zod.iso.datetime({ offset: true }).nullish(),
+  updatedById: zod.uuid().nullish(),
+  updatedOn: zod.iso.datetime({ offset: true }).nullish(),
   lunchAvailableMinutes: zod.int().nullish(),
   workedLunchMinutes: zod.int().nullish(),
   shiftEntryIds: zod.array(zod.int()).optional(),
@@ -182,6 +194,10 @@ export const PutApiSchedulingShiftsSeriesIdBody = zod.strictObject({
 
 export const PutApiSchedulingShiftsSeriesIdResponse = zod.object({
   concurrencyToken: zod.int().optional(),
+  createdById: zod.uuid().nullish(),
+  createdOn: zod.iso.datetime({ offset: true }).nullish(),
+  updatedById: zod.uuid().nullish(),
+  updatedOn: zod.iso.datetime({ offset: true }).nullish(),
   lunchAvailableMinutes: zod.int().nullish(),
   workedLunchMinutes: zod.int().nullish(),
   shiftEntryIds: zod.array(zod.int()).optional(),
@@ -228,6 +244,10 @@ export const PostApiSchedulingShiftsSeriesIdPublishParams = zod.strictObject({
 
 export const PostApiSchedulingShiftsSeriesIdPublishResponse = zod.object({
   concurrencyToken: zod.int().optional(),
+  createdById: zod.uuid().nullish(),
+  createdOn: zod.iso.datetime({ offset: true }).nullish(),
+  updatedById: zod.uuid().nullish(),
+  updatedOn: zod.iso.datetime({ offset: true }).nullish(),
   lunchAvailableMinutes: zod.int().nullish(),
   workedLunchMinutes: zod.int().nullish(),
   shiftEntryIds: zod.array(zod.int()).optional(),
@@ -275,6 +295,10 @@ export const PostApiSchedulingShiftsSeriesIdExpireBody = zod.union([
 
 export const PostApiSchedulingShiftsSeriesIdExpireResponse = zod.object({
   concurrencyToken: zod.int().optional(),
+  createdById: zod.uuid().nullish(),
+  createdOn: zod.iso.datetime({ offset: true }).nullish(),
+  updatedById: zod.uuid().nullish(),
+  updatedOn: zod.iso.datetime({ offset: true }).nullish(),
   lunchAvailableMinutes: zod.int().nullish(),
   workedLunchMinutes: zod.int().nullish(),
   shiftEntryIds: zod.array(zod.int()).optional(),
@@ -320,6 +344,10 @@ export const GetApiSchedulingShiftsEntriesQueryParams = zod.strictObject({
 
 export const GetApiSchedulingShiftsEntriesResponseItem = zod.object({
   concurrencyToken: zod.int().optional(),
+  createdById: zod.uuid().nullish(),
+  createdOn: zod.iso.datetime({ offset: true }).nullish(),
+  updatedById: zod.uuid().nullish(),
+  updatedOn: zod.iso.datetime({ offset: true }).nullish(),
   lunchAvailableMinutes: zod.int().nullish(),
   workedLunchMinutes: zod.int().nullish(),
   shiftSeriesId: zod.int().nullish(),
@@ -390,6 +418,10 @@ export const PostApiSchedulingShiftsEntriesBody = zod.strictObject({
 
 export const PostApiSchedulingShiftsEntriesResponse = zod.object({
   concurrencyToken: zod.int().optional(),
+  createdById: zod.uuid().nullish(),
+  createdOn: zod.iso.datetime({ offset: true }).nullish(),
+  updatedById: zod.uuid().nullish(),
+  updatedOn: zod.iso.datetime({ offset: true }).nullish(),
   lunchAvailableMinutes: zod.int().nullish(),
   workedLunchMinutes: zod.int().nullish(),
   shiftSeriesId: zod.int().nullish(),
@@ -437,6 +469,10 @@ export const GetApiSchedulingShiftsEntriesIdParams = zod.strictObject({
 
 export const GetApiSchedulingShiftsEntriesIdResponse = zod.object({
   concurrencyToken: zod.int().optional(),
+  createdById: zod.uuid().nullish(),
+  createdOn: zod.iso.datetime({ offset: true }).nullish(),
+  updatedById: zod.uuid().nullish(),
+  updatedOn: zod.iso.datetime({ offset: true }).nullish(),
   lunchAvailableMinutes: zod.int().nullish(),
   workedLunchMinutes: zod.int().nullish(),
   shiftSeriesId: zod.int().nullish(),
@@ -523,6 +559,10 @@ export const PutApiSchedulingShiftsEntriesIdBody = zod.strictObject({
 
 export const PutApiSchedulingShiftsEntriesIdResponse = zod.object({
   concurrencyToken: zod.int().optional(),
+  createdById: zod.uuid().nullish(),
+  createdOn: zod.iso.datetime({ offset: true }).nullish(),
+  updatedById: zod.uuid().nullish(),
+  updatedOn: zod.iso.datetime({ offset: true }).nullish(),
   lunchAvailableMinutes: zod.int().nullish(),
   workedLunchMinutes: zod.int().nullish(),
   shiftSeriesId: zod.int().nullish(),
@@ -576,6 +616,10 @@ export const PostApiSchedulingShiftsEntriesIdPublishParams = zod.strictObject({
 
 export const PostApiSchedulingShiftsEntriesIdPublishResponse = zod.object({
   concurrencyToken: zod.int().optional(),
+  createdById: zod.uuid().nullish(),
+  createdOn: zod.iso.datetime({ offset: true }).nullish(),
+  updatedById: zod.uuid().nullish(),
+  updatedOn: zod.iso.datetime({ offset: true }).nullish(),
   lunchAvailableMinutes: zod.int().nullish(),
   workedLunchMinutes: zod.int().nullish(),
   shiftSeriesId: zod.int().nullish(),
@@ -630,6 +674,10 @@ export const PostApiSchedulingShiftsEntriesIdExpireBody = zod.union([
 
 export const PostApiSchedulingShiftsEntriesIdExpireResponse = zod.object({
   concurrencyToken: zod.int().optional(),
+  createdById: zod.uuid().nullish(),
+  createdOn: zod.iso.datetime({ offset: true }).nullish(),
+  updatedById: zod.uuid().nullish(),
+  updatedOn: zod.iso.datetime({ offset: true }).nullish(),
   lunchAvailableMinutes: zod.int().nullish(),
   workedLunchMinutes: zod.int().nullish(),
   shiftSeriesId: zod.int().nullish(),

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import RRuleEditor from '@/components/recurrence/RRuleEditor.vue';
+import UaAuditDisplay, { type AuditFields } from '@/shared/components/UaAuditDisplay.vue';
 import type { ShiftDetailRow } from './calendarSchedulingShiftDetailTypes';
 
 withDefaults(
@@ -7,6 +8,8 @@ withDefaults(
     detailRows: ShiftDetailRow[];
     isLoading?: boolean;
     skeletonRows?: number;
+    audit?: AuditFields | null;
+    timeZone?: string;
   }>(),
   {
     isLoading: false,
@@ -43,6 +46,18 @@ withDefaults(
             role="img"
           />
           <template v-else>{{ detail.value }}</template>
+        </div>
+      </template>
+      <template v-if="audit?.createdOn || audit?.createdById">
+        <span class="shift-details-panel__label">Created by:</span>
+        <div class="shift-details-panel__value">
+          <UaAuditDisplay :audit="audit" mode="created" :time-zone="timeZone" />
+        </div>
+      </template>
+      <template v-if="audit?.updatedOn">
+        <span class="shift-details-panel__label">Last updated by:</span>
+        <div class="shift-details-panel__value">
+          <UaAuditDisplay :audit="audit" mode="updated" :time-zone="timeZone" />
         </div>
       </template>
     </div>

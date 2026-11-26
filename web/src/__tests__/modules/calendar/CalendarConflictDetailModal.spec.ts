@@ -96,6 +96,7 @@ describe('CalendarConflictDetailModal', () => {
 
     expect(wrapper.text()).toContain('Overridden by:');
     expect(wrapper.text()).toContain('Unknown user');
+    expect(wrapper.text()).toContain('August 11, 2026 at 9:00 AM');
   });
 
   it('uses the comparison timezone and includes both dates for cross-midnight ranges', () => {

@@ -8,6 +8,7 @@ import type { ShiftSeriesRequest } from '@/api-access/generated/models/shiftSeri
 import type { ShiftSeriesResponse } from '@/api-access/generated/models/shiftSeriesResponse';
 import type { CalendarEventBase } from '@/modules/calendar/calendarTypes';
 import UaAlert from '@/shared/components/UaAlert.vue';
+import UaAuditDisplay, { type AuditFields } from '@/shared/components/UaAuditDisplay.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
 import UaModal from '@/shared/components/UaModal.vue';
 import RRuleEditor from '@/components/recurrence/RRuleEditor.vue';
@@ -75,8 +76,13 @@ const isLoadingSeries = ref(false);
 const formErrors = ref<Record<string, string>>({});
 const recurrenceError = ref('');
 const isDeleteConfirmed = ref(false);
-const selectedEntry = ref<ShiftEntryResponse | null>(null);
-const selectedSeries = ref<ShiftSeriesResponse | null>(null);
+const selectedEntry = ref<(ShiftEntryResponse & AuditFields) | null>(null);
+const selectedSeries = ref<(ShiftSeriesResponse & AuditFields) | null>(null);
+const loadedAuditScope = ref<ShiftOpenScope | null>(null);
+const shiftAudit = computed(() => {
+  if (!loadedAuditScope.value || loadedAuditScope.value !== selectedOpenScope.value) return null;
+  return loadedAuditScope.value === 'series' ? selectedSeries.value : selectedEntry.value;
+});
 const timeZoneId = computed(() =>
   resolveSchedulingTimeZoneId(
     props.event.timeZoneId,
@@ -211,6 +217,7 @@ watch(
     hasConcurrencyConflict.value = false;
     isLoadingEntry.value = false;
     isLoadingSeries.value = false;
+    loadedAuditScope.value = null;
     selectedEntry.value = null;
     selectedSeries.value = null;
     editFormData.value = createShiftFormDataFromEvent(event, timeZoneId.value);
@@ -280,6 +287,7 @@ async function selectOpenScope(scope: ShiftOpenScope) {
 
 async function loadSelectedEntry() {
   const requestId = loadGuard.begin();
+  loadedAuditScope.value = null;
   concurrencyToken.value = null;
   isLoadingSeries.value = false;
   const id = resolveShiftEntryId();
@@ -309,11 +317,13 @@ async function loadSelectedEntry() {
 
   concurrencyToken.value = selectedEntry.value.concurrencyToken ?? null;
   editFormData.value = createShiftFormDataFromEntry(selectedEntry.value, props.event, activeTimeZoneId.value);
+  loadedAuditScope.value = 'event';
   return selectedEntry.value;
 }
 
 async function loadSelectedSeries() {
   const requestId = loadGuard.begin();
+  loadedAuditScope.value = null;
   concurrencyToken.value = null;
   isLoadingEntry.value = false;
   const id = resolveShiftSeriesId();
@@ -336,6 +346,8 @@ async function loadSelectedSeries() {
     selectedSeries.value = result.data.value ?? null;
     if (!selectedSeries.value) {
       apiError.value = 'Shift series was not found.';
+    } else {
+      loadedAuditScope.value = 'series';
     }
 
     concurrencyToken.value = selectedSeries.value?.concurrencyToken ?? null;
@@ -348,6 +360,7 @@ async function loadSelectedSeries() {
 function invalidateClosedResource() {
   resourceRevision++;
   loadGuard.begin();
+  loadedAuditScope.value = null;
   concurrencyToken.value = null;
   hasConcurrencyConflict.value = false;
 }
@@ -938,6 +951,14 @@ function getInitialOpenScope(): ShiftOpenScope | null {
               />
               <template v-else>{{ detail.value }}</template>
             </dd>
+          </template>
+          <template v-if="shiftAudit?.createdOn || shiftAudit?.createdById">
+            <dt>Created by:</dt>
+            <dd><UaAuditDisplay :audit="shiftAudit" mode="created" :time-zone="activeTimeZoneId" /></dd>
+          </template>
+          <template v-if="shiftAudit?.updatedOn">
+            <dt>Last updated by:</dt>
+            <dd><UaAuditDisplay :audit="shiftAudit" mode="updated" :time-zone="activeTimeZoneId" /></dd>
           </template>
         </dl>
       </section>

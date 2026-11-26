@@ -31,33 +31,40 @@ describe('UaPageHeader', () => {
 });
 
 describe('UaAuditDisplay', () => {
-  it('fetches and displays the latest audit user and timestamp in the requested time zone', async () => {
-    server.use(
-      getGetApiUsersIdMockHandler(
-        getGetApiUsersIdResponseMock({
-          id: 'user-2',
-          firstName: 'Taylor',
-          lastName: 'Ng',
-          idirName: 'tng',
-        }),
-      ),
-    );
-    const wrapper = mount(UaAuditDisplay, {
-      props: {
-        audit: {
-          createdById: 'user-1',
-          createdOn: '2026-08-11T16:00:00Z',
-          updatedById: 'user-2',
-          updatedOn: '2026-08-11T17:30:00Z',
+  it.each([
+    { mode: undefined, name: 'Taylor Ng', time: '10:30 AM' },
+    { mode: 'created', name: 'Jane Smith', time: '9:00 AM' },
+    { mode: 'updated', name: 'Taylor Ng', time: '10:30 AM' },
+  ] as const)(
+    'displays the selected audit user and timestamp in the requested time zone ($mode)',
+    async ({ mode, name, time }) => {
+      server.use(
+        getGetApiUsersIdMockHandler(({ params }) =>
+          getGetApiUsersIdResponseMock(
+            params.id === 'user-1'
+              ? { id: 'user-1', firstName: 'Jane', lastName: 'Smith' }
+              : { id: 'user-2', firstName: 'Taylor', lastName: 'Ng' },
+          ),
+        ),
+      );
+      const wrapper = mount(UaAuditDisplay, {
+        props: {
+          audit: {
+            createdById: 'user-1',
+            createdOn: '2026-08-11T16:00:00Z',
+            updatedById: 'user-2',
+            updatedOn: '2026-08-11T17:30:00Z',
+          },
+          mode,
+          timeZone: 'America/Vancouver',
         },
-        timeZone: 'America/Vancouver',
-      },
-    });
-    await flushPromises();
+      });
+      await flushPromises();
 
-    expect(wrapper.text()).toContain('Taylor Ng');
-    expect(wrapper.text()).toContain('August 11, 2026 at 10:30 AM');
-  });
+      expect(wrapper.text()).toContain(name);
+      expect(wrapper.text()).toContain(`August 11, 2026 at ${time}`);
+    },
+  );
 
   it('displays Unknown user when the selected audit user ID is absent', () => {
     const wrapper = mount(UaAuditDisplay, {

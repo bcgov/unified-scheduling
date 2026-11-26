@@ -26,6 +26,10 @@ internal static class AssignmentResponseMapper
         {
             Id = assignmentSeries.Id,
             ConcurrencyToken = assignmentSeries.ConcurrencyToken,
+            CreatedById = assignmentSeries.CreatedById,
+            CreatedOn = assignmentSeries.CreatedOn == default ? null : assignmentSeries.CreatedOn,
+            UpdatedById = assignmentSeries.UpdatedById,
+            UpdatedOn = assignmentSeries.UpdatedOn,
             EventSeriesId = assignmentSeries.EventSeriesId,
             AssignmentDefinitionId = assignmentSeries.AssignmentDefinitionId,
             CategoryId = assignmentSeries.CategoryId,
@@ -61,6 +65,10 @@ internal static class AssignmentResponseMapper
         {
             Id = assignmentEntry.Id,
             ConcurrencyToken = assignmentEntry.ConcurrencyToken,
+            CreatedById = assignmentEntry.CreatedById,
+            CreatedOn = assignmentEntry.CreatedOn == default ? null : assignmentEntry.CreatedOn,
+            UpdatedById = assignmentEntry.UpdatedById,
+            UpdatedOn = assignmentEntry.UpdatedOn,
             StartAtUtc = assignmentEntry.Event!.StartAtUtc,
             EventSeriesId = null,
             AssignmentSeriesId = assignmentEntry.AssignmentSeriesId,
