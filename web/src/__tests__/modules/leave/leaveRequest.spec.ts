@@ -98,9 +98,9 @@ describe('leaveRequest', () => {
     { endDate: '2026-02-30', error: 'Select a valid date and time.' },
     { endDate: '2026-06-10', error: 'End time must be after start time.' },
   ])('rejects an invalid end date ($endDate)', ({ endDate, error }) => {
-    expect(
-      buildLeaveRequest({ ...overnightForm, endDate }, { ...requestOptions, persistedLeave: overnight }),
-    ).toEqual({ error });
+    expect(buildLeaveRequest({ ...overnightForm, endDate }, { ...requestOptions, persistedLeave: overnight })).toEqual({
+      error,
+    });
   });
 
   it('serializes an intentionally absent entry end as null even when the start is after 17:00', () => {

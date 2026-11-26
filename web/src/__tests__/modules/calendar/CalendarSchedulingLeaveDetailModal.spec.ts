@@ -264,59 +264,62 @@ describe('CalendarSchedulingLeaveDetailModal', () => {
   it.each([
     { status: 'Active', locked: true },
     { status: 'Draft', locked: false },
-  ])('preserves the $status series description and schedule without fetching occurrences', async ({ status, locked }) => {
-    const series = {
-      ...entry,
-      id: 77,
-      statusTypeCode: status,
-      leaveEntryIds: [42],
-      description: 'Persisted series comment',
-      startAtUtc: '2026-06-11T01:00:21.123456Z',
-      endAtUtc: '2026-06-11T09:00:42.654321Z',
-      timeZoneId: 'America/Toronto',
-      recurrenceRule: 'FREQ=DAILY;COUNT=1',
-    };
-    let saved: unknown;
-    const occurrenceRequests: string[] = [];
-    server.use(
-      http.get('*/api/scheduling/leave/series/77', () => HttpResponse.json(series)),
-      http.put('*/api/scheduling/leave/series/77', async ({ request }) => {
-        saved = await request.json();
-        return HttpResponse.json(series);
-      }),
-      http.get('*/api/scheduling/leave/users/:userId/entries', ({ request }) => {
-        occurrenceRequests.push(request.url);
-        return HttpResponse.json([]);
-      }),
-      http.get('*/api/scheduling/leave/entries/:id', ({ request }) => {
-        occurrenceRequests.push(request.url);
-        return HttpResponse.json(entry);
-      }),
-    );
-    const wrapper = await mountModal();
-    const vm = wrapper.vm as unknown as {
-      selectOpenScope: (scope: 'series') => Promise<void>;
-      handleSave: () => Promise<void>;
-    };
-    await vm.selectOpenScope('series');
-    await wrapper.get('[role="tab"][aria-selected="false"]').trigger('click');
-    await flushPromises();
-    const form = wrapper.getComponent({ name: 'LeaveForm' });
-    expect(form.props('recurrenceLocked')).toBe(locked);
-    expect(form.props('modelValue')).toMatchObject({ date: '2026-06-10', endDate: '2026-06-11', endTime: '05:00' });
-    form.vm.$emit('update:modelValue', { ...form.props('modelValue'), notes: 'Updated notes' });
-    await vm.handleSave();
-    expect(saved).toMatchObject({
-      description: series.description,
-      notes: 'Updated notes',
-      startAtUtc: series.startAtUtc,
-      endAtUtc: series.endAtUtc,
-      timeZoneId: series.timeZoneId,
-      recurrenceRule: series.recurrenceRule,
-    });
-    expect(occurrenceRequests).toEqual([]);
-    wrapper.unmount();
-  });
+  ])(
+    'preserves the $status series description and schedule without fetching occurrences',
+    async ({ status, locked }) => {
+      const series = {
+        ...entry,
+        id: 77,
+        statusTypeCode: status,
+        leaveEntryIds: [42],
+        description: 'Persisted series comment',
+        startAtUtc: '2026-06-11T01:00:21.123456Z',
+        endAtUtc: '2026-06-11T09:00:42.654321Z',
+        timeZoneId: 'America/Toronto',
+        recurrenceRule: 'FREQ=DAILY;COUNT=1',
+      };
+      let saved: unknown;
+      const occurrenceRequests: string[] = [];
+      server.use(
+        http.get('*/api/scheduling/leave/series/77', () => HttpResponse.json(series)),
+        http.put('*/api/scheduling/leave/series/77', async ({ request }) => {
+          saved = await request.json();
+          return HttpResponse.json(series);
+        }),
+        http.get('*/api/scheduling/leave/users/:userId/entries', ({ request }) => {
+          occurrenceRequests.push(request.url);
+          return HttpResponse.json([]);
+        }),
+        http.get('*/api/scheduling/leave/entries/:id', ({ request }) => {
+          occurrenceRequests.push(request.url);
+          return HttpResponse.json(entry);
+        }),
+      );
+      const wrapper = await mountModal();
+      const vm = wrapper.vm as unknown as {
+        selectOpenScope: (scope: 'series') => Promise<void>;
+        handleSave: () => Promise<void>;
+      };
+      await vm.selectOpenScope('series');
+      await wrapper.get('[role="tab"][aria-selected="false"]').trigger('click');
+      await flushPromises();
+      const form = wrapper.getComponent({ name: 'LeaveForm' });
+      expect(form.props('recurrenceLocked')).toBe(locked);
+      expect(form.props('modelValue')).toMatchObject({ date: '2026-06-10', endDate: '2026-06-11', endTime: '05:00' });
+      form.vm.$emit('update:modelValue', { ...form.props('modelValue'), notes: 'Updated notes' });
+      await vm.handleSave();
+      expect(saved).toMatchObject({
+        description: series.description,
+        notes: 'Updated notes',
+        startAtUtc: series.startAtUtc,
+        endAtUtc: series.endAtUtc,
+        timeZoneId: series.timeZoneId,
+        recurrenceRule: series.recurrenceRule,
+      });
+      expect(occurrenceRequests).toEqual([]);
+      wrapper.unmount();
+    },
+  );
 
   it.each([false, true])('offers location members on the leave date (moved: %s)', async (moved) => {
     const homeUserId = '00000000-0000-0000-0000-000000000001';
