@@ -200,10 +200,15 @@ public sealed class SchedulePublishService(
             plan.ShiftEntryIds,
             cancellationToken
         );
-        var conflicts = (
-            await conflictService.GetConflictsForCandidatesAsync(plan.ConflictParticipants, cancellationToken)
-        )
+        var candidateConflicts = await conflictService.GetConflictsForCandidatesAsync(
+            plan.ConflictParticipants,
+            cancellationToken
+        );
+        var publishedConflicts = await GetPublishedScheduleConflictsAsync(scope, snapshot, cancellationToken);
+        var conflicts = candidateConflicts
+            .Concat(publishedConflicts)
             .Where(conflict => !conflict.IsOverridden)
+            .DistinctBy(CalendarConflictKey.Create)
             .ToList();
 
         var unassignedShifts = snapshot
@@ -235,6 +240,63 @@ public sealed class SchedulePublishService(
         );
     }
 
+    private async Task<IReadOnlyCollection<CalendarConflict>> GetPublishedScheduleConflictsAsync(
+        SchedulePublishScope scope,
+        SchedulePublishSnapshot snapshot,
+        CancellationToken cancellationToken
+    )
+    {
+        var publishedShifts = snapshot
+            .Shifts.Where(entry => entry.Event!.StatusTypeCode == CalendarEventStatusTypeCodes.Active)
+            .ToList();
+        var publishedAssignments = snapshot
+            .Assignments.Where(entry => entry.Event!.StatusTypeCode == CalendarEventStatusTypeCodes.Active)
+            .ToList();
+        var resourceIds = publishedShifts
+            .SelectMany(entry => entry.Users)
+            .Select(user => user.UserId)
+            .Concat(
+                publishedAssignments
+                    .SelectMany(entry => entry.ShiftAssignmentEntries)
+                    .SelectMany(link => link.Users)
+                    .Select(user => user.UserId)
+            )
+            .Distinct()
+            .ToList();
+        if (resourceIds.Count == 0)
+            return [];
+
+        var publishedEventIds = publishedShifts
+            .Select(entry => entry.EventId)
+            .Concat(publishedAssignments.Select(entry => entry.EventId))
+            .ToHashSet();
+
+        bool IsPublishedScheduleEvent(CalendarConflictParticipant participant) =>
+            participant.SourceModule == SchedulingConstants.SourceModule
+            && int.TryParse(participant.EventId, out var eventId)
+            && publishedEventIds.Contains(eventId);
+
+        var conflicts = await conflictService.GetConflictsAsync(
+            new CalendarConflictQuery(
+                scope.Range.StartAtUtc,
+                scope.Range.EndAtUtc,
+                resourceIds,
+                LocationId: scope.Request.LocationId
+            ),
+            cancellationToken
+        );
+        return conflicts
+            .Where(conflict =>
+                conflict.OverlapStart < scope.Range.EndAtUtc
+                && conflict.OverlapEnd > scope.Range.StartAtUtc
+                && (
+                    (conflict.ReportOnEntry && IsPublishedScheduleEvent(conflict.Entry))
+                    || (conflict.ReportOnOverlaps && IsPublishedScheduleEvent(conflict.Overlaps))
+                )
+            )
+            .ToList();
+    }
+
     private async Task<SchedulePublishPreviewResponse> BuildPreviewAsync(
         SchedulePublishScope scope,
         SchedulePublicationPlan plan,
@@ -246,12 +308,29 @@ public sealed class SchedulePublishService(
             plan.ShiftEntryIds.Count,
             plan.AssignmentCandidates.Count
         );
-        var warnings = new SchedulePublishWarningsResponse(
-            findings.IncompleteEmployees,
-            conflictProjection.HasPermission(nameof(Permissions.ShiftsView)) ? findings.UnassignedShifts : [],
-            conflictProjection.HasPermission(nameof(Permissions.AssignmentsView)) ? findings.UnassignedAssignments : []
-        );
+        var canViewShifts = conflictProjection.HasPermission(nameof(Permissions.ShiftsView));
         var visible = await conflictProjection.ProjectAsync(findings.Conflicts, cancellationToken);
+        IReadOnlyCollection<SchedulePublishShiftBlockerResponse> shiftBlockers = [];
+        if (canViewShifts)
+        {
+            shiftBlockers = findings
+                .ShiftPublicationBlockers.Select(blocker => new SchedulePublishShiftBlockerResponse(blocker.Message)
+                {
+                    UserId = blocker.UserId,
+                    Kind = blocker.Kind,
+                    FirstShift = blocker.FirstShift,
+                    SecondShift = blocker.SecondShift,
+                })
+                .ToList();
+        }
+        else if (findings.ShiftPublicationBlockers.Count > 0)
+        {
+            shiftBlockers =
+            [
+                new("Publication requires resolving conflicts involving shifts you do not have permission to view."),
+            ];
+        }
+
         var blockers = new SchedulePublishBlockersResponse(
             visible
                 .Conflicts.Select(conflict => new SchedulePublishConflictResponse(
@@ -263,16 +342,47 @@ public sealed class SchedulePublishService(
                     conflict.ResourceId,
                     conflict.OverlapStart,
                     conflict.OverlapEnd
-                ))
+                )
+                {
+                    Title = conflict.Title,
+                    Entry = conflict.Entry,
+                    Overlaps = conflict.Overlaps,
+                })
                 .ToList(),
-            findings
-                .ShiftPublicationBlockers.Select(blocker => new SchedulePublishShiftBlockerResponse(blocker.Message))
-                .ToList()
+            shiftBlockers
         )
         {
             RestrictedWarnings = visible.RestrictedWarnings,
             HasRestrictedConflicts = visible.HasRestrictedConflicts,
+            HasUnattributedRestrictedConflicts = visible.HasUnattributedRestrictedConflicts,
         };
+        var affectedUserIds = findings
+            .IncompleteEmployees.Select(employee => employee.UserId)
+            .Concat(visible.Conflicts.Select(conflict => conflict.ResourceId))
+            .Concat(visible.RestrictedWarnings.Select(warning => warning.ResourceId))
+            .Concat(
+                shiftBlockers
+                    .Where(blocker => blocker.UserId.HasValue)
+                    .Select(blocker => blocker.UserId.GetValueOrDefault())
+            )
+            .Distinct()
+            .Order()
+            .ToList();
+        var employeeNames = await LoadEmployeeNamesAsync(affectedUserIds, cancellationToken);
+        var warnings = new SchedulePublishWarningsResponse(
+            findings
+                .IncompleteEmployees.Select(employee => new SchedulePublishEmployeeWarningResponse(
+                    employee.UserId,
+                    employeeNames[employee.UserId]
+                )
+                {
+                    MissingShift = employee.MissingShift,
+                    MissingAssignment = employee.MissingAssignment,
+                })
+                .ToList(),
+            canViewShifts ? findings.UnassignedShifts : [],
+            conflictProjection.HasPermission(nameof(Permissions.AssignmentsView)) ? findings.UnassignedAssignments : []
+        );
 
         return new SchedulePublishPreviewResponse(
             new SchedulePublishScopeResponse(
@@ -286,11 +396,40 @@ public sealed class SchedulePublishService(
             counts,
             warnings,
             blockers,
-            counts.TotalCount > 0 && findings.Conflicts.Count == 0 && blockers.ShiftConflicts.Count == 0
+            counts.TotalCount > 0 && findings.Conflicts.Count == 0 && findings.ShiftPublicationBlockers.Count == 0
+        )
+        {
+            AffectedEmployees = affectedUserIds
+                .Select(id => new SchedulePublishEmployeeResponse(id, employeeNames[id]))
+                .ToList(),
+        };
+    }
+
+    private async Task<Dictionary<Guid, string>> LoadEmployeeNamesAsync(
+        IReadOnlyCollection<Guid> userIds,
+        CancellationToken cancellationToken
+    )
+    {
+        if (userIds.Count == 0)
+            return [];
+
+        var names = await db
+            .Users.AsNoTracking()
+            .Where(user => userIds.Contains(user.Id))
+            .Select(user => new
+            {
+                user.Id,
+                user.FirstName,
+                user.LastName,
+            })
+            .ToDictionaryAsync(user => user.Id, user => $"{user.FirstName} {user.LastName}".Trim(), cancellationToken);
+        return userIds.ToDictionary(
+            id => id,
+            id => names.TryGetValue(id, out var name) && name.Length > 0 ? name : "Unknown employee"
         );
     }
 
-    private async Task<List<SchedulePublishEmployeeWarningResponse>> LoadIncompleteEmployeesAsync(
+    private async Task<List<IncompleteEmployee>> LoadIncompleteEmployeesAsync(
         SchedulePublishScope scope,
         IReadOnlyCollection<ShiftEntry> shifts,
         IReadOnlyCollection<AssignmentEntry> assignments,
@@ -307,9 +446,12 @@ public sealed class SchedulePublishService(
             .ToHashSet();
 
         var incompleteEmployees = employees
-            .Where(employee =>
-                !usersWithShifts.Contains(employee.UserId) || !usersWithLinkedAssignments.Contains(employee.UserId)
-            )
+            .Select(id => new IncompleteEmployee(
+                id,
+                !usersWithShifts.Contains(id),
+                !usersWithLinkedAssignments.Contains(id)
+            ))
+            .Where(employee => employee.MissingShift || employee.MissingAssignment)
             .ToList();
         if (incompleteEmployees.Count == 0)
             return incompleteEmployees;
@@ -317,8 +459,8 @@ public sealed class SchedulePublishService(
         return await FilterUnavailableEmployees(incompleteEmployees, scope, cancellationToken);
     }
 
-    private async Task<List<SchedulePublishEmployeeWarningResponse>> FilterUnavailableEmployees(
-        IReadOnlyCollection<SchedulePublishEmployeeWarningResponse> employees,
+    private async Task<List<IncompleteEmployee>> FilterUnavailableEmployees(
+        IReadOnlyCollection<IncompleteEmployee> employees,
         SchedulePublishScope scope,
         CancellationToken cancellationToken
     )
@@ -330,8 +472,8 @@ public sealed class SchedulePublishService(
         return FilterUnavailableEmployees(employees, loanOutEvents.Concat(leaveEvents).ToList(), scope);
     }
 
-    private List<SchedulePublishEmployeeWarningResponse> FilterUnavailableEmployees(
-        IReadOnlyCollection<SchedulePublishEmployeeWarningResponse> employees,
+    private List<IncompleteEmployee> FilterUnavailableEmployees(
+        IReadOnlyCollection<IncompleteEmployee> employees,
         IReadOnlyCollection<UnavailableEvent> unavailableEvents,
         SchedulePublishScope scope
     )
@@ -453,7 +595,7 @@ public sealed class SchedulePublishService(
             .ToList();
     }
 
-    private async Task<List<SchedulePublishEmployeeWarningResponse>> LoadEmployeesForPublicationAsync(
+    private async Task<List<Guid>> LoadEmployeesForPublicationAsync(
         SchedulePublishScope scope,
         CancellationToken cancellationToken
     )
@@ -472,8 +614,6 @@ public sealed class SchedulePublishService(
             .Select(user => new User
             {
                 Id = user.Id,
-                FirstName = user.FirstName,
-                LastName = user.LastName,
                 HomeLocationId = user.HomeLocationId,
                 UserLocations = user
                     .UserLocations.Where(location => location.LocationId == scope.Request.LocationId)
@@ -492,10 +632,7 @@ public sealed class SchedulePublishService(
             .Where(employee =>
                 loanedInUserIds.Contains(employee.Id) || IsEmployeeAtLocationForPublication(employee, scope, timeZone)
             )
-            .Select(employee => new SchedulePublishEmployeeWarningResponse(
-                employee.Id,
-                $"{employee.FirstName} {employee.LastName}".Trim()
-            ))
+            .Select(employee => employee.Id)
             .ToList();
     }
 
@@ -567,6 +704,8 @@ public sealed class SchedulePublishService(
 
     private sealed record AssignmentPublicationCandidate(int EntryId, int EventId);
 
+    private sealed record IncompleteEmployee(Guid UserId, bool MissingShift, bool MissingAssignment);
+
     private sealed record SchedulePublicationPlan(
         IReadOnlyCollection<int> ShiftEntryIds,
         IReadOnlyCollection<AssignmentPublicationCandidate> AssignmentCandidates,
@@ -574,7 +713,7 @@ public sealed class SchedulePublishService(
     );
 
     private sealed record SchedulePublishFindings(
-        IReadOnlyCollection<SchedulePublishEmployeeWarningResponse> IncompleteEmployees,
+        IReadOnlyCollection<IncompleteEmployee> IncompleteEmployees,
         IReadOnlyCollection<SchedulePublishEventWarningResponse> UnassignedShifts,
         IReadOnlyCollection<SchedulePublishEventWarningResponse> UnassignedAssignments,
         IReadOnlyCollection<CalendarConflict> Conflicts,

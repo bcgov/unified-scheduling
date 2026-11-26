@@ -2383,6 +2383,60 @@ public class ShiftServiceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task GetEntryPublicationBlockersAsync_WithSeveralConflictingShifts_ReturnsEachEmployeeAndPairOnce()
+    {
+        var start = new DateTimeOffset(2026, 6, 1, 16, 0, 0, TimeSpan.Zero);
+        var existing = await AddShiftEntryAsync(
+            locationId: 5,
+            startAtUtc: start,
+            endAtUtc: start.AddHours(1),
+            userIds: [UserA, UserB],
+            statusTypeCode: CalendarEventStatusTypeCodes.Active
+        );
+        var overnight = await AddShiftEntryAsync(
+            locationId: 5,
+            startAtUtc: start.AddMinutes(30),
+            endAtUtc: start.AddHours(18),
+            userIds: [UserA, UserB]
+        );
+        var sameDate = await AddShiftEntryAsync(
+            locationId: 5,
+            startAtUtc: start.AddHours(2),
+            endAtUtc: start.AddHours(4)
+        );
+        var followingDate = await AddShiftEntryAsync(locationId: 5, startAtUtc: start.AddHours(17));
+
+        var blockers = await _service.GetEntryPublicationBlockersAsync(
+            [overnight.Id, sameDate.Id, followingDate.Id, overnight.Id],
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.Equal(5, blockers.Count);
+        Assert.Equal(4, blockers.Count(blocker => blocker.UserId == UserA));
+        var secondEmployee = Assert.Single(blockers, blocker => blocker.UserId == UserB);
+        Assert.Equal(ShiftConflictKind.StartDate, secondEmployee.Kind);
+        Assert.Equal(overnight.EventId, secondEmployee.FirstShift.EventId);
+        Assert.Equal(existing.EventId, secondEmployee.SecondShift.EventId);
+        var overlap = Assert.Single(blockers, blocker => blocker.Kind == ShiftConflictKind.Overlap);
+        Assert.Equal(overnight.Id, overlap.FirstShift.ShiftEntryId);
+        Assert.Equal(followingDate.Id, overlap.SecondShift.ShiftEntryId);
+        Assert.Equal(start.AddHours(17), overlap.SecondShift.StartAtUtc);
+        var zones = new TimeZoneService();
+        var detector = new ShiftConflictService(
+            _dbContext,
+            zones,
+            SchedulingLoanOutTestServices.CreateAvailability(_dbContext, zones)
+        );
+        var repeatedEntries = await detector.CollectConflictsAsync(
+            [overnight, sameDate, followingDate, overnight],
+            [],
+            TestContext.Current.CancellationToken
+        );
+        Assert.Equal(5, repeatedEntries.Count);
+        Assert.True(blockers.ToHashSet().SetEquals(repeatedEntries));
+    }
+
+    [Fact]
     public async Task PublishShiftEntryAsync_WhenOnlyAnotherDraftConflicts_Publishes()
     {
         var request = CreateShiftEntryRequest();

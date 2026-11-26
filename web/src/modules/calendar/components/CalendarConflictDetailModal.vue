@@ -68,7 +68,14 @@ function isEventEditable(event: CalendarConflictEvent) {
 </script>
 
 <template>
-  <UaModal title="Conflict summary" tone="error" width="720" :loading="loading" @close="emit('close')">
+  <UaModal
+    title="Conflict summary"
+    :tone="conflict.isOverridden ? 'warning' : 'error'"
+    :content-class="conflict.isOverridden ? 'calendar-conflict-detail-modal--resolved' : undefined"
+    width="720"
+    :loading="loading"
+    @close="emit('close')"
+  >
     <UaAlert v-if="errorMessage" type="error">{{ errorMessage }}</UaAlert>
 
     <section class="calendar-conflict-detail" aria-label="Calendar conflict">
@@ -146,6 +153,10 @@ function isEventEditable(event: CalendarConflictEvent) {
 </template>
 
 <style scoped>
+:global(.calendar-conflict-detail-modal--resolved) {
+  --ua-card-header-color: rgb(var(--v-theme-on-warning));
+}
+
 .calendar-conflict-detail {
   display: grid;
   gap: var(--ua-spacing-md);

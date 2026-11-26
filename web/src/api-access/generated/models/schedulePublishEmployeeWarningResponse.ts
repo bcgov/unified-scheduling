@@ -8,4 +8,6 @@
 export interface SchedulePublishEmployeeWarningResponse {
   userId: string;
   displayName: string;
+  missingShift?: boolean;
+  missingAssignment?: boolean;
 }

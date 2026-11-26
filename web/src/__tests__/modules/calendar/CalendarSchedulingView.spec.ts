@@ -127,7 +127,7 @@ describe('CalendarSchedulingView', () => {
       false,
     );
     const header = warningModel.cells[0]!.headers![0]!;
-    expect(header.action?.actionId).toBe('calendar-scheduling.show-conflict');
+    expect(header.action).toMatchObject({ actionId: 'calendar-scheduling.show-conflict', tone: 'error' });
     calendarSchedulingConflictHeaderId.value = getCalendarSchedulingHeaderConflictKey(
       warningModel.cells[0]!,
       header.id,
@@ -334,18 +334,45 @@ describe('CalendarSchedulingView', () => {
   it('opens the selected conflict and refreshes the calendar after an override', async () => {
     api.execute.mockResolvedValue(undefined);
     const event = createEvent();
+    event.metadata.assignedUserIds = ['user-1'];
+    const resource: CalendarSchedulingUserResource = {
+      id: 'user-1',
+      type: 'user',
+      sourceModule: 'scheduling',
+      title: 'One',
+      label: 'One',
+    };
     const firstConflict = createConflict(101, 102, 'Second assignment', 'user-1');
     const selectedConflict = createConflict(101, 103, 'Third assignment', 'user-1');
-    const conflictModel = createModel(event, [firstConflict, selectedConflict]);
+    const buildModel = (conflicts: CalendarConflict[]) =>
+      buildCalendarSchedulingViewModel(
+        {
+          contributions: {
+            'scheduling.events': {
+              moduleId: 'scheduling',
+              contributionId: 'scheduling.events',
+              events: [event],
+              resources: [resource],
+            },
+            'calendar.events': {
+              moduleId: 'calendar',
+              contributionId: 'calendar.events',
+              events: [],
+              data: { conflicts },
+            },
+          },
+        },
+        { startDate: '2025-01-13', endDate: '2025-01-14', filters: {} },
+        'day',
+      );
     const app = await createTestApp({ loadConfig: false });
     const calendarStore = useCalendarStore(app.pinia);
     const wrapper = mount(CalendarSchedulingView, {
-      props: { model: conflictModel },
+      props: { model: buildModel([firstConflict, selectedConflict]) },
       global: {
         plugins: app.mountPlugins,
         stubs: {
           CalendarMatrixView: createMatrixViewStub(),
-          CalendarMatrixEventBlock: createEventBlockStub(),
           CalendarSchedulingShiftDetailModal: true,
           CalendarSchedulingAddResourceModal: true,
           CalendarConflictDetailModal: createConflictDetailStub(),
@@ -354,7 +381,9 @@ describe('CalendarSchedulingView', () => {
       },
     });
 
-    await wrapper.findAll('[data-test="event-conflict-trigger"]')[1]!.trigger('click');
+    const trigger = '.calendar-matrix-event-block__action';
+    expect(wrapper.get(trigger).attributes('data-tone')).toBe('error');
+    await wrapper.get(trigger).trigger('click');
     expect(wrapper.findAll('.calendar-scheduling-conflict-overlay')).toHaveLength(1);
     await wrapper.findAll('.calendar-scheduling-conflict-overlay__resolve')[1]!.trigger('click');
 
@@ -376,6 +405,17 @@ describe('CalendarSchedulingView', () => {
       expect.anything(),
     );
     expect(calendarStore.refreshNonce).toBe(1);
+
+    const overridden = { ...selectedConflict, isOverridden: true };
+    await wrapper.setProps({ model: buildModel([firstConflict, overridden]) });
+    expect(wrapper.get(trigger).attributes('data-tone')).toBe('error');
+    await wrapper.setProps({ model: buildModel([{ ...firstConflict, isOverridden: true }, overridden]) });
+    expect(wrapper.get(trigger).attributes('data-tone')).toBe('warning');
+    await wrapper.setProps({ model: buildModel([firstConflict, overridden]) });
+    expect(wrapper.get(trigger).attributes('data-tone')).toBe('error');
+    await wrapper.setProps({ model: buildModel([]) });
+    expect(wrapper.find(trigger).exists()).toBe(false);
+    wrapper.unmount();
   });
 
   it.each([

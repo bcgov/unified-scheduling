@@ -1,15 +1,22 @@
 <script setup lang="ts">
+import { mdiAlert, mdiAlertCircle } from '@mdi/js';
 import { computed, onMounted, ref } from 'vue';
-import type { SchedulePublishPreviewResponse, SchedulePublishRequest } from '@/api-access/generated/models';
+import type {
+  SchedulePublishPreviewResponse,
+  SchedulePublishRequest,
+  SchedulePublishShiftEventResponse,
+} from '@/api-access/generated/models';
 import {
   postApiSchedulingPublish,
   postApiSchedulingPublishPreview,
 } from '@/api-access/generated/schedule-publish/schedule-publish';
 import { PostApiSchedulingPublishPreviewResponse } from '@/api-access/generated/schedule-publish/schedule-publish.zod';
+import { formatCalendarConflictEventRange } from '@/modules/calendar/calendarConflictFormatting';
 import UaAlert from '@/shared/components/UaAlert.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
 import UaModal from '@/shared/components/UaModal.vue';
 import { useLocationsStore } from '@/stores/LocationsStore';
+import { formatCalendarDateTimeDate, formatCalendarDateTimeRange, formatCalendarTime } from '@/utils/date';
 
 const props = defineProps<{
   request: SchedulePublishRequest;
@@ -26,9 +33,147 @@ const preview = ref<SchedulePublishPreviewResponse>();
 const isLoading = ref(false);
 const isPublishing = ref(false);
 const errorMessage = ref('');
+const previewUpdated = ref(false);
 const hasNoCandidates = computed(
   () => preview.value?.candidates.shiftEntryCount === 0 && preview.value.candidates.assignmentEntryCount === 0,
 );
+
+const severity = {
+  error: { icon: mdiAlertCircle, label: 'Error (Blocking)' },
+  warning: { icon: mdiAlert, label: 'Warning (Non-blocking)' },
+};
+
+type EmployeeFinding = {
+  key: string;
+  tone: keyof typeof severity;
+  message: string;
+  details?: string[];
+};
+
+type EmployeeGroup = { userId: string; displayName: string; findings: EmployeeFinding[] };
+
+const employeeGroups = computed(() => {
+  const current = preview.value;
+  if (!current) return [];
+
+  const { warnings, blockers, scope } = current;
+  const names = new Map((current.affectedEmployees ?? []).map(({ userId, displayName }) => [userId, displayName]));
+  for (const employee of warnings.incompleteEmployees) {
+    if (!names.has(employee.userId)) names.set(employee.userId, employee.displayName);
+  }
+
+  const groups = new Map<string, EmployeeGroup>();
+  function addFinding(userId: string, finding: EmployeeFinding) {
+    let group = groups.get(userId);
+    if (!group) {
+      group = { userId, displayName: names.get(userId) || 'Unknown employee', findings: [] };
+      groups.set(userId, group);
+    }
+    group.findings.push(finding);
+  }
+
+  for (const conflict of blockers.conflicts) {
+    const details = [conflict.entry, conflict.overlaps].flatMap((event) =>
+      event ? [`${event.title} · ${formatCalendarConflictEventRange(event, scope.timeZoneId)}`] : [],
+    );
+    addFinding(conflict.resourceId, {
+      key: conflict.id,
+      tone: 'error',
+      message: conflict.title || 'Unresolved calendar conflict',
+      details: [
+        ...details,
+        `Conflict overlap · ${formatCalendarDateTimeRange(conflict.overlapStart, conflict.overlapEnd, scope.timeZoneId)}`,
+      ],
+    });
+  }
+
+  for (const blocker of blockers.shiftConflicts) {
+    if (!blocker.userId) continue;
+    addFinding(blocker.userId, {
+      key: `shift:${blocker.firstShift?.shiftEntryId}:${blocker.secondShift?.shiftEntryId}`,
+      tone: 'error',
+      message: blocker.message,
+      details: [blocker.firstShift, blocker.secondShift].flatMap((shift) =>
+        shift ? [`${shift.title || 'Shift'} · ${formatShiftRange(shift, scope.timeZoneId)}`] : [],
+      ),
+    });
+  }
+
+  for (const warning of blockers.restrictedWarnings ?? []) {
+    addFinding(warning.resourceId, {
+      key: `restricted:${warning.sourceModule}:${warning.eventId}`,
+      tone: 'error',
+      message: warning.message,
+    });
+  }
+
+  for (const employee of warnings.incompleteEmployees) {
+    const missing = [employee.missingShift && 'a shift', employee.missingAssignment && 'an assignment'].filter(Boolean);
+    const message = `Missing ${missing.join(' and ') || 'a shift or an assignment'}.`;
+    addFinding(employee.userId, { key: 'incomplete', tone: 'warning', message });
+  }
+
+  return [...groups.values()].sort(
+    (first, second) =>
+      Number(first.findings[0]?.tone === 'warning') - Number(second.findings[0]?.tone === 'warning') ||
+      first.displayName.localeCompare(second.displayName, 'en-CA') ||
+      first.userId.localeCompare(second.userId),
+  );
+});
+
+const generalFindings = computed(() => {
+  const current = preview.value;
+  if (!current) return [];
+
+  const { blockers, warnings } = current;
+  const findings: { key: string; tone: 'error' | 'warning' | 'info'; message: string }[] = [];
+  const hasUnattributed =
+    blockers.hasUnattributedRestrictedConflicts ??
+    (blockers.hasRestrictedConflicts && !blockers.restrictedWarnings?.length);
+  if (hasUnattributed) {
+    findings.push({
+      key: 'restricted',
+      tone: 'error',
+      message: 'Unresolved conflicts include events you do not have permission to view.',
+    });
+  }
+  blockers.shiftConflicts.forEach((blocker, index) => {
+    if (!blocker.userId) findings.push({ key: `shift:${index}`, tone: 'error', message: blocker.message });
+  });
+  const shifts = warnings.unassignedShifts.length;
+  const assignments = warnings.unassignedAssignments.length;
+  if (shifts) {
+    findings.push({
+      key: 'shifts',
+      tone: 'warning',
+      message: shifts === 1 ? '1 shift is unassigned.' : `${shifts} shifts are unassigned.`,
+    });
+  }
+  if (assignments) {
+    findings.push({
+      key: 'assignments',
+      tone: 'warning',
+      message: assignments === 1 ? '1 assignment is unassigned.' : `${assignments} assignments are unassigned.`,
+    });
+  }
+  if (hasNoCandidates.value) {
+    findings.push({
+      key: 'no-candidates',
+      tone: 'info',
+      message: 'No draft schedule items are available to publish for this location and date range.',
+    });
+  }
+  return findings;
+});
+
+const publicationStatus = computed(() => {
+  if (!preview.value) return '';
+  if (hasNoCandidates.value) return 'No draft items to publish.';
+  if (!preview.value.canPublish) return 'Resolve the blocking errors before publishing.';
+  if (employeeGroups.value.length || generalFindings.value.length)
+    return 'You can publish this schedule with warnings.';
+  return 'This schedule is ready to publish.';
+});
 
 onMounted(loadPreview);
 
@@ -56,12 +201,13 @@ async function loadPreview() {
 }
 
 async function publishSchedule() {
-  if (!preview.value?.canPublish) {
+  if (isLoading.value || isPublishing.value || !preview.value?.canPublish) {
     return;
   }
 
   isPublishing.value = true;
   errorMessage.value = '';
+  previewUpdated.value = false;
 
   try {
     const { data, error, statusCode, execute } = postApiSchedulingPublish(props.request, {
@@ -73,7 +219,7 @@ async function publishSchedule() {
       const blockingPreview = PostApiSchedulingPublishPreviewResponse.safeParse(data.value);
       if (blockingPreview.success) {
         preview.value = blockingPreview.data;
-        errorMessage.value = 'The schedule changed. Review the updated blockers before publishing.';
+        previewUpdated.value = true;
         return;
       }
     }
@@ -92,6 +238,11 @@ async function publishSchedule() {
   }
 }
 
+function formatShiftRange(shift: SchedulePublishShiftEventResponse, timeZone: string) {
+  if (shift.endAtUtc) return formatCalendarDateTimeRange(shift.startAtUtc, shift.endAtUtc, timeZone);
+  return `${formatCalendarDateTimeDate(shift.startAtUtc, timeZone)}, ${formatCalendarTime(shift.startAtUtc, timeZone)}`;
+}
+
 function toAvatarText(displayName: string) {
   return displayName
     .split(/\s+/)
@@ -107,71 +258,90 @@ function toAvatarText(displayName: string) {
   <UaModal title="Publish Schedule" width="680" :loading="isLoading || isPublishing" @close="emit('close')">
     <template #alerts>
       <UaAlert v-if="errorMessage" type="error" :closable="false">{{ errorMessage }}</UaAlert>
+      <UaAlert v-else-if="previewUpdated" type="info" :closable="false">
+        The schedule changed. Review the updated publication findings.
+      </UaAlert>
     </template>
 
-    <dl class="schedule-publish__scope">
-      <div>
-        <dt>Location</dt>
-        <dd>{{ locationName }}</dd>
-      </div>
-      <div>
-        <dt>Date range</dt>
-        <dd>{{ request.startDate }} to {{ request.endDate }}</dd>
-      </div>
-    </dl>
+    <template #secondary-header>
+      <dl class="schedule-publish__scope">
+        <div>
+          <dt>Location</dt>
+          <dd>{{ locationName }}</dd>
+        </div>
+        <div>
+          <dt>Date range</dt>
+          <dd>{{ request.startDate }} to {{ request.endDate }}</dd>
+        </div>
+      </dl>
+
+      <ul class="schedule-publish__severity-key" role="list" aria-label="Publication severity key">
+        <li class="schedule-publish__finding">
+          <v-icon :icon="severity.error.icon" color="error" size="18" aria-hidden="true" />
+          <span
+            ><strong>{{ severity.error.label }}</strong> · Must be resolved before publication.</span
+          >
+        </li>
+        <li class="schedule-publish__finding">
+          <v-icon :icon="severity.warning.icon" color="warning" size="18" aria-hidden="true" />
+          <span
+            ><strong>{{ severity.warning.label }}</strong> · Requires attention. Publication can proceed with
+            warnings.</span
+          >
+        </li>
+      </ul>
+    </template>
 
     <div v-if="isLoading" class="schedule-publish__state">Checking this schedule...</div>
 
     <div v-else-if="preview" class="schedule-publish">
-      <UaAlert v-if="hasNoCandidates" type="info" :closable="false">
-        No draft schedule items are available to publish for this location and date range.
-      </UaAlert>
-
-      <section v-if="preview.warnings.incompleteEmployees.length" class="schedule-publish__employee-warnings">
-        <h3 class="schedule-publish__section-title">Employees requiring attention</h3>
-        <div class="schedule-publish__employee-list" role="list">
-          <div
-            v-for="employee in preview.warnings.incompleteEmployees"
-            :key="employee.userId"
-            class="schedule-publish__employee"
-            role="listitem"
-          >
+      <section v-if="employeeGroups.length" class="schedule-publish__section">
+        <h2 class="schedule-publish__section-title">Employee-specific issues</h2>
+        <ul class="schedule-publish__employee-list" role="list">
+          <li v-for="employee in employeeGroups" :key="employee.userId" class="schedule-publish__employee">
             <span class="schedule-publish__employee-avatar" aria-hidden="true">
               {{ toAvatarText(employee.displayName) }}
             </span>
-            <span class="schedule-publish__employee-content">
-              <strong class="schedule-publish__employee-name">{{ employee.displayName }}</strong>
-              <span class="schedule-publish__employee-error">Missing at least one Shift or Assignment.</span>
-            </span>
-          </div>
-        </div>
+            <div class="schedule-publish__employee-content">
+              <h3 class="schedule-publish__employee-name">{{ employee.displayName }}</h3>
+              <ul class="schedule-publish__employee-findings" role="list">
+                <li v-for="finding in employee.findings" :key="finding.key" class="schedule-publish__finding">
+                  <v-icon :icon="severity[finding.tone].icon" :color="finding.tone" size="18" aria-hidden="true" />
+                  <div>
+                    <span class="schedule-publish__sr-only">{{ severity[finding.tone].label }}. </span>
+                    {{ finding.message }}
+                    <div v-for="(detail, index) in finding.details" :key="index" class="schedule-publish__detail">
+                      {{ detail }}
+                    </div>
+                  </div>
+                </li>
+              </ul>
+            </div>
+          </li>
+        </ul>
       </section>
 
-      <div class="schedule-publish__checks">
-        <UaAlert v-if="preview.warnings.unassignedShifts.length" type="warning" :closable="false">
-          {{ preview.warnings.unassignedShifts.length }} shifts are unassigned
-        </UaAlert>
-        <UaAlert v-if="preview.warnings.unassignedAssignments.length" type="warning" :closable="false">
-          {{ preview.warnings.unassignedAssignments.length }} assignments are unassigned
-        </UaAlert>
-        <UaAlert v-if="preview.blockers.conflicts.length" type="error" :closable="false">
-          {{ preview.blockers.conflicts.length }} unresolved conflicts
-        </UaAlert>
-        <UaAlert v-if="preview.blockers.hasRestrictedConflicts" type="error" :closable="false">
-          Unresolved conflicts include events you do not have permission to view.
-        </UaAlert>
-        <UaAlert
-          v-for="(blocker, index) in preview.blockers.shiftConflicts"
-          :key="`${index}-${blocker.message}`"
-          type="error"
-          :closable="false"
-        >
-          {{ blocker.message }}
-        </UaAlert>
-      </div>
+      <section v-if="generalFindings.length" class="schedule-publish__section">
+        <h2 class="schedule-publish__section-title">General schedule issues</h2>
+        <ul class="schedule-publish__general-findings" role="list">
+          <li v-for="finding in generalFindings" :key="finding.key">
+            <UaAlert
+              :type="finding.tone"
+              :icon="finding.tone === 'info' ? undefined : severity[finding.tone].icon"
+              :closable="false"
+            >
+              <span v-if="finding.tone !== 'info'" class="schedule-publish__sr-only">
+                {{ severity[finding.tone].label }}.
+              </span>
+              {{ finding.message }}
+            </UaAlert>
+          </li>
+        </ul>
+      </section>
     </div>
 
     <template #actions>
+      <div v-show="publicationStatus" class="schedule-publish__status" role="status">{{ publicationStatus }}</div>
       <UaBtn variant="outlined" :disabled="isPublishing" @click="emit('close')">Cancel</UaBtn>
       <UaBtn
         color="primary"
@@ -209,16 +379,39 @@ function toAvatarText(displayName: string) {
 .schedule-publish {
   display: grid;
   gap: var(--ua-spacing-lg);
-  margin-top: var(--ua-spacing-lg);
 }
 
-.schedule-publish__state {
-  margin-top: var(--ua-spacing-lg);
+.schedule-publish__severity-key,
+.schedule-publish__employee-list,
+.schedule-publish__employee-findings,
+.schedule-publish__general-findings {
+  list-style: none;
+  margin: 0;
+  padding: 0;
 }
 
-.schedule-publish__employee-warnings {
+.schedule-publish__severity-key,
+.schedule-publish__employee-findings,
+.schedule-publish__general-findings,
+.schedule-publish__section {
   display: grid;
   gap: var(--ua-spacing-sm);
+}
+
+.schedule-publish__severity-key {
+  margin-top: var(--ua-spacing-sm);
+}
+
+.schedule-publish__finding {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--ua-spacing-xs);
+  font-size: var(--ua-font-size-sm);
+  overflow-wrap: anywhere;
+}
+
+.schedule-publish__finding > .v-icon {
+  margin-block-start: calc(var(--ua-spacing-xs) / 2);
 }
 
 .schedule-publish__section-title {
@@ -234,7 +427,7 @@ function toAvatarText(displayName: string) {
 }
 
 .schedule-publish__employee {
-  align-items: center;
+  align-items: flex-start;
   background: rgb(var(--v-theme-surface));
   display: flex;
   gap: var(--ua-spacing-sm);
@@ -263,23 +456,35 @@ function toAvatarText(displayName: string) {
 
 .schedule-publish__employee-content {
   display: grid;
-  gap: 0.125rem;
+  gap: var(--ua-spacing-xs);
   min-width: 0;
 }
 
 .schedule-publish__employee-name {
   color: var(--ua-text-primary);
-  font-size: var(--ua-font-size-sm);
+  font-size: var(--ua-font-size-base);
   font-weight: var(--ua-font-weight-bold);
+  margin: 0;
   overflow-wrap: anywhere;
 }
 
-.schedule-publish__employee-error {
+.schedule-publish__detail {
+  color: var(--ua-text-secondary);
   font-size: var(--ua-font-size-xs);
-  overflow-wrap: anywhere;
 }
 
-.schedule-publish__checks :deep(.ua-alert:last-child) {
-  margin-bottom: 0;
+.schedule-publish__status {
+  grid-column: 1 / -1;
+  font-size: var(--ua-font-size-sm);
+}
+
+.schedule-publish__sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 </style>

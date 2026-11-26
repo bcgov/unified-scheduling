@@ -6,6 +6,7 @@
  */
 import type { SchedulePublishBlockersResponse } from './schedulePublishBlockersResponse.ts';
 import type { SchedulePublishCandidateCountsResponse } from './schedulePublishCandidateCountsResponse.ts';
+import type { SchedulePublishEmployeeResponse } from './schedulePublishEmployeeResponse.ts';
 import type { SchedulePublishScopeResponse } from './schedulePublishScopeResponse.ts';
 import type { SchedulePublishWarningsResponse } from './schedulePublishWarningsResponse.ts';
 
@@ -15,4 +16,5 @@ export interface SchedulePublishPreviewResponse {
   warnings: SchedulePublishWarningsResponse;
   blockers: SchedulePublishBlockersResponse;
   canPublish: boolean;
+  affectedEmployees?: SchedulePublishEmployeeResponse[];
 }

@@ -19,7 +19,9 @@ describe('CalendarSchedulingConflictOverlay', () => {
         ],
       },
     });
-    expect(wrapper.text()).toContain('do not have permission to view');
+    expect(wrapper.get('.calendar-scheduling-conflict-overlay__restricted-warning').text()).toContain(
+      'do not have permission to view',
+    );
     expect(wrapper.find('[aria-label="Close conflicts"]').exists()).toBe(true);
     expect(wrapper.findAll('button:not([aria-label="Close conflicts"]), a')).toHaveLength(0);
     expect(wrapper.findAll('.calendar-scheduling-conflict-overlay__item')).toHaveLength(0);
@@ -89,7 +91,7 @@ describe('CalendarSchedulingConflictOverlay', () => {
     expect(wrapper.findAll('strong').map((title) => title.text())).toEqual(['Leave ↔ Shift', 'Leave ↔ Assignment']);
   });
 
-  it('uses the warning treatment only on overridden conflict actions', () => {
+  it('applies individual conflict severity to the icons and titles and preserves resolution actions', () => {
     const overriddenConflict = createConflict(101, 102, 'Overridden assignment', 'user-1');
     overriddenConflict.isOverridden = true;
     const unresolvedConflict = createConflict(101, 103, 'Unresolved assignment', 'user-1');

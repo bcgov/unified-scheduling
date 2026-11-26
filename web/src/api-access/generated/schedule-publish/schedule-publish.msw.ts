@@ -9,7 +9,75 @@ import { faker } from '@faker-js/faker';
 import { HttpResponse, http } from 'msw';
 import type { HttpResponseResolver, PathParams, RequestHandlerOptions } from 'msw';
 
-import type { SchedulePublishPreviewResponse, SchedulePublishRequest, SchedulePublishResult } from '../models';
+import type {
+  CalendarConflictEventResponse,
+  SchedulePublishPreviewResponse,
+  SchedulePublishRequest,
+  SchedulePublishResult,
+  SchedulePublishShiftEventResponse,
+} from '../models';
+
+export const getPostApiSchedulingPublishPreviewResponseCalendarConflictEventResponseMock = (
+  overrideResponse: Partial<CalendarConflictEventResponse> = {},
+): CalendarConflictEventResponse => ({
+  eventId: faker.string.alpha({
+    length: {
+      min: 10,
+      max: 20,
+    },
+  }),
+  sourceModule: faker.string.alpha({
+    length: {
+      min: 10,
+      max: 20,
+    },
+  }),
+  title: faker.string.alpha({
+    length: {
+      min: 10,
+      max: 20,
+    },
+  }),
+  start: faker.date.past().toISOString().slice(0, 19) + 'Z',
+  end: faker.date.past().toISOString().slice(0, 19) + 'Z',
+  sourceEntityId: faker.helpers.arrayElement([faker.number.int(), null]),
+  timeZoneId: faker.helpers.arrayElement([
+    faker.string.alpha({
+      length: {
+        min: 10,
+        max: 20,
+      },
+    }),
+    null,
+  ]),
+  canonicalEventId: faker.helpers.arrayElement([
+    faker.string.alpha({
+      length: {
+        min: 10,
+        max: 20,
+      },
+    }),
+    null,
+  ]),
+  allDay: faker.datatype.boolean(),
+  ...overrideResponse,
+});
+
+export const getPostApiSchedulingPublishPreviewResponseSchedulePublishShiftEventResponseMock = (
+  overrideResponse: Partial<SchedulePublishShiftEventResponse> = {},
+): SchedulePublishShiftEventResponse => ({
+  shiftEntryId: faker.number.int(),
+  eventId: faker.number.int(),
+  title: faker.string.alpha({
+    length: {
+      min: 10,
+      max: 20,
+    },
+  }),
+  startAtUtc: faker.date.past().toISOString().slice(0, 19) + 'Z',
+  endAtUtc: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+  ...overrideResponse,
+});
 
 export const getPostApiSchedulingPublishPreviewResponseMock = (
   overrideResponse: Partial<Extract<SchedulePublishPreviewResponse, object>> = {},
@@ -33,6 +101,8 @@ export const getPostApiSchedulingPublishPreviewResponseMock = (
         incompleteEmployees: Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           userId: faker.string.uuid(),
           displayName: faker.string.alpha({ length: { min: 10, max: 20 } }),
+          missingShift: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+          missingAssignment: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
         })),
         unassignedShifts: Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           eventId: faker.number.int(),
@@ -52,9 +122,28 @@ export const getPostApiSchedulingPublishPreviewResponseMock = (
           resourceId: faker.string.uuid(),
           overlapStart: faker.date.past().toISOString().slice(0, 19) + 'Z',
           overlapEnd: faker.date.past().toISOString().slice(0, 19) + 'Z',
+          title: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+          entry: faker.helpers.arrayElement([
+            null,
+            { ...getPostApiSchedulingPublishPreviewResponseCalendarConflictEventResponseMock() },
+          ]),
+          overlaps: faker.helpers.arrayElement([
+            null,
+            { ...getPostApiSchedulingPublishPreviewResponseCalendarConflictEventResponseMock() },
+          ]),
         })),
         shiftConflicts: Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           message: faker.string.alpha({ length: { min: 10, max: 20 } }),
+          userId: faker.helpers.arrayElement([faker.string.uuid(), null]),
+          kind: faker.helpers.arrayElement([null, faker.number.int()]),
+          firstShift: faker.helpers.arrayElement([
+            null,
+            { ...getPostApiSchedulingPublishPreviewResponseSchedulePublishShiftEventResponseMock() },
+          ]),
+          secondShift: faker.helpers.arrayElement([
+            null,
+            { ...getPostApiSchedulingPublishPreviewResponseSchedulePublishShiftEventResponseMock() },
+          ]),
         })),
         restrictedWarnings: faker.helpers.arrayElement([
           Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
@@ -66,8 +155,16 @@ export const getPostApiSchedulingPublishPreviewResponseMock = (
           undefined,
         ]),
         hasRestrictedConflicts: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+        hasUnattributedRestrictedConflicts: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       },
       canPublish: faker.datatype.boolean(),
+      affectedEmployees: faker.helpers.arrayElement([
+        Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
+          userId: faker.string.uuid(),
+          displayName: faker.string.alpha({ length: { min: 10, max: 20 } }),
+        })),
+        undefined,
+      ]),
       ...overrideResponse,
     },
     {
@@ -88,6 +185,8 @@ export const getPostApiSchedulingPublishPreviewResponseMock = (
         incompleteEmployees: Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           userId: faker.string.uuid(),
           displayName: faker.string.alpha({ length: { min: 10, max: 20 } }),
+          missingShift: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+          missingAssignment: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
         })),
         unassignedShifts: Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           eventId: faker.number.int(),
@@ -107,9 +206,28 @@ export const getPostApiSchedulingPublishPreviewResponseMock = (
           resourceId: faker.string.uuid(),
           overlapStart: faker.date.past().toISOString().slice(0, 19) + 'Z',
           overlapEnd: faker.date.past().toISOString().slice(0, 19) + 'Z',
+          title: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+          entry: faker.helpers.arrayElement([
+            null,
+            { ...getPostApiSchedulingPublishPreviewResponseCalendarConflictEventResponseMock() },
+          ]),
+          overlaps: faker.helpers.arrayElement([
+            null,
+            { ...getPostApiSchedulingPublishPreviewResponseCalendarConflictEventResponseMock() },
+          ]),
         })),
         shiftConflicts: Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           message: faker.string.alpha({ length: { min: 10, max: 20 } }),
+          userId: faker.helpers.arrayElement([faker.string.uuid(), null]),
+          kind: faker.helpers.arrayElement([null, faker.number.int()]),
+          firstShift: faker.helpers.arrayElement([
+            null,
+            { ...getPostApiSchedulingPublishPreviewResponseSchedulePublishShiftEventResponseMock() },
+          ]),
+          secondShift: faker.helpers.arrayElement([
+            null,
+            { ...getPostApiSchedulingPublishPreviewResponseSchedulePublishShiftEventResponseMock() },
+          ]),
         })),
         restrictedWarnings: faker.helpers.arrayElement([
           Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
@@ -121,8 +239,16 @@ export const getPostApiSchedulingPublishPreviewResponseMock = (
           undefined,
         ]),
         hasRestrictedConflicts: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+        hasUnattributedRestrictedConflicts: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       },
       canPublish: faker.datatype.boolean(),
+      affectedEmployees: faker.helpers.arrayElement([
+        Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
+          userId: faker.string.uuid(),
+          displayName: faker.string.alpha({ length: { min: 10, max: 20 } }),
+        })),
+        undefined,
+      ]),
       ...overrideResponse,
     },
     {
@@ -143,6 +269,8 @@ export const getPostApiSchedulingPublishPreviewResponseMock = (
         incompleteEmployees: Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           userId: faker.string.uuid(),
           displayName: faker.string.alpha({ length: { min: 10, max: 20 } }),
+          missingShift: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+          missingAssignment: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
         })),
         unassignedShifts: Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           eventId: faker.number.int(),
@@ -162,9 +290,28 @@ export const getPostApiSchedulingPublishPreviewResponseMock = (
           resourceId: faker.string.uuid(),
           overlapStart: faker.date.past().toISOString().slice(0, 19) + 'Z',
           overlapEnd: faker.date.past().toISOString().slice(0, 19) + 'Z',
+          title: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+          entry: faker.helpers.arrayElement([
+            null,
+            { ...getPostApiSchedulingPublishPreviewResponseCalendarConflictEventResponseMock() },
+          ]),
+          overlaps: faker.helpers.arrayElement([
+            null,
+            { ...getPostApiSchedulingPublishPreviewResponseCalendarConflictEventResponseMock() },
+          ]),
         })),
         shiftConflicts: Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           message: faker.string.alpha({ length: { min: 10, max: 20 } }),
+          userId: faker.helpers.arrayElement([faker.string.uuid(), null]),
+          kind: faker.helpers.arrayElement([null, faker.number.int()]),
+          firstShift: faker.helpers.arrayElement([
+            null,
+            { ...getPostApiSchedulingPublishPreviewResponseSchedulePublishShiftEventResponseMock() },
+          ]),
+          secondShift: faker.helpers.arrayElement([
+            null,
+            { ...getPostApiSchedulingPublishPreviewResponseSchedulePublishShiftEventResponseMock() },
+          ]),
         })),
         restrictedWarnings: faker.helpers.arrayElement([
           Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
@@ -176,8 +323,16 @@ export const getPostApiSchedulingPublishPreviewResponseMock = (
           undefined,
         ]),
         hasRestrictedConflicts: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+        hasUnattributedRestrictedConflicts: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       },
       canPublish: faker.datatype.boolean(),
+      affectedEmployees: faker.helpers.arrayElement([
+        Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
+          userId: faker.string.uuid(),
+          displayName: faker.string.alpha({ length: { min: 10, max: 20 } }),
+        })),
+        undefined,
+      ]),
       ...overrideResponse,
     },
   ]);

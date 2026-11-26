@@ -202,6 +202,7 @@ function handleDragEnd() {
     <button
       v-if="isActionClickable"
       class="calendar-matrix-event-block__action"
+      :data-tone="display?.action?.tone"
       type="button"
       :aria-label="display?.action?.ariaLabel ?? display?.action?.text ?? 'Event action'"
       @click.stop="handleActionClick"
@@ -210,8 +211,20 @@ function handleDragEnd() {
     >
       <v-icon v-if="display?.action?.icon" :icon="display.action.icon" size="16" />
       <span v-else>{{ display?.action?.text }}</span>
+      <v-tooltip
+        v-if="display?.action?.tooltip"
+        activator="parent"
+        :open-on-focus="true"
+        :eager="false"
+        :text="display.action.tooltip"
+        content-class="bg-surface text-on-surface border"
+      />
     </button>
-    <span v-else-if="hasActionDisplay" class="calendar-matrix-event-block__action is-static">
+    <span
+      v-else-if="hasActionDisplay"
+      class="calendar-matrix-event-block__action is-static"
+      :data-tone="display?.action?.tone"
+    >
       <v-icon v-if="display?.action?.icon" :icon="display.action.icon" size="16" />
       <span v-else>{{ display?.action?.text }}</span>
     </span>
@@ -281,10 +294,10 @@ function handleDragEnd() {
 
 .calendar-matrix-event-block__action {
   align-items: center;
-  background: rgb(var(--v-theme-surface));
+  background: var(--calendar-matrix-action-background, rgb(var(--v-theme-surface)));
   border: 1px solid var(--ua-border-color);
   border-radius: 50%;
-  color: var(--ua-text-primary);
+  color: var(--calendar-matrix-action-color, var(--ua-text-primary));
   display: inline-flex;
   font-size: var(--ua-font-size-sm);
   font-weight: var(--ua-font-weight-bold);
@@ -300,6 +313,16 @@ function handleDragEnd() {
 
 button.calendar-matrix-event-block__action {
   cursor: pointer;
+}
+
+.calendar-matrix-event-block__action[data-tone='error'] {
+  --calendar-matrix-action-color: rgb(var(--v-theme-error));
+  --calendar-matrix-action-background: rgb(var(--v-theme-surface));
+}
+
+.calendar-matrix-event-block__action[data-tone='warning'] {
+  --calendar-matrix-action-color: rgb(var(--v-theme-warning));
+  --calendar-matrix-action-background: rgb(var(--v-theme-surface));
 }
 
 .calendar-matrix-event-block__action.is-static {
@@ -329,9 +352,9 @@ button.calendar-matrix-event-block__action {
   }
 
   button.calendar-matrix-event-block__action:hover {
-    background: rgb(var(--v-theme-primary) / 0.08);
-    border-color: rgb(var(--v-theme-primary));
-    color: rgb(var(--v-theme-primary));
+    background: var(--calendar-matrix-action-background, rgb(var(--v-theme-primary) / 0.08));
+    border-color: var(--calendar-matrix-action-color, rgb(var(--v-theme-primary)));
+    color: var(--calendar-matrix-action-color, rgb(var(--v-theme-primary)));
   }
 }
 
@@ -371,7 +394,7 @@ button.calendar-matrix-event-block__action {
   color: rgb(var(--v-theme-surface));
 }
 
-.calendar-matrix-event-block.is-active:not(.has-color-bar) .calendar-matrix-event-block__action {
+.calendar-matrix-event-block.is-active:not(.has-color-bar) .calendar-matrix-event-block__action:not([data-tone]) {
   background: transparent;
   border-color: transparent;
   color: rgb(var(--v-theme-surface));

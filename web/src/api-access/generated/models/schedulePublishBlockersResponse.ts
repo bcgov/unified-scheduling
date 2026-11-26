@@ -13,4 +13,5 @@ export interface SchedulePublishBlockersResponse {
   shiftConflicts: SchedulePublishShiftBlockerResponse[];
   restrictedWarnings?: CalendarRestrictedConflictWarningResponse[];
   hasRestrictedConflicts?: boolean;
+  hasUnattributedRestrictedConflicts?: boolean;
 }

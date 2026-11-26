@@ -28,6 +28,7 @@ import {
 } from '@/modules/scheduling/calendarSchedulingState';
 import type {
   CalendarMatrixCell,
+  CalendarMatrixCellHeader as CalendarMatrixCellHeaderModel,
   CalendarMatrixCellHeaderActionEvent,
   CalendarMatrixSidePanel as CalendarMatrixSidePanelModel,
   CalendarMatrixSidePanelItem as CalendarMatrixSidePanelItemModel,
@@ -130,32 +131,49 @@ describe('CalendarMatrixHeader', () => {
 describe('CalendarMatrixCellHeader', () => {
   it('opens a single menu repeatedly and dispatches each item without activating the header', async () => {
     const overtime = { shiftEntryId: 42, userId: 'resource-1', overtimeMinutes: 30 };
+    const conflictLabel = 'View overridden conflicts';
+    const menuLabel = `${conflictLabel} and potential overtime`;
     const registry = new CalendarActionRegistry();
     registry.registerMatrixCellHeaderAction(calendarSchedulingHeaderShowConflictAction);
     registry.registerMatrixCellHeaderAction(calendarSchedulingHeaderShowOvertimeAction);
-    const header = {
+    const header: CalendarMatrixCellHeaderModel = {
       text: 'Shift',
       actionId: 'open-shift',
       payload: event,
+      status: CalendarEventStatus.Active,
       action: {
         actionId: 'menu-trigger',
         icon: 'dots',
-        ariaLabel: 'Header actions',
+        ariaLabel: menuLabel,
+        tooltip: menuLabel,
         type: CalendarMatrixActionType.Menu,
+        tone: 'warning',
         menuItems: [
-          { actionId: calendarSchedulingActionIds.showConflict, label: 'View conflicts' },
+          {
+            actionId: calendarSchedulingActionIds.showConflict,
+            label: conflictLabel,
+            tooltip: conflictLabel,
+            tone: 'warning',
+          },
           { actionId: calendarSchedulingActionIds.showOvertime, label: 'View potential overtime', payload: overtime },
         ],
       },
     };
     const wrapper = await mountWithApp(CalendarMatrixCellHeader, { props: { cell, header }, attachTo: document.body });
     const trigger = wrapper.get('button.calendar-matrix-cell-header__action');
+    await flushPromises();
+    expect(wrapper.classes()).toContain('is-active');
+    expect(trigger.attributes('data-tone')).toBe('warning');
+    expect(trigger.attributes('aria-label')).toBe(menuLabel);
+    expect(trigger.attributes('aria-describedby')).toBeTruthy();
     expect(wrapper.findAll('button.calendar-matrix-cell-header__action')).toHaveLength(1);
     await trigger.trigger('click');
     await flushPromises();
-    expect(document.body.textContent).toContain('View conflicts');
+    expect(document.body.textContent).toContain(conflictLabel);
     expect(document.body.textContent).toContain('View potential overtime');
-    const conflicts = document.querySelector<HTMLElement>('[aria-label="View conflicts"]')!;
+    const conflicts = document.querySelector<HTMLElement>(`[aria-label="${conflictLabel}"]`)!;
+    expect(conflicts.querySelector('[data-tone="warning"]')?.textContent).toBe(conflictLabel);
+    expect(conflicts.getAttribute('aria-describedby')).toBeTruthy();
     expect(wrapper.get('article').element.contains(conflicts)).toBe(false);
     conflicts.click();
     await flushPromises();
@@ -168,6 +186,8 @@ describe('CalendarMatrixCellHeader', () => {
     await trigger.trigger('keydown', { key: 'ArrowDown' });
     await flushPromises();
     const overtimeItem = document.querySelector<HTMLElement>('[aria-label="View potential overtime"]')!;
+    expect(overtimeItem.querySelector('[data-tone]')).toBeNull();
+    expect(overtimeItem.hasAttribute('aria-describedby')).toBe(false);
     overtimeItem.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
     await flushPromises();
     expect(wrapper.emitted('action')?.[1]?.[0]).toMatchObject({
@@ -217,6 +237,7 @@ describe('CalendarMatrixCellHeader', () => {
       action: {
         actionId: 'details',
         text: 'View',
+        tone: 'error' as const,
         type: CalendarMatrixActionType.Button,
         payload: { source: 'header' },
       },
@@ -230,7 +251,9 @@ describe('CalendarMatrixCellHeader', () => {
     });
 
     await wrapper.get('button.calendar-matrix-cell-header__main').trigger('click');
-    await wrapper.get('button.calendar-matrix-cell-header__action').trigger('click');
+    const action = wrapper.get('button.calendar-matrix-cell-header__action');
+    expect(action.attributes('data-tone')).toBe('error');
+    await action.trigger('click');
 
     expect(wrapper.emitted('click')?.[0]).toEqual([header]);
     expect(wrapper.emitted('action')?.[0]?.[0]).toMatchObject({
@@ -298,6 +321,49 @@ describe('CalendarMatrixCellHeader', () => {
 });
 
 describe('CalendarMatrixEventBlock', () => {
+  it.each([
+    ['error', 'View unresolved conflicts', 'focus'],
+    ['warning', 'View overridden conflicts', 'hover'],
+  ] as const)('shows the %s action label and tooltip on a selected active event', async (tone, label, interaction) => {
+    vi.useFakeTimers();
+    const wrapper = await mountWithApp(CalendarMatrixEventBlock, {
+      props: {
+        event,
+        display: {
+          status: CalendarEventStatus.Active,
+          action: {
+            actionId: 'inspect',
+            text: 'Inspect',
+            ariaLabel: label,
+            tooltip: label,
+            tone,
+            type: CalendarMatrixActionType.Button,
+          },
+        },
+      },
+      global: { provide: { [calendarMatrixContextKey as symbol]: matrixContext } },
+      attachTo: document.body,
+    });
+    const button = wrapper.get<HTMLButtonElement>('button.calendar-matrix-event-block__action');
+    expect(wrapper.classes()).toEqual(expect.arrayContaining(['is-active', 'is-selected']));
+    if (interaction === 'focus') {
+      button.element.focus();
+      expect(document.activeElement).toBe(button.element);
+    } else {
+      await button.trigger('mouseenter');
+    }
+    await vi.advanceTimersByTimeAsync(300);
+    const tooltip = document.getElementById(button.attributes('aria-describedby')!);
+    expect(tooltip?.classList.contains('v-overlay--active')).toBe(true);
+    expect(tooltip?.textContent).toContain(label);
+    expect(button.attributes('aria-label')).toBe(label);
+    expect(button.attributes('data-tone')).toBe(tone);
+    await button.trigger('keydown', { key: 'Enter' });
+    expect(wrapper.emitted('eventAction')?.[0]?.[0]).toMatchObject({ actionId: 'inspect' });
+    expect(wrapper.emitted('eventClick')).toBeUndefined();
+    wrapper.unmount();
+  });
+
   it('emits click, action, and drag events and uses injected selection state', async () => {
     const dataTransfer = {
       setData: vi.fn(),
@@ -327,7 +393,9 @@ describe('CalendarMatrixEventBlock', () => {
     });
 
     await wrapper.get('button.calendar-matrix-event-block__main').trigger('click');
-    await wrapper.get('button.calendar-matrix-event-block__action').trigger('click');
+    const action = wrapper.get('button.calendar-matrix-event-block__action');
+    expect(action.attributes('data-tone')).toBeUndefined();
+    await action.trigger('click');
     await wrapper.get('button.calendar-matrix-event-block__main').trigger('dragstart', {
       dataTransfer,
       currentTarget: wrapper.get('button.calendar-matrix-event-block__main').element,

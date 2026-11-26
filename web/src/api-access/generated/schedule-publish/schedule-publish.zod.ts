@@ -12,6 +12,9 @@ export const PostApiSchedulingPublishPreviewBody = zod.strictObject({
   endDate: zod.iso.date(),
 });
 
+export const postApiSchedulingPublishPreviewResponseBlockersConflictsItemEntryTwoAllDayDefault = false;
+export const postApiSchedulingPublishPreviewResponseBlockersConflictsItemOverlapsTwoAllDayDefault = false;
+
 export const PostApiSchedulingPublishPreviewResponse = zod.object({
   scope: zod.object({
     locationId: zod.int(),
@@ -31,6 +34,8 @@ export const PostApiSchedulingPublishPreviewResponse = zod.object({
       zod.object({
         userId: zod.uuid(),
         displayName: zod.string(),
+        missingShift: zod.boolean().optional(),
+        missingAssignment: zod.boolean().optional(),
       }),
     ),
     unassignedShifts: zod.array(
@@ -57,11 +62,74 @@ export const PostApiSchedulingPublishPreviewResponse = zod.object({
         resourceId: zod.uuid(),
         overlapStart: zod.iso.datetime({ offset: true }),
         overlapEnd: zod.iso.datetime({ offset: true }),
+        title: zod.string().nullish(),
+        entry: zod
+          .union([
+            zod.null(),
+            zod.object({
+              eventId: zod.string(),
+              sourceModule: zod.string(),
+              title: zod.string(),
+              start: zod.iso.datetime({ offset: true }),
+              end: zod.iso.datetime({ offset: true }),
+              sourceEntityId: zod.int().nullable(),
+              timeZoneId: zod.string().nullable(),
+              canonicalEventId: zod.string().nullish(),
+              allDay: zod
+                .boolean()
+                .default(postApiSchedulingPublishPreviewResponseBlockersConflictsItemEntryTwoAllDayDefault),
+            }),
+          ])
+          .optional(),
+        overlaps: zod
+          .union([
+            zod.null(),
+            zod.object({
+              eventId: zod.string(),
+              sourceModule: zod.string(),
+              title: zod.string(),
+              start: zod.iso.datetime({ offset: true }),
+              end: zod.iso.datetime({ offset: true }),
+              sourceEntityId: zod.int().nullable(),
+              timeZoneId: zod.string().nullable(),
+              canonicalEventId: zod.string().nullish(),
+              allDay: zod
+                .boolean()
+                .default(postApiSchedulingPublishPreviewResponseBlockersConflictsItemOverlapsTwoAllDayDefault),
+            }),
+          ])
+          .optional(),
       }),
     ),
     shiftConflicts: zod.array(
       zod.object({
         message: zod.string(),
+        userId: zod.uuid().nullish(),
+        kind: zod.union([zod.null(), zod.int()]).optional(),
+        firstShift: zod
+          .union([
+            zod.null(),
+            zod.object({
+              shiftEntryId: zod.int(),
+              eventId: zod.int(),
+              title: zod.string(),
+              startAtUtc: zod.iso.datetime({ offset: true }),
+              endAtUtc: zod.iso.datetime({ offset: true }).nullable(),
+            }),
+          ])
+          .optional(),
+        secondShift: zod
+          .union([
+            zod.null(),
+            zod.object({
+              shiftEntryId: zod.int(),
+              eventId: zod.int(),
+              title: zod.string(),
+              startAtUtc: zod.iso.datetime({ offset: true }),
+              endAtUtc: zod.iso.datetime({ offset: true }).nullable(),
+            }),
+          ])
+          .optional(),
       }),
     ),
     restrictedWarnings: zod
@@ -75,8 +143,17 @@ export const PostApiSchedulingPublishPreviewResponse = zod.object({
       )
       .optional(),
     hasRestrictedConflicts: zod.boolean().optional(),
+    hasUnattributedRestrictedConflicts: zod.boolean().optional(),
   }),
   canPublish: zod.boolean(),
+  affectedEmployees: zod
+    .array(
+      zod.object({
+        userId: zod.uuid(),
+        displayName: zod.string(),
+      }),
+    )
+    .optional(),
 });
 
 export const PostApiSchedulingPublishBody = zod.strictObject({
