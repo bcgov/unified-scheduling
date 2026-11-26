@@ -2,9 +2,12 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Unified.Authorization;
+using Unified.Authorization.Claims;
 using Unified.Common.ImageFormat;
 using Unified.Db.Models.UserManagement;
 using Unified.Tests.TestHelpers;
+using Unified.UserManagement;
 using Unified.UserManagement.Controllers;
 using Unified.UserManagement.FeatureFlags;
 using Unified.UserManagement.Models;
@@ -15,7 +18,10 @@ namespace Unified.Tests.UserManagement.Controllers;
 
 public class UsersControllerTests
 {
-    private static UsersController CreateController(FakeUserService fakeService)
+    private static UsersController CreateController(
+        FakeUserService fakeService,
+        IAuthorizationService? authorization = null
+    )
     {
         var featureFlags = new UserManagementFeatureFlags
         {
@@ -28,7 +34,7 @@ public class UsersControllerTests
             new UserRequestValidator(featureFlagsMonitor),
             new AssignUserRoleRequestValidator(),
             new ExpireUserRoleRequestValidator(),
-            new FakeAuthorizationService()
+            authorization ?? new FakeAuthorizationService()
         )
         {
             ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() },
@@ -52,6 +58,105 @@ public class UsersControllerTests
         var users = Assert.IsAssignableFrom<IEnumerable<UserResponse>>(okResult.Value);
         Assert.Single(users);
         Assert.Same(queryParams, fakeService.LastQueryParams);
+    }
+
+    [Fact]
+    public async Task GetPaged_Should_Return_Ok_With_Page_And_Pass_Query_Params()
+    {
+        // Arrange
+        var fakeService = new FakeUserService { GetAllResult = [CreateUserResponse("John", "Smith")] };
+        var controller = CreateController(fakeService);
+        controller.HttpContext.User = new ClaimsPrincipal(
+            new ClaimsIdentity([new Claim(UnifiedClaimTypes.Permission, nameof(Permissions.UserGlobalSearch))], "test")
+        );
+        var queryParams = new PagedUserQueryParams
+        {
+            Search = "John",
+            LocationId = [1, 2],
+            Page = 2,
+            PageSize = 10,
+        };
+
+        // Act
+        var result = await controller.GetPaged(queryParams, TestContext.Current.CancellationToken);
+
+        // Assert
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var page = Assert.IsType<PagedUserResponse>(okResult.Value);
+        Assert.Equal(2, page.Page);
+        Assert.Equal(10, page.PageSize);
+        Assert.Single(page.Data);
+        Assert.Same(queryParams, fakeService.LastPagedQueryParams);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task GetPaged_WithViewOnly_ScopesMissingOrDefaultLocationToHome(bool specifyLocation)
+    {
+        var service = new FakeUserService();
+        var controller = CreateController(service);
+        controller.HttpContext.User = new ClaimsPrincipal(
+            new ClaimsIdentity([new Claim(UnifiedClaimTypes.HomeLocationId, "1")], "test")
+        );
+        var query = new PagedUserQueryParams { LocationId = specifyLocation ? [1] : null, Search = "Jane" };
+
+        var result = await controller.GetPaged(query, TestContext.Current.CancellationToken);
+
+        Assert.IsType<OkObjectResult>(result.Result);
+        Assert.Equal([1], service.LastPagedQueryParams!.LocationId);
+        Assert.Equal("Jane", service.LastPagedQueryParams.Search);
+    }
+
+    [Theory]
+    [InlineData("1", 2)]
+    [InlineData(null, 1)]
+    [InlineData("invalid", 1)]
+    public async Task GetPaged_WithViewOnly_RejectsOtherLocationsOrMissingHome(string? home, int requested)
+    {
+        var service = new FakeUserService();
+        var controller = CreateController(service);
+        var claims = home is null ? Array.Empty<Claim>() : [new Claim(UnifiedClaimTypes.HomeLocationId, home)];
+        controller.HttpContext.User = new ClaimsPrincipal(new ClaimsIdentity(claims, "test"));
+
+        var result = await controller.GetPaged(
+            new PagedUserQueryParams { LocationId = [1, requested] },
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.IsType<ForbidResult>(result.Result);
+        Assert.Null(service.LastPagedQueryParams);
+    }
+
+    [Fact]
+    public async Task Search_ReturnsUserFields_WhenOtherProfileAuthorizationIsDenied()
+    {
+        var user = CreateUserResponse("Jane", "Doe") with { Email = "jane@example.com" };
+        var service = new FakeUserService { GetAllResult = [user], GetByIdResult = user };
+        var authorization = new FakeAuthorizationService { Deny = true };
+        var controller = CreateController(service, authorization);
+        controller.HttpContext.User = new ClaimsPrincipal(
+            new ClaimsIdentity(
+                [
+                    new Claim(UnifiedClaimTypes.Permission, nameof(Permissions.UsersView)),
+                    new Claim(UnifiedClaimTypes.HomeLocationId, "1"),
+                ],
+                "test"
+            )
+        );
+
+        var profile = await controller.GetById(user.Id, TestContext.Current.CancellationToken);
+        var paged = await controller.GetPaged(new PagedUserQueryParams(), TestContext.Current.CancellationToken);
+        var unpaged = await controller.Get(new UserQueryParams(), TestContext.Current.CancellationToken);
+
+        Assert.IsType<ForbidResult>(profile.Result);
+        Assert.Equal(UserManagementPolicies.UsersViewOtherProfiles, authorization.LastPolicy);
+        var pagedResponse = Assert.IsType<PagedUserResponse>(Assert.IsType<OkObjectResult>(paged.Result).Value);
+        Assert.Equal("jane@example.com", Assert.Single(pagedResponse.Data).Email);
+        var users = Assert.IsAssignableFrom<IEnumerable<UserResponse>>(
+            Assert.IsType<OkObjectResult>(unpaged.Result).Value
+        );
+        Assert.Equal("jane@example.com", Assert.Single(users).Email);
     }
 
     [Fact]
@@ -435,14 +540,20 @@ public class UsersControllerTests
 
     private sealed class FakeAuthorizationService : IAuthorizationService
     {
+        public bool Deny { get; init; }
+        public string? LastPolicy { get; private set; }
+
         public Task<AuthorizationResult> AuthorizeAsync(
             ClaimsPrincipal user,
             object? resource,
             IEnumerable<IAuthorizationRequirement> requirements
         ) => Task.FromResult(AuthorizationResult.Success());
 
-        public Task<AuthorizationResult> AuthorizeAsync(ClaimsPrincipal user, object? resource, string policyName) =>
-            Task.FromResult(AuthorizationResult.Success());
+        public Task<AuthorizationResult> AuthorizeAsync(ClaimsPrincipal user, object? resource, string policyName)
+        {
+            LastPolicy = policyName;
+            return Task.FromResult(Deny ? AuthorizationResult.Failed() : AuthorizationResult.Success());
+        }
     }
 
     private sealed class FakeUserService : IUserService
@@ -487,6 +598,8 @@ public class UsersControllerTests
 
         public UserQueryParams? LastQueryParams { get; private set; }
 
+        public PagedUserQueryParams? LastPagedQueryParams { get; private set; }
+
         public AssignUserRoleRequestDto? LastAssignRoleRequest { get; private set; }
 
         public Task<IReadOnlyCollection<UserResponse>> GetAllAsync(
@@ -496,6 +609,23 @@ public class UsersControllerTests
         {
             LastQueryParams = queryParams;
             return Task.FromResult(GetAllResult);
+        }
+
+        public Task<PagedUserResponse> GetPagedAsync(
+            PagedUserQueryParams? queryParams = null,
+            CancellationToken cancellationToken = default
+        )
+        {
+            LastPagedQueryParams = queryParams;
+            return Task.FromResult(
+                new PagedUserResponse
+                {
+                    Page = queryParams?.Page ?? 1,
+                    PageSize = queryParams?.PageSize ?? 25,
+                    TotalCount = GetAllResult.Count,
+                    Data = [.. GetAllResult],
+                }
+            );
         }
 
         public Task<UserResponse?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)

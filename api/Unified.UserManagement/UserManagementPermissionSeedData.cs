@@ -60,6 +60,12 @@ public sealed class UserManagementPermissionSeedData : ISeedData<PermissionSeedD
         new()
         {
             Group = PermissionGroupUsers,
+            Id = nameof(Permissions.UserGlobalSearch),
+            Description = "Global search for users",
+        },
+        new()
+        {
+            Group = PermissionGroupUsers,
             Id = nameof(Permissions.UsersLeaveView),
             Description = "View leave for users",
         },

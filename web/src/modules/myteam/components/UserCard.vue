@@ -6,6 +6,7 @@ import { useRouter } from 'vue-router';
 import { LookupCodeTypes, type UserResponse } from '@/api-access/generated/models';
 import { useAccessControl } from '@/composables/useAccessControl';
 import { useLookupStore } from '@/stores/LookupStore';
+import { useLocationsStore } from '@/stores/LocationsStore';
 
 const { user } = defineProps<{
   user: Partial<UserResponse> & { pendingRegistration?: boolean };
@@ -13,6 +14,7 @@ const { user } = defineProps<{
 
 const router = useRouter();
 const lookupStore = useLookupStore();
+const locationsStore = useLocationsStore();
 const accessControl = useAccessControl();
 
 const initials = computed(() => `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`);
@@ -24,6 +26,10 @@ const positionDescription = computed(() => {
 
   return lookupStore.entityMap[LookupCodeTypes.PositionTypes]?.[user.rank]?.description ?? '-';
 });
+
+const locationName = computed(() =>
+  user.homeLocationId == null ? '' : (locationsStore.entitiesMap[user.homeLocationId]?.name ?? ''),
+);
 
 const gotoProfile = () => {
   router.push({ name: 'UserProfile', params: { userId: user.id } });
@@ -63,6 +69,7 @@ onMounted(async () => {
       >
         {{ user.badgeNumber }}
       </div>
+      <div v-if="locationName" class="user-card-location">{{ locationName }}</div>
     </div>
   </UaCard>
 </template>
@@ -70,8 +77,8 @@ onMounted(async () => {
 <style scoped>
 .user-card {
   position: relative;
-  width: 180px;
-  height: 180px;
+  width: 230px;
+  min-height: 200px;
   cursor: pointer;
 }
 
@@ -95,12 +102,21 @@ onMounted(async () => {
 }
 
 .user-card-title {
+  flex-shrink: 0;
   font-size: var(--ua-font-size-base);
   width: 100%;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   text-align: center;
+}
+
+.user-card-location {
+  font-size: var(--ua-font-size-sm);
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .user-fullname {
