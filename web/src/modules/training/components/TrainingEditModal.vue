@@ -14,10 +14,10 @@ import type { SelectOption } from '@/types/select';
 import { mdiClose, mdiContentSave } from '@mdi/js';
 import { computed, ref, watch } from 'vue';
 import {
-  annualValidityDayCode,
   getValidityDayCodeFromDays,
   getValidityDayOptions,
   getValidityDaysFromCode,
+  isAnnualValidityCode,
 } from '../validityDayOptions';
 
 const props = defineProps<{
@@ -36,6 +36,7 @@ type TrainingFormData = {
   mandatoryTrainingProfileIds: number[];
   rotating?: boolean;
   validityDayCode: string;
+  annualValidityFromCompletionDate: boolean;
   advanceNoticeDays: string;
   trainingCategoryId?: number | null;
 };
@@ -67,6 +68,7 @@ const populateFromTraining = (training: TrainingLookupResponse): TrainingFormDat
     .map((profile) => profile.id)
     .filter((id): id is number => id != null),
   validityDayCode: getValidityDayCodeFromDays(training.validityDays),
+  annualValidityFromCompletionDate: training.annualValidityFromCompletionDate ?? false,
   advanceNoticeDays: training.advanceNoticeDays == null ? '' : String(training.advanceNoticeDays),
   rotating: training.rotating ?? false,
   trainingCategoryId: training.trainingCategoryId,
@@ -74,7 +76,7 @@ const populateFromTraining = (training: TrainingLookupResponse): TrainingFormDat
 
 const formData = ref<TrainingFormData>(populateFromTraining(props.training));
 const validityDayOptions = ref(getValidityDayOptions(props.training.validityDays));
-const isAnnualValiditySelected = computed(() => formData.value.validityDayCode === annualValidityDayCode);
+const isAnnualValiditySelected = computed(() => isAnnualValidityCode(formData.value.validityDayCode));
 
 watch(
   () => props.training,
@@ -137,6 +139,7 @@ const validateForm = (): TrainingLookupRequestWithProfiles | null => {
     mandatory: formData.value.mandatory,
     mandatoryTrainingProfileIds: formData.value.mandatory ? formData.value.mandatoryTrainingProfileIds : [],
     validityDays: validityDays as number | null,
+    annualValidityFromCompletionDate: isAnnualValiditySelected.value && formData.value.annualValidityFromCompletionDate,
     advanceNoticeDays: advanceNoticeDays as number | null,
     rotating: formData.value.rotating,
     trainingCategoryId: formData.value.trainingCategoryId,
@@ -226,8 +229,16 @@ const handleSave = async () => {
           :error-messages="formErrors.validityDays"
           :disabled="isLoading"
         />
+        <v-switch
+          v-if="isAnnualValiditySelected"
+          v-model="formData.annualValidityFromCompletionDate"
+          label="Calculate expiry from completion date"
+          color="success"
+          hide-details
+          :disabled="isLoading"
+        />
         <span v-if="isAnnualValiditySelected" class="validity-field__hint">
-          Annual validity expires on Dec 31 of the same calendar year as the awarded date.
+          Annual validity expires at the end of its anniversary date when enabled; otherwise it expires on Dec 31.
         </span>
       </div>
 

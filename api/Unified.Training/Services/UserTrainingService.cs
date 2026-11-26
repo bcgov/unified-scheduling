@@ -99,14 +99,18 @@ public sealed class UserTrainingService(
             ExpiryDate =
                 request.UserId is null && request.AllDay is null
                     ? UserTrainingHelper.CalculateExpiryDate(
-                        request.AwardedOn.ToUniversalTime(),
-                        trainingRules.ValidityDays
+                        trainingRules.AnnualValidityFromCompletionDate
+                            ? request.AwardedOn
+                            : request.AwardedOn.ToUniversalTime(),
+                        trainingRules.ValidityDays,
+                        trainingRules.AnnualValidityFromCompletionDate
                     )
                     : await ResolveExpiryDateAsync(
                         request.UserId,
                         request.AwardedOn,
                         UserTrainingHelper.ResolveAllDay(request.AllDay),
                         trainingRules.ValidityDays,
+                        trainingRules.AnnualValidityFromCompletionDate,
                         null,
                         cancellationToken
                     ),
@@ -140,6 +144,7 @@ public sealed class UserTrainingService(
             normalizedRequest.EndingOn,
             normalizedRequest.AllDay!.Value,
             validityDays,
+            trainingRules.AnnualValidityFromCompletionDate,
             normalizedRequest.ExpiryDate,
             cancellationToken
         );
@@ -181,6 +186,7 @@ public sealed class UserTrainingService(
             normalizedRequest.EndingOn,
             normalizedRequest.AllDay!.Value,
             validityDays,
+            trainingRules.AnnualValidityFromCompletionDate,
             normalizedRequest.ExpiryDate,
             cancellationToken
         );
@@ -253,6 +259,7 @@ public sealed class UserTrainingService(
         DateTimeOffset endingOn,
         bool allDay,
         int? validityDays,
+        bool annualValidityFromCompletionDate,
         DateTimeOffset? explicitExpiry,
         CancellationToken cancellationToken
     )
@@ -279,7 +286,8 @@ public sealed class UserTrainingService(
                 validityDays,
                 allDay,
                 TimeZones.ResolveRequired(normalizedTimeZoneId),
-                TimeZones
+                TimeZones,
+                annualValidityFromCompletionDate
             );
     }
 
@@ -387,7 +395,7 @@ public sealed class UserTrainingService(
         var rules = await db
             .Trainings.Where(t => t.Id == trainingId)
             .Where(t => includeExpired || t.ExpiryDate == null || t.ExpiryDate > now)
-            .Select(t => new TrainingRules(t.ValidityDays, t.Rotating))
+            .Select(t => new TrainingRules(t.ValidityDays, t.AnnualValidityFromCompletionDate, t.Rotating))
             .SingleOrDefaultAsync(cancellationToken);
 
         return rules
@@ -398,7 +406,7 @@ public sealed class UserTrainingService(
             );
     }
 
-    private sealed record TrainingRules(int? ValidityDays, bool Rotating);
+    private sealed record TrainingRules(int? ValidityDays, bool AnnualValidityFromCompletionDate, bool Rotating);
 
     private async Task<UserTrainingResponse> FetchResponseAsync(int id, CancellationToken cancellationToken) =>
         await db

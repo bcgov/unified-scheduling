@@ -59,13 +59,21 @@ public static class UserTrainingHelper
     /// Auto-calculates the expiry date from the training type's <c>ValidityDays</c>.
     /// Returns <c>null</c> when the training has no validity period.
     /// </summary>
-    public static DateTimeOffset? CalculateExpiryDate(DateTimeOffset awardedOn, int? validityDays)
+    public static DateTimeOffset? CalculateExpiryDate(
+        DateTimeOffset awardedOn,
+        int? validityDays,
+        bool annualValidityFromCompletionDate = false
+    )
     {
         if (!validityDays.HasValue)
             return null;
 
         if (IsAnnualValidity(validityDays.Value))
-            return CalculateEndOfYearExpiryDate(awardedOn, validityDays.Value);
+        {
+            return annualValidityFromCompletionDate
+                ? CalculateAnniversaryExpiryDate(awardedOn, validityDays.Value)
+                : CalculateEndOfYearExpiryDate(awardedOn, validityDays.Value);
+        }
 
         return awardedOn.AddDays(validityDays.Value);
     }
@@ -78,7 +86,8 @@ public static class UserTrainingHelper
         int? validityDays,
         bool allDay,
         TimeZoneInfo timeZone,
-        ITimeZoneService timeZoneService
+        ITimeZoneService timeZoneService,
+        bool annualValidityFromCompletionDate = false
     )
     {
         if (!validityDays.HasValue)
@@ -89,7 +98,7 @@ public static class UserTrainingHelper
             return CalculateExpiryDate(endingOn.ToUniversalTime(), validityDays);
 
         var localEndingOn = allDay ? endingOn : TimeZoneInfo.ConvertTime(endingOn, timeZone);
-        var expiry = CalculateExpiryDate(localEndingOn, validityDays)!.Value;
+        var expiry = CalculateExpiryDate(localEndingOn, validityDays, annualValidityFromCompletionDate)!.Value;
         return timeZoneService.FromDateStringToEndOfDayInTimeZone(
             expiry.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
             timeZone.Id
@@ -101,5 +110,14 @@ public static class UserTrainingHelper
         var yearCount = validityDays / DaysPerYear;
         var expiryYear = awardedOn.Year + yearCount - 1;
         return new DateTimeOffset(expiryYear, 12, 31, 0, 0, 0, awardedOn.Offset).Add(EndOfDayTime);
+    }
+
+    private static DateTimeOffset CalculateAnniversaryExpiryDate(DateTimeOffset endingOn, int validityDays)
+    {
+        var yearCount = validityDays / DaysPerYear;
+        var anniversary = endingOn.AddYears(yearCount);
+        return new DateTimeOffset(anniversary.Year, anniversary.Month, anniversary.Day, 0, 0, 0, endingOn.Offset).Add(
+            EndOfDayTime
+        );
     }
 }

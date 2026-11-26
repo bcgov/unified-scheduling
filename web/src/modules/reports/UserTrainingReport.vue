@@ -11,6 +11,7 @@ import UaBtn from '@/shared/components/UaBtn.vue';
 import UaCard from '@/shared/components/UaCard.vue';
 import UaDataTable from '@/shared/components/UaDataTable.vue';
 import UaPlaceholderPage from '@/shared/components/UaPlaceholderPage.vue';
+import UaAutocomplete from '@/shared/components/UaAutocomplete.vue';
 import UaSelect from '@/shared/components/UaSelect.vue';
 import UaTextField from '@/shared/components/UaTextField.vue';
 import { useTrainingLookup } from '@/modules/training/trainingLookupApi';
@@ -28,6 +29,7 @@ const selectedUserIdFilter = ref<string[]>([]);
 const selectedRegionIdFilter = ref<number[]>([]);
 const selectedLocationIdFilter = ref<number[]>([]);
 const selectedTrainingCodeFilter = ref<string[]>([]);
+const mandatoryTrainingsOnly = ref(true);
 const startDateFilter = ref<string>('');
 const endDateFilter = ref<string>('');
 const selectedReportTypeFilter = ref<string>('training');
@@ -119,14 +121,19 @@ const userOptions = computed<SelectOption[]>(() => {
 });
 
 const trainingOptions = computed<SelectOption[]>(() => {
-  return buildSelectOptions(trainingLookupData.value ?? [], (training) => {
-    const code = training.code?.trim() ?? '';
+  const trainings = trainingLookupData.value ?? [];
 
-    return {
-      code,
-      description: code,
-    };
-  });
+  return buildSelectOptions(
+    mandatoryTrainingsOnly.value ? trainings.filter((training) => training.mandatory) : trainings,
+    (training) => {
+      const code = training.code?.trim() ?? '';
+
+      return {
+        code,
+        description: code,
+      };
+    },
+  );
 });
 
 const headers = [
@@ -275,10 +282,12 @@ function formatDateCellValue(value: unknown): unknown {
       <div class="filters-grid">
         <div class="filter-field">
           <label class="filter-label" for="user-training-report-user-name">User</label>
-          <UaSelect
+          <UaAutocomplete
             id="user-training-report-user-name"
             v-model="selectedUserIdFilter"
             :items="userOptions"
+            client-filter
+            browser-autocomplete="off"
             label=""
             multiple
             chips
@@ -289,23 +298,43 @@ function formatDateCellValue(value: unknown): unknown {
 
         <div class="filter-field">
           <label class="filter-label" for="user-training-report-training-code">Training Types</label>
-          <UaSelect
+          <UaAutocomplete
             id="user-training-report-training-code"
             v-model="selectedTrainingCodeFilter"
             :items="trainingOptions"
+            client-filter
+            browser-autocomplete="off"
             multiple
             chips
             closable-chips
             clearable
-          />
+          >
+            <template #prepend-item>
+              <button
+                class="mandatory-only-toggle"
+                type="button"
+                role="switch"
+                :aria-checked="mandatoryTrainingsOnly"
+                aria-label="Show mandatory trainings only"
+                @pointerdown.stop
+                @mousedown.stop.prevent
+                @click.stop.prevent="mandatoryTrainingsOnly = !mandatoryTrainingsOnly"
+              >
+                <span>Mandatory only</span>
+                <span class="mandatory-only-toggle__track" aria-hidden="true" />
+              </button>
+            </template>
+          </UaAutocomplete>
         </div>
 
         <div class="filter-field">
           <label class="filter-label" for="user-training-report-region">Region</label>
-          <UaSelect
+          <UaAutocomplete
             id="user-training-report-region"
             v-model="selectedRegionIdFilter"
             :items="regionOptions"
+            client-filter
+            browser-autocomplete="off"
             label=""
             multiple
             chips
@@ -316,10 +345,12 @@ function formatDateCellValue(value: unknown): unknown {
 
         <div class="filter-field">
           <label class="filter-label" for="user-training-report-location">Location</label>
-          <UaSelect
+          <UaAutocomplete
             id="user-training-report-location"
             v-model="selectedLocationIdFilter"
             :items="locationOptions"
+            client-filter
+            browser-autocomplete="off"
             label=""
             multiple
             chips
@@ -354,10 +385,12 @@ function formatDateCellValue(value: unknown): unknown {
 
         <div v-if="reportTypeOptions.length > 1" class="filter-field">
           <label class="filter-label" for="user-training-report-report-type">Report Type</label>
-          <UaSelect
+          <UaAutocomplete
             id="user-training-report-report-type"
             v-model="selectedReportTypeFilter"
             :items="reportTypeOptions"
+            client-filter
+            browser-autocomplete="off"
             label=""
             clearable
           />
@@ -409,6 +442,65 @@ function formatDateCellValue(value: unknown): unknown {
   font-size: var(--ua-font-size-lg);
   font-weight: var(--ua-font-weight-bold);
   color: var(--ua-text-primary);
+}
+
+.mandatory-only-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 40px;
+  gap: 16px;
+  padding: 8px 16px;
+  border: 0;
+  border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.mandatory-only-toggle:hover {
+  background-color: rgba(var(--v-theme-on-surface), 0.04);
+}
+
+.mandatory-only-toggle:focus-visible {
+  outline: 2px solid rgb(var(--v-theme-primary));
+  outline-offset: -2px;
+}
+
+.mandatory-only-toggle__track {
+  position: relative;
+  display: inline-block;
+  flex: 0 0 36px;
+  width: 36px;
+  height: 20px;
+  border-radius: 999px;
+  background-color: rgba(var(--v-theme-on-surface), 0.38);
+  transition: background-color 120ms ease;
+}
+
+.mandatory-only-toggle__track::after {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background-color: rgb(var(--v-theme-primary));
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.24);
+  content: '';
+  transition: transform 120ms ease;
+}
+
+.mandatory-only-toggle[aria-checked='true'] .mandatory-only-toggle__track {
+  background-color: rgba(var(--v-theme-primary), 0.5);
+}
+
+.mandatory-only-toggle[aria-checked='true'] .mandatory-only-toggle__track::after {
+  background-color: rgb(var(--v-theme-primary));
+  transform: translateX(16px);
 }
 
 .report-table-actions {

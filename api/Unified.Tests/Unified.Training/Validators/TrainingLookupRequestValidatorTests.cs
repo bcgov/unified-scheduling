@@ -49,4 +49,24 @@ public sealed class TrainingLookupRequestValidatorTests
 
         Assert.True(result.IsValid);
     }
+
+    [Fact]
+    public async Task Validate_WhenAnnualValidityFromCompletionDateIsEnabled_PassesValidation()
+    {
+        var request = ValidRequest() with { AnnualValidityFromCompletionDate = true };
+
+        var result = await _validator.ValidateAsync(request, TestContext.Current.CancellationToken);
+
+        Assert.True(result.IsValid);
+    }
+
+    [Fact]
+    public async Task Validate_WhenAnnualValidityFromCompletionDateHasNonAnnualDuration_FailsValidation()
+    {
+        var request = ValidRequest() with { ValidityDays = 90, AnnualValidityFromCompletionDate = true };
+
+        var result = await _validator.ValidateAsync(request, TestContext.Current.CancellationToken);
+
+        Assert.False(result.IsValid);
+    }
 }

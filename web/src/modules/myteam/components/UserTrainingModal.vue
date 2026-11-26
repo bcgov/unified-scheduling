@@ -8,11 +8,11 @@ import {
 import { PostApiTrainingUserTrainingsBody } from '@/api-access/generated/user-training/user-training.zod';
 import UaAlert from '@/shared/components/UaAlert.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
+import UaAutocomplete from '@/shared/components/UaAutocomplete.vue';
 import UaFormGrid from '@/shared/components/UaFormGrid.vue';
 import UaModal from '@/shared/components/UaModal.vue';
 import UaTextField from '@/shared/components/UaTextField.vue';
 import UaTextarea from '@/shared/components/UaTextarea.vue';
-import UaSelect from '@/shared/components/UaSelect.vue';
 import { toDateInputValue, toDateTime, toOffsetDateTimeString } from '@/utils/date';
 import type { SelectOption } from '@/types/select';
 import { mdiClose, mdiRefresh } from '@mdi/js';
@@ -174,15 +174,7 @@ const schema = PostApiTrainingUserTrainingsBody.omit({ userId: true, allDay: tru
     notes: zod.string(),
   })
   .superRefine((data, context) => {
-    if (Boolean(data.awardedTime) !== Boolean(data.endingTime)) {
-      context.addIssue({
-        code: 'custom',
-        path: [data.awardedTime ? 'endingTime' : 'awardedTime'],
-        message: data.awardedTime ? 'Invalid to time.' : 'Invalid from time.',
-      });
-      return;
-    }
-    const zone = data.awardedTime ? trainingTimeZone.value : 'UTC';
+    const zone = data.awardedTime || data.endingTime ? trainingTimeZone.value : 'UTC';
     const start = DateTime.fromISO(`${data.awardedOn}T${data.awardedTime || '00:00'}`, { zone });
     const end = DateTime.fromISO(`${data.endingOn}T${data.endingTime || '00:00'}`, { zone });
     if (start.isValid && end.isValid && (data.awardedTime ? end <= start : end < start)) {
@@ -244,8 +236,6 @@ const generateExpiryDate = async (force = false) => {
     expiryDateAutoGenerateError.value = timeZoneValidationMessage;
     return;
   }
-  if (Boolean(formData.value.awardedTime) !== Boolean(formData.value.endingTime)) return;
-
   isGeneratingExpiryDate.value = true;
   expiryDateAutoGenerateError.value = '';
 
@@ -410,11 +400,13 @@ const handleSave = async () => {
 
     <UaFormGrid>
       <label v-if="!isEditMode && !isRenewMode" class="ua-form-label" for="user-training-training">Training</label>
-      <UaSelect
+      <UaAutocomplete
         v-if="!isEditMode && !isRenewMode"
         id="user-training-training"
         label="Training"
         :items="props.trainingOptions"
+        client-filter
+        browser-autocomplete="off"
         v-model="formData.trainingId"
         :error-messages="formErrors.trainingId"
       />

@@ -23,6 +23,7 @@ const training: TrainingLookupResponse = {
   expiryDate: null,
   mandatory: true,
   validityDays: 365,
+  annualValidityFromCompletionDate: true,
   advanceNoticeDays: 30,
   rotating: false,
   trainingCategoryId: null,
@@ -107,6 +108,7 @@ describe('TrainingEditModal', () => {
       validityDays: 365,
       advanceNoticeDays: 30,
       rotating: false,
+      annualValidityFromCompletionDate: true,
       trainingCategoryId: null,
     });
 
