@@ -154,6 +154,7 @@ function handleMenuItemClick(item: { actionId: string; payload?: unknown }) {
         <button
           v-bind="menuProps"
           class="calendar-matrix-cell-header__action"
+          :data-tone="header.action?.tone"
           type="button"
           :aria-label="header.action?.ariaLabel ?? 'Header actions'"
           @click.stop
@@ -162,6 +163,14 @@ function handleMenuItemClick(item: { actionId: string; payload?: unknown }) {
         >
           <v-icon v-if="header.action?.icon" :icon="header.action.icon" size="16" />
           <span v-else>{{ header.action?.text }}</span>
+          <v-tooltip
+            v-if="header.action?.tooltip && !menuOpen"
+            activator="parent"
+            :open-on-focus="true"
+            :eager="false"
+            :text="header.action.tooltip"
+            content-class="bg-surface text-on-surface border"
+          />
         </button>
       </template>
       <v-list aria-label="Header actions" @click.stop>
@@ -171,12 +180,25 @@ function handleMenuItemClick(item: { actionId: string; payload?: unknown }) {
           :title="item.label"
           :aria-label="item.label"
           @click.stop="handleMenuItemClick(item)"
-        />
+        >
+          <template v-if="item.tone" #title>
+            <span class="calendar-matrix-cell-header__menu-label" :data-tone="item.tone">{{ item.label }}</span>
+          </template>
+          <v-tooltip
+            v-if="item.tooltip"
+            activator="parent"
+            :open-on-focus="true"
+            :eager="false"
+            :text="item.tooltip"
+            content-class="bg-surface text-on-surface border"
+          />
+        </v-list-item>
       </v-list>
     </v-menu>
     <button
       v-else-if="isActionClickable"
       class="calendar-matrix-cell-header__action"
+      :data-tone="header.action?.tone"
       type="button"
       :aria-label="header.action?.ariaLabel ?? header.action?.text ?? 'Header action'"
       @click.stop="handleActionClick"
@@ -185,8 +207,20 @@ function handleMenuItemClick(item: { actionId: string; payload?: unknown }) {
     >
       <v-icon v-if="header.action?.icon" :icon="header.action.icon" size="16" />
       <span v-else>{{ header.action?.text }}</span>
+      <v-tooltip
+        v-if="header.action?.tooltip"
+        activator="parent"
+        :open-on-focus="true"
+        :eager="false"
+        :text="header.action.tooltip"
+        content-class="bg-surface text-on-surface border"
+      />
     </button>
-    <span v-else-if="hasActionDisplay" class="calendar-matrix-cell-header__action is-static">
+    <span
+      v-else-if="hasActionDisplay"
+      class="calendar-matrix-cell-header__action is-static"
+      :data-tone="header.action?.tone"
+    >
       <v-icon v-if="header.action?.icon" :icon="header.action.icon" size="16" />
       <span v-else>{{ header.action?.text }}</span>
     </span>
@@ -265,10 +299,10 @@ button.calendar-matrix-cell-header__main:focus-visible {
 
 .calendar-matrix-cell-header__action {
   align-items: center;
-  background: rgb(var(--v-theme-surface));
+  background: var(--calendar-matrix-action-background, rgb(var(--v-theme-surface)));
   border: 1px solid var(--ua-border-color);
   border-radius: 50%;
-  color: var(--ua-text-primary);
+  color: var(--calendar-matrix-action-color, var(--ua-text-primary));
   display: inline-flex;
   font-size: var(--ua-font-size-sm);
   font-weight: var(--ua-font-weight-bold);
@@ -326,10 +360,24 @@ button.calendar-matrix-cell-header__action {
   color: rgb(var(--v-theme-surface));
 }
 
-.calendar-matrix-cell-header.is-active:not(.is-outlined) .calendar-matrix-cell-header__action {
+.calendar-matrix-cell-header.is-active:not(.is-outlined) .calendar-matrix-cell-header__action:not([data-tone]) {
   background: transparent;
   border-color: transparent;
   color: rgb(var(--v-theme-surface));
+}
+
+[data-tone='error'] {
+  --calendar-matrix-action-color: rgb(var(--v-theme-error));
+  --calendar-matrix-action-background: rgb(var(--v-theme-surface));
+}
+
+[data-tone='warning'] {
+  --calendar-matrix-action-color: rgb(var(--v-theme-warning));
+  --calendar-matrix-action-background: rgb(var(--v-theme-surface));
+}
+
+.calendar-matrix-cell-header__menu-label {
+  color: var(--calendar-matrix-action-color, inherit);
 }
 
 .calendar-matrix-cell-header.is-cancelled {
@@ -356,9 +404,9 @@ button.calendar-matrix-cell-header__action {
   }
 
   button.calendar-matrix-cell-header__action:hover {
-    background: rgb(var(--v-theme-primary) / 0.08);
-    border-color: rgb(var(--v-theme-primary));
-    color: rgb(var(--v-theme-primary));
+    background: var(--calendar-matrix-action-background, rgb(var(--v-theme-primary) / 0.08));
+    border-color: var(--calendar-matrix-action-color, rgb(var(--v-theme-primary)));
+    color: var(--calendar-matrix-action-color, rgb(var(--v-theme-primary)));
   }
 }
 </style>

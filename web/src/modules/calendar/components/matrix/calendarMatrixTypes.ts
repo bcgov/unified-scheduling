@@ -29,14 +29,24 @@ export const CalendarMatrixActionType = {
 
 export type CalendarMatrixActionType = (typeof CalendarMatrixActionType)[keyof typeof CalendarMatrixActionType];
 
+export type CalendarMatrixActionTone = 'error' | 'warning';
+
 export interface CalendarMatrixActionDisplay {
   actionId: string;
   text?: string;
   icon?: string;
   ariaLabel?: string;
+  tooltip?: string;
   type: CalendarMatrixActionType;
+  tone?: CalendarMatrixActionTone;
   payload?: unknown;
-  menuItems?: { actionId: string; label: string; payload?: unknown }[];
+  menuItems?: {
+    actionId: string;
+    label: string;
+    tooltip?: string;
+    tone?: CalendarMatrixActionTone;
+    payload?: unknown;
+  }[];
 }
 
 export interface CalendarMatrixEventBlockActionEvent {

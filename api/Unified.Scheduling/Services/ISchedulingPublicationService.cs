@@ -1,4 +1,5 @@
 using Unified.Db.Models.Scheduling;
+using Unified.Scheduling.Models;
 
 namespace Unified.Scheduling.Services;
 
@@ -31,7 +32,13 @@ public interface IAssignmentPublicationService
     );
 }
 
-public sealed record ShiftPublicationBlocker(string Message);
+public sealed record ShiftPublicationBlocker(
+    Guid UserId,
+    ShiftConflictKind Kind,
+    SchedulePublishShiftEventResponse FirstShift,
+    SchedulePublishShiftEventResponse SecondShift,
+    string Message
+);
 
 public sealed record ShiftPublicationResult(
     IReadOnlyCollection<ShiftEntry> ShiftEntries,

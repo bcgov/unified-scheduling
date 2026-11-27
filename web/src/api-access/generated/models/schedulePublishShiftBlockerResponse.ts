@@ -4,7 +4,14 @@
  * Unified.Api | v1
  * OpenAPI spec version: 1.0.0
  */
+import type { SchedulePublishShiftEventResponse } from './schedulePublishShiftEventResponse.ts';
+import type { ShiftConflictKind } from './shiftConflictKind.ts';
 
 export interface SchedulePublishShiftBlockerResponse {
   message: string;
+  /** @nullable */
+  userId?: string | null;
+  kind?: null | ShiftConflictKind;
+  firstShift?: null | SchedulePublishShiftEventResponse;
+  secondShift?: null | SchedulePublishShiftEventResponse;
 }

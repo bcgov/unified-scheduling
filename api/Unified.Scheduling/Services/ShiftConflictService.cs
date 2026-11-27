@@ -4,6 +4,7 @@ using Unified.Common.Validation;
 using Unified.Db;
 using Unified.Db.Models.Calendar;
 using Unified.Db.Models.Scheduling;
+using Unified.Scheduling.Models;
 
 namespace Unified.Scheduling.Services;
 
@@ -21,10 +22,31 @@ public sealed class ShiftConflictService(
         CancellationToken cancellationToken
     )
     {
-        var awayUsers = await loanOutAvailabilityService.GetAwayUserIdsAsync(entries, cancellationToken);
-        var candidates = CreateCandidates(entries, awayUsers);
+        var conflicts = await FindConflictsAsync(entries, excludedShiftEntryIds, firstOnly: true, cancellationToken);
+        if (conflicts.FirstOrDefault() is { } conflict)
+            throw new ConflictValidationException(
+                new Dictionary<string, string[]> { ["UserIds"] = [conflict.Message] }
+            );
+    }
+
+    public Task<IReadOnlyCollection<ShiftPublicationBlocker>> CollectConflictsAsync(
+        IReadOnlyCollection<ShiftEntry> entries,
+        IReadOnlyCollection<int> excludedShiftEntryIds,
+        CancellationToken cancellationToken
+    ) => FindConflictsAsync(entries, excludedShiftEntryIds, firstOnly: false, cancellationToken);
+
+    private async Task<IReadOnlyCollection<ShiftPublicationBlocker>> FindConflictsAsync(
+        IReadOnlyCollection<ShiftEntry> entries,
+        IReadOnlyCollection<int> excludedShiftEntryIds,
+        bool firstOnly,
+        CancellationToken cancellationToken
+    )
+    {
+        var distinctEntries = entries.DistinctBy(entry => (entry.Id, Unsaved: entry.Id > 0 ? null : entry)).ToList();
+        var awayUsers = await loanOutAvailabilityService.GetAwayUserIdsAsync(distinctEntries, cancellationToken);
+        var candidates = CreateCandidates(distinctEntries, awayUsers);
         if (candidates.Count == 0)
-            return;
+            return [];
 
         var userIds = candidates.Select(candidate => candidate.UserId).Distinct().ToList();
         var users = await db
@@ -46,20 +68,34 @@ public sealed class ShiftConflictService(
                 cancellationToken
             );
 
-        EnsureCandidatesDoNotConflictWithEachOther(candidates, locationTimeZones, userNames);
+        var pairs = GetCandidateConflicts(candidates, locationTimeZones);
+        var findings = (firstOnly ? pairs.Take(1) : pairs)
+            .Select(pair => CreateFinding(pair.First, pair.Second, pair.Kind, userNames))
+            .ToList();
+        if (firstOnly && findings.Count > 0)
+            return findings;
 
-        var existingCandidates = await GetExistingCandidatesAsync(candidates, excludedShiftEntryIds, cancellationToken);
+        var excludedIds = excludedShiftEntryIds
+            .Concat(candidates.Select(candidate => candidate.Shift.ShiftEntryId).Where(id => id > 0))
+            .Distinct()
+            .ToList();
+        var existingCandidates = await GetExistingCandidatesAsync(candidates, excludedIds, cancellationToken);
         var existingByUserAndLocation = existingCandidates.ToLookup(candidate =>
             (candidate.UserId, candidate.LocationId)
         );
         foreach (var candidate in candidates)
         {
-            var conflict = existingByUserAndLocation[(candidate.UserId, candidate.LocationId)]
-                .Select(existing => GetConflict(candidate, existing, locationTimeZones))
-                .FirstOrDefault(result => result.HasValue);
-            if (conflict.HasValue)
-                throw CreateConflictException(candidate, conflict.Value, userNames);
+            var date = GetLocalDate(candidate, locationTimeZones);
+            foreach (var existing in existingByUserAndLocation[(candidate.UserId, candidate.LocationId)])
+            {
+                if (GetConflict(candidate, existing, date, GetLocalDate(existing, locationTimeZones)) is not { } kind)
+                    continue;
+                findings.Add(CreateFinding(candidate, existing, kind, userNames));
+                if (firstOnly)
+                    return findings;
+            }
         }
+        return findings;
     }
 
     private async Task<IReadOnlyCollection<ShiftConflictCandidate>> GetExistingCandidatesAsync(
@@ -102,55 +138,62 @@ public sealed class ShiftConflictService(
             .Where(entry => entry.Event?.StatusTypeCode != CalendarEventStatusTypeCodes.Cancelled)
             .SelectMany(entry =>
                 entry
-                    .Users.Where(user => !(awayUsers.GetValueOrDefault(entry) ?? []).Contains(user.UserId))
-                    .Select(user => new ShiftConflictCandidate(
-                        entry.Id,
-                        user.UserId,
-                        entry.Event!.LocationId,
-                        entry.Event.StartAtUtc,
-                        entry.Event.EndAtUtc,
+                    .Users.Select(user => user.UserId)
+                    .Distinct()
+                    .Where(userId => !(awayUsers.GetValueOrDefault(entry) ?? []).Contains(userId))
+                    .Select(userId => new ShiftConflictCandidate(
+                        new(entry.Id, entry.EventId, entry.Event!.Title, entry.Event.StartAtUtc, entry.Event.EndAtUtc),
+                        userId,
+                        entry.Event.LocationId,
                         entry.Event.TimeZoneId
                     ))
             )
             .ToList();
 
-    private void EnsureCandidatesDoNotConflictWithEachOther(
+    private IEnumerable<(
+        ShiftConflictCandidate First,
+        ShiftConflictCandidate Second,
+        ShiftConflictKind Kind
+    )> GetCandidateConflicts(
         IReadOnlyCollection<ShiftConflictCandidate> candidates,
-        IReadOnlyDictionary<int, TimeZoneInfo> locationTimeZones,
-        IReadOnlyDictionary<Guid, string> userNames
+        IReadOnlyDictionary<int, TimeZoneInfo> locationTimeZones
     )
     {
         foreach (var group in candidates.GroupBy(candidate => (candidate.UserId, candidate.LocationId)))
         {
             var ordered = group.OrderBy(candidate => candidate.StartAtUtc).ToList();
-            var startDates = new HashSet<DateOnly>();
-            foreach (var candidate in ordered)
+            var dates = ordered.Select(candidate => GetLocalDate(candidate, locationTimeZones)).ToList();
+            // Report same-date pairs first and exclude them from the overlap results.
+            var earlierByDate = new Dictionary<DateOnly, List<ShiftConflictCandidate>>();
+            for (var i = 0; i < ordered.Count; i++)
             {
-                if (!startDates.Add(GetLocalDate(candidate, locationTimeZones)))
-                    throw CreateConflictException(candidate, ShiftConflictKind.StartDate, userNames);
+                if (!earlierByDate.TryGetValue(dates[i], out var earlier))
+                    earlierByDate.Add(dates[i], earlier = []);
+                foreach (var previous in earlier)
+                    yield return (previous, ordered[i], ShiftConflictKind.StartDate);
+                earlier.Add(ordered[i]);
             }
-            for (var i = 1; i < ordered.Count; i++)
+            for (var i = 0; i < ordered.Count; i++)
             {
-                var conflict = GetConflict(ordered[i - 1], ordered[i], locationTimeZones);
-                if (conflict.HasValue)
-                    throw CreateConflictException(ordered[i], conflict.Value, userNames);
+                for (var j = i + 1; j < ordered.Count; j++)
+                {
+                    if (ordered[i].EndAtUtc is { } end && ordered[j].StartAtUtc >= end)
+                        break;
+                    if (GetConflict(ordered[i], ordered[j], dates[i], dates[j]) == ShiftConflictKind.Overlap)
+                        yield return (ordered[i], ordered[j], ShiftConflictKind.Overlap);
+                }
             }
         }
     }
 
-    private ShiftConflictKind? GetConflict(
+    private static ShiftConflictKind? GetConflict(
         ShiftConflictCandidate first,
         ShiftConflictCandidate second,
-        IReadOnlyDictionary<int, TimeZoneInfo> locationTimeZones
+        DateOnly firstDate,
+        DateOnly secondDate
     )
     {
-        if (
-            first.UserId != second.UserId
-            || first.LocationId != second.LocationId
-            || (first.ShiftEntryId > 0 && first.ShiftEntryId == second.ShiftEntryId)
-        )
-            return null;
-        if (GetLocalDate(first, locationTimeZones) == GetLocalDate(second, locationTimeZones))
+        if (firstDate == secondDate)
             return ShiftConflictKind.StartDate;
         return IntervalsOverlap(first.StartAtUtc, first.EndAtUtc, second.StartAtUtc, second.EndAtUtc)
             ? ShiftConflictKind.Overlap
@@ -179,18 +222,19 @@ public sealed class ShiftConflictService(
         DateTimeOffset? secondEnd
     ) => (!secondEnd.HasValue || firstStart < secondEnd.Value) && (!firstEnd.HasValue || secondStart < firstEnd.Value);
 
-    private static ConflictValidationException CreateConflictException(
-        ShiftConflictCandidate candidate,
+    private static ShiftPublicationBlocker CreateFinding(
+        ShiftConflictCandidate first,
+        ShiftConflictCandidate second,
         ShiftConflictKind conflict,
         IReadOnlyDictionary<Guid, string> userNames
     )
     {
-        var name = userNames.GetValueOrDefault(candidate.UserId, candidate.UserId.ToString());
+        var name = userNames.GetValueOrDefault(first.UserId, first.UserId.ToString());
         var message =
             conflict == ShiftConflictKind.StartDate
                 ? $"{name} already has a shift at this location on this shift start date."
                 : $"{name} already has a shift at this location that overlaps this shift.";
-        return new ConflictValidationException(new Dictionary<string, string[]> { ["UserIds"] = [message] });
+        return new(first.UserId, conflict, first.Shift, second.Shift, message);
     }
 
     private static string FormatUserName(Unified.Db.Models.UserManagement.User user)
@@ -206,17 +250,13 @@ public sealed class ShiftConflictService(
     }
 
     private sealed record ShiftConflictCandidate(
-        int ShiftEntryId,
+        SchedulePublishShiftEventResponse Shift,
         Guid UserId,
         int? LocationId,
-        DateTimeOffset StartAtUtc,
-        DateTimeOffset? EndAtUtc,
         string? TimeZoneId
-    );
-
-    private enum ShiftConflictKind
+    )
     {
-        StartDate,
-        Overlap,
+        public DateTimeOffset StartAtUtc => Shift.StartAtUtc;
+        public DateTimeOffset? EndAtUtc => Shift.EndAtUtc;
     }
 }

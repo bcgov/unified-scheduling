@@ -47,11 +47,11 @@ function resolveLabel(conflict: CalendarConflict) {
     </header>
     <article
       v-for="warning in restrictedWarnings"
-      :key="`${warning.eventId}:${warning.resourceId}`"
+      :key="`${warning.sourceModule}:${warning.eventId}:${warning.resourceId}`"
       class="calendar-scheduling-conflict-overlay__summary"
     >
       <v-icon v-if="icon" :icon="icon" size="18" />
-      <span>{{ warning.message }}</span>
+      <span class="calendar-scheduling-conflict-overlay__restricted-warning">{{ warning.message }}</span>
     </article>
     <article v-for="item in conflicts" :key="item.conflict.id" class="calendar-scheduling-conflict-overlay__item">
       <div class="calendar-scheduling-conflict-overlay__summary">
@@ -135,6 +135,10 @@ function resolveLabel(conflict: CalendarConflict) {
 .calendar-scheduling-conflict-overlay__summary span {
   color: var(--ua-text-secondary);
   font-size: var(--ua-font-size-xs);
+}
+
+.calendar-scheduling-conflict-overlay__summary .calendar-scheduling-conflict-overlay__restricted-warning {
+  color: inherit;
 }
 
 .calendar-scheduling-conflict-overlay__resolve {

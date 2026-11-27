@@ -4,6 +4,7 @@
  * Unified.Api | v1
  * OpenAPI spec version: 1.0.0
  */
+import type { CalendarConflictEventResponse } from './calendarConflictEventResponse.ts';
 
 export interface SchedulePublishConflictResponse {
   id: string;
@@ -14,4 +15,8 @@ export interface SchedulePublishConflictResponse {
   resourceId: string;
   overlapStart: string;
   overlapEnd: string;
+  /** @nullable */
+  title?: string | null;
+  entry?: null | CalendarConflictEventResponse;
+  overlaps?: null | CalendarConflictEventResponse;
 }

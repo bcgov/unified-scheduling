@@ -1,6 +1,19 @@
-import type { CalendarConflict, CalendarConflictEvent, CalendarConflictEventIdentity } from './calendarTypes';
+import type {
+  CalendarConflict,
+  CalendarConflictEvent,
+  CalendarConflictEventIdentity,
+  CalendarRestrictedConflictWarning,
+} from './calendarTypes';
 import { CALENDAR_ALL_DAY_LABEL, formatCalendarDateOnly, formatCalendarDateTimeRange } from '@/utils/date';
 import { DateTime } from 'luxon';
+
+export function getCalendarConflictSeverity(
+  conflicts: readonly CalendarConflict[],
+  restrictedWarnings: readonly CalendarRestrictedConflictWarning[] = [],
+): 'error' | 'warning' | undefined {
+  if (restrictedWarnings.length || conflicts.some((conflict) => !conflict.isOverridden)) return 'error';
+  return conflicts.length ? 'warning' : undefined;
+}
 
 export function formatCalendarConflictEventRange(event: CalendarConflictEvent, comparisonTimeZone: string) {
   if (event.allDay) {

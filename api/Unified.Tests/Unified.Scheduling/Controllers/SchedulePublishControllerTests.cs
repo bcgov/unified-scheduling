@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Unified.Authorization;
 using Unified.Authorization.Claims;
+using Unified.Calendar.Models;
 using Unified.Scheduling.Controllers;
 using Unified.Scheduling.Models;
 using Unified.Scheduling.Services;
@@ -23,23 +24,36 @@ public sealed class SchedulePublishControllerTests
     )
     {
         var start = new DateTimeOffset(2026, 10, 6, 16, 0, 0, TimeSpan.Zero);
+        var employeeId = Guid.NewGuid();
         var trainingConflict = new SchedulePublishConflictResponse(
             "conflict:training.user-training.7",
             "training",
             "training.user-training.7",
             "scheduling",
             "42",
-            Guid.NewGuid(),
+            employeeId,
             start,
             start.AddHours(1)
-        );
+        )
+        {
+            Title = "Assignment and Training",
+            Entry = new CalendarConflictEventResponse(
+                "training.user-training.7",
+                "training",
+                "First aid",
+                start,
+                start.AddHours(1),
+                7,
+                "UTC"
+            ),
+        };
         var otherConflict = new SchedulePublishConflictResponse(
             "conflict:scheduling:42:43",
             "scheduling",
             "42",
             "scheduling",
             "43",
-            Guid.NewGuid(),
+            employeeId,
             start,
             start.AddHours(1)
         );
@@ -60,9 +74,13 @@ public sealed class SchedulePublishControllerTests
             )
             {
                 HasRestrictedConflicts = !canViewTraining,
+                HasUnattributedRestrictedConflicts = !canViewTraining,
             },
             false
-        );
+        )
+        {
+            AffectedEmployees = [new SchedulePublishEmployeeResponse(otherConflict.ResourceId, "Alex Morgan")],
+        };
         var controller = new SchedulePublishController(
             new BlockedPublishService(preview),
             new SchedulePublishRequestValidator()
@@ -99,6 +117,8 @@ public sealed class SchedulePublishControllerTests
         Assert.Contains(otherConflict, response.Blockers.Conflicts);
         Assert.Equal(canViewTraining, response.Blockers.Conflicts.Contains(trainingConflict));
         Assert.Equal(!canViewTraining, response.Blockers.HasRestrictedConflicts);
+        Assert.Equal(!canViewTraining, response.Blockers.HasUnattributedRestrictedConflicts);
+        Assert.Equal(otherConflict.ResourceId, Assert.Single(response.AffectedEmployees).UserId);
         if (!canViewTraining)
             Assert.DoesNotContain("training.user-training.7", System.Text.Json.JsonSerializer.Serialize(response));
     }

@@ -9,6 +9,7 @@ import {
 } from '@/utils/date';
 import type { CalendarPeriod } from '@/modules/calendar/calendarStore';
 import { CalendarActionId, CalendarContributionId } from '@/modules/calendar/calendarIdentifiers';
+import { getCalendarConflictSeverity } from '@/modules/calendar/calendarConflictFormatting';
 import {
   getCalendarConflictsForEvent,
   getCalendarConflictsForEventAndResource,
@@ -33,6 +34,7 @@ import {
   type CalendarMatrixConflictItem,
   type CalendarMatrixDay,
   type CalendarMatrixActionDisplay,
+  type CalendarMatrixActionTone,
   type CalendarMatrixEventItem,
   type CalendarMatrixResource,
   type CalendarMatrixSidePanelItem,
@@ -289,7 +291,6 @@ export function buildCalendarSchedulingViewModel(
               title: event.title,
               color: calendarNonSchedulingEventColors.training,
               actionId: trainingCalendarDetailActionId,
-              action: trainingConflicts.length > 0 ? buildPulldownAction() : undefined,
               conflicts: trainingConflicts,
               payload: event,
             };
@@ -315,7 +316,7 @@ export function buildCalendarSchedulingViewModel(
     }
   }
 
-  return addRestrictedWarnings(
+  return addConflictActions(
     {
       days,
       timeZone,
@@ -438,7 +439,7 @@ export function buildCalendarAssignmentViewModel(
     }
   }
 
-  return addRestrictedWarnings(
+  return addConflictActions(
     {
       days,
       timeZone,
@@ -466,11 +467,7 @@ export function buildCalendarAssignmentViewModel(
   );
 }
 
-function addRestrictedWarnings(
-  model: CalendarMatrixViewModel,
-  response: CalendarDataResponse,
-  resourceScoped: boolean,
-) {
+function addConflictActions(model: CalendarMatrixViewModel, response: CalendarDataResponse, resourceScoped: boolean) {
   const warnings = selectCalendarRestrictedWarnings(response);
   for (const cell of model.cells) {
     const resourceId = resourceScoped ? cell.resourceId : undefined;
@@ -488,11 +485,15 @@ function addRestrictedWarnings(
         warnings,
         resourceId,
       );
-      if (header.restrictedWarnings.length) {
+      const tone = getCalendarConflictSeverity(
+        header.conflicts?.map(({ conflict }) => conflict) ?? [],
+        header.restrictedWarnings,
+      );
+      if (tone) {
         if (header.action?.actionId === calendarSchedulingActionIds.showOvertime) {
-          header.action = buildCombinedHeaderAction(header.action.payload as WorkingHoursResult);
-        } else if (header.action?.type !== CalendarMatrixActionType.Menu) {
-          header.action = buildPulldownAction();
+          header.action = buildCombinedHeaderAction(header.action, tone);
+        } else {
+          header.action = buildPulldownAction(tone);
         }
       }
     }
@@ -502,7 +503,13 @@ function addRestrictedWarnings(
         warnings,
         resourceId,
       );
-      if (item.restrictedWarnings.length) item.display = { ...item.display, action: buildPulldownAction() };
+      const tone = getCalendarConflictSeverity(
+        item.conflicts?.map(({ conflict }) => conflict) ?? [],
+        item.restrictedWarnings,
+      );
+      if (tone) {
+        item.display = { ...item.display, action: buildPulldownAction(tone) };
+      }
     }
   }
   return model;
@@ -1241,14 +1248,7 @@ function buildCellHeader(
         }
       : undefined,
     actionId: calendarSchedulingActionIds.viewHeaderDetails,
-    action:
-      conflicts.length > 0
-        ? overtime?.overtimeMinutes
-          ? buildCombinedHeaderAction(overtime)
-          : buildPulldownAction()
-        : overtime?.overtimeMinutes
-          ? buildOvertimeAction(overtime)
-          : undefined,
+    action: overtime?.overtimeMinutes ? buildOvertimeAction(overtime) : undefined,
     conflicts,
     payload: event,
   };
@@ -1283,12 +1283,19 @@ function resolveMatrixTimeZone(context: CalendarQueryContext) {
   return resolveSchedulingTimeZoneFromFilters(context.filters);
 }
 
-function buildPulldownAction(): CalendarMatrixActionDisplay {
+function getConflictActionLabel(tone: CalendarMatrixActionTone) {
+  return tone === 'error' ? 'View unresolved conflicts' : 'View overridden conflicts';
+}
+
+function buildPulldownAction(tone: CalendarMatrixActionTone): CalendarMatrixActionDisplay {
+  const label = getConflictActionLabel(tone);
   return {
     actionId: calendarSchedulingActionIds.showConflict,
     icon: mdiAlertCircle,
-    ariaLabel: 'Show Conflict Details',
+    ariaLabel: label,
+    tooltip: label,
     type: CalendarMatrixActionType.Button,
+    tone,
   };
 }
 
@@ -1302,15 +1309,22 @@ function buildOvertimeAction(result: WorkingHoursResult): CalendarMatrixActionDi
   };
 }
 
-function buildCombinedHeaderAction(result: WorkingHoursResult): CalendarMatrixActionDisplay {
+function buildCombinedHeaderAction(
+  overtime: CalendarMatrixActionDisplay,
+  tone: CalendarMatrixActionTone,
+): CalendarMatrixActionDisplay {
+  const conflictLabel = getConflictActionLabel(tone);
+  const menuLabel = `${conflictLabel} and potential overtime`;
   return {
     actionId: 'scheduling.header-actions',
     icon: mdiDotsVertical,
-    ariaLabel: 'View conflicts and potential overtime',
+    ariaLabel: menuLabel,
+    tooltip: menuLabel,
     type: CalendarMatrixActionType.Menu,
+    tone,
     menuItems: [
-      { actionId: calendarSchedulingActionIds.showConflict, label: 'View conflicts' },
-      { actionId: calendarSchedulingActionIds.showOvertime, label: 'View potential overtime', payload: result },
+      { actionId: calendarSchedulingActionIds.showConflict, label: conflictLabel, tooltip: conflictLabel, tone },
+      { actionId: overtime.actionId, label: 'View potential overtime', payload: overtime.payload },
     ],
   };
 }
@@ -1392,15 +1406,6 @@ function toScheduleMatrixEventItems(
           borderStyle: resolveSchedulingEventBorderStyle(event),
           status: event.statusTypeCode,
           draggable: false,
-          action:
-            conflictItems.length > 0
-              ? {
-                  actionId: calendarSchedulingActionIds.showConflict,
-                  icon: mdiAlertCircle,
-                  ariaLabel: 'Show conflict',
-                  type: CalendarMatrixActionType.Button,
-                }
-              : undefined,
         },
         conflicts: conflictItems,
       },

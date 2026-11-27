@@ -368,11 +368,11 @@ public sealed class ShiftEntryService(
             ? await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken)
             : null;
         var entries = await LoadPublicationEntriesAsync(shiftEntryIds, cancellationToken);
-        var blockers = await GetEntryPublicationBlockersAsync(entries, cancellationToken);
-        if (blockers.Count > 0)
-            throw new ConflictValidationException(
-                new Dictionary<string, string[]> { ["UserIds"] = blockers.Select(blocker => blocker.Message).ToArray() }
-            );
+        await shiftConflictService.EnsureShiftsDoNotConflictAsync(
+            entries,
+            entries.Select(entry => entry.Id).ToList(),
+            cancellationToken
+        );
 
         foreach (var entry in entries)
             calendarLifecycleService.Publish(entry.Event!);
@@ -400,7 +400,11 @@ public sealed class ShiftEntryService(
     )
     {
         var entries = await LoadPublicationEntriesAsync(shiftEntryIds, cancellationToken);
-        return await GetEntryPublicationBlockersAsync(entries, cancellationToken);
+        return await shiftConflictService.CollectConflictsAsync(
+            entries,
+            entries.Select(entry => entry.Id).ToList(),
+            cancellationToken
+        );
     }
 
     public async Task<ShiftEntryResponse?> ExpireShiftEntryAsync(
@@ -501,37 +505,16 @@ public sealed class ShiftEntryService(
     private async Task<List<ShiftEntry>> LoadPublicationEntriesAsync(
         IReadOnlyCollection<int> ids,
         CancellationToken cancellationToken
-    ) =>
-        await db
+    )
+    {
+        var entries = await db
             .ShiftEntries.Include(entry => entry.Event)
             .Include(entry => entry.Users)
             .Where(entry => ids.Contains(entry.Id))
             .ToListAsync(cancellationToken);
-
-    private async Task<IReadOnlyCollection<ShiftPublicationBlocker>> GetEntryPublicationBlockersAsync(
-        IReadOnlyCollection<ShiftEntry> entries,
-        CancellationToken cancellationToken
-    )
-    {
         foreach (var entry in entries)
             ShiftGuards.EnsureShiftEventType(entry.Event!);
-        try
-        {
-            await shiftConflictService.EnsureShiftsDoNotConflictAsync(
-                entries,
-                entries.Select(entry => entry.Id).ToList(),
-                cancellationToken
-            );
-            return [];
-        }
-        catch (ConflictValidationException exception)
-        {
-            return exception
-                .Errors.Values.SelectMany(messages => messages)
-                .Distinct()
-                .Select(message => new ShiftPublicationBlocker(message))
-                .ToList();
-        }
+        return entries;
     }
 
     private async Task<IReadOnlyCollection<int>> PublishLinkedDraftAssignmentsAsync(

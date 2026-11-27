@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using Unified.Calendar.Conflicts;
 using Unified.Common.Calendar.Conflicts;
 
@@ -71,7 +72,7 @@ public sealed record CalendarConflictResponse(
                 )
         );
 
-    private static CalendarConflictEventResponse MapEvent(CalendarConflictParticipant participant) =>
+    internal static CalendarConflictEventResponse MapEvent(CalendarConflictParticipant participant) =>
         new(
             participant.EventId,
             participant.SourceModule,
@@ -100,4 +101,8 @@ public sealed record CalendarRestrictedConflictWarningResponse(
     string SourceModule,
     Guid ResourceId,
     string Message
-);
+)
+{
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public CalendarConflictEventResponse? AuthorizedEvent { get; init; }
+}

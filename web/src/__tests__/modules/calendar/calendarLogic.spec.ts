@@ -39,7 +39,7 @@ import type {
   CalendarQueryContext,
   CalendarRuntimeContext,
 } from '@/modules/calendar/calendarTypes';
-import { mdiCalendarSync } from '@mdi/js';
+import { mdiAlertCircle, mdiCalendarSync, mdiDotsVertical } from '@mdi/js';
 
 beforeEach(() => setActivePinia(createPinia()));
 
@@ -192,7 +192,11 @@ describe('scheduling calendar view model', () => {
     );
     const header = model.cells.flatMap((cell) => cell.headers ?? []).find((item) => item.id === shift.id);
     expect(header?.restrictedWarnings).toEqual([warning]);
-    expect(header?.action?.ariaLabel).toBe('Show Conflict Details');
+    expect(header?.action).toMatchObject({
+      ariaLabel: 'View unresolved conflicts',
+      tooltip: 'View unresolved conflicts',
+      tone: 'error',
+    });
     expect(header?.conflicts).toEqual([]);
   });
   it.each([buildCalendarSchedulingViewModel, buildCalendarAssignmentViewModel])(
@@ -638,33 +642,40 @@ describe('scheduling calendar view model', () => {
     ]);
   });
 
-  it('shows user-specific conflicts in assignment resource rows', () => {
-    const assignmentEvent: CalendarSchedulingEvent = {
-      id: 'scheduling.assignment-entry.90',
-      type: 'scheduling.assignment',
-      sourceModule: 'scheduling',
-      title: 'Court Room Monitor',
-      start: '2025-01-13T17:00:00Z',
-      end: '2025-01-13T18:00:00Z',
-      metadata: {
-        eventId: 900,
-        assignmentEntryId: '90',
-        assignmentDefinitionId: '20',
-      },
-    };
-    const viewModel = buildCalendarAssignmentViewModel(
-      {
-        contributions: {
-          'calendar.events': {
-            moduleId: 'calendar',
-            contributionId: 'calendar.events',
-            events: [],
-            data: {
-              conflicts: [
-                {
-                  id: '900:901:user-1',
+  it.each([
+    [false, 'error', 'View unresolved conflicts'],
+    [true, 'warning', 'View overridden conflicts'],
+  ] as const)(
+    'aggregates assignment conflicts across employees when the second override is %s',
+    (secondOverridden, tone, label) => {
+      const assignmentEvent: CalendarSchedulingEvent = {
+        id: 'scheduling.assignment-entry.90',
+        type: 'scheduling.assignment',
+        sourceModule: 'scheduling',
+        title: 'Court Room Monitor',
+        start: '2025-01-13T17:00:00Z',
+        end: '2025-01-13T18:00:00Z',
+        metadata: {
+          eventId: 900,
+          assignmentEntryId: '90',
+          assignmentDefinitionId: '20',
+        },
+      };
+      const viewModel = buildCalendarAssignmentViewModel(
+        {
+          contributions: {
+            'calendar.events': {
+              moduleId: 'calendar',
+              contributionId: 'calendar.events',
+              events: [],
+              data: {
+                conflicts: [
+                  { resourceId: 'user-1', isOverridden: true },
+                  { resourceId: 'user-2', isOverridden: secondOverridden },
+                ].map(({ resourceId, isOverridden }) => ({
+                  id: `900:901:${resourceId}`,
                   title: 'Assignment ↔ Assignment',
-                  resourceId: 'user-1',
+                  resourceId,
                   entry: {
                     eventId: '900',
                     sourceModule: 'scheduling',
@@ -685,47 +696,47 @@ describe('scheduling calendar view model', () => {
                   },
                   overlapStart: '2025-01-13T17:30:00Z',
                   overlapEnd: '2025-01-13T18:00:00Z',
-                  isOverridden: false,
+                  isOverridden,
                   reportOnEntry: true,
                   reportOnOverlaps: true,
+                })),
+              },
+            },
+            'scheduling.events': {
+              moduleId: 'scheduling',
+              contributionId: 'scheduling.events',
+              events: [assignmentEvent],
+              resources: [],
+            },
+            'scheduling.assignment-resources': {
+              moduleId: 'scheduling',
+              contributionId: 'scheduling.assignment-resources',
+              events: [],
+              resources: [
+                {
+                  id: 'assignment-definition-20',
+                  type: 'assignment',
+                  sourceModule: 'scheduling',
+                  label: 'Court Room Monitor',
+                  title: 'Court Room Monitor',
+                  assignmentDefinitionId: 20,
                 },
-              ],
+              ] as CalendarSchedulingAssignmentResource[],
             },
           },
-          'scheduling.events': {
-            moduleId: 'scheduling',
-            contributionId: 'scheduling.events',
-            events: [assignmentEvent],
-            resources: [],
-          },
-          'scheduling.assignment-resources': {
-            moduleId: 'scheduling',
-            contributionId: 'scheduling.assignment-resources',
-            events: [],
-            resources: [
-              {
-                id: 'assignment-definition-20',
-                type: 'assignment',
-                sourceModule: 'scheduling',
-                label: 'Court Room Monitor',
-                title: 'Court Room Monitor',
-                assignmentDefinitionId: 20,
-              },
-            ] as CalendarSchedulingAssignmentResource[],
-          },
         },
-      },
-      { startDate: '2025-01-13', endDate: '2025-01-20', filters: {} },
-      'week',
-    );
+        { startDate: '2025-01-13', endDate: '2025-01-20', filters: {} },
+        'week',
+      );
 
-    const item = viewModel.cells.find(
-      (cell) => cell.resourceId === 'assignment-definition-20' && cell.date === '2025-01-13',
-    )?.groups[0]?.events[0];
+      const item = viewModel.cells.find(
+        (cell) => cell.resourceId === 'assignment-definition-20' && cell.date === '2025-01-13',
+      )?.groups[0]?.events[0];
 
-    expect(item?.conflicts).toHaveLength(1);
-    expect(item?.display?.action?.ariaLabel).toBe('Show conflict');
-  });
+      expect(item?.conflicts).toHaveLength(2);
+      expect(item?.display?.action).toMatchObject({ ariaLabel: label, tooltip: label, tone });
+    },
+  );
 
   it('enriches a shift-contribution assignment with its definition before cross-user drop matching', () => {
     const assignmentEvent: CalendarSchedulingEvent = {
@@ -924,155 +935,210 @@ describe('scheduling calendar view model', () => {
   });
 
   it.each([
-    [false, 0],
-    [true, 0],
-    [false, 30],
-    [true, 30],
-  ] as const)('shows the single header action for conflicts=%s and overtime=%s', (hasConflicts, overtimeMinutes) => {
-    const result = {
-      shiftEntryId: 41,
-      userId: 'user-1',
-      date: '2025-01-13',
-      paidShiftMinutes: 420,
-      lunchAvailableMinutes: 60,
-      workedLunchMinutes: 0,
-      paidOutsideShiftMinutes: overtimeMinutes,
-      workedMinutes: 420 + overtimeMinutes,
-      paidLeaveMinutes: 0,
-      unpaidLeaveMinutes: 0,
-      creditedMinutes: 420 + overtimeMinutes,
-      overtimeMinutes,
-    };
-    const shiftEvents: CalendarSchedulingEvent[] = [
-      {
-        id: 'shift-conflict',
-        type: 'scheduling.shift',
-        sourceModule: 'calendar-scheduling',
-        title: 'Conflict shift',
-        start: '2025-01-13T09:00:00',
-        end: '2025-01-13T17:00:00',
-        resourceIds: ['user-1'],
-        metadata: { eventId: 101, shiftEntryId: '41', userIds: ['user-1'] },
-      },
-      {
-        id: 'shift-normal',
-        type: 'scheduling.shift',
-        sourceModule: 'calendar-scheduling',
-        title: 'Normal shift',
-        start: '2025-01-14T09:00:00',
-        end: '2025-01-14T17:00:00',
-        resourceIds: ['user-1'],
-        metadata: { eventId: 102, userIds: ['user-1'], shiftSeriesId: 100 },
-      },
-    ];
-    const assignmentEvents: CalendarSchedulingEvent[] = [
-      {
-        id: 'assignment-conflict',
-        type: 'scheduling.assignment',
-        sourceModule: 'calendar-scheduling',
-        title: 'Conflict assignment',
-        start: '2025-01-13T10:00:00',
-        end: '2025-01-13T12:00:00',
-        metadata: {
-          eventId: 201,
-          assignedShiftIds: ['41'],
-          assignedUserIds: ['user-1'],
+    [[], false, 0, undefined],
+    [[false], false, 0, 'error'],
+    [[true], false, 0, 'warning'],
+    [[true, false], false, 0, 'error'],
+    [[], true, 0, 'error'],
+    [[], false, 30, undefined],
+    [[false], false, 30, 'error'],
+    [[true], false, 30, 'warning'],
+    [[true], true, 30, 'error'],
+  ] as const)(
+    'applies the header tone for override statuses %j, restricted %s and overtime %s',
+    (overrides, restricted, overtimeMinutes, tone) => {
+      const result = {
+        shiftEntryId: 41,
+        userId: 'user-1',
+        date: '2025-01-13',
+        paidShiftMinutes: 420,
+        lunchAvailableMinutes: 60,
+        workedLunchMinutes: 0,
+        paidOutsideShiftMinutes: overtimeMinutes,
+        workedMinutes: 420 + overtimeMinutes,
+        paidLeaveMinutes: 0,
+        unpaidLeaveMinutes: 0,
+        creditedMinutes: 420 + overtimeMinutes,
+        overtimeMinutes,
+      };
+      const shiftEvents: CalendarSchedulingEvent[] = [
+        {
+          id: 'shift-conflict',
+          type: 'scheduling.shift',
+          sourceModule: 'calendar-scheduling',
+          title: 'Conflict shift',
+          start: '2025-01-13T09:00:00',
+          end: '2025-01-13T17:00:00',
+          resourceIds: ['user-1', 'user-2'],
+          metadata: { eventId: 101, shiftEntryId: '41', userIds: ['user-1', 'user-2'] },
         },
-      },
-    ];
+        {
+          id: 'shift-normal',
+          type: 'scheduling.shift',
+          sourceModule: 'calendar-scheduling',
+          title: 'Normal shift',
+          start: '2025-01-14T09:00:00',
+          end: '2025-01-14T17:00:00',
+          resourceIds: ['user-1'],
+          metadata: { eventId: 102, userIds: ['user-1'], shiftSeriesId: 100 },
+        },
+      ];
+      const assignmentEvents: CalendarSchedulingEvent[] = [
+        {
+          id: 'assignment-conflict',
+          type: 'scheduling.assignment',
+          sourceModule: 'calendar-scheduling',
+          title: 'Conflict assignment',
+          start: '2025-01-13T10:00:00',
+          end: '2025-01-13T12:00:00',
+          metadata: {
+            eventId: 201,
+            assignedShiftIds: ['41'],
+            assignedUserIds: ['user-1', 'user-2'],
+          },
+        },
+      ];
 
-    const viewModel = buildCalendarSchedulingViewModel(
-      {
-        contributions: {
-          'calendar.events': {
-            moduleId: 'calendar',
-            contributionId: 'calendar.events',
-            events: [],
-            data: {
-              conflicts: hasConflicts
-                ? [
-                    {
-                      id: '201:202:user-1',
-                      resourceId: 'user-1',
-                      entry: {
-                        eventId: '201',
+      const conflictStatuses = [
+        ...overrides.map((isOverridden, index) => ({ resourceId: 'user-1', isOverridden, index })),
+        { resourceId: 'user-2', isOverridden: false, index: 0 },
+      ];
+      const viewModel = buildCalendarSchedulingViewModel(
+        {
+          contributions: {
+            'calendar.events': {
+              moduleId: 'calendar',
+              contributionId: 'calendar.events',
+              events: [],
+              data: {
+                conflicts: conflictStatuses.map(({ resourceId, isOverridden, index }) => ({
+                  id: `201:${202 + index}:${resourceId}`,
+                  resourceId,
+                  entry: {
+                    eventId: '201',
+                    sourceModule: 'scheduling',
+                    title: 'Conflict assignment',
+                    start: '2025-01-13T10:00:00Z',
+                    end: '2025-01-13T12:00:00Z',
+                    sourceEntityId: null,
+                    timeZoneId: null,
+                  },
+                  overlaps: {
+                    eventId: String(202 + index),
+                    sourceModule: 'scheduling',
+                    title: 'Assignment',
+                    start: '2025-01-13T10:00:00Z',
+                    end: '2025-01-13T12:00:00Z',
+                    sourceEntityId: null,
+                    timeZoneId: null,
+                  },
+                  overlapStart: '2025-01-13T10:00:00Z',
+                  overlapEnd: '2025-01-13T12:00:00Z',
+                  isOverridden,
+                  reportOnEntry: true,
+                  reportOnOverlaps: true,
+                })),
+                restrictedWarnings: restricted
+                  ? [
+                      {
+                        eventId: '101',
                         sourceModule: 'scheduling',
-                        title: 'Conflict assignment',
-                        start: '2025-01-13T10:00:00Z',
-                        end: '2025-01-13T12:00:00Z',
-                        sourceEntityId: null,
-                        timeZoneId: null,
+                        resourceId: 'user-1',
+                        message: 'Restricted conflict',
                       },
-                      overlaps: {
-                        eventId: '202',
-                        sourceModule: 'scheduling',
-                        title: 'Assignment',
-                        start: '2025-01-13T10:00:00Z',
-                        end: '2025-01-13T12:00:00Z',
-                        sourceEntityId: null,
-                        timeZoneId: null,
-                      },
-                      overlapStart: '2025-01-13T10:00:00Z',
-                      overlapEnd: '2025-01-13T12:00:00Z',
-                      isOverridden: false,
-                      reportOnEntry: true,
-                      reportOnOverlaps: true,
-                    },
-                  ]
-                : [],
+                    ]
+                  : [],
+              },
+            },
+            'scheduling.working-hours': {
+              moduleId: 'scheduling',
+              contributionId: 'scheduling.working-hours',
+              events: [],
+              data: { results: [result] },
+            },
+            'scheduling.events': {
+              moduleId: 'scheduling',
+              contributionId: 'scheduling.events',
+              events: [...shiftEvents, ...assignmentEvents],
+              resources: [
+                {
+                  id: 'user-1',
+                  type: 'user',
+                  sourceModule: 'scheduling',
+                  label: 'Alex Alpha',
+                  title: 'Alex Alpha',
+                },
+                {
+                  id: 'user-2',
+                  type: 'user',
+                  sourceModule: 'scheduling',
+                  label: 'Zoe Beta',
+                  title: 'Zoe Beta',
+                },
+              ] as CalendarSchedulingUserResource[],
             },
           },
-          'scheduling.working-hours': {
-            moduleId: 'scheduling',
-            contributionId: 'scheduling.working-hours',
-            events: [],
-            data: { results: [result] },
-          },
-          'scheduling.events': {
-            moduleId: 'scheduling',
-            contributionId: 'scheduling.events',
-            events: [...shiftEvents, ...assignmentEvents],
-            resources: [
-              {
-                id: 'user-1',
-                type: 'user',
-                sourceModule: 'scheduling',
-                label: 'Alex Alpha',
-                title: 'Alex Alpha',
-              },
-            ] as CalendarSchedulingUserResource[],
-          },
         },
-      },
-      { startDate: '2025-01-13', endDate: '2025-01-20', filters: {} },
-      'week',
-    );
+        { startDate: '2025-01-13', endDate: '2025-01-20', filters: {} },
+        'week',
+      );
 
-    const headers = viewModel.cells.flatMap((cell) => cell.headers ?? []);
+      const headers = viewModel.cells
+        .filter((cell) => cell.resourceId === 'user-1')
+        .flatMap((cell) => cell.headers ?? []);
 
-    const conflictHeader = headers.find((header) => header.id === 'shift-conflict');
-    expect(conflictHeader?.actionId).toBe(calendarSchedulingActionIds.viewHeaderDetails);
-    if (hasConflicts && overtimeMinutes) {
-      expect(conflictHeader?.action?.type).toBe('menu');
-      expect(conflictHeader?.action?.menuItems).toEqual([
-        { actionId: calendarSchedulingActionIds.showConflict, label: 'View conflicts' },
-        { actionId: calendarSchedulingActionIds.showOvertime, label: 'View potential overtime', payload: result },
-      ]);
-    } else if (hasConflicts) {
-      expect(conflictHeader?.action?.actionId).toBe(calendarSchedulingActionIds.showConflict);
-    } else if (overtimeMinutes) {
-      expect(conflictHeader?.action?.actionId).toBe(calendarSchedulingActionIds.showOvertime);
-    } else {
-      expect(conflictHeader?.action).toBeUndefined();
-    }
-    expect(conflictHeader?.conflicts).toHaveLength(hasConflicts ? 1 : 0);
-    expect(headers.find((header) => header.id === 'shift-normal')?.action).toBeUndefined();
-    expect(headers.find((header) => header.id === 'shift-normal')?.info?.icons).toContainEqual({
-      icon: mdiCalendarSync,
-      ariaLabel: 'Part of a shift series',
-      title: 'Part of a shift series',
-    });
-  });
+      const conflictHeader = headers.find((header) => header.id === 'shift-conflict');
+      expect(conflictHeader?.actionId).toBe(calendarSchedulingActionIds.viewHeaderDetails);
+      const label = tone === 'warning' ? 'View overridden conflicts' : 'View unresolved conflicts';
+      if (tone && overtimeMinutes) {
+        const menuLabel = `${label} and potential overtime`;
+        expect(conflictHeader?.action).toMatchObject({
+          type: 'menu',
+          icon: mdiDotsVertical,
+          ariaLabel: menuLabel,
+          tooltip: menuLabel,
+          tone,
+        });
+        expect(conflictHeader?.action?.menuItems).toEqual([
+          { actionId: calendarSchedulingActionIds.showConflict, label, tooltip: label, tone },
+          { actionId: calendarSchedulingActionIds.showOvertime, label: 'View potential overtime', payload: result },
+        ]);
+      } else if (tone) {
+        expect(conflictHeader?.action).toMatchObject({
+          actionId: calendarSchedulingActionIds.showConflict,
+          icon: mdiAlertCircle,
+          ariaLabel: label,
+          tooltip: label,
+          tone,
+        });
+      } else if (overtimeMinutes) {
+        expect(conflictHeader?.action?.actionId).toBe(calendarSchedulingActionIds.showOvertime);
+        expect(conflictHeader?.action?.tone).toBeUndefined();
+        expect(conflictHeader?.action?.tooltip).toBeUndefined();
+      } else {
+        expect(conflictHeader?.action).toBeUndefined();
+      }
+      expect(conflictHeader?.conflicts).toHaveLength(overrides.length);
+      const assignmentFor = (resourceId: string) =>
+        viewModel.cells
+          .find((cell) => cell.resourceId === resourceId && cell.date === '2025-01-13')
+          ?.groups[0]?.events.find((item) => item.event.id === 'assignment-conflict');
+      expect(assignmentFor('user-1')).toBeDefined();
+      const assignmentTone = overrides.some((isOverridden) => !isOverridden)
+        ? 'error'
+        : overrides.length
+          ? 'warning'
+          : undefined;
+      expect(assignmentFor('user-1')?.display?.action?.tone).toBe(assignmentTone);
+      expect(assignmentFor('user-2')?.display?.action?.tone).toBe('error');
+      expect(headers.find((header) => header.id === 'shift-normal')?.action).toBeUndefined();
+      expect(headers.find((header) => header.id === 'shift-normal')?.info?.icons).toContainEqual({
+        icon: mdiCalendarSync,
+        ariaLabel: 'Part of a shift series',
+        title: 'Part of a shift series',
+      });
+    },
+  );
 
   it('shows a holiday conflict on the assignment and its linked shift header for the affected user', () => {
     const shiftEvents: CalendarSchedulingEvent[] = [
@@ -1176,14 +1242,14 @@ describe('scheduling calendar view model', () => {
     const headers = viewModel.cells.flatMap((cell) => cell.headers ?? []);
 
     const conflictHeader = headers.find((header) => header.id === 'shift-conflict');
-    expect(conflictHeader?.action?.ariaLabel).toBe('Show Conflict Details');
+    expect(conflictHeader?.action?.ariaLabel).toBe('View unresolved conflicts');
     expect(conflictHeader?.conflicts?.[0]?.currentEventId).toBe(201);
     expect(conflictHeader?.conflicts?.[0]?.conflict.overlaps.title).toBe('Canada Day');
 
     const assignmentItem = viewModel.cells
       .find((cell) => cell.resourceId === 'user-1' && cell.date === '2025-07-01')
       ?.groups[0]?.events.find((item) => item.event.id === 'assignment-conflict');
-    expect(assignmentItem?.display?.action?.ariaLabel).toBe('Show conflict');
+    expect(assignmentItem?.display?.action?.ariaLabel).toBe('View unresolved conflicts');
     expect(assignmentItem?.conflicts?.[0]?.conflict.overlaps.sourceModule).toBe('calendar');
     expect(headers.find((header) => header.id === 'shift-normal')?.action).toBeUndefined();
     expect(headers.find((header) => header.id === 'shift-normal')?.info?.icons).toContainEqual({

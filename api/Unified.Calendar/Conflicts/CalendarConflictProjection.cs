@@ -23,6 +23,23 @@ public sealed class CalendarConflictProjection(
         CancellationToken cancellationToken = default
     ) => ProjectAsync(conflicts, Viewer, cancellationToken);
 
+    public async Task<IReadOnlyCollection<CalendarRestrictedConflictWarningResponse>> AddAuthorizedEventDetailsAsync(
+        IReadOnlyCollection<CalendarRestrictedConflictWarningResponse> warnings,
+        CancellationToken cancellationToken = default
+    )
+    {
+        var permissions = PermissionsFor(Viewer);
+        var enrichedWarnings = new List<CalendarRestrictedConflictWarningResponse>(warnings.Count);
+        foreach (var warning in warnings)
+        {
+            var identity = CalendarConflictEventIdentity.Create(warning.SourceModule, warning.EventId);
+            var details = await GetAuthorizedEventAsync(identity, warning.ResourceId, permissions, cancellationToken);
+            enrichedWarnings.Add(warning with { AuthorizedEvent = details });
+        }
+
+        return enrichedWarnings;
+    }
+
     public async Task<CalendarConflictProjectionResult> ProjectAsync(
         IReadOnlyCollection<CalendarConflict> conflicts,
         ClaimsPrincipal viewer,
@@ -33,6 +50,7 @@ public sealed class CalendarConflictProjection(
         var details = new List<CalendarConflictResponse>();
         var warnings = new List<CalendarRestrictedConflictWarningResponse>();
         var hasRestrictedConflicts = false;
+        var hasUnattributedRestrictedConflicts = false;
         var visibilityByParticipant =
             new Dictionary<(CalendarConflictEventIdentity, Guid), CalendarConflictParticipantVisibility>();
 
@@ -62,9 +80,10 @@ public sealed class CalendarConflictProjection(
                 continue;
 
             hasRestrictedConflicts = true;
-            var anchors = (conflict.ReportOnEntry ? first.VisibleAnchors : []).Concat(
-                conflict.ReportOnOverlaps ? second.VisibleAnchors : []
-            );
+            var anchors = (conflict.ReportOnEntry ? first.VisibleAnchors : [])
+                .Concat(conflict.ReportOnOverlaps ? second.VisibleAnchors : [])
+                .ToList();
+            hasUnattributedRestrictedConflicts |= anchors.Count == 0;
             foreach (var anchor in anchors)
                 warnings.Add(
                     new(
@@ -79,7 +98,8 @@ public sealed class CalendarConflictProjection(
         return new(
             details,
             warnings.DistinctBy(warning => (warning.SourceModule, warning.EventId, warning.ResourceId)).ToList(),
-            hasRestrictedConflicts
+            hasRestrictedConflicts,
+            hasUnattributedRestrictedConflicts
         );
     }
 
@@ -116,6 +136,30 @@ public sealed class CalendarConflictProjection(
         return new(false, []);
     }
 
+    private async Task<CalendarConflictEventResponse?> GetAuthorizedEventAsync(
+        CalendarConflictEventIdentity identity,
+        Guid resourceId,
+        IReadOnlySet<string> permissions,
+        CancellationToken cancellationToken
+    )
+    {
+        // An anchor can be a linked event. Resolve its own participant and verify its visibility.
+        foreach (var provider in _providers)
+        {
+            var participant = await provider.GetParticipantAsync(identity, resourceId, cancellationToken);
+            if (participant is null)
+                continue;
+
+            if (participant.Identity != identity || participant.ResourceId != resourceId)
+                return null;
+
+            var visibility = await GetVisibilityAsync(participant, permissions, cancellationToken);
+            return visibility.CanView ? CalendarConflictResponse.MapEvent(participant) : null;
+        }
+
+        return null;
+    }
+
     private static IReadOnlySet<string> PermissionsFor(ClaimsPrincipal viewer) =>
         viewer.FindAll(UnifiedClaimTypes.Permission).Select(claim => claim.Value).ToHashSet(StringComparer.Ordinal);
 }
@@ -123,5 +167,6 @@ public sealed class CalendarConflictProjection(
 public sealed record CalendarConflictProjectionResult(
     IReadOnlyCollection<CalendarConflictResponse> Conflicts,
     IReadOnlyCollection<CalendarRestrictedConflictWarningResponse> RestrictedWarnings,
-    bool HasRestrictedConflicts
+    bool HasRestrictedConflicts,
+    bool HasUnattributedRestrictedConflicts
 );
