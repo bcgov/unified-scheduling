@@ -141,6 +141,65 @@ For OpenShift, build the API with Docker strategy using `docker/api/Dockerfile.r
 ./manage rm
 ```
 
+## Optional production-prefix reproduction
+
+Proxy mode runs browser -> Nginx -> the existing Vite frontend -> existing API
+and database, with the same live source mounts and hot reload. No release frontend
+image is needed. Run these commands from `docker/`:
+
+| Command | Frontend URL | Backend mode |
+| --- | --- | --- |
+| `./manage start` | `http://localhost:8080/` | Normal |
+| `./manage start-proxy` | `http://localhost:8080/sheriff-scheduling/` | Normal |
+| `./manage debug` | `http://localhost:8080/` | Debug |
+| `./manage debug-proxy` | `http://localhost:8080/sheriff-scheduling/` | Debug |
+
+Proxy mode requires Docker Compose **2.24.4+** for `ports: !override []`, which
+removes Vite's inherited host mapping. Only Nginx publishes `127.0.0.1:8080`.
+Direct mode publishes Vite on port 8080. The manager sets `WEB_BASE_HREF` to `/`
+or `/sheriff-scheduling/` for the selected mode. The proxy suffix is independent
+of debug mode; both debug commands retain the existing API hot reload and debugger.
+
+Nginx preserves the prefix and WebSocket upgrades; Vite removes the API prefix
+before forwarding to `api:5000`. Unprefixed application requests receive 404.
+`./manage proxy` remains available for Compose inspection commands such as logs.
+The previous `web-release` service and `PROXY_WEB_IMAGE` override are retired.
+
+To switch, invoke any startup command above; add `-d` to detach. Keep the same
+`COMPOSE_PROJECT_NAME` to reuse the API, database, and volumes. Switching removes
+the optional proxy and recreates only Vite when its frontend mode changes, keeping
+its normal name (`unified-scheduling-web-1` by default). Existing temporary names
+are repaired on the next startup. Repeated starts reuse unchanged Vite/API/database
+containers. Use the default service list or include `web` for frontend switching.
+`./manage stop` includes the proxy and preserves volumes; `down`/`rm` delete volumes.
+
+The identity-provider client must allow
+`http://localhost:8080/sheriff-scheduling/api/auth/signin-oidc` and the corresponding
+prefixed sign-out callback. Keep existing direct-mode callback entries. Existing
+`SameSite=None`/`Secure` cookies may limit authentication over HTTP localhost.
+TLS, SiteMinder, and external justice-proxy behavior are not reproduced.
+
+Manual checks (run these yourself):
+
+```bash
+./manage start-proxy -d
+curl -i 'http://localhost:8080/sheriff-scheduling/'
+curl -i 'http://localhost:8080/' # Expected outer 404
+curl -i 'http://localhost:8080/api/users/11111111-1111-1111-1111-111111111111/photo' # Expected outer 404
+./manage proxy logs --tail=100 proxy web api
+./manage debug-proxy -d
+./manage debug -d
+./manage start -d
+./manage stop
+```
+
+In both proxy modes, check nested routes, frontend hot reload, photo uploads and
+prefixed image GETs with an authorized user, and login/logout redirects. In both
+debug modes, verify backend hot reload and debugger attachment. After switching,
+check container names, port 8080 ownership, unchanged API/database container IDs,
+and persisted data. For schedule PDF rendering through the proxy, set
+`ScheduleDistributionFrontendBaseUrl=http://web:8080/sheriff-scheduling/`.
+
 # Dev Container
 
 The VS Code devcontainer starts through `.devcontainer/docker-compose.yaml`. Docker Compose creates the

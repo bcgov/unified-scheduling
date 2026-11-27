@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { resolveApiUrl } from '@/api-access/useFetchAPI';
 import UaCard from '@/shared/components/UaCard.vue';
 import { mdiTimerSand } from '@mdi/js';
 import { computed, onMounted } from 'vue';
@@ -52,7 +53,7 @@ onMounted(async () => {
     <v-avatar color="grey" size="80">
       <v-img
         v-if="user.photoUrl"
-        :src="`${user.photoUrl}?t=${user.lastPhotoUpdate ?? user.id}`"
+        :src="`${resolveApiUrl(user.photoUrl)}?t=${user.lastPhotoUpdate ?? user.id}`"
         cover
         :alt="initials"
       />

@@ -7,10 +7,14 @@ import vuetify, { transformAssetUrls } from 'vite-plugin-vuetify';
 
 const shouldEnableDevTools = process.env.VITEST === undefined;
 const devPlugins = shouldEnableDevTools ? [vueDevTools()] : [];
+const base = process.env.WEB_BASE_HREF || '/';
+const basePrefix = base.replace(/\/$/, '');
+const escapedBasePrefix = basePrefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const proxyPrefix = basePrefix ? `(?:${escapedBasePrefix})?` : '';
 
 // https://vite.dev/config/
 export default defineConfig({
-  base: process.env.WEB_BASE_HREF || '/',
+  base,
   // Dev-only plugins are excluded during test runs — they attempt to establish
   // server connections on instantiation, which hangs vitest workers.
   plugins: [vue({ template: { transformAssetUrls } }), vuetify(), ...devPlugins],
@@ -43,7 +47,7 @@ export default defineConfig({
     // The API container renders the print route through the Docker Compose web service.
     allowedHosts: ['web'],
     proxy: {
-      '^/api': {
+      [`^${proxyPrefix}/(?:api|hangfire)`]: {
         target: 'http://api:5000',
         changeOrigin: true,
         secure: false,
@@ -52,18 +56,10 @@ export default defineConfig({
           'X-Forwarded-Host': 'localhost',
           'X-Forwarded-Port': '8080',
           'X-Forwarded-Proto': 'http',
+          ...(basePrefix ? { 'X-Base-Href': base } : {}),
         },
-      },
-      '^/hangfire': {
-        target: 'http://api:5000',
-        changeOrigin: true,
-        secure: false,
-        headers: {
-          Connection: 'keep-alive',
-          'X-Forwarded-Host': 'localhost',
-          'X-Forwarded-Port': '8080',
-          'X-Forwarded-Proto': 'http',
-        },
+        rewrite: (path) => (basePrefix && path.startsWith(`${basePrefix}/`) ? path.slice(basePrefix.length) : path),
+        cookiePathRewrite: basePrefix ? { '/api/auth': `${basePrefix}/api/auth` } : undefined,
       },
     },
   },
