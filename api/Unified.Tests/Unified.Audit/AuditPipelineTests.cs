@@ -24,6 +24,7 @@ public sealed class AuditPipelineCollection;
 /// rollback guarantees covered here. <c>Audit.Core.Configuration</c> is a process-wide static (disabled by
 /// default for the whole assembly by <see cref="ModuleInitialization"/>); each test re-enables and
 /// re-disables it around its own body via <see cref="InitializeAsync"/>/<see cref="DisposeAsync"/>.
+/// The collection prevents other tests from saving through that shared configuration while it is enabled.
 /// </summary>
 [Collection(nameof(AuditPipelineCollection))]
 public sealed class AuditPipelineTests : IAsyncLifetime

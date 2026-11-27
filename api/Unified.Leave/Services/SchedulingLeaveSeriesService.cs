@@ -131,6 +131,7 @@ public sealed class SchedulingLeaveSeriesService(
             entity,
             LeaveConstants.SourceModule,
             LeaveConstants.LeaveEventTypeCode,
+            canEditStatus: LeaveEditPolicy.CanEditStatus,
             cancellationToken: cancellationToken
         );
         if (updated is null)
@@ -154,7 +155,7 @@ public sealed class SchedulingLeaveSeriesService(
         }
         else
         {
-            foreach (var entry in GetCurrentEntries(existingEntries))
+            foreach (var entry in GetUncancelledEntries(existingEntries))
             {
                 ApplyCopiedFieldUpdatesPreservingOverrides(entry.Event!, oldValues, newValues);
                 if (entry.LeaveTypeId == oldLeaveTypeId)
@@ -163,7 +164,7 @@ public sealed class SchedulingLeaveSeriesService(
                     SyncEntryUsers(entry, newUserIds);
             }
         }
-        ValidatePropagatedEntries(entity, GetCurrentEntries(entity.LeaveEntries));
+        ValidatePropagatedEntries(entity, GetUncancelledEntries(entity.LeaveEntries));
         await db.SaveChangesAsync(cancellationToken);
         await conflictService.InvalidateResolvedOverridesAsync(
             existingEntries.Select(entry => LeaveConflictParticipantProvider.IdentityFor(entry.EventId)).ToList(),
@@ -215,8 +216,13 @@ public sealed class SchedulingLeaveSeriesService(
         return true;
     }
 
-    private IReadOnlyCollection<LeaveEntry> GetCurrentEntries(IEnumerable<LeaveEntry> entries) =>
-        entries.Where(entry => db.Entry(entry).State != EntityState.Deleted && entry.Event is not null).ToList();
+    private IReadOnlyCollection<LeaveEntry> GetUncancelledEntries(IEnumerable<LeaveEntry> entries) =>
+        entries
+            .Where(entry =>
+                db.Entry(entry).State != EntityState.Deleted
+                && entry.Event is { StatusTypeCode: not CalendarEventStatusTypeCodes.Cancelled }
+            )
+            .ToList();
 
     private void SyncEntryUsers(LeaveEntry entry, IReadOnlyCollection<Guid> userIds)
     {

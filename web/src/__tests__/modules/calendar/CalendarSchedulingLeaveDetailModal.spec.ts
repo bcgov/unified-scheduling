@@ -5,6 +5,7 @@ import type { CalendarSchedulingEvent } from '@/modules/scheduling/calendarSched
 import type { LeaveFormData } from '@/modules/leave/components/LeaveForm.vue';
 import CalendarSchedulingLeaveDetailModal from '@/modules/scheduling/CalendarSchedulingLeaveDetailModal.vue';
 import LeaveDetailsPanel from '@/modules/leave/components/LeaveDetailsPanel.vue';
+import { useLocationsStore } from '@/stores/LocationsStore';
 import { formatCalendarEventTimeRange } from '@/utils/date';
 import { flushPromises, mount } from '@vue/test-utils';
 import { defineComponent } from 'vue';
@@ -20,6 +21,7 @@ const entry = {
   endAtUtc: '2026-06-10T18:00:00Z',
   timeZoneId: 'America/Vancouver',
   locationId: 3,
+  statusTypeCode: 'Draft',
 };
 
 function createLeaveEvent(): CalendarSchedulingEvent {
@@ -38,8 +40,13 @@ function createLeaveEvent(): CalendarSchedulingEvent {
   };
 }
 
-async function mountModal(event = createLeaveEvent()) {
-  const app = await createTestApp({ loadConfig: false, permissions: [Permissions.LeaveEdit] });
+async function mountModal(
+  event = createLeaveEvent(),
+  permissions: Permissions[] = [Permissions.LeaveEdit],
+  viewingLocationId: number | null = null,
+) {
+  const app = await createTestApp({ loadConfig: false, permissions });
+  useLocationsStore(app.pinia).setSelectedLocationId(viewingLocationId);
   return mount(CalendarSchedulingLeaveDetailModal, {
     props: { event },
     global: {
@@ -68,11 +75,10 @@ describe('CalendarSchedulingLeaveDetailModal', () => {
     document.body.innerHTML = '';
   });
 
-  async function mountEntryEditor(loaded: boolean, endAtUtc: string | null) {
+  async function mountEntryEditor(inSeries: boolean, endAtUtc: string | null, startAtUtc = '2026-06-11T02:00:00Z') {
     const event = createLeaveEvent();
-    event.start = '2026-06-11T02:00:00Z'; // 19:00 in Vancouver, after the default end time.
-    event.end = endAtUtc ?? undefined;
-    if (!loaded) event.metadata = { ...event.metadata, leaveSeriesId: undefined };
+    event.description = 'Leave type description';
+    if (!inSeries) event.metadata = { ...event.metadata, leaveSeriesId: undefined };
     const savedRequests: { saved?: unknown } = {};
     let requestedEntry = false;
     server.use(
@@ -80,8 +86,11 @@ describe('CalendarSchedulingLeaveDetailModal', () => {
         requestedEntry = true;
         return HttpResponse.json({
           ...entry,
-          startAtUtc: event.start,
+          leaveSeriesId: inSeries ? entry.leaveSeriesId : null,
+          startAtUtc,
           endAtUtc,
+          description: 'Persisted entry comment',
+          notes: 'Persisted notes',
         });
       }),
       http.put('*/api/scheduling/leave/entries/42', async ({ request }) => {
@@ -102,23 +111,23 @@ describe('CalendarSchedulingLeaveDetailModal', () => {
     });
     const vm = wrapper.vm as unknown as {
       selectOpenScope: (scope: 'event') => Promise<void>;
-      selectTab: (tabId: 'edit') => void;
+      selectTab: (tabId: 'edit') => Promise<void>;
       editFormData: LeaveFormData;
       handleSave: () => Promise<void>;
     };
-    if (loaded) {
+    if (inSeries) {
       await vm.selectOpenScope('event');
-      expect(requestedEntry).toBe(true);
     } else {
       expect(requestedEntry).toBe(false);
     }
-    vm.selectTab('edit');
+    await vm.selectTab('edit');
+    expect(requestedEntry).toBe(true);
     await flushPromises();
     return { wrapper, vm, savedRequests };
   }
 
-  it.each([true, false])('preserves a null end when editing unrelated fields (loaded entry: %s)', async (loaded) => {
-    const { wrapper, vm, savedRequests } = await mountEntryEditor(loaded, null);
+  it.each([true, false])('preserves a null end when editing notes (in series: %s)', async (inSeries) => {
+    const { wrapper, vm, savedRequests } = await mountEntryEditor(inSeries, null);
     try {
       expect(vm.editFormData.startTime).toBe('19:00');
       expect(vm.editFormData.endTime).toBeNull();
@@ -128,6 +137,7 @@ describe('CalendarSchedulingLeaveDetailModal', () => {
       expect(savedRequests.saved).toMatchObject({
         startAtUtc: '2026-06-11T02:00:00Z',
         endAtUtc: null,
+        description: 'Persisted entry comment',
         notes: 'Updated notes',
       });
     } finally {
@@ -135,8 +145,8 @@ describe('CalendarSchedulingLeaveDetailModal', () => {
     }
   });
 
-  it.each([true, false])('persists an end selected on an entry that had no end (loaded entry: %s)', async (loaded) => {
-    const { wrapper, vm, savedRequests } = await mountEntryEditor(loaded, null);
+  it.each([true, false])('persists an end selected on an entry that had no end (in series: %s)', async (inSeries) => {
+    const { wrapper, vm, savedRequests } = await mountEntryEditor(inSeries, null);
     try {
       const endSelect = wrapper
         .findAllComponents({ name: 'UaSelect' })
@@ -154,15 +164,21 @@ describe('CalendarSchedulingLeaveDetailModal', () => {
   });
 
   it.each([true, false])(
-    'preserves an existing end time when saved without changes (loaded entry: %s)',
-    async (loaded) => {
-      const { wrapper, vm, savedRequests } = await mountEntryEditor(loaded, '2026-06-11T03:00:00Z');
+    'preserves an overnight interval and description when clearing notes (in series: %s)',
+    async (inSeries) => {
+      const startAtUtc = '2026-06-11T05:00:21.123456Z';
+      const endAtUtc = '2026-06-11T13:00:42.654321Z';
+      const { wrapper, vm, savedRequests } = await mountEntryEditor(inSeries, endAtUtc, startAtUtc);
       try {
-        expect(vm.editFormData.endTime).toBe('20:00');
-        expect((wrapper.get('input[aria-label="End Time"]').element as HTMLInputElement).value).toBe('8:00 PM');
+        expect(vm.editFormData).toMatchObject({ date: '2026-06-10', endDate: '2026-06-11', endTime: '06:00' });
+        expect((wrapper.get('#user-leave-end-date').element as HTMLInputElement).value).toBe('2026-06-11');
+        await wrapper.get('textarea#user-leave-notes').setValue('');
         await vm.handleSave();
         expect(savedRequests.saved).toMatchObject({
-          endAtUtc: '2026-06-11T03:00:00Z',
+          startAtUtc,
+          endAtUtc,
+          description: 'Persisted entry comment',
+          notes: null,
         });
       } finally {
         wrapper.unmount();
@@ -184,9 +200,22 @@ describe('CalendarSchedulingLeaveDetailModal', () => {
     }
   });
 
-  it('sends the series ID when updating one occurrence from a leave series', async () => {
+  it('keeps standalone leave out of edit mode when the persisted entry cannot be loaded', async () => {
+    const event = createLeaveEvent();
+    event.metadata = { ...event.metadata, leaveSeriesId: undefined };
+    server.use(http.get('*/api/scheduling/leave/entries/42', () => new HttpResponse(null, { status: 404 })));
+    const wrapper = await mountModal(event);
+    const vm = wrapper.vm as unknown as { selectTab: (tabId: 'edit') => Promise<void> };
+    await vm.selectTab('edit');
+    expect(wrapper.get('[role="tab"][aria-selected="true"]').text()).toBe('Details');
+    expect(wrapper.findComponent({ name: 'LeaveForm' }).exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('sends the series ID when updating an active occurrence', async () => {
     let saved: unknown;
     server.use(
+      http.get('*/api/scheduling/leave/entries/42', () => HttpResponse.json({ ...entry, statusTypeCode: 'Active' })),
       http.put('*/api/scheduling/leave/entries/42', async ({ request }) => {
         saved = await request.json();
         return HttpResponse.json(entry);
@@ -195,12 +224,12 @@ describe('CalendarSchedulingLeaveDetailModal', () => {
     const wrapper = await mountModal();
     const vm = wrapper.vm as unknown as {
       selectOpenScope: (scope: 'event') => Promise<void>;
-      selectTab: (tabId: 'edit') => void;
+      selectTab: (tabId: 'edit') => Promise<void>;
       handleSave: () => Promise<void>;
     };
 
     await vm.selectOpenScope('event');
-    vm.selectTab('edit');
+    await vm.selectTab('edit');
     await flushPromises();
     expect(wrapper.getComponent({ name: 'LeaveForm' }).props('showRequired')).toBe(true);
     await vm.handleSave();
@@ -209,6 +238,88 @@ describe('CalendarSchedulingLeaveDetailModal', () => {
     expect(saved).toMatchObject({ leaveSeriesId: 77 });
     wrapper.unmount();
   });
+
+  it.each([
+    { status: 'Draft', allowed: true, locationId: 3, tabs: ['Details', 'Edit', 'Delete'] },
+    { status: 'Active', allowed: true, locationId: 3, tabs: ['Details', 'Edit'] },
+    { status: 'Cancelled', allowed: true, locationId: 3, tabs: ['Details'] },
+    { status: 'Active', allowed: false, locationId: 3, tabs: ['Details'] },
+    { status: 'Active', allowed: true, locationId: 5, tabs: ['Details'] },
+  ])(
+    'shows $tabs for $status leave at location $locationId (permission: $allowed)',
+    async ({ status, allowed, locationId, tabs }) => {
+      const event = createLeaveEvent();
+      event.statusTypeCode = status;
+      event.metadata = { ...event.metadata, leaveSeriesId: undefined };
+      const wrapper = await mountModal(
+        event,
+        allowed ? [Permissions.LeaveEdit, Permissions.LeaveDelete] : [],
+        locationId,
+      );
+      expect(wrapper.findAll('[role="tab"]').map((tab) => tab.text())).toEqual(tabs);
+      wrapper.unmount();
+    },
+  );
+
+  it.each([
+    { status: 'Active', locked: true },
+    { status: 'Draft', locked: false },
+  ])(
+    'preserves the $status series description and schedule without fetching occurrences',
+    async ({ status, locked }) => {
+      const series = {
+        ...entry,
+        id: 77,
+        statusTypeCode: status,
+        leaveEntryIds: [42],
+        description: 'Persisted series comment',
+        startAtUtc: '2026-06-11T01:00:21.123456Z',
+        endAtUtc: '2026-06-11T09:00:42.654321Z',
+        timeZoneId: 'America/Toronto',
+        recurrenceRule: 'FREQ=DAILY;COUNT=1',
+      };
+      let saved: unknown;
+      const occurrenceRequests: string[] = [];
+      server.use(
+        http.get('*/api/scheduling/leave/series/77', () => HttpResponse.json(series)),
+        http.put('*/api/scheduling/leave/series/77', async ({ request }) => {
+          saved = await request.json();
+          return HttpResponse.json(series);
+        }),
+        http.get('*/api/scheduling/leave/users/:userId/entries', ({ request }) => {
+          occurrenceRequests.push(request.url);
+          return HttpResponse.json([]);
+        }),
+        http.get('*/api/scheduling/leave/entries/:id', ({ request }) => {
+          occurrenceRequests.push(request.url);
+          return HttpResponse.json(entry);
+        }),
+      );
+      const wrapper = await mountModal();
+      const vm = wrapper.vm as unknown as {
+        selectOpenScope: (scope: 'series') => Promise<void>;
+        handleSave: () => Promise<void>;
+      };
+      await vm.selectOpenScope('series');
+      await wrapper.get('[role="tab"][aria-selected="false"]').trigger('click');
+      await flushPromises();
+      const form = wrapper.getComponent({ name: 'LeaveForm' });
+      expect(form.props('recurrenceLocked')).toBe(locked);
+      expect(form.props('modelValue')).toMatchObject({ date: '2026-06-10', endDate: '2026-06-11', endTime: '05:00' });
+      form.vm.$emit('update:modelValue', { ...form.props('modelValue'), notes: 'Updated notes' });
+      await vm.handleSave();
+      expect(saved).toMatchObject({
+        description: series.description,
+        notes: 'Updated notes',
+        startAtUtc: series.startAtUtc,
+        endAtUtc: series.endAtUtc,
+        timeZoneId: series.timeZoneId,
+        recurrenceRule: series.recurrenceRule,
+      });
+      expect(occurrenceRequests).toEqual([]);
+      wrapper.unmount();
+    },
+  );
 
   it.each([false, true])('offers location members on the leave date (moved: %s)', async (moved) => {
     const homeUserId = '00000000-0000-0000-0000-000000000001';
@@ -233,11 +344,11 @@ describe('CalendarSchedulingLeaveDetailModal', () => {
     const wrapper = await mountModal();
     const vm = wrapper.vm as unknown as {
       selectOpenScope: (scope: 'event') => Promise<void>;
-      selectTab: (tabId: 'edit') => void;
+      selectTab: (tabId: 'edit') => Promise<void>;
     };
 
     await vm.selectOpenScope('event');
-    vm.selectTab('edit');
+    await vm.selectTab('edit');
     await flushPromises();
 
     const options = wrapper.getComponent({ name: 'LeaveForm' }).props('employeeOptions') as { code: string }[];

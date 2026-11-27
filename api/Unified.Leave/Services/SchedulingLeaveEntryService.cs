@@ -104,6 +104,7 @@ public sealed class SchedulingLeaveEntryService(
                 entity.LeaveSeries = leaveSeries;
                 entity.LeaveSeriesId = input.LeaveSeriesId;
             },
+            canEditStatus: LeaveEditPolicy.CanEditStatus,
             cancellationToken: cancellationToken
         );
         if (updated is null)

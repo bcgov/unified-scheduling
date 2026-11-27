@@ -20,7 +20,8 @@ import {
 import LeaveDetailsPanel from '@/modules/leave/components/LeaveDetailsPanel.vue';
 import LeaveForm, { type LeaveFormData } from '@/modules/leave/components/LeaveForm.vue';
 import { useLeaveTypeOptions } from '@/modules/leave/composables/useLeaveTypeOptions';
-import { buildLeaveRequest } from '@/modules/leave/leaveRequest';
+import { isActiveLeave, isDraftLeave, isLeaveEditable } from '@/modules/leave/leaveLifecycle';
+import { buildLeaveRequest, getLeaveScheduleFields } from '@/modules/leave/leaveRequest';
 import UaAlert from '@/shared/components/UaAlert.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
 import UaModal from '@/shared/components/UaModal.vue';
@@ -34,8 +35,7 @@ import { resolveCalendarEventUserIds } from './calendarSchedulingEventUsers';
 import { formatAssigneeIds } from './calendarSchedulingShiftDetailRows';
 import type { ShiftDetailRow } from './calendarSchedulingShiftDetailTypes';
 import { formatUserOptionLabel } from './calendarSchedulingShiftForm';
-import { defaultEndTime, defaultStartTime, parseFormDateTime } from './schedulingDateTime';
-import { getSchedulingLifecycleCapabilities } from './schedulingLifecycle';
+import { defaultEndTime, parseFormDateTime } from './schedulingDateTime';
 import { resolveSchedulingTimeZoneId } from './schedulingTimeZone';
 import { getSchedulingLocationUsers } from './useSchedulingEmployeeOptions';
 
@@ -94,7 +94,10 @@ const activeTab = ref<LeaveDetailTabId>('details');
 const selectedOpenScope = ref<LeaveOpenScope | null>(getInitialOpenScope(props.event));
 const selectedEntry = ref<LeaveEntryResponse | null>(null);
 const selectedSeries = ref<LeaveSeriesResponse | null>(null);
-const isLoadingSeries = ref(false);
+const isLoadingLeave = ref(false);
+const selectedRecord = computed(() =>
+  selectedOpenScope.value === 'series' ? selectedSeries.value : selectedEntry.value,
+);
 
 const timeZoneId = computed(() =>
   resolveSchedulingTimeZoneId(
@@ -102,6 +105,7 @@ const timeZoneId = computed(() =>
     props.event.locationId != null ? locationsStore.entitiesMap[props.event.locationId]?.timezone : undefined,
   ),
 );
+const editTimeZoneId = computed(() => resolveSchedulingTimeZoneId(selectedRecord.value?.timeZoneId, timeZoneId.value));
 
 const schedulingMetadata = computed(() => (isCalendarSchedulingEvent(props.event) ? props.event.metadata : undefined));
 const leaveTypeName = computed(() => schedulingMetadata.value?.leaveTypeName);
@@ -115,31 +119,32 @@ const isReadOnlyAtLocation = computed(() => {
       : (selectedEntry.value?.locationId ?? props.event.locationId);
   return viewingLocationId != null && leaveLocationId != null && Number(viewingLocationId) !== leaveLocationId;
 });
-const canEdit = computed(
-  () =>
-    !isReadOnlyAtLocation.value &&
-    (selectedOpenScope.value === 'series' ? leaveSeriesId.value != null : leaveEntryId.value != null) &&
-    accessControl.hasPermission(Permissions.LeaveEdit),
-);
 const isDeleteConfirmed = ref(false);
 const currentStatusTypeCode = computed(() =>
   selectedOpenScope.value === 'series'
     ? selectedSeries.value?.statusTypeCode
     : (selectedEntry.value?.statusTypeCode ?? props.event.statusTypeCode),
 );
+const canEdit = computed(
+  () =>
+    !isReadOnlyAtLocation.value &&
+    (selectedOpenScope.value === 'series' ? leaveSeriesId.value != null : leaveEntryId.value != null) &&
+    isLeaveEditable(currentStatusTypeCode.value) &&
+    accessControl.hasPermission(Permissions.LeaveEdit),
+);
 // Like shifts, only draft leave (a single occurrence or the whole series) can be deleted.
 const canDelete = computed(
   () =>
     !isReadOnlyAtLocation.value &&
     (selectedOpenScope.value === 'series' ? leaveSeriesId.value != null : leaveEntryId.value != null) &&
-    (!currentStatusTypeCode.value || getSchedulingLifecycleCapabilities(currentStatusTypeCode.value).canDelete) &&
+    (!currentStatusTypeCode.value || isDraftLeave(currentStatusTypeCode.value.trim())) &&
     accessControl.hasPermission(Permissions.LeaveDelete),
 );
 const shouldShowOpenScopeChoice = computed(() => leaveSeriesId.value != null && selectedOpenScope.value == null);
-const entityLabel = computed(() => (selectedOpenScope.value === 'series' ? 'Leave Series' : 'Leave'));
-const selectedRecord = computed(() =>
-  selectedOpenScope.value === 'series' ? selectedSeries.value : selectedEntry.value,
+const recurrenceLocked = computed(
+  () => selectedOpenScope.value === 'series' && isActiveLeave(selectedSeries.value?.statusTypeCode),
 );
+const entityLabel = computed(() => (selectedOpenScope.value === 'series' ? 'Leave Series' : 'Leave'));
 
 const visibleTabs = computed<Array<{ id: LeaveDetailTabId; label: string }>>(() => [
   { id: 'details', label: 'Details' },
@@ -165,10 +170,10 @@ const activeLocationId = computed(() => selectedRecord.value?.locationId ?? prop
 const employeeOptions = computed(() => {
   const candidates = [...users.value, ...usersStore.allUsers];
   const { homeUsers, formerHomeUsers } = getSchedulingLocationUsers(
-    DateTime.fromISO(editFormData.value.date || props.event.start, { zone: timeZoneId.value }).toJSDate(),
+    DateTime.fromISO(editFormData.value.date || props.event.start, { zone: editTimeZoneId.value }).toJSDate(),
     candidates,
     activeLocationId.value!,
-    timeZoneId.value,
+    editTimeZoneId.value,
   );
   const locationUsers = [...homeUsers, ...formerHomeUsers];
   return locationUsers.map((user) => ({ code: user.id, description: formatUserOptionLabel(user) }));
@@ -240,53 +245,39 @@ const detailRows = computed<ShiftDetailRow[]>(() => [
 const editFormData = ref<LeaveFormData>(buildEditFormData());
 const editLeaveTypeOptions = computed(() => {
   const date = editFormData.value.date;
-  const dateTime = date ? DateTime.fromISO(date, { zone: timeZoneId.value }) : DateTime.now().setZone(timeZoneId.value);
-  return filterLeaveTypeOptionsByDate(dateTime.isValid ? dateTime : DateTime.now(), timeZoneId.value);
+  const zone = editTimeZoneId.value;
+  const dateTime = date ? DateTime.fromISO(date, { zone }) : DateTime.now().setZone(zone);
+  return filterLeaveTypeOptionsByDate(dateTime.isValid ? dateTime : DateTime.now(), zone);
 });
 
 function buildEditFormData(): LeaveFormData {
-  if (selectedOpenScope.value === 'series' && selectedSeries.value) {
-    const start = parseFormDateTime(selectedSeries.value.startAtUtc ?? '', timeZoneId.value);
-    const end = parseFormDateTime(selectedSeries.value.endAtUtc ?? '', timeZoneId.value);
+  const record = selectedRecord.value;
+  if (record) {
+    const series = selectedOpenScope.value === 'series' ? selectedSeries.value : null;
+    const schedule = getLeaveScheduleFields(record, editTimeZoneId.value);
     return {
-      userIds: selectedSeries.value.userIds,
-      leaveType: selectedSeries.value.leaveTypeId,
-      date: selectedSeries.value.leaveDate ?? start?.date ?? '',
-      allDay: selectedSeries.value.allDay ?? false,
-      startTime: selectedSeries.value.allDay ? defaultStartTime : (start?.time ?? defaultStartTime),
-      endTime: selectedSeries.value.allDay ? defaultEndTime : (end?.time ?? defaultEndTime),
-      repeatMode: 'custom',
-      recurrenceRule: selectedSeries.value.recurrenceRule ?? null,
-      notes: selectedSeries.value.notes ?? '',
+      userIds: record.userIds,
+      leaveType: record.leaveTypeId,
+      ...schedule,
+      endTime: schedule.endTime ?? (series ? defaultEndTime : null),
+      repeatMode: series ? 'custom' : 'never',
+      recurrenceRule: series?.recurrenceRule ?? null,
+      notes: record.notes ?? '',
     };
   }
-
-  if (selectedEntry.value) {
-    const start = parseFormDateTime(selectedEntry.value.startAtUtc ?? '', timeZoneId.value);
-    const end = parseFormDateTime(selectedEntry.value.endAtUtc ?? '', timeZoneId.value);
-    return {
-      userIds: selectedEntry.value.userIds,
-      leaveType: selectedEntry.value.leaveTypeId,
-      date: selectedEntry.value.leaveDate ?? start?.date ?? '',
-      allDay: selectedEntry.value.allDay ?? false,
-      startTime: selectedEntry.value.allDay ? defaultStartTime : (start?.time ?? defaultStartTime),
-      endTime: selectedEntry.value.allDay ? defaultEndTime : (end?.time ?? null),
-      repeatMode: 'never',
-      recurrenceRule: null,
-      notes: selectedEntry.value.notes ?? '',
-    };
-  }
-
-  const start = parseFormDateTime(props.event.start, timeZoneId.value);
-  const end = props.event.end ? parseFormDateTime(props.event.end, timeZoneId.value) : null;
 
   return {
     userIds: resolveCalendarEventUserIds(props.event),
     leaveType: schedulingMetadata.value?.leaveTypeId ?? null,
-    date: schedulingMetadata.value?.leaveDate ?? start?.date ?? '',
-    allDay: props.event.allDay ?? false,
-    startTime: props.event.allDay ? defaultStartTime : (start?.time ?? defaultStartTime),
-    endTime: props.event.allDay ? defaultEndTime : (end?.time ?? null),
+    ...getLeaveScheduleFields(
+      {
+        allDay: props.event.allDay,
+        leaveDate: schedulingMetadata.value?.leaveDate,
+        startAtUtc: props.event.start,
+        endAtUtc: props.event.end,
+      },
+      timeZoneId.value,
+    ),
     repeatMode: 'never',
     recurrenceRule: null,
     notes: props.event.notes ?? '',
@@ -295,7 +286,7 @@ function buildEditFormData(): LeaveFormData {
 
 async function selectOpenScope(scope: LeaveOpenScope) {
   apiError.value = '';
-  isLoadingSeries.value = true;
+  isLoadingLeave.value = true;
   try {
     const id = scope === 'series' ? leaveSeriesId.value : leaveEntryId.value;
     if (!id) {
@@ -330,16 +321,26 @@ async function selectOpenScope(scope: LeaveOpenScope) {
   } catch (error: unknown) {
     apiError.value = error instanceof Error ? error.message : `Failed to load leave ${scope}.`;
   } finally {
-    isLoadingSeries.value = false;
+    isLoadingLeave.value = false;
   }
 }
 
-function selectTab(tabId: LeaveDetailTabId) {
-  if (isSaving.value || shouldShowOpenScopeChoice.value || !visibleTabs.value.some((tab) => tab.id === tabId)) {
+async function selectTab(tabId: LeaveDetailTabId) {
+  if (
+    isSaving.value ||
+    isLoadingLeave.value ||
+    shouldShowOpenScopeChoice.value ||
+    !visibleTabs.value.some((tab) => tab.id === tabId)
+  ) {
     return;
   }
 
   if (tabId === 'edit') {
+    if (selectedOpenScope.value === 'event' && !selectedEntry.value) {
+      // The calendar summary contains the leave type description. Load the entry's stored comment before editing.
+      await selectOpenScope('event');
+      if (!selectedEntry.value || !canEdit.value) return;
+    }
     editFormData.value = buildEditFormData();
   }
 
@@ -349,19 +350,19 @@ function selectTab(tabId: LeaveDetailTabId) {
 }
 
 async function handleSave() {
-  if (!canEdit.value || selectedOpenScope.value == null) {
+  const record = selectedRecord.value;
+  if (!canEdit.value || selectedOpenScope.value == null || !record) {
     return;
   }
 
   apiError.value = '';
   const built = buildLeaveRequest(editFormData.value, {
-    locationId:
-      selectedOpenScope.value === 'series'
-        ? (selectedSeries.value?.locationId ?? props.event.locationId)
-        : (selectedEntry.value?.locationId ?? props.event.locationId),
-    timeZoneId: timeZoneId.value,
+    locationId: activeLocationId.value,
+    timeZoneId: editTimeZoneId.value,
     leaveSeriesId: selectedOpenScope.value === 'event' ? (leaveSeriesId.value ?? null) : null,
     employeeOptions: employeeOptions.value,
+    persistedLeave: record,
+    fixedSeriesSchedule: recurrenceLocked.value ? (selectedSeries.value ?? undefined) : undefined,
   });
   if (built.error !== undefined) {
     apiError.value = built.error;
@@ -482,10 +483,10 @@ function formatRRuleText(value?: string | null) {
     <div v-if="shouldShowOpenScopeChoice" class="leave-modal__scope-choice">
       <p class="leave-modal__scope-choice-text">This is one occurrence in a series. What do you want to open?</p>
       <div class="leave-modal__scope-choice-actions">
-        <UaBtn variant="outlined" :disabled="isLoadingSeries" @click="selectOpenScope('event')"
+        <UaBtn variant="outlined" :disabled="isLoadingLeave" @click="selectOpenScope('event')"
           >Only this occurrence</UaBtn
         >
-        <UaBtn color="primary" variant="flat" :loading="isLoadingSeries" @click="selectOpenScope('series')">
+        <UaBtn color="primary" variant="flat" :loading="isLoadingLeave" @click="selectOpenScope('series')">
           The entire series
         </UaBtn>
       </div>
@@ -501,7 +502,7 @@ function formatRRuleText(value?: string | null) {
           class="leave-modal__tab"
           :class="{ 'leave-modal__tab--active': activeTab === tab.id }"
           :aria-selected="activeTab === tab.id"
-          :disabled="isSaving"
+          :disabled="isSaving || isLoadingLeave"
           @click="selectTab(tab.id)"
         >
           {{ tab.label }}
@@ -511,7 +512,7 @@ function formatRRuleText(value?: string | null) {
       <LeaveDetailsPanel
         v-if="activeTab === 'details'"
         :detail-rows="detailRows"
-        :is-loading="isLoadingUsers || isLoadingSeries"
+        :is-loading="isLoadingUsers || isLoadingLeave"
       />
 
       <LeaveForm
@@ -523,13 +524,14 @@ function formatRRuleText(value?: string | null) {
         :employee-options="employeeOptions"
         :loading-employees="isLoadingUsers"
         :leave-type-options="editLeaveTypeOptions"
-        :time-zone-id="timeZoneId"
+        :time-zone-id="editTimeZoneId"
         :show-repeat="selectedOpenScope === 'series'"
+        :recurrence-locked="recurrenceLocked"
         @validation-change="hasEditFormValidationError = $event"
       />
 
       <section v-else class="leave-modal__delete-panel" aria-label="Delete leave panel">
-        <LeaveDetailsPanel :detail-rows="detailRows" :is-loading="isLoadingUsers || isLoadingSeries" />
+        <LeaveDetailsPanel :detail-rows="detailRows" :is-loading="isLoadingUsers || isLoadingLeave" />
         <p class="leave-modal__delete-warning">
           {{
             selectedOpenScope === 'series'

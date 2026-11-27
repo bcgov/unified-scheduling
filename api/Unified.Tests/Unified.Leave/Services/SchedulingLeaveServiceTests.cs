@@ -748,11 +748,64 @@ public sealed class SchedulingLeaveServiceTests : IAsyncLifetime
         Assert.Equal(series.EventSeriesId, entry.Event!.EventSeriesId);
     }
 
+    [Theory]
+    [InlineData(null)]
+    [InlineData("FREQ=DAILY;COUNT=2")]
+    public async Task UpdateLeaveEntryAsync_WhenHistoricalAndActive_UpdatesWithoutChangingStatus(string? recurrenceRule)
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var historicalStart = new DateTimeOffset(2021, 6, 1, 16, 0, 0, TimeSpan.Zero);
+        var request = CreateEntryRequest() with
+        {
+            StartAtUtc = historicalStart,
+            EndAtUtc = historicalStart.AddHours(2),
+        };
+        int entryId;
+        int? seriesId = null;
+        if (recurrenceRule is null)
+        {
+            entryId = (await _service.CreateLeaveEntryAsync(request, cancellationToken)).Id;
+        }
+        else
+        {
+            var seriesRequest = CreateSeriesRequest(recurrenceRule: recurrenceRule) with
+            {
+                StartAtUtc = request.StartAtUtc,
+                EndAtUtc = request.EndAtUtc,
+            };
+            var series = await _service.CreateLeaveSeriesAsync(seriesRequest, cancellationToken);
+            await SetSeriesStatusAsync(series.Id, CalendarEventStatusTypeCodes.Active);
+            seriesId = series.Id;
+            entryId = series.LeaveEntryIds.First();
+        }
+        await SetEntryStatusAsync(entryId, CalendarEventStatusTypeCodes.Active);
+        var created = await _service.GetLeaveEntryByIdAsync(entryId, cancellationToken);
+        Assert.NotNull(created);
+
+        var result = await _service.UpdateLeaveEntryAsync(
+            entryId,
+            request with
+            {
+                StartAtUtc = created.StartAtUtc,
+                EndAtUtc = created.EndAtUtc,
+                Notes = "Corrected historical leave",
+                LeaveSeriesId = seriesId,
+            },
+            cancellationToken
+        );
+
+        Assert.NotNull(result);
+        Assert.Equal("Corrected historical leave", result.Notes);
+        Assert.Equal(CalendarEventStatusTypeCodes.Active, result.StatusTypeCode);
+        Assert.Equal(seriesId, result.LeaveSeriesId);
+        Assert.Equal(created.StartAtUtc, result.StartAtUtc);
+    }
+
     [Fact]
-    public async Task UpdateLeaveEntryAsync_WhenNotDraft_Throws()
+    public async Task UpdateLeaveEntryAsync_WhenCancelled_Throws()
     {
         var created = await _service.CreateLeaveEntryAsync(CreateEntryRequest(), TestContext.Current.CancellationToken);
-        await SetEntryStatusAsync(created.Id, CalendarEventStatusTypeCodes.Active);
+        await SetEntryStatusAsync(created.Id, CalendarEventStatusTypeCodes.Cancelled);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             _service.UpdateLeaveEntryAsync(
@@ -802,11 +855,13 @@ public sealed class SchedulingLeaveServiceTests : IAsyncLifetime
         Assert.Empty(await _database.Db.Events.ToListAsync(TestContext.Current.CancellationToken));
     }
 
-    [Fact]
-    public async Task DeleteLeaveEntryAsync_WhenNotDraft_Throws()
+    [Theory]
+    [InlineData(CalendarEventStatusTypeCodes.Active)]
+    [InlineData(CalendarEventStatusTypeCodes.Cancelled)]
+    public async Task DeleteLeaveEntryAsync_WhenNotDraft_Throws(string status)
     {
         var created = await _service.CreateLeaveEntryAsync(CreateEntryRequest(), TestContext.Current.CancellationToken);
-        await SetEntryStatusAsync(created.Id, CalendarEventStatusTypeCodes.Active);
+        await SetEntryStatusAsync(created.Id, status);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             _service.DeleteLeaveEntryAsync(created.Id, TestContext.Current.CancellationToken)
@@ -920,14 +975,19 @@ public sealed class SchedulingLeaveServiceTests : IAsyncLifetime
         Assert.Null(result);
     }
 
-    [Fact]
-    public async Task UpdateLeaveSeriesAsync_WhenRecurrenceUnchanged_PropagatesCopiedFieldsLeaveTypeAndUsers()
+    [Theory]
+    [InlineData(CalendarEventStatusTypeCodes.Draft)]
+    [InlineData(CalendarEventStatusTypeCodes.Active)]
+    public async Task UpdateLeaveSeriesAsync_WhenRecurrenceUnchanged_PropagatesOnlyToUncancelledEntries(string status)
     {
         var created = await _service.CreateLeaveSeriesAsync(
             CreateSeriesRequest(recurrenceRule: "FREQ=DAILY;COUNT=2", userIds: [LeaveTestDatabase.UserA]),
             TestContext.Current.CancellationToken
         );
-        var entryIds = created.LeaveEntryIds.ToArray();
+        var entryIds = created.LeaveEntryIds.Order().ToArray();
+        await SetSeriesStatusAsync(created.Id, status);
+        await SetEntryStatusAsync(entryIds[0], status);
+        await SetEntryStatusAsync(entryIds[1], CalendarEventStatusTypeCodes.Cancelled);
 
         var result = await _service.UpdateLeaveSeriesAsync(
             created.Id,
@@ -941,6 +1001,7 @@ public sealed class SchedulingLeaveServiceTests : IAsyncLifetime
         );
 
         Assert.NotNull(result);
+        Assert.Equal(status, result.StatusTypeCode);
         Assert.Equal("Renamed", result.Title);
         Assert.Equal(_sick.Id, result.LeaveTypeId);
         Assert.Equal(entryIds, result.LeaveEntryIds.Order().ToArray());
@@ -948,18 +1009,19 @@ public sealed class SchedulingLeaveServiceTests : IAsyncLifetime
             .Db.LeaveEntries.Include(x => x.Event)
             .Include(x => x.Users)
             .ToListAsync(TestContext.Current.CancellationToken);
-        Assert.All(
-            entries,
-            entry =>
-            {
-                Assert.Equal("Renamed", entry.Event!.Title);
-                Assert.Equal(_sick.Id, entry.LeaveTypeId);
-                Assert.Equal(
-                    [LeaveTestDatabase.UserA, LeaveTestDatabase.UserB],
-                    entry.Users.Select(x => x.UserId).Order().ToArray()
-                );
-            }
+        var updatedEntry = entries.Single(entry => entry.Id == entryIds[0]);
+        Assert.Equal("Renamed", updatedEntry.Event!.Title);
+        Assert.Equal(status, updatedEntry.Event.StatusTypeCode);
+        Assert.Equal(_sick.Id, updatedEntry.LeaveTypeId);
+        Assert.Equal(
+            [LeaveTestDatabase.UserA, LeaveTestDatabase.UserB],
+            updatedEntry.Users.Select(user => user.UserId).Order().ToArray()
         );
+        var cancelledEntry = entries.Single(entry => entry.Id == entryIds[1]);
+        Assert.Equal(created.Title, cancelledEntry.Event!.Title);
+        Assert.Equal(CalendarEventStatusTypeCodes.Cancelled, cancelledEntry.Event.StatusTypeCode);
+        Assert.Equal(_vacation.Id, cancelledEntry.LeaveTypeId);
+        Assert.Equal(LeaveTestDatabase.UserA, Assert.Single(cancelledEntry.Users).UserId);
     }
 
     [Fact]
@@ -1048,7 +1110,21 @@ public sealed class SchedulingLeaveServiceTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task UpdateLeaveSeriesAsync_WhenSeriesIsNotDraft_Throws()
+    public async Task UpdateLeaveSeriesAsync_WhenSeriesIsCancelled_Throws()
+    {
+        var created = await _service.CreateLeaveSeriesAsync(
+            CreateSeriesRequest(),
+            TestContext.Current.CancellationToken
+        );
+        await SetSeriesStatusAsync(created.Id, CalendarEventStatusTypeCodes.Cancelled);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            _service.UpdateLeaveSeriesAsync(created.Id, CreateSeriesRequest(), TestContext.Current.CancellationToken)
+        );
+    }
+
+    [Fact]
+    public async Task UpdateLeaveSeriesAsync_WhenRecurrenceChangedAndSeriesIsActive_Throws()
     {
         var created = await _service.CreateLeaveSeriesAsync(
             CreateSeriesRequest(),
@@ -1056,9 +1132,15 @@ public sealed class SchedulingLeaveServiceTests : IAsyncLifetime
         );
         await SetSeriesStatusAsync(created.Id, CalendarEventStatusTypeCodes.Active);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            _service.UpdateLeaveSeriesAsync(created.Id, CreateSeriesRequest(), TestContext.Current.CancellationToken)
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            _service.UpdateLeaveSeriesAsync(
+                created.Id,
+                CreateSeriesRequest(recurrenceRule: "FREQ=DAILY;COUNT=2"),
+                TestContext.Current.CancellationToken
+            )
         );
+
+        Assert.Contains("Only draft event series can be regenerated", exception.Message);
     }
 
     [Fact]

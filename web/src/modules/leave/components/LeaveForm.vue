@@ -21,6 +21,7 @@ export type LeaveFormData = {
   date?: string;
   allDay?: boolean;
   startTime?: string;
+  endDate?: string;
   /** Null preserves an intentionally absent entry end; undefined uses the creation default. */
   endTime?: string | null;
   repeatMode?: RepeatMode;
@@ -44,6 +45,7 @@ const props = defineProps<
     showEmployees?: boolean;
     showRequired?: boolean;
     showRepeat?: boolean;
+    recurrenceLocked?: boolean;
     timeZoneId?: string;
   } & EmployeeProps &
     LeaveTypeProps
@@ -63,6 +65,7 @@ const {
 const formErrors = ref<Record<string, string>>({});
 const leaveTypesForSelectedDate = computed(() => filterLeaveTypeOptionsByDate(filterDate.value, props.timeZoneId));
 const showRepeat = computed(() => props.showRepeat ?? true);
+const scheduleDisabled = computed(() => props.disabled || props.recurrenceLocked);
 const filterDate = computed(() => {
   const date = props.modelValue.date;
   const zone = resolveSchedulingTimeZoneId(props.timeZoneId);
@@ -143,6 +146,7 @@ watch([() => props.modelValue.date, () => props.modelValue.leaveType, leaveTypes
 });
 
 const updateRecurrenceRule = (value: string | null) => {
+  if (props.recurrenceLocked) return;
   emit('update:modelValue', { ...props.modelValue, recurrenceRule: value });
 };
 
@@ -201,7 +205,9 @@ const updateEmployees = (value: SelectValue | undefined) => {
       </p>
     </div>
 
-    <label class="user-leave__label" for="user-leave-date">Date<UaRequiredIndicator v-if="showRequired" /></label>
+    <label class="user-leave__label" for="user-leave-date">
+      {{ modelValue.allDay ? 'Date' : 'Start Date' }}<UaRequiredIndicator v-if="showRequired" />
+    </label>
     <UaTextField
       id="user-leave-date"
       label=""
@@ -209,7 +215,7 @@ const updateEmployees = (value: SelectValue | undefined) => {
       type="date"
       :model-value="modelValue.date"
       :error-messages="formErrors.date"
-      :disabled="disabled"
+      :disabled="scheduleDisabled"
       @update:model-value="(value: string) => updateField('date', value)"
     />
 
@@ -220,7 +226,7 @@ const updateEmployees = (value: SelectValue | undefined) => {
         :model-value="modelValue.repeatMode ?? 'never'"
         aria-label="Repeat"
         :items="repeatOptions"
-        :disabled="disabled"
+        :disabled="scheduleDisabled"
         @update:model-value="updateRepeatMode"
       />
 
@@ -229,7 +235,7 @@ const updateEmployees = (value: SelectValue | undefined) => {
         id-prefix="user-leave-recurrence"
         :model-value="modelValue.recurrenceRule ?? null"
         :start-date="modelValue.date ?? null"
-        :disabled="disabled"
+        :disabled="scheduleDisabled"
         :show-required="showRequired"
         use-parent-grid
         @update:model-value="updateRecurrenceRule"
@@ -247,11 +253,21 @@ const updateEmployees = (value: SelectValue | undefined) => {
       aria-label="All day"
       color="primary"
       hide-details
-      :disabled="disabled"
+      :disabled="scheduleDisabled"
       @update:model-value="(value) => updateField('allDay', Boolean(value))"
     />
 
     <template v-if="!modelValue.allDay">
+      <UaTextField
+        id="user-leave-end-date"
+        label="End Date"
+        :required="showRequired && modelValue.endTime !== null"
+        type="date"
+        :model-value="modelValue.endDate ?? modelValue.date"
+        :disabled="scheduleDisabled"
+        @update:model-value="(value: string) => updateField('endDate', value)"
+      />
+
       <span id="user-leave-time-label" class="user-leave__label">Time</span>
       <div class="user-leave__time-fields" aria-labelledby="user-leave-time-label">
         <div class="user-leave__field">
@@ -262,7 +278,7 @@ const updateEmployees = (value: SelectValue | undefined) => {
             :aria-required="showRequired || undefined"
             :items="timeOptions"
             :error="Boolean(formErrors.startTime)"
-            :disabled="disabled"
+            :disabled="scheduleDisabled"
             @update:model-value="(value: SelectValue | undefined) => updateSelectField('startTime', value)"
           />
           <p v-if="formErrors.startTime" class="user-leave__field-error">{{ formErrors.startTime }}</p>
@@ -278,7 +294,7 @@ const updateEmployees = (value: SelectValue | undefined) => {
             :aria-required="(showRequired && modelValue.repeatMode === 'custom') || undefined"
             :items="timeOptions"
             :error="Boolean(formErrors.endTime)"
-            :disabled="disabled"
+            :disabled="scheduleDisabled"
             @update:model-value="(value: SelectValue | undefined) => updateSelectField('endTime', value)"
           />
           <p v-if="formErrors.endTime" class="user-leave__field-error">{{ formErrors.endTime }}</p>

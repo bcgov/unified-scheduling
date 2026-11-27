@@ -50,6 +50,7 @@ public class CalendarEventSeriesService<TRequest, TEntity>(
         Func<TUpdateRequest, CancellationToken, Task>[]? validators = null,
         Action<TUpdateRequest>? additionalGuards = null,
         Action<EventSeries>? overrides = null,
+        Func<string, bool>? canEditStatus = null,
         CancellationToken cancellationToken = default
     )
         where TUpdateRequest : TRequest
@@ -61,7 +62,10 @@ public class CalendarEventSeriesService<TRequest, TEntity>(
 
         var eventSeries = factory.GetEventSeries(existing);
         CalendarEventGuards.EnsureEventSeriesType(eventSeries, eventTypeCode);
-        CalendarEventGuards.EnsureSeriesIsDraft(eventSeries);
+        if (canEditStatus is null)
+            CalendarEventGuards.EnsureSeriesIsDraft(eventSeries);
+        else if (!canEditStatus(eventSeries.StatusTypeCode))
+            throw new InvalidOperationException("Calendar series cannot be edited in its current status.");
 
         await RunValidationAsync(request, validators, additionalGuards, cancellationToken);
         overrides?.Invoke(eventSeries);

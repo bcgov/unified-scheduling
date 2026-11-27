@@ -8,6 +8,7 @@ import type {
 import { useAccessControl } from '@/composables/useAccessControl';
 import { getLeaveSeries, useUserLeaveEntries } from '@/modules/leave/api/leaveApi';
 import { useLeaveTypeOptions } from '@/modules/leave/composables/useLeaveTypeOptions';
+import { isDraftLeave, isLeaveEditable } from '@/modules/leave/leaveLifecycle';
 import UaAlert from '@/shared/components/UaAlert.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
 import UaDataTable from '@/shared/components/UaDataTable.vue';
@@ -153,8 +154,6 @@ const tableRows = computed(() => [
     };
   }),
 ]);
-
-const isDraft = (entry: LeaveEntryResponse) => entry.statusTypeCode?.toLowerCase() === 'draft';
 
 const expanded = ref<string[]>([]);
 
@@ -419,7 +418,7 @@ const deleteOtherEmployeeNames = computed(() => {
       <template #[`item.actions`]="{ item }">
         <div class="user-leave-view__actions">
           <UaBtn
-            v-if="item.rowType === 'series' && canEditLeave && isDraft(item)"
+            v-if="item.rowType === 'series' && canEditLeave && isLeaveEditable(item.statusTypeCode)"
             icon
             variant="text"
             size="small"
@@ -430,7 +429,9 @@ const deleteOtherEmployeeNames = computed(() => {
             <v-icon :icon="mdiPencil" />
           </UaBtn>
           <UaBtn
-            v-if="item.rowType === 'entry' && !item.leaveSeriesId && canEditLeave && isDraft(item)"
+            v-if="
+              item.rowType === 'entry' && !item.leaveSeriesId && canEditLeave && isLeaveEditable(item.statusTypeCode)
+            "
             icon
             variant="text"
             size="small"
@@ -441,7 +442,7 @@ const deleteOtherEmployeeNames = computed(() => {
             <v-icon :icon="mdiPencil" />
           </UaBtn>
           <UaBtn
-            v-if="canDeleteLeave && isDraft(item)"
+            v-if="canDeleteLeave && isDraftLeave(item.statusTypeCode)"
             icon
             variant="text"
             size="small"

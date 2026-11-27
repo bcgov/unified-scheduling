@@ -20,7 +20,7 @@ const UaBtnStub = defineComponent({
 
 const LeaveFormStub = defineComponent({
   name: 'LeaveFormComponent',
-  props: ['modelValue'],
+  props: ['modelValue', 'recurrenceLocked'],
   emits: ['update:modelValue'],
   template: '<div data-test="form">{{ JSON.stringify(modelValue) }}</div>',
 });
@@ -33,9 +33,11 @@ const entry = {
   startAtUtc: '2026-06-10T17:00:00Z',
   endAtUtc: '2026-06-10T18:00:00Z',
   timeZoneId: 'America/Vancouver',
+  description: 'Persisted entry comment',
   notes: 'Latest server note',
   locationId: 3,
   leaveSeriesId: 77,
+  statusTypeCode: 'Draft',
 };
 
 async function mountModal(
@@ -63,12 +65,17 @@ async function mountModal(
 
 describe('UserLeaveModal', () => {
   it.each([
-    { startAtUtc: '2026-06-10T17:00:00Z', endAtUtc: '2026-06-10T18:00:00Z', endTime: '11:00' },
-    { startAtUtc: '2026-06-10T17:00:00Z', endAtUtc: null, endTime: null },
-    { startAtUtc: '2026-06-11T02:00:00Z', endAtUtc: null, endTime: null },
+    {
+      startAtUtc: '2026-06-10T17:00:21.123456Z',
+      endAtUtc: '2026-06-12T18:00:42.654321Z',
+      endDate: '2026-06-12',
+      endTime: '11:00',
+    },
+    { startAtUtc: '2026-06-10T17:00:00Z', endAtUtc: null, endDate: undefined, endTime: null },
+    { startAtUtc: '2026-06-11T02:00:00Z', endAtUtc: null, endDate: undefined, endTime: null },
   ])(
-    'preserves the loaded end when saving unrelated changes ($startAtUtc, $endAtUtc)',
-    async ({ startAtUtc, endAtUtc, endTime }) => {
+    'preserves the loaded interval and description when editing notes ($startAtUtc, $endAtUtc)',
+    async ({ startAtUtc, endAtUtc, endDate, endTime }) => {
       const loadedEntry = { ...entry, startAtUtc, endAtUtc };
       let saved: unknown;
       server.use(
@@ -78,11 +85,12 @@ describe('UserLeaveModal', () => {
           return HttpResponse.json(loadedEntry);
         }),
       );
-      const wrapper = await mountModal('event', { ...entry, notes: 'Stale note' });
+      const wrapper = await mountModal('event', { ...entry, description: 'Stale comment', notes: 'Stale note' });
       await vi.waitFor(() => expect(wrapper.get('[data-test="form"]').text()).toContain('Latest server note'));
       expect(wrapper.get('[data-test="form"]').text()).not.toContain('Stale note');
       const form = wrapper.getComponent(LeaveFormStub);
       const modelValue = form.props('modelValue') as LeaveFormData;
+      expect(modelValue.endDate).toBe(endDate);
       expect(modelValue.endTime).toBe(endTime);
       form.vm.$emit('update:modelValue', { ...modelValue, notes: 'Edited unrelated notes' });
       await flushPromises();
@@ -92,6 +100,7 @@ describe('UserLeaveModal', () => {
         .trigger('click');
       await vi.waitFor(() =>
         expect(saved).toMatchObject({
+          description: entry.description,
           notes: 'Edited unrelated notes',
           leaveTypeId: 9,
           leaveSeriesId: 77,
@@ -104,56 +113,87 @@ describe('UserLeaveModal', () => {
     },
   );
 
-  it('preserves the timed parent date, hours and recurrence when editing notes through an all-day exception', async () => {
-    const series = {
-      ...entry,
-      id: 77,
-      allDay: false,
-      leaveDate: null,
-      startAtUtc: '2026-06-02T02:00:00Z',
-      endAtUtc: '2026-06-02T04:00:00Z',
-      recurrenceRule: 'FREQ=WEEKLY;COUNT=4',
-    };
-    const exception = { ...entry, allDay: true, leaveDate: '2026-06-15' };
-    let saved: unknown;
-    server.use(
-      http.get('*/api/scheduling/leave/series/77', () => HttpResponse.json(series)),
-      http.put('*/api/scheduling/leave/series/77', async ({ request }) => {
-        saved = await request.json();
-        return HttpResponse.json(series);
-      }),
-    );
-    const wrapper = await mountModal('series', exception);
-    const form = wrapper.getComponent(LeaveFormStub);
-    await vi.waitFor(() =>
-      expect(form.props('modelValue')).toMatchObject({
-        date: '2026-06-01',
+  it.each([
+    { status: 'Draft', locked: false, startAtUtc: '2026-06-02T02:00:30.123456Z', endAtUtc: '2026-06-02T04:00:00Z' },
+    {
+      status: 'Active',
+      locked: true,
+      startAtUtc: '2026-06-02T02:00:30.123456Z',
+      endAtUtc: '2026-06-02T04:00:45.654321Z',
+    },
+  ])(
+    'preserves the $status parent schedule when editing notes through an all-day exception',
+    async ({ status, locked, startAtUtc, endAtUtc }) => {
+      const series = {
+        ...entry,
+        id: 77,
+        statusTypeCode: status,
+        leaveEntryIds: [42],
         allDay: false,
-        startTime: '19:00',
-        endTime: '21:00',
-        recurrenceRule: series.recurrenceRule,
-      }),
-    );
-    form.vm.$emit('update:modelValue', { ...form.props('modelValue'), notes: 'Updated notes' });
-    await flushPromises();
-    await wrapper
-      .findAll('button')
-      .find((button) => button.text() === 'Save')!
-      .trigger('click');
+        leaveDate: null,
+        description: 'Persisted series comment',
+        startAtUtc,
+        endAtUtc,
+        recurrenceRule: 'FREQ=WEEKLY;COUNT=4',
+      };
+      const exception = { ...entry, allDay: true, leaveDate: '2026-06-15' };
+      let saved: unknown;
+      const occurrenceRequests: string[] = [];
+      server.use(
+        http.get('*/api/scheduling/leave/series/77', () => HttpResponse.json(series)),
+        http.get('*/api/scheduling/leave/users/:userId/entries', ({ request }) => {
+          occurrenceRequests.push(request.url);
+          return HttpResponse.json([]);
+        }),
+        http.get('*/api/scheduling/leave/entries/:id', ({ request }) => {
+          occurrenceRequests.push(request.url);
+          return HttpResponse.json(entry);
+        }),
+        http.put('*/api/scheduling/leave/series/77', async ({ request }) => {
+          saved = await request.json();
+          return HttpResponse.json(series);
+        }),
+      );
+      const wrapper = await mountModal('series', exception);
+      const form = wrapper.getComponent(LeaveFormStub);
+      await vi.waitFor(() =>
+        expect(form.props('modelValue')).toMatchObject({
+          date: '2026-06-01',
+          endDate: '2026-06-01',
+          allDay: false,
+          startTime: '19:00',
+          endTime: '21:00',
+          recurrenceRule: series.recurrenceRule,
+        }),
+      );
+      expect(form.props('recurrenceLocked')).toBe(locked);
+      form.vm.$emit('update:modelValue', {
+        ...form.props('modelValue'),
+        ...(locked ? { endDate: '2026-06-03', recurrenceRule: 'FREQ=DAILY;COUNT=2' } : {}),
+        notes: '',
+      });
+      await flushPromises();
+      await wrapper
+        .findAll('button')
+        .find((button) => button.text() === 'Save')!
+        .trigger('click');
 
-    await vi.waitFor(() =>
-      expect(saved).toMatchObject({
-        allDay: false,
-        startAtUtc: series.startAtUtc,
-        endAtUtc: series.endAtUtc,
-        timeZoneId: 'America/Vancouver',
-        recurrenceRule: series.recurrenceRule,
-        notes: 'Updated notes',
-      }),
-    );
-    expect(saved).not.toHaveProperty('leaveDate');
-    wrapper.unmount();
-  });
+      await vi.waitFor(() =>
+        expect(saved).toMatchObject({
+          allDay: false,
+          startAtUtc: series.startAtUtc,
+          endAtUtc: series.endAtUtc,
+          timeZoneId: 'America/Vancouver',
+          recurrenceRule: series.recurrenceRule,
+          description: series.description,
+          notes: null,
+        }),
+      );
+      expect(saved).not.toHaveProperty('leaveDate');
+      expect(occurrenceRequests).toEqual([]);
+      wrapper.unmount();
+    },
+  );
 
   it('retains default start and end times for new leave creation', async () => {
     let saved: unknown;
