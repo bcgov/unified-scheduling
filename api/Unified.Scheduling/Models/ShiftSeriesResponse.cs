@@ -6,14 +6,6 @@ public sealed record ShiftSeriesResponse : CalendarEventSeriesResponse
 {
     public uint ConcurrencyToken { get; init; }
 
-    public Guid? CreatedById { get; init; }
-
-    public DateTimeOffset? CreatedOn { get; init; }
-
-    public Guid? UpdatedById { get; init; }
-
-    public DateTimeOffset? UpdatedOn { get; init; }
-
     public int? LunchAvailableMinutes { get; init; }
 
     public int? WorkedLunchMinutes { get; init; }

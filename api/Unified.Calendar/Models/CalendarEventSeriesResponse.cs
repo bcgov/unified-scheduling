@@ -15,4 +15,12 @@ public record CalendarEventSeriesResponse : CalendarEventSeriesRequest
 
     public string? CancellationReason { get; init; }
     public IReadOnlyCollection<int> EventIds { get; init; } = [];
+
+    public Guid? CreatedById { get; init; }
+
+    public DateTimeOffset? CreatedOn { get; init; }
+
+    public Guid? UpdatedById { get; init; }
+
+    public DateTimeOffset? UpdatedOn { get; init; }
 }

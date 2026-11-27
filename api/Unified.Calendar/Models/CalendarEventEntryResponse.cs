@@ -21,4 +21,12 @@ public record CalendarEventEntryResponse : CalendarEventEntryRequest
     public Guid? CancelledByUserId { get; init; }
 
     public string? CancellationReason { get; init; }
+
+    public Guid? CreatedById { get; init; }
+
+    public DateTimeOffset? CreatedOn { get; init; }
+
+    public Guid? UpdatedById { get; init; }
+
+    public DateTimeOffset? UpdatedOn { get; init; }
 }

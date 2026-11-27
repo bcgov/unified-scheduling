@@ -20,10 +20,6 @@ export const PostApiSchedulingShiftAssignmentsOptionsResponse = zod.object({
     .array(
       zod.object({
         concurrencyToken: zod.int().optional(),
-        createdById: zod.uuid().nullish(),
-        createdOn: zod.iso.datetime({ offset: true }).nullish(),
-        updatedById: zod.uuid().nullish(),
-        updatedOn: zod.iso.datetime({ offset: true }).nullish(),
         assignmentSeriesId: zod.int().nullish(),
         assignmentDefinitionId: zod.int().optional(),
         categoryId: zod.int().optional(),
@@ -59,6 +55,10 @@ export const PostApiSchedulingShiftAssignmentsOptionsResponse = zod.object({
         cancelledAt: zod.iso.datetime({ offset: true }).nullish(),
         cancelledByUserId: zod.uuid().nullish(),
         cancellationReason: zod.string().nullish(),
+        createdById: zod.uuid().nullish(),
+        createdOn: zod.iso.datetime({ offset: true }).nullish(),
+        updatedById: zod.uuid().nullish(),
+        updatedOn: zod.iso.datetime({ offset: true }).nullish(),
         seriesStartAtUtc: zod.iso.datetime({ offset: true }).nullish(),
         seriesEndAtUtc: zod.iso.datetime({ offset: true }).nullish(),
         title: zod.string().optional(),
@@ -77,10 +77,6 @@ export const PostApiSchedulingShiftAssignmentsOptionsResponse = zod.object({
     .array(
       zod.object({
         concurrencyToken: zod.int().optional(),
-        createdById: zod.uuid().nullish(),
-        createdOn: zod.iso.datetime({ offset: true }).nullish(),
-        updatedById: zod.uuid().nullish(),
-        updatedOn: zod.iso.datetime({ offset: true }).nullish(),
         assignmentDefinitionId: zod.int().optional(),
         categoryId: zod.int().optional(),
         categoryName: zod.string().nullish(),
@@ -106,6 +102,10 @@ export const PostApiSchedulingShiftAssignmentsOptionsResponse = zod.object({
         cancelledByUserId: zod.uuid().nullish(),
         cancellationReason: zod.string().nullish(),
         eventIds: zod.array(zod.int()).optional(),
+        createdById: zod.uuid().nullish(),
+        createdOn: zod.iso.datetime({ offset: true }).nullish(),
+        updatedById: zod.uuid().nullish(),
+        updatedOn: zod.iso.datetime({ offset: true }).nullish(),
         recurrenceRule: zod.string().nullish(),
         title: zod.string().optional(),
         description: zod.string().nullish(),

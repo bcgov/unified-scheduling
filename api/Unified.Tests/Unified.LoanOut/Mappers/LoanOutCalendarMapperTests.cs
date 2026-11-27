@@ -1,3 +1,4 @@
+using Unified.Calendar.Mappings;
 using Unified.Db.Models.Calendar;
 using Unified.Db.Models.LoanOut;
 using Unified.Db.Models.UserManagement;
@@ -10,6 +11,43 @@ namespace Unified.Tests.LoanOut.Mappers;
 public sealed class LoanOutCalendarMapperTests
 {
     private static readonly Guid UserA = new("11111111-1111-1111-1111-111111111111");
+
+    [Fact]
+    public void Responses_MapAuditFromLoanOutEntryAndSeries()
+    {
+        var created = DateTimeOffset.Parse("2026-06-01T16:00:00Z");
+        var creator = Guid.NewGuid();
+        var updater = Guid.NewGuid();
+        var entry = new LoanOutEntry
+        {
+            Event = new Event { CreatedById = Guid.NewGuid() },
+            CreatedById = creator,
+            CreatedOn = created,
+            UpdatedById = updater,
+            UpdatedOn = created.AddDays(1),
+        };
+        var series = new LoanOutSeries
+        {
+            EventSeries = new EventSeries { CreatedById = Guid.NewGuid() },
+            CreatedById = creator,
+            CreatedOn = created,
+            UpdatedById = updater,
+            UpdatedOn = created.AddDays(1),
+        };
+        var mapper = new LoanOutEventMapper(new CalendarEventMapper());
+
+        var entryResponse = mapper.ToLoanOutEntryResponse(entry);
+        var seriesResponse = mapper.ToLoanOutSeriesResponse(series, [], []);
+
+        Assert.Equal(creator, entryResponse.CreatedById);
+        Assert.Equal(created, entryResponse.CreatedOn);
+        Assert.Equal(updater, entryResponse.UpdatedById);
+        Assert.Equal(created.AddDays(1), entryResponse.UpdatedOn);
+        Assert.Equal(creator, seriesResponse.CreatedById);
+        Assert.Equal(created, seriesResponse.CreatedOn);
+        Assert.Equal(updater, seriesResponse.UpdatedById);
+        Assert.Equal(created.AddDays(1), seriesResponse.UpdatedOn);
+    }
 
     [Fact]
     public void ToLoanOutCalendarEvent_MapsEventAndLoanOutFields()

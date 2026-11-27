@@ -4,6 +4,7 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
+using Unified.Audit;
 using Unified.Calendar.Mappings;
 using Unified.Calendar.Services;
 using Unified.Common.Time;
@@ -37,17 +38,28 @@ public sealed class LoanOutEntryServiceTests : IAsyncLifetime
         "America/Vancouver"
     );
     private static readonly Guid UserA = new("11111111-1111-1111-1111-111111111111");
+    private readonly TestActorResolver _actor = new();
     private SqliteConnection _connection = null!;
     private UnifiedDbContext _db = null!;
     private LoanOutEntryService _service = null!;
     private readonly FakeSchedulingLoanOutService _schedulingLoanOutService = new();
+
+    private sealed class TestActorResolver : ICurrentActorResolver
+    {
+        public Guid? UserId { get; set; }
+
+        public CurrentActor Resolve() => new(UserId, "Test actor");
+    }
 
     public async ValueTask InitializeAsync()
     {
         _connection = new SqliteConnection("Data Source=:memory:");
         _connection.CreateFunction("now", () => DateTimeOffset.UtcNow.ToString("O"));
         await _connection.OpenAsync(TestContext.Current.CancellationToken);
-        var options = new DbContextOptionsBuilder<UnifiedDbContext>().UseSqlite(_connection).Options;
+        var options = new DbContextOptionsBuilder<UnifiedDbContext>()
+            .UseSqlite(_connection)
+            .AddInterceptors(new AuditableEntityInterceptor(_actor))
+            .Options;
         _db = new SqliteTestUnifiedDbContext(options);
         await _db.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
 
@@ -214,6 +226,31 @@ public sealed class LoanOutEntryServiceTests : IAsyncLifetime
         );
 
         Assert.Null(response);
+    }
+
+    [Fact]
+    public async Task UpdateLoanOutEntryAsync_NotesOnly_StampsOwningRecord()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var created = await _service.CreateLoanOutEntryAsync(CreateRequest(), ct);
+        _actor.UserId = UserA;
+
+        var updated = await _service.UpdateLoanOutEntryAsync(
+            created.Id,
+            CreateRequest() with
+            {
+                Notes = "Updated notes",
+            },
+            ct
+        );
+
+        Assert.NotNull(updated);
+        Assert.Equal(UserA, updated.UpdatedById);
+        Assert.NotNull(updated.UpdatedOn);
+        var reloaded = await _service.GetLoanOutEntryByIdAsync(created.Id, ct);
+        Assert.NotNull(reloaded);
+        Assert.Equal(UserA, reloaded.UpdatedById);
+        Assert.Equal(updated.UpdatedOn, reloaded.UpdatedOn);
     }
 
     [Fact]

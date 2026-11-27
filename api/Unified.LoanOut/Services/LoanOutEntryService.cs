@@ -108,6 +108,7 @@ public sealed class LoanOutEntryService(
         );
         if (updated is null)
             return null;
+        db.Entry(entity).Property(item => item.UpdatedOn).IsModified = true;
         var withdrawnEntries = await ShiftOverlapGuard.EnsureCanUpdateAsync(
             schedulingLoanOutService,
             previousEntries,

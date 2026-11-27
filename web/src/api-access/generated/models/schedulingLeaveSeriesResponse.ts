@@ -24,6 +24,14 @@ export interface SchedulingLeaveSeriesResponse {
   cancellationReason?: string | null;
   eventIds?: number[];
   /** @nullable */
+  createdById?: string | null;
+  /** @nullable */
+  createdOn?: string | null;
+  /** @nullable */
+  updatedById?: string | null;
+  /** @nullable */
+  updatedOn?: string | null;
+  /** @nullable */
   recurrenceRule?: string | null;
   title?: string;
   /** @nullable */

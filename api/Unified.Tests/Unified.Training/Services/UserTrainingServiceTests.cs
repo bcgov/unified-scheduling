@@ -322,6 +322,65 @@ public class UserTrainingServiceTests : IAsyncLifetime
         Assert.Equal(TrainingId, result.Last().TrainingId);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ReadResponses_IncludeTrainingAuditUsers(bool hasUpdate)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var awarded = new DateTimeOffset(2026, 6, 1, 12, 0, 0, TimeSpan.Zero);
+        await SeedUserTrainingAsync(CallerId, TrainingId, awardedOn: awarded, expiryDate: null);
+        var entity = await _db.UserTrainings.SingleAsync(ct);
+        entity.CreatedById = CallerId;
+        entity.UpdatedById = hasUpdate ? OtherUserId : null;
+        entity.UpdatedOn = hasUpdate ? awarded.AddDays(1) : null;
+        await _db.SaveChangesAsync(ct);
+        _db.ChangeTracker.Clear();
+
+        var list = await _service.GetUserTrainings(CallerId, ct);
+        var single = await _service.GetByTrainingAndUserAsync(TrainingId, CallerId, ct);
+
+        Assert.NotNull(single);
+        Assert.Equal(CallerId, single.CreatedById);
+        Assert.Equal(hasUpdate ? OtherUserId : (Guid?)null, single.UpdatedById);
+        Assert.Equal(hasUpdate ? awarded.AddDays(1) : (DateTimeOffset?)null, single.UpdatedOn);
+        Assert.Equal(single.CreatedById, Assert.Single(list).CreatedById);
+        Assert.Equal(single.UpdatedById, Assert.Single(list).UpdatedById);
+        Assert.Equal(single.UpdatedOn, Assert.Single(list).UpdatedOn);
+    }
+
+    [Fact]
+    public async Task UpdateResponse_ContainsPersistedAuditUsers()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var awarded = new DateTimeOffset(2026, 6, 1, 12, 0, 0, TimeSpan.Zero);
+        var seeded = await SeedUserTrainingAsync(CallerId, TrainingId, awardedOn: awarded, expiryDate: null);
+        var entity = await _db.UserTrainings.SingleAsync(ct);
+        entity.CreatedById = CallerId;
+        entity.UpdatedById = OtherUserId;
+        entity.UpdatedOn = awarded.AddDays(1);
+        await _db.SaveChangesAsync(ct);
+        _db.ChangeTracker.Clear();
+
+        var result = await _service.UpdateAsync(
+            seeded.Id,
+            new UserTrainingRequest
+            {
+                UserId = CallerId,
+                TrainingId = TrainingId,
+                AwardedOn = awarded,
+                EndingOn = awarded.AddDays(1),
+                Notes = "Updated notes",
+            },
+            ct
+        );
+
+        Assert.NotNull(result);
+        Assert.Equal(CallerId, result.CreatedById);
+        Assert.Equal(OtherUserId, result.UpdatedById);
+        Assert.Equal(awarded.AddDays(1), result.UpdatedOn);
+    }
+
     [Fact]
     public async Task GetAll_WhenViewingOtherUser_ReturnsRecords()
     {

@@ -16,6 +16,7 @@ import {
 import LoanOutForm, { type LoanOutFormData } from '@/modules/loanout/components/LoanOutForm.vue';
 import { buildLoanOutRequest, resolveLoanOutSaveError } from '@/modules/loanout/loanOutRequest';
 import UaAlert from '@/shared/components/UaAlert.vue';
+import type { AuditFields } from '@/shared/components/UaAuditDisplay.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
 import UaModal from '@/shared/components/UaModal.vue';
 import { useLocationsStore } from '@/stores/LocationsStore';
@@ -40,8 +41,8 @@ const entryId = computed(() => Number(metadata.value?.loanOutEntryId));
 const seriesId = computed(() => Number(metadata.value?.loanOutSeriesId));
 const scope = ref<'event' | 'series' | null>(seriesId.value > 0 ? null : 'event');
 const tab = ref<'details' | 'edit' | 'delete'>('details');
-const selectedEntry = ref<LoanOutEntryResponse | null>(null);
-const selectedSeries = ref<LoanOutSeriesResponse | null>(null);
+const selectedEntry = ref<(LoanOutEntryResponse & AuditFields) | null>(null);
+const selectedSeries = ref<(LoanOutSeriesResponse & AuditFields) | null>(null);
 const entity = computed(() => (scope.value === 'series' ? selectedSeries.value : selectedEntry.value));
 const isLoading = ref(false);
 const isSaving = ref(false);
@@ -273,7 +274,13 @@ async function remove() {
           {{ item.label }}
         </button>
       </div>
-      <CalendarSchedulingShiftDetailsPanel v-if="tab === 'details'" :detail-rows="detailRows" :is-loading="isLoading" />
+      <CalendarSchedulingShiftDetailsPanel
+        v-if="tab === 'details'"
+        :detail-rows="detailRows"
+        :is-loading="isLoading"
+        :audit="entity"
+        :time-zone="timeZone"
+      />
       <LoanOutForm
         v-else-if="tab === 'edit'"
         v-model="formData"
@@ -287,7 +294,12 @@ async function remove() {
         @validation-change="hasValidationError = $event"
       />
       <section v-else class="loanout-modal__delete-panel" aria-label="Delete loan-out panel">
-        <CalendarSchedulingShiftDetailsPanel :detail-rows="detailRows" :is-loading="isLoading" />
+        <CalendarSchedulingShiftDetailsPanel
+          :detail-rows="detailRows"
+          :is-loading="isLoading"
+          :audit="entity"
+          :time-zone="timeZone"
+        />
         <p class="loanout-modal__delete-warning">
           {{
             scope === 'series'

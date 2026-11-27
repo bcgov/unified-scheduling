@@ -124,6 +124,7 @@ public sealed class SchedulingLeaveSeriesService(
         var oldUserIds = entity.Users.Select(user => user.UserId).Distinct().Order().ToList();
         var recurrenceChanged = calendarEventSeriesService.HasRecurrenceChanged(entity, request);
         var newUserIds = request.UserIds.Distinct().ToList();
+        var userIdsChanged = HasUserIdsChanged(oldUserIds, newUserIds);
         var removedSeriesUsers = entity.Users.Where(user => !newUserIds.Contains(user.UserId)).ToList();
 
         var updated = await calendarEventSeriesService.UpdateEventAsync(
@@ -135,6 +136,7 @@ public sealed class SchedulingLeaveSeriesService(
         );
         if (updated is null)
             throw new InvalidOperationException("Failed to update leave series.");
+        db.Entry(entity).Property(item => item.UpdatedOn).IsModified = true;
         db.Set<LeaveSeriesUser>().RemoveRange(removedSeriesUsers);
         var newValues = CaptureCopiedValues(eventSeries);
         if (recurrenceChanged)
@@ -159,8 +161,21 @@ public sealed class SchedulingLeaveSeriesService(
                 ApplyCopiedFieldUpdatesPreservingOverrides(entry.Event!, oldValues, newValues);
                 if (entry.LeaveTypeId == oldLeaveTypeId)
                     entry.LeaveTypeId = request.LeaveTypeId;
-                if (entry.Users.Select(user => user.UserId).Order().SequenceEqual(oldUserIds))
+                if (!HasUserIdsChanged(entry.Users.Select(user => user.UserId).ToArray(), oldUserIds))
+                {
+                    if (userIdsChanged)
+                        db.Entry(entry).Property(item => item.UpdatedOn).IsModified = true;
                     SyncEntryUsers(entry, newUserIds);
+                }
+            }
+        }
+        if (!recurrenceChanged)
+        {
+            db.ChangeTracker.DetectChanges();
+            foreach (var entry in GetCurrentEntries(entity.LeaveEntries))
+            {
+                if (HasEventChanged(entry.Event!))
+                    db.Entry(entry).Property(item => item.UpdatedOn).IsModified = true;
             }
         }
         ValidatePropagatedEntries(entity, GetCurrentEntries(entity.LeaveEntries));
@@ -217,6 +232,13 @@ public sealed class SchedulingLeaveSeriesService(
 
     private IReadOnlyCollection<LeaveEntry> GetCurrentEntries(IEnumerable<LeaveEntry> entries) =>
         entries.Where(entry => db.Entry(entry).State != EntityState.Deleted && entry.Event is not null).ToList();
+
+    private bool HasEventChanged(Event eventEntity) => db.Entry(eventEntity).State == EntityState.Modified;
+
+    private static bool HasUserIdsChanged(
+        IReadOnlyCollection<Guid> previousUserIds,
+        IReadOnlyCollection<Guid> userIds
+    ) => !previousUserIds.ToHashSet().SetEquals(userIds);
 
     private void SyncEntryUsers(LeaveEntry entry, IReadOnlyCollection<Guid> userIds)
     {

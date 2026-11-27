@@ -25,7 +25,11 @@ public sealed record UserTrainingResponse
 
     public string? Notes { get; init; }
 
+    public Guid? CreatedById { get; init; }
+
     public DateTimeOffset CreatedOn { get; init; }
+
+    public Guid? UpdatedById { get; init; }
 
     public DateTimeOffset? UpdatedOn { get; init; }
 }

@@ -2,6 +2,7 @@ using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Unified.Audit;
 using Unified.Calendar.Conflicts;
 using Unified.Calendar.Mappings;
 using Unified.Calendar.Models;
@@ -28,6 +29,7 @@ public sealed class SchedulingLeaveServiceTests : IAsyncLifetime
     private static readonly DateTimeOffset Start = new(2026, 6, 1, 16, 0, 0, TimeSpan.Zero);
     private static readonly DateTimeOffset End = new(2026, 6, 1, 23, 0, 0, TimeSpan.Zero);
 
+    private readonly TestActorResolver _actor = new();
     private LeaveTestDatabase _database = null!;
     private SchedulingLeaveService _service = null!;
     private LeaveType _vacation = null!;
@@ -35,9 +37,16 @@ public sealed class SchedulingLeaveServiceTests : IAsyncLifetime
     private CalendarConflictService _conflicts = null!;
     private readonly SchedulingParticipantProvider _schedulingParticipants = new();
 
+    private sealed class TestActorResolver : ICurrentActorResolver
+    {
+        public Guid? UserId { get; set; }
+
+        public CurrentActor Resolve() => new(UserId, "Test actor");
+    }
+
     public async ValueTask InitializeAsync()
     {
-        _database = await LeaveTestDatabase.CreateAsync();
+        _database = await LeaveTestDatabase.CreateAsync(new AuditableEntityInterceptor(_actor));
         var db = _database.Db;
         db.EventTypes.Add(new EventType { Code = "assignment", Description = "Assignment" });
 
@@ -117,6 +126,114 @@ public sealed class SchedulingLeaveServiceTests : IAsyncLifetime
     }
 
     public async ValueTask DisposeAsync() => await _database.DisposeAsync();
+
+    [Fact]
+    public async Task UpdateLeaveEntry_NotesOnly_StampsOwningRecord()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var request = CreateEntryRequest();
+        var created = await _service.CreateLeaveEntryAsync(request, ct);
+        _actor.UserId = LeaveTestDatabase.UserA;
+
+        var updated = await _service.UpdateLeaveEntryAsync(created.Id, request with { Notes = "Updated notes" }, ct);
+        var reloaded = await _service.GetLeaveEntryByIdAsync(created.Id, ct);
+
+        Assert.NotNull(updated);
+        Assert.NotNull(reloaded);
+        Assert.Equal(LeaveTestDatabase.UserA, updated.UpdatedById);
+        Assert.NotNull(updated.UpdatedOn);
+        Assert.Equal(updated.UpdatedById, reloaded.UpdatedById);
+        Assert.Equal(updated.UpdatedOn, reloaded.UpdatedOn);
+    }
+
+    [Fact]
+    public async Task UpdateLeaveSeries_NotesOnly_StampsOwningRecord()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var request = CreateSeriesRequest(recurrenceRule: "FREQ=DAILY;COUNT=2");
+        var created = await _service.CreateLeaveSeriesAsync(request, ct);
+        _actor.UserId = LeaveTestDatabase.UserA;
+
+        var updated = await _service.UpdateLeaveSeriesAsync(created.Id, request with { Notes = "Updated notes" }, ct);
+        var reloaded = await _service.GetLeaveSeriesByIdAsync(created.Id, ct);
+
+        Assert.NotNull(updated);
+        Assert.NotNull(reloaded);
+        Assert.Equal(LeaveTestDatabase.UserA, updated.UpdatedById);
+        Assert.NotNull(updated.UpdatedOn);
+        Assert.Equal(updated.UpdatedById, reloaded.UpdatedById);
+        Assert.Equal(updated.UpdatedOn, reloaded.UpdatedOn);
+    }
+
+    [Fact]
+    public async Task UpdateSeriesNotes_StampsChangedOccurrenceOwner()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var request = CreateSeriesRequest(recurrenceRule: "FREQ=DAILY;COUNT=2");
+        var created = await _service.CreateLeaveSeriesAsync(request, ct);
+        _actor.UserId = LeaveTestDatabase.UserA;
+        await _service.UpdateLeaveSeriesAsync(created.Id, request with { Notes = "Updated notes" }, ct);
+        _database.Db.ChangeTracker.Clear();
+        var entries = await _database.Db.LeaveEntries.Where(e => e.LeaveSeriesId == created.Id).ToListAsync(ct);
+        Assert.Equal(2, entries.Count);
+        Assert.All(
+            entries,
+            entry =>
+            {
+                Assert.Equal(LeaveTestDatabase.UserA, entry.UpdatedById);
+                Assert.NotNull(entry.UpdatedOn);
+            }
+        );
+    }
+
+    [Fact]
+    public async Task SeriesUserChange_StampsOccurrenceOwners()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var request = CreateSeriesRequest(recurrenceRule: "FREQ=DAILY;COUNT=2");
+        var created = await _service.CreateLeaveSeriesAsync(request, ct);
+        _actor.UserId = LeaveTestDatabase.UserA;
+        await _service.UpdateLeaveSeriesAsync(created.Id, request with { UserIds = [LeaveTestDatabase.UserB] }, ct);
+        _database.Db.ChangeTracker.Clear();
+        var entries = await _database
+            .Db.LeaveEntries.Where(e => e.LeaveSeriesId == created.Id)
+            .Include(e => e.Users)
+            .ToListAsync(ct);
+        Assert.Equal(2, entries.Count);
+        Assert.All(
+            entries,
+            entry =>
+            {
+                Assert.Equal(LeaveTestDatabase.UserA, entry.UpdatedById);
+                Assert.Equal(LeaveTestDatabase.UserB, Assert.Single(entry.Users).UserId);
+            }
+        );
+    }
+
+    [Fact]
+    public async Task SeriesNotesChange_DoesNotStampAnUnchangedOverride()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var request = CreateSeriesRequest(recurrenceRule: "FREQ=DAILY;COUNT=2");
+        var created = await _service.CreateLeaveSeriesAsync(request, ct);
+        var entries = await _database
+            .Db.LeaveEntries.Include(e => e.Event)
+            .Where(e => e.LeaveSeriesId == created.Id)
+            .ToListAsync(ct);
+        var overridden = entries[0];
+        overridden.Event!.Notes = "Individual note";
+        await _database.Db.SaveChangesAsync(ct);
+        var oldUpdatedOn = overridden.UpdatedOn;
+        _actor.UserId = LeaveTestDatabase.UserA;
+        await _service.UpdateLeaveSeriesAsync(created.Id, request with { Notes = "Series note" }, ct);
+        _database.Db.ChangeTracker.Clear();
+        var reloaded = await _database
+            .Db.LeaveEntries.Include(e => e.Event)
+            .SingleAsync(e => e.Id == overridden.Id, ct);
+        Assert.Equal("Individual note", reloaded.Event!.Notes);
+        Assert.Equal(oldUpdatedOn, reloaded.UpdatedOn);
+        Assert.Null(reloaded.UpdatedById);
+    }
 
     // ---- Entries ----
 

@@ -22,6 +22,7 @@ import LeaveForm, { type LeaveFormData } from '@/modules/leave/components/LeaveF
 import { useLeaveTypeOptions } from '@/modules/leave/composables/useLeaveTypeOptions';
 import { buildLeaveRequest } from '@/modules/leave/leaveRequest';
 import UaAlert from '@/shared/components/UaAlert.vue';
+import type { AuditFields } from '@/shared/components/UaAuditDisplay.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
 import UaModal from '@/shared/components/UaModal.vue';
 import { useLocationsStore } from '@/stores/LocationsStore';
@@ -92,8 +93,8 @@ const hasEditFormValidationError = ref(false);
 const apiError = ref('');
 const activeTab = ref<LeaveDetailTabId>('details');
 const selectedOpenScope = ref<LeaveOpenScope | null>(getInitialOpenScope(props.event));
-const selectedEntry = ref<LeaveEntryResponse | null>(null);
-const selectedSeries = ref<LeaveSeriesResponse | null>(null);
+const selectedEntry = ref<(LeaveEntryResponse & AuditFields) | null>(null);
+const selectedSeries = ref<(LeaveSeriesResponse & AuditFields) | null>(null);
 const isLoadingSeries = ref(false);
 
 const timeZoneId = computed(() =>
@@ -115,9 +116,15 @@ const isReadOnlyAtLocation = computed(() => {
       : (selectedEntry.value?.locationId ?? props.event.locationId);
   return viewingLocationId != null && leaveLocationId != null && Number(viewingLocationId) !== leaveLocationId;
 });
+const selectedRecord = computed(() =>
+  selectedOpenScope.value === 'series' ? selectedSeries.value : selectedEntry.value,
+);
+const auditTimeZone = computed(() => resolveSchedulingTimeZoneId(selectedRecord.value?.timeZoneId, timeZoneId.value));
 const canEdit = computed(
   () =>
     !isReadOnlyAtLocation.value &&
+    !isLoadingSeries.value &&
+    selectedRecord.value != null &&
     (selectedOpenScope.value === 'series' ? leaveSeriesId.value != null : leaveEntryId.value != null) &&
     accessControl.hasPermission(Permissions.LeaveEdit),
 );
@@ -131,15 +138,14 @@ const currentStatusTypeCode = computed(() =>
 const canDelete = computed(
   () =>
     !isReadOnlyAtLocation.value &&
+    !isLoadingSeries.value &&
+    selectedRecord.value != null &&
     (selectedOpenScope.value === 'series' ? leaveSeriesId.value != null : leaveEntryId.value != null) &&
     (!currentStatusTypeCode.value || getSchedulingLifecycleCapabilities(currentStatusTypeCode.value).canDelete) &&
     accessControl.hasPermission(Permissions.LeaveDelete),
 );
 const shouldShowOpenScopeChoice = computed(() => leaveSeriesId.value != null && selectedOpenScope.value == null);
 const entityLabel = computed(() => (selectedOpenScope.value === 'series' ? 'Leave Series' : 'Leave'));
-const selectedRecord = computed(() =>
-  selectedOpenScope.value === 'series' ? selectedSeries.value : selectedEntry.value,
-);
 
 const visibleTabs = computed<Array<{ id: LeaveDetailTabId; label: string }>>(() => [
   { id: 'details', label: 'Details' },
@@ -293,7 +299,7 @@ function buildEditFormData(): LeaveFormData {
   };
 }
 
-async function selectOpenScope(scope: LeaveOpenScope) {
+async function loadScope(scope: LeaveOpenScope, signal: AbortSignal) {
   apiError.value = '';
   isLoadingSeries.value = true;
   try {
@@ -303,7 +309,8 @@ async function selectOpenScope(scope: LeaveOpenScope) {
       return;
     }
     if (scope === 'series') {
-      const result = await getLeaveSeries(id);
+      const result = await getLeaveSeries(id, signal);
+      if (signal.aborted) return;
       if (result.error.value) {
         apiError.value = result.error.value.message || `Failed to load leave ${scope}.`;
         return;
@@ -314,7 +321,8 @@ async function selectOpenScope(scope: LeaveOpenScope) {
         return;
       }
     } else {
-      const result = await getLeaveEntry(id);
+      const result = await getLeaveEntry(id, signal);
+      if (signal.aborted) return;
       if (result.error.value) {
         apiError.value = result.error.value.message || `Failed to load leave ${scope}.`;
         return;
@@ -325,14 +333,24 @@ async function selectOpenScope(scope: LeaveOpenScope) {
         return;
       }
     }
-    selectedOpenScope.value = scope;
     editFormData.value = buildEditFormData();
   } catch (error: unknown) {
-    apiError.value = error instanceof Error ? error.message : `Failed to load leave ${scope}.`;
+    if (!signal.aborted) apiError.value = error instanceof Error ? error.message : `Failed to load leave ${scope}.`;
   } finally {
-    isLoadingSeries.value = false;
+    if (!signal.aborted) isLoadingSeries.value = false;
   }
 }
+
+watch(
+  selectedOpenScope,
+  (scope, _previous, onCleanup) => {
+    if (!scope) return;
+    const controller = new AbortController();
+    onCleanup(() => controller.abort());
+    void loadScope(scope, controller.signal);
+  },
+  { immediate: true },
+);
 
 function selectTab(tabId: LeaveDetailTabId) {
   if (isSaving.value || shouldShowOpenScopeChoice.value || !visibleTabs.value.some((tab) => tab.id === tabId)) {
@@ -482,10 +500,10 @@ function formatRRuleText(value?: string | null) {
     <div v-if="shouldShowOpenScopeChoice" class="leave-modal__scope-choice">
       <p class="leave-modal__scope-choice-text">This is one occurrence in a series. What do you want to open?</p>
       <div class="leave-modal__scope-choice-actions">
-        <UaBtn variant="outlined" :disabled="isLoadingSeries" @click="selectOpenScope('event')"
+        <UaBtn variant="outlined" :disabled="isLoadingSeries" @click="selectedOpenScope = 'event'"
           >Only this occurrence</UaBtn
         >
-        <UaBtn color="primary" variant="flat" :loading="isLoadingSeries" @click="selectOpenScope('series')">
+        <UaBtn color="primary" variant="flat" :loading="isLoadingSeries" @click="selectedOpenScope = 'series'">
           The entire series
         </UaBtn>
       </div>
@@ -512,6 +530,8 @@ function formatRRuleText(value?: string | null) {
         v-if="activeTab === 'details'"
         :detail-rows="detailRows"
         :is-loading="isLoadingUsers || isLoadingSeries"
+        :audit="selectedRecord"
+        :time-zone="auditTimeZone"
       />
 
       <LeaveForm
@@ -529,7 +549,12 @@ function formatRRuleText(value?: string | null) {
       />
 
       <section v-else class="leave-modal__delete-panel" aria-label="Delete leave panel">
-        <LeaveDetailsPanel :detail-rows="detailRows" :is-loading="isLoadingUsers || isLoadingSeries" />
+        <LeaveDetailsPanel
+          :detail-rows="detailRows"
+          :is-loading="isLoadingUsers || isLoadingSeries"
+          :audit="selectedRecord"
+          :time-zone="auditTimeZone"
+        />
         <p class="leave-modal__delete-warning">
           {{
             selectedOpenScope === 'series'
