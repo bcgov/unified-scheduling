@@ -337,7 +337,10 @@ async function loadScope(scope: LeaveOpenScope, signal: AbortSignal) {
   } catch (error: unknown) {
     if (!signal.aborted) apiError.value = error instanceof Error ? error.message : `Failed to load leave ${scope}.`;
   } finally {
-    if (!signal.aborted) isLoadingSeries.value = false;
+    if (!signal.aborted) {
+      isLoadingSeries.value = false;
+      if (apiError.value && leaveSeriesId.value != null) selectedOpenScope.value = null;
+    }
   }
 }
 

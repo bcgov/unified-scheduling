@@ -128,6 +128,32 @@ describe('CalendarSchedulingLeaveDetailModal', () => {
     wrapper.unmount();
   });
 
+  it.each(['event', 'series'] as const)(
+    'restores the scope choice when the %s request fails and allows retry',
+    async (scope) => {
+      let requests = 0;
+      const url = scope === 'event' ? '*/api/scheduling/leave/entries/42' : '*/api/scheduling/leave/series/77';
+      server.use(
+        http.get(url, () => {
+          requests++;
+          return requests === 1 ? new HttpResponse(null, { status: 500 }) : HttpResponse.json(entry);
+        }),
+      );
+      const wrapper = await mountModal();
+      const vm = wrapper.vm as unknown as { selectedOpenScope: 'event' | 'series' | null };
+      vm.selectedOpenScope = scope;
+      await vi.waitFor(() => {
+        expect(requests).toBe(1);
+        expect(wrapper.find('.leave-modal__scope-choice').exists()).toBe(true);
+      });
+      expect(vm.selectedOpenScope).toBeNull();
+      vm.selectedOpenScope = scope;
+      await vi.waitFor(() => expect(requests).toBe(2));
+      await vi.waitFor(() => expect(wrapper.findComponent(LeaveDetailsPanel).props('audit')).toBeTruthy());
+      wrapper.unmount();
+    },
+  );
+
   async function mountEntryEditor(loaded: boolean, endAtUtc: string | null) {
     const event = createLeaveEvent();
     event.start = '2026-06-11T02:00:00Z'; // 19:00 in Vancouver, after the default end time.
