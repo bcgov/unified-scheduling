@@ -485,7 +485,8 @@ public sealed class MigrationApplySafetyTests : IAsyncDisposable
 
         var failure = await db.DataMigrationFailures.AsNoTracking().SingleAsync(ct);
         var line = Assert.Single(
-            output.ToString().Split('\n').Where(x => x.Contains($"SsMigrationFailure Run={failure.RunId} Job={job}"))
+            output.ToString().Split('\n'),
+            x => x.Contains($"SsMigrationFailure Run={failure.RunId} Job={job}")
         );
         Assert.Contains("Cause=", line);
         Assert.Contains("Cause:", failure.ErrorMessage);
