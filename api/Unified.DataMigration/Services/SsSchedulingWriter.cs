@@ -54,6 +54,8 @@ public sealed class SsSchedulingWriter
         CancellationToken ct
     )
     {
+        var log = new SsPhaseLog(session.Run);
+        log.Start("Prepare");
         rows = SwapReversedDates(rows);
         await RoomsAsync(rows, session, ct);
         await ClassificationsAsync(rows, session, ct);
@@ -81,28 +83,69 @@ public sealed class SsSchedulingWriter
             .Select(x => x.Date("EndDate") ?? boundary)
             .Append(boundary)
             .Min();
-        var proposals = new List<SsSchedulingProposal>();
-        await session.PlanGraphAsync(
-            async () =>
-            {
-                await DefinitionsAsync(selected, session, boundary, ct, proposals);
-                await ShiftsAsync(selected["Shift"], session, boundary, ct, proposals);
-                await DutiesAsync(selected, session, boundary, ct, proposals);
-                await new SsAssignmentSeriesWriter(store).WriteAsync(selected, session, ct, proposals);
-            },
-            ct
-        );
+        log.Done(selectedRows.Sum(x => x.Value.Count));
+        session.BeginReplayPrefetch(selected);
+        try
+        {
+            await PlanReplayWriteCaptureAsync(selected, session, boundary, log, ct);
+        }
+        finally
+        {
+            session.EndReplayPrefetch();
+        }
+    }
+
+    private async Task PlanReplayWriteCaptureAsync(
+        Dictionary<string, List<SsRow>> selected,
+        ISsSchedulingSession session,
+        DateTimeOffset boundary,
+        SsPhaseLog log,
+        CancellationToken ct
+    )
+    {
+        log.Start("Plan");
         var graphs = new SsSchedulingGraphReplay(db, store);
+        var proposals = new List<SsSchedulingProposal>();
+        // Proposals are read only when a captured family is replaced. Planners read across components
+        // (day groups, definition groups), so a partial plan is unsafe: plan all or nothing.
+        var prepared = session.PlanReplacementFamiliesOnly ? await graphs.PrepareAsync(selected, boundary, ct) : null;
+        if (prepared is { Families.Count: 0 })
+        {
+            await session.PlanGraphAsync(() => Task.CompletedTask, ct);
+            log.Skipped();
+        }
+        else
+        {
+            // Planning clears the tracker; recompute replacement families from fresh records after it.
+            prepared = null;
+            await session.PlanGraphAsync(
+                async () =>
+                {
+                    await DefinitionsAsync(selected, session, boundary, ct, proposals);
+                    await ShiftsAsync(selected["Shift"], session, boundary, ct, proposals);
+                    await DutiesAsync(selected, session, boundary, ct, proposals);
+                    await new SsAssignmentSeriesWriter(store).WriteAsync(selected, session, ct, proposals);
+                },
+                ct
+            );
+        }
+        log.Done(proposals.Count);
+        log.Start("Replay");
         var remaining = await graphs.ReplayAsync(
             selected,
             session,
             boundary,
             subset => WriteGraphAsync(subset, session, boundary, ct),
             ct,
-            proposals
+            proposals,
+            prepared
         );
+        log.Done(remaining.Sum(x => x.Value.Count));
+        log.Start("Write");
         await WriteGraphAsync(remaining, session, boundary, ct);
-        await graphs.CaptureAsync(selected, session, boundary, ct);
+        log.Done(session.Outcomes.Count);
+        log.Start("Capture");
+        await graphs.CaptureAsync(selected, session, boundary, ct, log);
     }
 
     // Legacy SS has a few rows whose StartDate/EndDate were entered backwards; the interval

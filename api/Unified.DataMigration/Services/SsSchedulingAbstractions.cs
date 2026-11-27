@@ -17,6 +17,10 @@ internal interface ISsSchedulingSession
 {
     DataMigrationRun Run { get; }
     DateTimeOffset Now { get; }
+    bool PlanReplacementFamiliesOnly { get; }
+    bool PrefetchReplayRecords { get; }
+    void BeginReplayPrefetch(IReadOnlyDictionary<string, List<SsRow>> rows);
+    void EndReplayPrefetch();
     List<DataMigrationOutcome> Outcomes { get; }
     HashSet<(string Type, string Id)> Rebinding { get; }
 

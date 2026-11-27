@@ -36,6 +36,7 @@ using Unified.LoanOut.Seeders;
 using Unified.Scheduling.Interceptors;
 using Unified.Scheduling.Seeders;
 using Unified.Stats.Seeders;
+using Unified.Tests.TestHelpers;
 using Unified.UserManagement;
 using Unified.UserManagement.Seeders;
 using MsOptions = Microsoft.Extensions.Options.Options;
@@ -88,7 +89,7 @@ public sealed class SsSchedulingBulkPostgresTests : IAsyncLifetime
     private readonly IOptions<DataMigrationFeatureFlags> flags = MsOptions.Create(
         new DataMigrationFeatureFlags { Enabled = true }
     );
-    private readonly IConfiguration configuration = new ConfigurationBuilder()
+    private IConfiguration configuration = new ConfigurationBuilder()
         .AddInMemoryCollection(
             new Dictionary<string, string?>
             {
@@ -98,6 +99,19 @@ public sealed class SsSchedulingBulkPostgresTests : IAsyncLifetime
             }
         )
         .Build();
+
+    // PerRow graph replacement needs the inverse journal; without it, replacements are rejected before any delete.
+    private void EnableRollbackJournal() =>
+        configuration = new ConfigurationBuilder()
+            .AddConfiguration(configuration)
+            .AddInMemoryCollection(
+                new Dictionary<string, string?>
+                {
+                    ["DataMigrationRollback:EncryptionKey"] = Convert.ToBase64String(new byte[32]),
+                    ["DataMigrationRollback:KeyId"] = "6c3f0f8e-2b1a-4d5e-9f00-000000000a12",
+                }
+            )
+            .Build();
 
     public ValueTask InitializeAsync()
     {
@@ -1082,6 +1096,1018 @@ public sealed class SsSchedulingBulkPostgresTests : IAsyncLifetime
         );
     }
 
+    [Fact(Skip = TemplatesSkipReason, SkipUnless = nameof(AreTemplatesConfigured))]
+    public async Task DryRun_RerunOptimisationsApplyOnlyToPerRow()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        EnableAudit();
+        SsPhaseLog.Observer = ObservePhase;
+        var fixture = await AdverseFixtureAsync(ct);
+        var cases = new[]
+        {
+            (Mode: MigrationPersistenceMode.PerRow, Plan: false, Prefetch: false),
+            (Mode: MigrationPersistenceMode.PerRow, Plan: true, Prefetch: false),
+            (Mode: MigrationPersistenceMode.PerRow, Plan: false, Prefetch: true),
+            (Mode: MigrationPersistenceMode.PerRow, Plan: true, Prefetch: true),
+            (Mode: MigrationPersistenceMode.Bulk, Plan: true, Prefetch: true),
+        };
+        string[] compared = [.. BusinessSections, "linked"];
+        KeyValuePair<(string Type, string Id), string>[]? expected = null;
+
+        foreach (var (mode, plan, prefetch) in cases)
+        {
+            var fresh = new Clone(
+                await CreateDatabaseAsync(
+                    $"migration_it_sched_dry_flags_{databases.Count}_{suffix}",
+                    await SeededTargetAsync(ct),
+                    ct
+                ),
+                NewOptions(fixture.Source, mode, 7, 5),
+                fixture.BaselineMax
+            );
+            fresh.Options.Sources.SS.Jobs.Scheduling.PlanReplacementFamiliesOnly = plan;
+            fresh.Options.Sources.SS.Jobs.Scheduling.PrefetchReplayRecords = prefetch;
+            var baseline = await SnapshotAsync(fresh, true, ct);
+            var myTeam = await RunAsync(fresh, ct, job: "MyTeam", dryRun: true);
+            await AssertRunAsync(fresh, myTeam, "Completed", ct);
+
+            var reads = new SsReplayPrefetchTests.PageReadCounter();
+            var run = await RunAsync(fresh, ct, dryRun: true, interceptors: [reads]);
+            await AssertNoTechnicalFailureAsync(fresh, run, ct);
+            var perRow = mode == MigrationPersistenceMode.PerRow;
+            Assert.Equal(perRow && plan, PlanSkipped(run));
+            Assert.Equal(perRow && prefetch, reads.Count > 0);
+            AssertEquivalent(baseline, await SnapshotAsync(fresh, true, ct), compared, "dry run");
+
+            var outcomes = (await OutcomesAsync(fresh, run, ct))
+                .Where(x => IsGraphType(x.Key.Type))
+                .OrderBy(x => x.Key)
+                .ToArray();
+            Assert.NotEmpty(outcomes);
+            if (expected is null)
+                expected = outcomes;
+            else
+                Assert.Equal(expected, outcomes);
+        }
+    }
+
+    // ------------------------------------------------------------------ PerRow rerun guards
+
+    // Pins the PerRow rules that decide whether a source row still needs transfer. Rerun speed-ups must keep every
+    // assertion here: nothing is inserted twice, unchanged rows stay untouched, changed rows take the same update or
+    // review path, rows without a crosswalk are re-evaluated, and missing capture receipts are recaptured.
+    [Theory(Skip = TemplatesSkipReason, SkipUnless = nameof(AreTemplatesConfigured))]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task PerRowRerun_KeepsDuplicateAndChangeDetectionGuards(bool planReplacementFamiliesOnly)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        EnableAudit();
+        SsPhaseLog.Observer = ObservePhase;
+        var fixture = await AdverseFixtureAsync(ct);
+        var clone = await CloneAsync(fixture, "guard", MigrationPersistenceMode.PerRow, ct, chunk: 7, batch: 5);
+        clone.Options.Sources.SS.Jobs.Scheduling.PlanReplacementFamiliesOnly = planReplacementFamiliesOnly;
+        // With the switch on, planning is skipped exactly when no captured family needs graph replacement.
+        void AssertPlanSkipped(Guid run, bool expected) =>
+            Assert.Equal(planReplacementFamiliesOnly && expected, PlanSkipped(run));
+
+        // Round 1 then an unchanged rerun.
+        var first = await RunAsync(clone, ct);
+        await AssertNoTechnicalFailureAsync(clone, first, ct);
+        AssertPlanSkipped(first, true);
+        var firstOutcomes = await OutcomesAsync(clone, first, ct);
+        var business = await SnapshotAsync(clone, true, ct);
+        var records = await RecordRowsAsync(clone, ct);
+        var rerun = await RunAsync(clone, ct);
+        await AssertNoTechnicalFailureAsync(clone, rerun, ct);
+        await AssertRerunAsync(clone, rerun, ct);
+        AssertPlanSkipped(rerun, true);
+        AssertEquivalent(business, await SnapshotAsync(clone, true, ct), BusinessSections, "unchanged rerun");
+        Assert.Equal(records, await RecordRowsAsync(clone, ct));
+        await AssertNoDuplicatesOrOrphansAsync(clone, ct);
+        var rerunOutcomes = await OutcomesAsync(clone, rerun, ct);
+        Assert.Equal(
+            firstOutcomes.Keys.Where(x => IsGraphType(x.Type)).Order(),
+            rerunOutcomes.Keys.Where(x => IsGraphType(x.Type)).Order()
+        );
+        foreach (var (key, outcome) in rerunOutcomes.Where(x => IsGraphType(x.Key.Type)))
+        {
+            // Transferred rows resolve through their crosswalk; every other row gets the same verdict again.
+            var original = firstOutcomes[key];
+            if (IsBlocked(original) || outcome == original)
+                Assert.Equal(original, outcome);
+            else
+                Assert.True(
+                    outcome.EndsWith(":ExistingCrosswalk", StringComparison.Ordinal)
+                        || outcome.EndsWith(":ExistingGroupCrosswalk", StringComparison.Ordinal),
+                    $"rerun {key}: {outcome} (round 1 {original})"
+                );
+        }
+        Assert.Equal("Migrated:ExistingCrosswalk", rerunOutcomes[("Duty", "900000")]);
+        Assert.Equal("Merged:ExistingGroupCrosswalk", rerunOutcomes[("Shift", "900000")]);
+        Assert.Equal("Migrated:ExistingGroupCrosswalk", rerunOutcomes[("Assignment", "900000")]);
+
+        // Crash after the write commit and before capture: drop the capture receipts of two components.
+        var receipts = await ReceiptRowsAsync(clone, ct);
+        Assert.NotEmpty(receipts);
+        await ExecuteAsync(
+            clone.ConnectionString,
+            """
+            WITH lost AS (
+              SELECT "TargetType","TargetKey" FROM "DataMigrationRecords"
+              WHERE "Source"='SS' AND "EntityType"='SchedulingComponent'
+              ORDER BY "TargetType","TargetKey" LIMIT 2),
+            gone AS (
+              SELECT r."Id" FROM "DataMigrationRecords" r JOIN lost l
+                ON l."TargetType"=r."TargetType" AND l."TargetKey"=r."TargetKey"
+              WHERE r."Source"='SS' AND r."EntityType" IN ('SchedulingComponent','SchedulingMember'))
+            , m AS (DELETE FROM "DataMigrationMutations" WHERE "DataMigrationRecordId" IN (SELECT "Id" FROM gone))
+            DELETE FROM "DataMigrationRecords" WHERE "Id" IN (SELECT "Id" FROM gone);
+            """,
+            ct
+        );
+        Assert.True((await ReceiptRowsAsync(clone, ct)).Count < receipts.Count);
+        var recapture = await RunAsync(clone, ct);
+        await AssertNoTechnicalFailureAsync(clone, recapture, ct);
+        await AssertRerunAsync(clone, recapture, ct);
+        AssertPlanSkipped(recapture, true);
+        Assert.Equal(receipts, await ReceiptRowsAsync(clone, ct));
+        AssertEquivalent(business, await SnapshotAsync(clone, true, ct), BusinessSections[..^1], "recapture");
+        await AssertNoDuplicatesOrOrphansAsync(clone, ct);
+
+        // Round 2: a Unified edit without a source change, a linked-only source change and a new graph.
+        await ExecuteAsync(clone.ConnectionString, AdverseTargetDrift, ct);
+        await ExecuteAsync(fixture.Source, AdverseRound2Delta, ct);
+        var second = await RunAsync(clone, ct);
+        await AssertNoTechnicalFailureAsync(clone, second, ct);
+        var secondOutcomes = await OutcomesAsync(clone, second, ct);
+        // A Unified edit with no source change is left alone; the new graph is inserted.
+        Assert.Equal("Migrated:ExistingGroupCrosswalk", secondOutcomes[("Shift", "910030")]);
+        Assert.Equal("Migrated:ExistingCrosswalk", secondOutcomes[("CourtRoom", "900000")]);
+        Assert.Equal("Migrated:", secondOutcomes[("Shift", "910040")]);
+        Assert.Equal("Migrated:", secondOutcomes[("Duty", "910040")]);
+        Assert.Equal("Migrated:", secondOutcomes[("DutySlot", "910040")]);
+        await AssertNoDuplicatesOrOrphansAsync(clone, ct);
+        var afterSecond = await RecordRowsAsync(clone, ct);
+        var again = await RunAsync(clone, ct);
+        await AssertNoTechnicalFailureAsync(clone, again, ct);
+        await AssertRerunAsync(clone, again, ct);
+        Assert.Equal(afterSecond, await RecordRowsAsync(clone, ct));
+        Assert.Equal(
+            1,
+            await CountAsync(
+                clone.ConnectionString,
+                """SELECT COUNT(*) FROM "DataMigrationRecords" WHERE "EntityType"='Shift' AND "LegacyId"='910040'""",
+                ct
+            )
+        );
+
+        // Round 3: an UpdatedOn-only touch, a change on a Unified-edited target, a clean owned change and a new
+        // future duty that joins an existing recurrence (graph replacement and rebinding).
+        await ExecuteAsync(fixture.Source, AdverseRound3Delta, ct);
+        var third = await RunAsync(clone, ct);
+        await AssertNoTechnicalFailureAsync(clone, third, ct);
+        AssertPlanSkipped(third, false);
+        var thirdOutcomes = await OutcomesAsync(clone, third, ct);
+        Assert.Equal("Migrated:OwnedFullGroupUpdate", thirdOutcomes[("Shift", "900002")]);
+        Assert.Equal("Rejected:GraphReplacementRequiresInverseJournal", thirdOutcomes[("Shift", "910030")]);
+        Assert.Equal("Rejected:GraphReplacementRequiresInverseJournal", thirdOutcomes[("Shift", "910031")]);
+        Assert.Equal("Migrated:", thirdOutcomes[("Duty", "910050")]);
+        Assert.Equal("Failed:MaterialMissingShiftUserLink", thirdOutcomes[("DutySlot", "910050")]);
+        // Rows migrated earlier and now rejected keep their crosswalk, so only the duplicate checks apply here.
+        await AssertNoDuplicatesOrOrphansAsync(clone, ct, rejectedOwnNothing: false);
+        var afterThird = await RecordRowsAsync(clone, ct);
+        Assert.Contains(
+            afterThird,
+            x =>
+                x.StartsWith("Shift:900002|", StringComparison.Ordinal)
+                && x.EndsWith("|2026-11-21T00:00:00Z", StringComparison.Ordinal)
+        );
+        var settled = await RunAsync(clone, ct);
+        await AssertNoTechnicalFailureAsync(clone, settled, ct);
+        await AssertRerunAsync(clone, settled, ct);
+        Assert.Equal(afterThird, await RecordRowsAsync(clone, ct));
+        await AssertNoDuplicatesOrOrphansAsync(clone, ct, rejectedOwnNothing: false);
+        var settledOutcomes = await OutcomesAsync(clone, settled, ct);
+        // Rejected and failed rows are reported again on every rerun; they are never treated as transferred.
+        foreach (var (key, outcome) in thirdOutcomes.Where(x => IsGraphType(x.Key.Type) && IsBlocked(x.Value)))
+            Assert.Equal(outcome, settledOutcomes.GetValueOrDefault(key));
+    }
+
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<Guid, bool> SkippedPlans = new();
+
+    private static void ObservePhase(Guid run, string phase, string state, long? units)
+    {
+        if (phase == "Plan" && state == "Skipped")
+            SkippedPlans[run] = true;
+    }
+
+    private static bool PlanSkipped(Guid run) => SkippedPlans.ContainsKey(run);
+
+    // Every rerun speed-up switch. A switch may only skip work whose result is already proven, so turning
+    // them all on must leave the migrated state identical to the full path.
+    private static void EnableRerunOptimisations(DataMigrationOptions options)
+    {
+        options.Sources.SS.Jobs.Scheduling.PlanReplacementFamiliesOnly = true;
+        options.Sources.SS.Jobs.Scheduling.PrefetchReplayRecords = true;
+    }
+
+    // Simulates a crash after the write commit and before capture: two components lose their receipts.
+    private const string DropTwoComponentReceipts = """
+        WITH lost AS (
+          SELECT "TargetType","TargetKey" FROM "DataMigrationRecords"
+          WHERE "Source"='SS' AND "EntityType"='SchedulingComponent'
+          ORDER BY "LegacyId" LIMIT 2),
+        gone AS (
+          SELECT r."Id" FROM "DataMigrationRecords" r JOIN lost l
+            ON l."TargetType"=r."TargetType" AND l."TargetKey"=r."TargetKey"
+          WHERE r."Source"='SS' AND r."EntityType" IN ('SchedulingComponent','SchedulingMember'))
+        , m AS (DELETE FROM "DataMigrationMutations" WHERE "DataMigrationRecordId" IN (SELECT "Id" FROM gone))
+        DELETE FROM "DataMigrationRecords" WHERE "Id" IN (SELECT "Id" FROM gone);
+        """;
+
+    [Fact(Skip = TemplatesSkipReason, SkipUnless = nameof(AreTemplatesConfigured))]
+    public async Task RerunOptimisations_LeaveStateIdenticalToFullPath_AcrossRounds()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        EnableAudit();
+        EnableRollbackJournal();
+        SsPhaseLog.Observer = ObservePhase;
+        var fixture = await AdverseFixtureAsync(ct);
+        var full = await CloneAsync(fixture, "eq_full", MigrationPersistenceMode.PerRow, ct, chunk: 7, batch: 5);
+        var fast = await CloneAsync(fixture, "eq_fast", MigrationPersistenceMode.PerRow, ct, chunk: 7, batch: 5);
+        var bulkFull = await CloneAsync(fixture, "eq_bfull", MigrationPersistenceMode.Bulk, ct, chunk: 7, batch: 5);
+        var bulkFast = await CloneAsync(fixture, "eq_bfast", MigrationPersistenceMode.Bulk, ct, chunk: 7, batch: 5);
+        EnableRerunOptimisations(fast.Options);
+        EnableRerunOptimisations(bulkFast.Options);
+
+        async Task<Guid> RoundAsync(Clone expected, Clone actual, string label)
+        {
+            var perRow = expected.Options.Sources.SS.Jobs.Scheduling.PersistenceMode == MigrationPersistenceMode.PerRow;
+            var expectedBefore = await TargetKeysAsync(expected, ct);
+            var actualBefore = await TargetKeysAsync(actual, ct);
+            var expectedCrosswalksBefore = perRow ? await CrosswalkIdentitiesAsync(expected, ct) : null;
+            var actualCrosswalksBefore = perRow ? await CrosswalkIdentitiesAsync(actual, ct) : null;
+            var expectedRun = await RunAsync(expected, ct);
+            var actualRun = await RunAsync(actual, ct);
+            await AssertNoTechnicalFailureAsync(expected, expectedRun, ct);
+            await AssertNoTechnicalFailureAsync(actual, actualRun, ct);
+            var snapshot = await SnapshotAsync(expected, true, ct);
+            AssertEquivalent(snapshot, await SnapshotAsync(actual, true, ct), snapshot.Keys, label);
+            // Snapshots normalise target IDs, so also prove the same targets were kept (not deleted and re-inserted).
+            var expectedRebound = Rebound(expectedBefore, await TargetKeysAsync(expected, ct));
+            Assert.Equal(expectedRebound, Rebound(actualBefore, await TargetKeysAsync(actual, ct)));
+            // Rebinding only happens in graph replacement, which reads the plan: it must never have been skipped.
+            if (expectedRebound.Count > 0)
+                Assert.False(PlanSkipped(actualRun), $"{label}: planning skipped although a graph was replaced");
+            var expectedJournal = await JournalRowsAsync(expected, expectedRun, ct);
+            var actualJournal = await JournalRowsAsync(actual, actualRun, ct);
+            if (perRow)
+            {
+                await using var modelContext = Db(expected.ConnectionString);
+                var comparison = new JournalComparison(
+                    modelContext.Model,
+                    expected.BaselineMax,
+                    await JournalRunLabelsAsync(expected, ct),
+                    await JournalRunLabelsAsync(actual, ct),
+                    label
+                );
+                comparison.PairCrosswalks(expectedCrosswalksBefore!, actualCrosswalksBefore!);
+                comparison.PairCrosswalks(
+                    await CrosswalkIdentitiesAsync(expected, ct),
+                    await CrosswalkIdentitiesAsync(actual, ct)
+                );
+                comparison.AssertEquivalent(expectedJournal, actualJournal);
+            }
+            else
+            {
+                Assert.Empty(expectedJournal);
+                Assert.Empty(actualJournal);
+            }
+            if (label == "changed captured component")
+            {
+                Assert.Contains("Shift:910031", expectedRebound);
+                Assert.Contains(
+                    expectedJournal,
+                    x => x.Table == "ShiftEntries" && x.Operation == "D" && x.BeforeImage is not null
+                );
+            }
+            return actualRun;
+        }
+
+        // Bulk never reads the switches; it must stay identical with them set.
+        await AssertNotRefusedAsync(bulkFast, await RoundAsync(bulkFull, bulkFast, "bulk first apply"), ct);
+
+        await RoundAsync(full, fast, "first apply");
+        await RoundAsync(full, fast, "no-change rerun");
+        await ExecuteAsync(full.ConnectionString, DropTwoComponentReceipts, ct);
+        await ExecuteAsync(fast.ConnectionString, DropTwoComponentReceipts, ct);
+        await RoundAsync(full, fast, "resume after capture failure");
+        // A Unified edit, a renamed (reference) court room and a new graph.
+        var driftSql = AdverseTargetDrift.Replace("now()", "@updatedOn", StringComparison.Ordinal);
+        Assert.Contains("@updatedOn", driftSql);
+        var driftOn = DateTimeOffset.UtcNow;
+        await ExecuteAsync(full.ConnectionString, driftSql, ct, new NpgsqlParameter("updatedOn", driftOn));
+        await ExecuteAsync(fast.ConnectionString, driftSql, ct, new NpgsqlParameter("updatedOn", driftOn));
+        await ExecuteAsync(fixture.Source, AdverseRound2Delta, ct);
+        await RoundAsync(full, fast, "reference target changed");
+        await RoundAsync(full, fast, "rerun after reference change");
+        // Owned changes to captured components: graph replacement and rebinding.
+        await ExecuteAsync(fixture.Source, AdverseRound3Delta, ct);
+        await RoundAsync(full, fast, "changed captured component");
+        await RoundAsync(full, fast, "settled rerun");
+        // A new shift overlapping a captured group: an owned in-place group merge.
+        await ExecuteAsync(fixture.Source, OverlappingShiftJoinsCapturedGroup, ct);
+        await RoundAsync(full, fast, "captured group merge");
+        await RoundAsync(full, fast, "settled after group merge");
+        // Changes outside graph replacement: replayed from the per-row record, never from a stale page.
+        await ExecuteAsync(fixture.Source, """UPDATE "Duty" SET "UpdatedOn"='2026-11-23Z' WHERE "Id"=910040;""", ct);
+        var touched = await RoundAsync(full, fast, "duty touched");
+        Assert.Equal("Migrated:UnchangedMappedSource", (await OutcomesAsync(fast, touched, ct))[("Duty", "910040")]);
+        await ExecuteAsync(
+            fixture.Source,
+            """UPDATE "Duty" SET "Comment"='round 5 changed',"UpdatedOn"='2026-11-24Z' WHERE "Id"=910040;""",
+            ct
+        );
+        var changed = await RoundAsync(full, fast, "duty comment changed");
+        Assert.Equal("Migrated:OwnedMappedUpdate", (await OutcomesAsync(fast, changed, ct))[("Duty", "910040")]);
+        await RoundAsync(full, fast, "settled after duty change");
+    }
+
+    private const string OverlappingShiftJoinsCapturedGroup = """
+        INSERT INTO "Shift" ("Id","StartDate","EndDate","LocationId","CreatedOn","SheriffId","Timezone","OvertimeHours","Comment")
+        VALUES (910041,'2026-11-16T15:00Z','2026-11-16T18:00Z',900000,'2026-11-22Z','11111111-1111-4111-8111-111111111111','Etc/UTC',0,'round 4 overlap');
+        """;
+
+    private static async Task<Dictionary<string, string>> TargetKeysAsync(Clone clone, CancellationToken ct) => (
+            await TextRowsAsync(
+                clone,
+                """
+                SELECT "EntityType"||':'||"LegacyId"||'|'||"TargetType"||':'||"TargetKey"
+                FROM "DataMigrationRecords" WHERE "Source"='SS' AND NOT "IsDeleted"
+                  AND "EntityType" NOT IN ('SchedulingComponent','SchedulingMember')
+                """,
+                ct
+            )
+        ).Select(x => x.Split('|')).ToDictionary(x => x[0], x => x[1]);
+
+    // Legacy rows that existed before the round and now point at a different (or no) target.
+    private static List<string> Rebound(Dictionary<string, string> before, Dictionary<string, string> after) =>
+        before.Where(x => !after.TryGetValue(x.Key, out var now) || now != x.Value).Select(x => x.Key).Order().ToList();
+
+    private sealed record CrosswalkIdentity(
+        long Id,
+        string TargetType,
+        string TargetKey,
+        string PayloadHash,
+        string? AfterHash
+    );
+
+    private static async Task<Dictionary<(string Type, string Id), CrosswalkIdentity>> CrosswalkIdentitiesAsync(
+        Clone clone,
+        CancellationToken ct
+    )
+    {
+        await using var db = Db(clone.ConnectionString);
+        var records = await db
+            .DataMigrationRecords.AsNoTracking()
+            .Where(x => x.Source == "SS")
+            .Select(x => new
+            {
+                x.Id,
+                x.EntityType,
+                x.LegacyId,
+                x.TargetType,
+                x.TargetKey,
+                x.PayloadHash,
+                x.AfterHash,
+            })
+            .ToListAsync(ct);
+        return records.ToDictionary(
+            x => (x.EntityType, x.LegacyId),
+            x => new CrosswalkIdentity(x.Id, x.TargetType, x.TargetKey, x.PayloadHash, x.AfterHash)
+        );
+    }
+
+    private sealed record JournalWindow(string Run, DateTimeOffset StartedOn, DateTimeOffset CompletedOn);
+
+    private sealed record JournalLabels(
+        Dictionary<Guid, string> Runs,
+        Dictionary<DateTimeOffset, string> Starts,
+        IReadOnlyList<JournalWindow> Windows
+    )
+    {
+        internal string? RunAt(DateTimeOffset timestamp)
+        {
+            string? found = null;
+            foreach (var window in Windows)
+            {
+                if (timestamp < window.StartedOn || timestamp > window.CompletedOn)
+                    continue;
+                if (found is not null)
+                    return null; // Overlapping windows are ambiguous and cannot normalize different values.
+                found = window.Run;
+            }
+            return found;
+        }
+    }
+
+    private static async Task<JournalLabels> JournalRunLabelsAsync(Clone clone, CancellationToken ct)
+    {
+        await using var db = Db(clone.ConnectionString);
+        var runs = await db
+            .DataMigrationRuns.AsNoTracking()
+            .Where(x => x.Source == "SS" && !x.DryRun)
+            .OrderBy(x => x.StartedOn)
+            .Select(x => new
+            {
+                x.Id,
+                x.Job,
+                x.StartedOn,
+                x.CompletedOn,
+            })
+            .ToListAsync(ct);
+        var ids = new Dictionary<Guid, string>();
+        var starts = new Dictionary<DateTimeOffset, string>();
+        var windows = new List<JournalWindow>();
+        foreach (var group in runs.GroupBy(x => x.Job))
+        {
+            var ordinal = 0;
+            foreach (var run in group)
+            {
+                var name = $"{group.Key}#{++ordinal}";
+                Assert.True(run.StartedOn is not null && run.CompletedOn is not null, $"{name}: incomplete run window");
+                var start = run.StartedOn!.Value.ToUniversalTime();
+                var end = run.CompletedOn!.Value.ToUniversalTime();
+                Assert.True(end >= start, $"{name}: invalid run window");
+                ids.Add(run.Id, name);
+                Assert.True(starts.TryAdd(start, name), $"{name}: ambiguous run start");
+                windows.Add(new JournalWindow(name, start, end));
+            }
+        }
+        return new JournalLabels(ids, starts, windows);
+    }
+
+    private sealed record JournalRow(
+        Guid KeyId,
+        string Schema,
+        string Table,
+        string Operation,
+        string RowKey,
+        string? BeforeImage,
+        string AfterHash,
+        string AfterVersion,
+        string[] ChangedColumns,
+        bool BeforeHadPhoto,
+        bool PhotoChanged
+    );
+
+    private static async Task<List<JournalRow>> JournalRowsAsync(Clone clone, Guid run, CancellationToken ct)
+    {
+        await using var connection = new NpgsqlConnection(clone.ConnectionString);
+        await connection.OpenAsync(ct);
+        await using var command = new NpgsqlCommand(
+            """
+            SELECT "KeyId","SchemaName","TableName","Operation","RowKey"::text,
+                   CASE WHEN "BeforeImage" IS NULL THEN NULL ELSE pgp_sym_decrypt("BeforeImage",@key) END,
+                   "AfterHash","AfterVersion","ChangedColumns","BeforeHadPhoto","PhotoChanged"
+            FROM "DataMigrationJournals" WHERE "RunId"=@run ORDER BY "Id"
+            """,
+            connection
+        );
+        // Only the fixed synthetic test key from EnableRollbackJournal is used.
+        command.Parameters.AddWithValue("key", Convert.ToBase64String(new byte[32]));
+        command.Parameters.AddWithValue("run", run);
+        await using var reader = await command.ExecuteReaderAsync(ct);
+        var rows = new List<JournalRow>();
+        while (await reader.ReadAsync(ct))
+            rows.Add(
+                new JournalRow(
+                    reader.GetGuid(0),
+                    reader.GetString(1),
+                    reader.GetString(2),
+                    reader.GetString(3),
+                    reader.GetString(4),
+                    reader.IsDBNull(5) ? null : reader.GetString(5),
+                    reader.GetString(6),
+                    reader.GetString(7),
+                    reader.GetFieldValue<string[]>(8),
+                    reader.GetBoolean(9),
+                    reader.GetBoolean(10)
+                )
+            );
+        return rows;
+    }
+
+    // Compare the actual ordered inverse operations and decrypted images, not mutation nullness. IDs are paired
+    // bijectively and anchored by crosswalks before AND after the run, including deleted/replaced graph targets.
+    // Scheduling row/graph saves flush before the final run completion. In these isolated clones there are no
+    // concurrent target editors, and the sole out-of-run edit uses the same timestamp on both sides. A matching
+    // run window is therefore treated as a generated UpdatedOn, not as proof of timestamp provenance generally.
+    // Other normalization is limited to run starts, generated IDs, xmin and hashes that incorporate those IDs.
+    private sealed class JournalComparison(
+        IModel model,
+        Dictionary<string, long> baseline,
+        JournalLabels leftRuns,
+        JournalLabels rightRuns,
+        string label
+    )
+    {
+        private readonly Dictionary<string, IEntityType> tables = model
+            .GetEntityTypes()
+            .Where(x => x.GetTableName() is not null)
+            .GroupBy(x => x.GetTableName()!)
+            .ToDictionary(x => x.Key, x => x.First());
+        private readonly Dictionary<string, string> targetTables = BusinessTypes.ToDictionary(
+            x => x.Name,
+            x => model.FindEntityType(x)!.GetTableName()!
+        );
+        private readonly Dictionary<(string Table, string Id), string> forward = [];
+        private readonly Dictionary<(string Table, string Id), string> reverse = [];
+
+        private bool DynamicTable(string table) =>
+            targetTables.ContainsValue(table)
+            || table
+                is "DataMigrationRecords"
+                    or "DataMigrationMutations"
+                    or "DataMigrationWorkItems"
+                    or "DataMigrationCheckpoints";
+
+        private void Check(bool condition, string what) => Assert.True(condition, $"{label}: {what}");
+
+        private void Pair(string table, string left, string right)
+        {
+            var business = BusinessTypes.FirstOrDefault(x => targetTables[x.Name] == table);
+            if (
+                business is not null
+                && baseline.TryGetValue(business.Name, out var floor)
+                && long.TryParse(left, NumberStyles.Integer, CultureInfo.InvariantCulture, out var l)
+                && long.TryParse(right, NumberStyles.Integer, CultureInfo.InvariantCulture, out var r)
+                && (l <= floor || r <= floor)
+            )
+            {
+                Check(l == r, $"{table} baseline identity differs");
+                return;
+            }
+            Check(
+                !forward.TryGetValue((table, left), out var priorRight) || priorRight == right,
+                $"{table} ID mapping differs"
+            );
+            Check(
+                !reverse.TryGetValue((table, right), out var priorLeft) || priorLeft == left,
+                $"{table} ID mapping is not one-to-one"
+            );
+            forward[(table, left)] = right;
+            reverse[(table, right)] = left;
+        }
+
+        internal void PairCrosswalks(
+            Dictionary<(string Type, string Id), CrosswalkIdentity> left,
+            Dictionary<(string Type, string Id), CrosswalkIdentity> right
+        )
+        {
+            Check(left.Keys.ToHashSet().SetEquals(right.Keys), "crosswalk identities differ");
+            foreach (var (key, a) in left)
+            {
+                var b = right[key];
+                Check(a.TargetType == b.TargetType, $"crosswalk target type differs for {key.Type}:{key.Id}");
+                Pair(
+                    "DataMigrationRecords",
+                    a.Id.ToString(CultureInfo.InvariantCulture),
+                    b.Id.ToString(CultureInfo.InvariantCulture)
+                );
+                if (targetTables.TryGetValue(a.TargetType, out var table))
+                    Pair(table, a.TargetKey, b.TargetKey);
+                else
+                    Check(a.TargetKey == b.TargetKey, $"crosswalk target differs for {key.Type}:{key.Id}");
+                Check(
+                    (a.AfterHash is null) == (b.AfterHash is null),
+                    $"crosswalk hash presence differs for {key.Type}:{key.Id}"
+                );
+                if (a.AfterHash is not null)
+                    Pair("target-after-hash", a.AfterHash, b.AfterHash!);
+                if (key.Type is "Duty" or "DutySlot" or "DutyEntry" or "AssignmentSeries")
+                    Pair("id-bound-payload-hash", a.PayloadHash, b.PayloadHash);
+                else
+                    Check(a.PayloadHash == b.PayloadHash, $"crosswalk payload differs for {key.Type}:{key.Id}");
+            }
+        }
+
+        internal void AssertEquivalent(IReadOnlyList<JournalRow> left, IReadOnlyList<JournalRow> right)
+        {
+            Check(left.Count == right.Count, "inverse journal operation count differs");
+            for (var i = 0; i < left.Count; i++)
+            {
+                var a = left[i];
+                var b = right[i];
+                Check(
+                    a.KeyId == b.KeyId && a.Schema == b.Schema && a.Table == b.Table && a.Operation == b.Operation,
+                    $"inverse journal operation {i} differs"
+                );
+                Check(a.ChangedColumns.SequenceEqual(b.ChangedColumns), $"{a.Table} changed columns differ");
+                Check(
+                    a.BeforeHadPhoto == b.BeforeHadPhoto && a.PhotoChanged == b.PhotoChanged,
+                    $"{a.Table} photo flags differ"
+                );
+                Check(
+                    (a.AfterVersion == "missing") == (b.AfterVersion == "missing"),
+                    $"{a.Table} version state differs"
+                );
+                Check((a.AfterHash == "missing") == (b.AfterHash == "missing"), $"{a.Table} after-image state differs");
+                Pair("journal-after-hash", a.AfterHash, b.AfterHash);
+                CompareObject(a.Table, a.RowKey, b.RowKey);
+                if (a.Operation == "I")
+                    Check(a.BeforeImage is null && b.BeforeImage is null, $"{a.Table} insert has a before-image");
+                else
+                {
+                    Check(a.BeforeImage is not null && b.BeforeImage is not null, $"{a.Table} before-image missing");
+                    CompareObject(a.Table, a.BeforeImage!, b.BeforeImage!);
+                }
+            }
+        }
+
+        private void CompareObject(string table, string left, string right)
+        {
+            using var a = JsonDocument.Parse(left);
+            using var b = JsonDocument.Parse(right);
+            var aFields = a.RootElement.EnumerateObject().OrderBy(x => x.Name, StringComparer.Ordinal).ToList();
+            var bFields = b.RootElement.EnumerateObject().OrderBy(x => x.Name, StringComparer.Ordinal).ToList();
+            Check(
+                aFields.Select(x => x.Name).SequenceEqual(bFields.Select(x => x.Name)),
+                $"{table} image columns differ"
+            );
+            for (var i = 0; i < aFields.Count; i++)
+                CompareValue(table, a.RootElement, b.RootElement, aFields[i].Name, aFields[i].Value, bFields[i].Value);
+        }
+
+        private void CompareValue(
+            string table,
+            JsonElement leftRow,
+            JsonElement rightRow,
+            string column,
+            JsonElement left,
+            JsonElement right
+        )
+        {
+            Check(left.ValueKind == right.ValueKind, $"{table}.{column} image kind differs");
+            if (left.ValueKind == JsonValueKind.Null)
+                return;
+            var a = left.ValueKind == JsonValueKind.String ? left.GetString()! : left.GetRawText();
+            var b = right.ValueKind == JsonValueKind.String ? right.GetString()! : right.GetRawText();
+            tables.TryGetValue(table, out var entity);
+            var property = entity?.GetProperties().FirstOrDefault(x => x.GetColumnName() == column);
+            if (property?.IsPrimaryKey() == true && DynamicTable(table))
+            {
+                Pair(table, a, b);
+                return;
+            }
+            var principal = property
+                ?.GetContainingForeignKeys()
+                .Select(x => x.PrincipalEntityType.GetTableName())
+                .FirstOrDefault(x => x is not null && DynamicTable(x));
+            if (principal is not null)
+            {
+                Pair(principal, a, b);
+                return;
+            }
+            if (table == "DataMigrationRecords" && column == "TargetKey")
+            {
+                var target = leftRow.GetProperty("TargetType").GetString()!;
+                Check(target == rightRow.GetProperty("TargetType").GetString(), "crosswalk image target type differs");
+                if (targetTables.TryGetValue(target, out var targetTable))
+                {
+                    Pair(targetTable, a, b);
+                    return;
+                }
+            }
+            if (
+                table == "DataMigrationRecords" && column == "AfterHash"
+                || table == "DataMigrationMutations" && column == "AfterHash"
+            )
+            {
+                Pair("target-after-hash", a, b);
+                return;
+            }
+            if (
+                table == "DataMigrationRecords"
+                && column == "PayloadHash"
+                && leftRow.GetProperty("EntityType").GetString()
+                    is "Duty"
+                        or "DutySlot"
+                        or "DutyEntry"
+                        or "AssignmentSeries"
+            )
+            {
+                Pair("id-bound-payload-hash", a, b);
+                return;
+            }
+            if (table == "DataMigrationMutations" && column == "Version")
+                return; // PostgreSQL xmin differs between transactions.
+            if (Guid.TryParse(a, out var aGuid) && Guid.TryParse(b, out var bGuid))
+            {
+                var foundLeft = leftRuns.Runs.TryGetValue(aGuid, out var leftRun);
+                var foundRight = rightRuns.Runs.TryGetValue(bGuid, out var rightRun);
+                if (foundLeft || foundRight)
+                {
+                    Check(foundLeft && foundRight && leftRun == rightRun, $"{table}.{column} run differs");
+                    return;
+                }
+            }
+            var type = Nullable.GetUnderlyingType(property?.ClrType ?? typeof(object)) ?? property?.ClrType;
+            if (
+                (type == typeof(DateTimeOffset) || type == typeof(DateTime))
+                && DateTimeOffset.TryParse(
+                    a,
+                    CultureInfo.InvariantCulture,
+                    DateTimeStyles.AssumeUniversal,
+                    out var aTime
+                )
+                && DateTimeOffset.TryParse(
+                    b,
+                    CultureInfo.InvariantCulture,
+                    DateTimeStyles.AssumeUniversal,
+                    out var bTime
+                )
+            )
+            {
+                if (aTime == bTime)
+                    return;
+                if (column == "UpdatedOn")
+                {
+                    var leftWindow = leftRuns.RunAt(aTime);
+                    var rightWindow = rightRuns.RunAt(bTime);
+                    Check(leftWindow is not null && leftWindow == rightWindow, $"{table}.{column} run window differs");
+                    return;
+                }
+                var foundLeft = leftRuns.Starts.TryGetValue(aTime.ToUniversalTime(), out var leftStart);
+                var foundRight = rightRuns.Starts.TryGetValue(bTime.ToUniversalTime(), out var rightStart);
+                if (foundLeft || foundRight)
+                {
+                    Check(
+                        foundLeft && foundRight && leftStart == rightStart,
+                        $"{table}.{column} run timestamp differs"
+                    );
+                    return;
+                }
+            }
+            Check(a == b, $"{table}.{column} before-image differs");
+        }
+    }
+
+    [Fact]
+    public void JournalComparison_DetectsMissingAndChangedBeforeImages()
+    {
+        using var db = new SqliteTestUnifiedDbContext(
+            new DbContextOptionsBuilder<UnifiedDbContext>().UseSqlite("DataSource=:memory:").Options
+        );
+        var labels = new JournalLabels([], [], []);
+        JournalComparison Comparison() => new(db.Model, [], labels, labels, "synthetic");
+        var original = new JournalRow(
+            Guid.Empty,
+            "public",
+            "Events",
+            "D",
+            """{"Id":10}""",
+            """{"Id":10,"Title":"original","EventSeriesId":null,"UpdatedOn":"2040-01-01T00:00:01Z"}""",
+            "missing",
+            "missing",
+            [],
+            false,
+            false
+        );
+        var equal = original with
+        {
+            RowKey = """{"Id":20}""",
+            BeforeImage = """{"Id":20,"Title":"original","EventSeriesId":null,"UpdatedOn":"2040-01-01T00:00:01Z"}""",
+        };
+        Comparison().AssertEquivalent([original], [equal]);
+        var changed = Assert.ThrowsAny<Exception>(() =>
+            Comparison()
+                .AssertEquivalent(
+                    [original],
+                    [
+                        equal with
+                        {
+                            BeforeImage =
+                                """{"Id":20,"Title":"changed","EventSeriesId":null,"UpdatedOn":"2040-01-01T00:00:01Z"}""",
+                        },
+                    ]
+                )
+        );
+        Assert.Contains("Events.Title", changed.Message);
+        var changedUpdatedOn = Assert.ThrowsAny<Exception>(() =>
+            Comparison()
+                .AssertEquivalent(
+                    [original],
+                    [
+                        equal with
+                        {
+                            BeforeImage =
+                                """{"Id":20,"Title":"original","EventSeriesId":null,"UpdatedOn":"2040-01-01T00:00:02Z"}""",
+                        },
+                    ]
+                )
+        );
+        Assert.Contains("Events.UpdatedOn", changedUpdatedOn.Message);
+        var missing = Assert.ThrowsAny<Exception>(() =>
+            Comparison().AssertEquivalent([original], [equal with { BeforeImage = null }])
+        );
+        Assert.Contains("before-image missing", missing.Message);
+
+        var leftStart = new DateTimeOffset(2026, 11, 25, 0, 0, 0, TimeSpan.Zero);
+        var rightStart = leftStart.AddSeconds(1);
+        var leftLabels = new JournalLabels([], new() { [leftStart] = "Scheduling#1" }, []);
+        var rightLabels = new JournalLabels([], new() { [rightStart] = "Scheduling#1" }, []);
+        new JournalComparison(db.Model, [], leftLabels, rightLabels, "run timestamps").AssertEquivalent(
+            [
+                original with
+                {
+                    BeforeImage =
+                        """{"Id":10,"Title":"original","EventSeriesId":null,"CreatedOn":"2026-11-25T00:00:00Z"}""",
+                },
+            ],
+            [
+                equal with
+                {
+                    BeforeImage =
+                        """{"Id":20,"Title":"original","EventSeriesId":null,"CreatedOn":"2026-11-25T00:00:01Z"}""",
+                },
+            ]
+        );
+    }
+
+    [Fact]
+    public void JournalComparison_NormalizesUpdatedOnOnlyWithinMatchingRunWindows()
+    {
+        using var db = new SqliteTestUnifiedDbContext(
+            new DbContextOptionsBuilder<UnifiedDbContext>().UseSqlite("DataSource=:memory:").Options
+        );
+        var start = new DateTimeOffset(2026, 11, 25, 0, 0, 0, TimeSpan.Zero);
+        var leftFirst = new JournalWindow("Scheduling#1", start, start.AddMinutes(1));
+        var leftSecond = new JournalWindow("Scheduling#2", start.AddMinutes(10), start.AddMinutes(11));
+        var rightFirst = new JournalWindow("Scheduling#1", start.AddMinutes(2), start.AddMinutes(3));
+        var rightSecond = new JournalWindow("Scheduling#2", start.AddMinutes(12), start.AddMinutes(13));
+        var leftLabels = new JournalLabels([], [], [leftFirst, leftSecond]);
+        var rightLabels = new JournalLabels([], [], [rightFirst, rightSecond]);
+        JournalComparison Comparison() => new(db.Model, [], leftLabels, rightLabels, "windows");
+        JournalRow Row(int id, DateTimeOffset updatedOn) =>
+            new(
+                Guid.Empty,
+                "public",
+                "Events",
+                "D",
+                JsonSerializer.Serialize(new { Id = id }),
+                JsonSerializer.Serialize(new { Id = id, UpdatedOn = updatedOn }),
+                "missing",
+                "missing",
+                [],
+                false,
+                false
+            );
+
+        Comparison()
+            .AssertEquivalent(
+                [Row(10, leftFirst.StartedOn.AddSeconds(10))],
+                [Row(20, rightFirst.StartedOn.AddSeconds(30))]
+            );
+        Comparison().AssertEquivalent([Row(10, leftFirst.StartedOn)], [Row(20, rightFirst.CompletedOn)]);
+        // An identical out-of-run edit must not be rejected just because one clone's window contains its value.
+        var shared = leftFirst.StartedOn.AddSeconds(10);
+        Comparison().AssertEquivalent([Row(10, shared)], [Row(20, shared)]);
+
+        var arbitrary = Assert.ThrowsAny<Exception>(() =>
+            Comparison().AssertEquivalent([Row(10, start.AddDays(-2))], [Row(20, start.AddDays(-1))])
+        );
+        Assert.Contains("Events.UpdatedOn", arbitrary.Message);
+        var differentRuns = Assert.ThrowsAny<Exception>(() =>
+            Comparison()
+                .AssertEquivalent(
+                    [Row(10, leftFirst.StartedOn.AddSeconds(10))],
+                    [Row(20, rightSecond.StartedOn.AddSeconds(10))]
+                )
+        );
+        Assert.Contains("Events.UpdatedOn", differentRuns.Message);
+        var outsideWindow = Assert.ThrowsAny<Exception>(() =>
+            Comparison()
+                .AssertEquivalent(
+                    [Row(10, leftFirst.StartedOn.AddSeconds(10))],
+                    [Row(20, rightFirst.CompletedOn.AddSeconds(1))]
+                )
+        );
+        Assert.Contains("Events.UpdatedOn", outsideWindow.Message);
+
+        var overlap = leftLabels with
+        {
+            Windows =
+            [
+                leftFirst,
+                new JournalWindow("Scheduling#2", leftFirst.StartedOn.AddSeconds(5), leftFirst.CompletedOn),
+            ],
+        };
+        var ambiguous = Assert.ThrowsAny<Exception>(() =>
+            new JournalComparison(db.Model, [], overlap, rightLabels, "overlap").AssertEquivalent(
+                [Row(10, leftFirst.StartedOn.AddSeconds(10))],
+                [Row(20, rightFirst.StartedOn.AddSeconds(10))]
+            )
+        );
+        Assert.Contains("Events.UpdatedOn", ambiguous.Message);
+    }
+
+    [Fact(Skip = TemplatesSkipReason, SkipUnless = nameof(AreTemplatesConfigured))]
+    public async Task ReplayPrefetch_NeverAnswersForARecordTrackedInTheJob()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var fixture = await AdverseFixtureAsync(ct);
+        var clone = await CloneAsync(fixture, "prefetch", MigrationPersistenceMode.PerRow, ct);
+        await AssertNoTechnicalFailureAsync(clone, await RunAsync(clone, ct), ct);
+        await using var db = Db(clone.ConnectionString);
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        var ids = await db
+            .DataMigrationRecords.Where(x => x.Source == "SS" && x.EntityType == "Shift")
+            .OrderBy(x => x.LegacyId)
+            .Select(x => x.LegacyId)
+            .Take(3)
+            .ToListAsync(ct);
+        Assert.Equal(3, ids.Count);
+        var (preTracked, plain, written) = (ids[0], ids[1], ids[2]);
+        const string absent = "999999999";
+        var rows = new Dictionary<string, List<SsRow>>
+        {
+            ["Shift"] =
+            [
+                .. ids.Append(absent).Select(id => new SsRow(new Dictionary<string, object?> { ["Id"] = id })),
+            ],
+        };
+        Task<global::Unified.Db.Models.DataMigration.DataMigrationRecord> Tracked(string id) =>
+            db.DataMigrationRecords.SingleAsync(
+                x => x.Source == "SS" && x.EntityType == "Shift" && x.LegacyId == id,
+                ct
+            );
+        await Tracked(preTracked);
+
+        using var prefetch = new SsReplayPrefetch(db, rows);
+        Assert.False((await prefetch.TryGetAsync("Shift", plain, false, ct)).Known);
+        var (known, entry) = await prefetch.TryGetAsync("Shift", plain, true, ct);
+        Assert.True(known);
+        Assert.Equal((await Tracked(plain)).PayloadHash, entry!.PayloadHash);
+        Assert.Equal((true, null), await prefetch.TryGetAsync("Shift", absent, false, ct));
+        Assert.False((await prefetch.TryGetAsync("Shift", preTracked, false, ct)).Known);
+        // A write rolled back by a savepoint and a cleared tracker still never trusts the page.
+        Assert.True((await prefetch.TryGetAsync("Shift", written, false, ct)).Known);
+        await tx.CreateSavepointAsync("plan", ct);
+        (await Tracked(written)).PayloadHash = "changed";
+        await db.SaveChangesAsync(ct);
+        await tx.RollbackToSavepointAsync("plan", ct);
+        db.ChangeTracker.Clear();
+        Assert.False((await prefetch.TryGetAsync("Shift", written, true, ct)).Known);
+        Assert.False((await prefetch.TryGetAsync("Shift", plain, true, ct)).Known);
+        Assert.Equal(1, prefetch.PageLoads);
+    }
+
+    private static bool IsGraphType(string type) => type is "Shift" or "Duty" or "DutySlot" or "Assignment";
+
+    private static bool IsBlocked(string outcome) =>
+        outcome.StartsWith("Rejected:", StringComparison.Ordinal)
+        || outcome.StartsWith("Failed:", StringComparison.Ordinal)
+        || outcome.StartsWith("NeedsAction:", StringComparison.Ordinal);
+
+    private static async Task<List<string>> RecordRowsAsync(Clone clone, CancellationToken ct) =>
+        await TextRowsAsync(
+            clone,
+            """
+            SELECT "EntityType"||':'||"LegacyId"||'|'||"TargetType"||':'||"TargetKey"||'|'||COALESCE("PayloadHash",'')
+              ||'|'||COALESCE(to_char("SourceUpdatedAtUtc" AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS"Z"'),'')
+            FROM "DataMigrationRecords" WHERE "Source"='SS' AND NOT "IsDeleted"
+              AND "EntityType" NOT IN ('SchedulingComponent','SchedulingMember')
+            ORDER BY 1
+            """,
+            ct
+        );
+
+    private static async Task<List<string>> ReceiptRowsAsync(Clone clone, CancellationToken ct) =>
+        await TextRowsAsync(
+            clone,
+            """
+            SELECT "EntityType"||':'||"LegacyId"||'|'||"TargetType"||':'||"TargetKey"||'|'||COALESCE("PayloadHash",'')
+            FROM "DataMigrationRecords" WHERE "Source"='SS' AND NOT "IsDeleted"
+              AND "EntityType" IN ('SchedulingComponent','SchedulingMember')
+            ORDER BY 1
+            """,
+            ct
+        );
+
+    private static async Task<List<string>> TextRowsAsync(Clone clone, string sql, CancellationToken ct)
+    {
+        await using var connection = new NpgsqlConnection(clone.ConnectionString);
+        await connection.OpenAsync(ct);
+        await using var command = new NpgsqlCommand(sql, connection);
+        await using var reader = await command.ExecuteReaderAsync(ct);
+        var rows = new List<string>();
+        while (await reader.ReadAsync(ct))
+            rows.Add(reader.GetString(0));
+        return rows;
+    }
+
     // Benchmark (opt-in): UNIFIED_MIGRATION_SCHEDULING_BENCHMARK_TEMPLATE=<frozen source database>.
     // UNIFIED_MIGRATION_SCHEDULING_BENCHMARK_PERROW=false skips the PerRow leg (then extrapolate).
     // UNIFIED_MIGRATION_SCHEDULING_BENCHMARK_SOURCE_DELTA=<sql> is applied to the cloned source first.
@@ -1628,7 +2654,11 @@ public sealed class SsSchedulingBulkPostgresTests : IAsyncLifetime
         }
     }
 
-    private static async Task AssertNoDuplicatesOrOrphansAsync(Clone clone, CancellationToken ct)
+    private static async Task AssertNoDuplicatesOrOrphansAsync(
+        Clone clone,
+        CancellationToken ct,
+        bool rejectedOwnNothing = true
+    )
     {
         foreach (
             var sql in new[]
@@ -1675,7 +2705,11 @@ public sealed class SsSchedulingBulkPostgresTests : IAsyncLifetime
                     """,
             }
         )
+        {
+            if (!rejectedOwnNothing && sql.Contains("JOIN LATERAL", StringComparison.Ordinal))
+                continue;
             Assert.True(await CountAsync(clone.ConnectionString, sql, ct) == 0, "Integrity check failed: " + sql);
+        }
     }
 
     // ------------------------------------------------------------------ canonical snapshot
@@ -2079,11 +3113,17 @@ public sealed class SsSchedulingBulkPostgresTests : IAsyncLifetime
         return Convert.ToInt64(await command.ExecuteScalarAsync(ct), CultureInfo.InvariantCulture);
     }
 
-    private static async Task ExecuteAsync(string connectionString, string sql, CancellationToken ct)
+    private static async Task ExecuteAsync(
+        string connectionString,
+        string sql,
+        CancellationToken ct,
+        params NpgsqlParameter[] parameters
+    )
     {
         await using var connection = new NpgsqlConnection(connectionString);
         await connection.OpenAsync(ct);
         await using var command = new NpgsqlCommand(sql, connection) { CommandTimeout = 600 };
+        command.Parameters.AddRange(parameters);
         await command.ExecuteNonQueryAsync(ct);
     }
 

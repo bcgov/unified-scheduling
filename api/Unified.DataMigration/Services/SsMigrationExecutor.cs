@@ -135,6 +135,8 @@ public sealed class SsMigrationExecutor(
             CronSchedule = configured.CronSchedule,
             PersistenceMode = configured.PersistenceMode,
             BulkChunkSize = configured.BulkChunkSize,
+            PlanReplacementFamiliesOnly = configured.PlanReplacementFamiliesOnly,
+            PrefetchReplayRecords = configured.PrefetchReplayRecords,
         };
         if (!flags.Value.Enabled || !source.Enabled || !settings.Enabled)
             throw new InvalidOperationException("SS migration job is disabled.");
@@ -248,6 +250,11 @@ public sealed class SsMigrationExecutor(
             acquired
             ?? throw new InvalidOperationException("SS job is paused, already running, or its lineage is not ready.");
         var session = new SsWriteSession(db, run);
+        if (job == "Scheduling" && settings.PersistenceMode == MigrationPersistenceMode.PerRow)
+        {
+            session.PlanReplacementFamiliesOnly = settings.PlanReplacementFamiliesOnly;
+            session.PrefetchReplayRecords = settings.PrefetchReplayRecords;
+        }
         try
         {
             if (settings.DryRun)
@@ -419,6 +426,8 @@ public sealed class SsMigrationExecutor(
         }
         catch (Exception ex)
         {
+            var cause = MigrationTechnicalFailure.Describe(ex);
+            Console.Error.WriteLine($"SsMigrationFailure Run={run.Id} Job={job} Cause={cause}");
             if (
                 db.Database.GetDbConnection().Database
                     is "unified_ss_rehearsal_repartition_v4"
@@ -430,12 +439,17 @@ public sealed class SsMigrationExecutor(
                 if (ex is Npgsql.PostgresException pg)
                     Console.WriteLine(
                         "SafeSqlState="
-                            + pg.SqlState
+                            + (MigrationTechnicalFailure.SafeSqlState(pg.SqlState) ? pg.SqlState : "invalid")
                             + ";Position="
                             + pg.Position
                             + ";Table="
-                            + pg.TableName
-                            + (pg.MessageText == "Simulation schema clone failed" ? ";Phase=" + pg.Hint : "")
+                            + (MigrationTechnicalFailure.SafeIdentifier(pg.TableName) ? pg.TableName : "unavailable")
+                            + (
+                                pg.MessageText == "Simulation schema clone failed"
+                                && pg.Hint is "inventory" or "create" or "copy" or "sequence" or "foreign-key"
+                                    ? ";Phase=" + pg.Hint
+                                    : ""
+                            )
                     );
                 foreach (
                     var frame in new System.Diagnostics.StackTrace(ex, true)
@@ -457,8 +471,9 @@ public sealed class SsMigrationExecutor(
                     run.Id,
                     ex is OperationCanceledException ? "Canceled" : "ExecutionFailed",
                     job == "Report"
-                        ? "SS report did not complete; inspect migration-only evidence."
-                        : "SS job failed; current batch rolled back. Earlier committed batches and retry/progress evidence are retained.",
+                        ? "SS report did not complete; inspect migration-only evidence. Cause: " + cause
+                        : "SS job failed; current batch rolled back. Earlier committed batches and retry/progress evidence are retained. Cause: "
+                            + cause,
                     job == "Report" ? session.Outcomes : null
                 );
             }

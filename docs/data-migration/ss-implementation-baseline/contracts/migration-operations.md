@@ -60,6 +60,24 @@ chunks, no rollback journal, crosswalk-scoped `SsBulkUndo`, target role needs `T
 refuses (`BulkRequiresPerRow:*`) any path it cannot reproduce exactly, including updates of already
 migrated rows; see [bulk persistence](../training-bulk-persistence.md).
 
+Scheduling PerRow may opt in to `PlanReplacementFamiliesOnly=true` (default `false`). The full graph
+proposal plan is read only when a captured component family needs graph replacement. With the switch on, a
+run that has no such family (first apply, unchanged rerun, recapture) skips planning and logs
+`SsPhase ... Phase=Plan State=Skipped`. Any replacement family still plans everything, because the planners
+read across components (day groups, definition groups). Outcomes, crosswalks and receipts are unchanged.
+
+Scheduling PerRow may also opt in to `PrefetchReplayRecords=true` (default `false`). Existing crosswalk
+records are read untracked, 1000 source-list rows at a time, instead of one query per row. A page
+answers only the no-write verdicts (no crosswalk yet; unchanged hash and source timestamp) and only for a
+record EF has not tracked in this job; any write, rebind, duplicate or rolled-back savepoint uses the per-row
+query. Each source page is loaded at most once per job; after eviction, an interleaved access falls back to
+the original per-row or group query rather than repeatedly loading the whole page. At most 16 pages per
+type are cached. Graph replacement then tracks only the records of the replaced graph instead of every root record.
+The run logs `SsReplayPrefetch Run=... Hits=... Fallbacks=... Pages=...`.
+Both switches also apply to Scheduling PerRow dry-run simulations. Simulations do not copy applied crosswalks, so they
+cannot prove rerun parity against an applied target and can fail on existing-target collisions. Use an isolated apply
+rehearsal to verify rerun guards. Bulk ignores both switches, including in dry runs.
+
 ## Run Audit Summary
 
 For SS MyTeam, Training, Scheduling and Report, including simulation, the migration worker disables
@@ -154,6 +172,9 @@ projection, ordering, serialization or framing changes.
 
 Ordinary responses/findings/logs expose only safe keys, classes, counts and metrics.
 Never return connection strings, credentials, photos, protected source comments or raw errors.
+SS worker technical failures retain bounded exception types, PostgreSQL SQLSTATE and safe identifier
+metadata, and migration stack frames in stderr and migration-only failure evidence; exception messages,
+detail and unapproved hints are excluded, and the worker exception does not chain the original error.
 Rollback impact values are intentionally sensitive: separate restricted storage/download,
 audited access and retention; not ordinary findings or a public report.
 No automatic backup restore, source writes or production enablement.
