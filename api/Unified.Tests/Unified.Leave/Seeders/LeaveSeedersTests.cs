@@ -87,7 +87,7 @@ public sealed class LeaveSeedersTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task LeaveTypeSeeder_SeedAsync_ResetsExistingRow()
+    public async Task LeaveTypeSeeder_SeedAsync_UpdatesExistingRowWithoutChangingExpiry()
     {
         _database.Db.LeaveTypes.Add(
             new LeaveType
@@ -113,7 +113,26 @@ public sealed class LeaveSeedersTests : IAsyncLifetime
         Assert.Equal("Leave Without Pay", row.Description);
         Assert.False(row.IsPaid);
         Assert.Equal(new DateTimeOffset(2020, 6, 10, 0, 0, 0, TimeSpan.Zero), row.EffectiveDate);
-        Assert.Null(row.ExpiryDate);
+        Assert.Equal(new DateTimeOffset(2025, 1, 1, 0, 0, 0, TimeSpan.Zero), row.ExpiryDate);
+    }
+
+    [Fact]
+    public async Task LeaveTypeSeeder_SeedAsync_PreservesPreviouslySetVacationCtoExpiry()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var seeder = new LeaveTypeSeeder(NullLogger<LeaveTypeSeeder>.Instance);
+        await seeder.SeedAsync(_database.Db, ct);
+        var row = await _database.Db.LeaveTypes.SingleAsync(x => x.Code == "Vacation/CTO", ct);
+        var firstExpiry = new DateTimeOffset(2025, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        row.ExpiryDate = firstExpiry;
+        await _database.Db.SaveChangesAsync(ct);
+        _database.Db.ChangeTracker.Clear();
+
+        await seeder.SeedAsync(_database.Db, ct);
+        _database.Db.ChangeTracker.Clear();
+
+        var reloaded = await _database.Db.LeaveTypes.SingleAsync(x => x.Code == "Vacation/CTO", ct);
+        Assert.Equal(firstExpiry, reloaded.ExpiryDate);
     }
 
     [Fact]
