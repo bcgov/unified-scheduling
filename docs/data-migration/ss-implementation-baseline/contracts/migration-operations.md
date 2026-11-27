@@ -73,7 +73,10 @@ record EF has not tracked in this job; any write, rebind, duplicate or rolled-ba
 query. Each source page is loaded at most once per job; after eviction, an interleaved access falls back to
 the original per-row or group query rather than repeatedly loading the whole page. At most 16 pages per
 type are cached. Graph replacement then tracks only the records of the replaced graph instead of every root record.
-The run logs `SsReplayPrefetch Run=... Hits=... Fallbacks=... Pages=...`. Bulk ignores the switch.
+The run logs `SsReplayPrefetch Run=... Hits=... Fallbacks=... Pages=...`.
+Both switches also apply to Scheduling PerRow dry-run simulations. Simulations do not copy applied crosswalks, so they
+cannot prove rerun parity against an applied target and can fail on existing-target collisions. Use an isolated apply
+rehearsal to verify rerun guards. Bulk ignores both switches, including in dry runs.
 
 ## Run Audit Summary
 

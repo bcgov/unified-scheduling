@@ -250,6 +250,11 @@ public sealed class SsMigrationExecutor(
             acquired
             ?? throw new InvalidOperationException("SS job is paused, already running, or its lineage is not ready.");
         var session = new SsWriteSession(db, run);
+        if (job == "Scheduling" && settings.PersistenceMode == MigrationPersistenceMode.PerRow)
+        {
+            session.PlanReplacementFamiliesOnly = settings.PlanReplacementFamiliesOnly;
+            session.PrefetchReplayRecords = settings.PrefetchReplayRecords;
+        }
         try
         {
             if (settings.DryRun)
@@ -415,8 +420,6 @@ public sealed class SsMigrationExecutor(
                 token => FenceAsync(run, token)
             );
             await batches.BeginAsync(ct);
-            session.PlanReplacementFamiliesOnly = settings.PlanReplacementFamiliesOnly;
-            session.PrefetchReplayRecords = settings.PrefetchReplayRecords;
             await WriteJobAsync(job, rows, session, boundary, ct);
             await batches.CommitAsync(true, ct);
             return;

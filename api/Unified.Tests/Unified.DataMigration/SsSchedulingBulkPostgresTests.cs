@@ -1096,6 +1096,61 @@ public sealed class SsSchedulingBulkPostgresTests : IAsyncLifetime
         );
     }
 
+    [Fact(Skip = TemplatesSkipReason, SkipUnless = nameof(AreTemplatesConfigured))]
+    public async Task DryRun_RerunOptimisationsApplyOnlyToPerRow()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        EnableAudit();
+        SsPhaseLog.Observer = ObservePhase;
+        var fixture = await AdverseFixtureAsync(ct);
+        var cases = new[]
+        {
+            (Mode: MigrationPersistenceMode.PerRow, Plan: false, Prefetch: false),
+            (Mode: MigrationPersistenceMode.PerRow, Plan: true, Prefetch: false),
+            (Mode: MigrationPersistenceMode.PerRow, Plan: false, Prefetch: true),
+            (Mode: MigrationPersistenceMode.PerRow, Plan: true, Prefetch: true),
+            (Mode: MigrationPersistenceMode.Bulk, Plan: true, Prefetch: true),
+        };
+        string[] compared = [.. BusinessSections, "linked"];
+        KeyValuePair<(string Type, string Id), string>[]? expected = null;
+
+        foreach (var (mode, plan, prefetch) in cases)
+        {
+            var fresh = new Clone(
+                await CreateDatabaseAsync(
+                    $"migration_it_sched_dry_flags_{databases.Count}_{suffix}",
+                    await SeededTargetAsync(ct),
+                    ct
+                ),
+                NewOptions(fixture.Source, mode, 7, 5),
+                fixture.BaselineMax
+            );
+            fresh.Options.Sources.SS.Jobs.Scheduling.PlanReplacementFamiliesOnly = plan;
+            fresh.Options.Sources.SS.Jobs.Scheduling.PrefetchReplayRecords = prefetch;
+            var baseline = await SnapshotAsync(fresh, true, ct);
+            var myTeam = await RunAsync(fresh, ct, job: "MyTeam", dryRun: true);
+            await AssertRunAsync(fresh, myTeam, "Completed", ct);
+
+            var reads = new SsReplayPrefetchTests.PageReadCounter();
+            var run = await RunAsync(fresh, ct, dryRun: true, interceptors: [reads]);
+            await AssertNoTechnicalFailureAsync(fresh, run, ct);
+            var perRow = mode == MigrationPersistenceMode.PerRow;
+            Assert.Equal(perRow && plan, PlanSkipped(run));
+            Assert.Equal(perRow && prefetch, reads.Count > 0);
+            AssertEquivalent(baseline, await SnapshotAsync(fresh, true, ct), compared, "dry run");
+
+            var outcomes = (await OutcomesAsync(fresh, run, ct))
+                .Where(x => IsGraphType(x.Key.Type))
+                .OrderBy(x => x.Key)
+                .ToArray();
+            Assert.NotEmpty(outcomes);
+            if (expected is null)
+                expected = outcomes;
+            else
+                Assert.Equal(expected, outcomes);
+        }
+    }
+
     // ------------------------------------------------------------------ PerRow rerun guards
 
     // Pins the PerRow rules that decide whether a source row still needs transfer. Rerun speed-ups must keep every

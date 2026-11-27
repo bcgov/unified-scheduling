@@ -228,7 +228,7 @@ public sealed class SsReplayPrefetchTests : IAsyncDisposable
         }
     }
 
-    private sealed class PageReadCounter : DbCommandInterceptor
+    internal sealed class PageReadCounter : DbCommandInterceptor
     {
         public int Count;
 
