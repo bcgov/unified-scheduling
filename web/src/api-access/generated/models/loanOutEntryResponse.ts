@@ -26,6 +26,14 @@ export interface LoanOutEntryResponse {
   /** @nullable */
   cancellationReason?: string | null;
   /** @nullable */
+  createdById?: string | null;
+  /** @nullable */
+  createdOn?: string | null;
+  /** @nullable */
+  updatedById?: string | null;
+  /** @nullable */
+  updatedOn?: string | null;
+  /** @nullable */
   seriesStartAtUtc?: string | null;
   /** @nullable */
   seriesEndAtUtc?: string | null;

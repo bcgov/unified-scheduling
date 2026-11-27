@@ -135,6 +135,7 @@ public sealed class LoanOutSeriesService(
         var oldUserIds = entity.Users.Select(user => user.UserId).Distinct().Order().ToList();
         var recurrenceChanged = calendarEventSeriesService.HasRecurrenceChanged(entity, request);
         var newUserIds = request.UserIds.Distinct().ToList();
+        var userIdsChanged = HasUserIdsChanged(oldUserIds, newUserIds);
         var removedSeriesUsers = entity.Users.Where(user => !newUserIds.Contains(user.UserId)).ToList();
 
         var allDayRequest = request with { AllDay = true };
@@ -152,6 +153,7 @@ public sealed class LoanOutSeriesService(
         );
         if (updated is null)
             throw new InvalidOperationException("Failed to update loan out series.");
+        db.Entry(entity).Property(item => item.UpdatedOn).IsModified = true;
         db.Set<LoanOutSeriesUser>().RemoveRange(removedSeriesUsers);
         var newValues = CaptureCopiedValues(eventSeries);
         if (recurrenceChanged)
@@ -176,8 +178,21 @@ public sealed class LoanOutSeriesService(
                 ApplyCopiedFieldUpdatesPreservingOverrides(entry.Event!, oldValues, newValues);
                 if (entry.LoanOutLocationId == oldLoanOutLocationId)
                     entry.LoanOutLocationId = request.LoanOutLocationId;
-                if (entry.Users.Select(user => user.UserId).Order().SequenceEqual(oldUserIds))
+                if (!HasUserIdsChanged(entry.Users.Select(user => user.UserId).ToArray(), oldUserIds))
+                {
+                    if (userIdsChanged)
+                        db.Entry(entry).Property(item => item.UpdatedOn).IsModified = true;
                     SyncEntryUsers(entry, newUserIds);
+                }
+            }
+        }
+        if (!recurrenceChanged)
+        {
+            db.ChangeTracker.DetectChanges();
+            foreach (var entry in GetCurrentEntries(entity.LoanOutEntries))
+            {
+                if (HasEventChanged(entry.Event!))
+                    db.Entry(entry).Property(item => item.UpdatedOn).IsModified = true;
             }
         }
         ValidatePropagatedEntries(entity, GetCurrentEntries(entity.LoanOutEntries));
@@ -253,6 +268,13 @@ public sealed class LoanOutSeriesService(
 
     private IReadOnlyCollection<LoanOutEntry> GetCurrentEntries(IEnumerable<LoanOutEntry> entries) =>
         entries.Where(entry => db.Entry(entry).State != EntityState.Deleted && entry.Event is not null).ToList();
+
+    private bool HasEventChanged(Event eventEntity) => db.Entry(eventEntity).State == EntityState.Modified;
+
+    private static bool HasUserIdsChanged(
+        IReadOnlyCollection<Guid> previousUserIds,
+        IReadOnlyCollection<Guid> userIds
+    ) => !previousUserIds.ToHashSet().SetEquals(userIds);
 
     private void SyncEntryUsers(LoanOutEntry entry, IReadOnlyCollection<Guid> userIds)
     {

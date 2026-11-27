@@ -108,6 +108,7 @@ public sealed class SchedulingLeaveEntryService(
         );
         if (updated is null)
             return null;
+        db.Entry(entity).Property(item => item.UpdatedOn).IsModified = true;
         await db.SaveChangesAsync(cancellationToken);
         await conflictService.InvalidateResolvedOverridesAsync(
             [LeaveConflictParticipantProvider.IdentityFor(entity.EventId)],

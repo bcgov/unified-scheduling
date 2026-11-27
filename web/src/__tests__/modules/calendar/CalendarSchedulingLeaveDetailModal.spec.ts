@@ -68,6 +68,92 @@ describe('CalendarSchedulingLeaveDetailModal', () => {
     document.body.innerHTML = '';
   });
 
+  it('loads audit details for a standalone leave entry', async () => {
+    const event = createLeaveEvent();
+    event.metadata = { ...event.metadata, leaveSeriesId: undefined };
+    const createdOn = '2026-06-01T12:00:00Z';
+    server.use(http.get('*/api/scheduling/leave/entries/42', () => HttpResponse.json({ ...entry, createdOn })));
+    const wrapper = await mountModal(event);
+    await vi.waitFor(() => expect(wrapper.getComponent(LeaveDetailsPanel).props('audit')).toMatchObject({ createdOn }));
+    wrapper.unmount();
+  });
+
+  it('uses the calendar event time zone for audit details when the selected entry has none', async () => {
+    const event = createLeaveEvent();
+    event.metadata = { ...event.metadata, leaveSeriesId: undefined };
+    server.use(http.get('*/api/scheduling/leave/entries/42', () => HttpResponse.json({ ...entry, timeZoneId: null })));
+    const wrapper = await mountModal(event);
+    await vi.waitFor(() => expect(wrapper.getComponent(LeaveDetailsPanel).props('audit')).toMatchObject({ id: 42 }));
+    expect(wrapper.getComponent(LeaveDetailsPanel).props('timeZone')).toBe('America/Vancouver');
+    wrapper.unmount();
+  });
+
+  it('aborts an in-flight entry request when the modal closes', async () => {
+    const event = createLeaveEvent();
+    event.metadata = { ...event.metadata, leaveSeriesId: undefined };
+    let started = false;
+    let aborted = false;
+    server.use(
+      http.get('*/api/scheduling/leave/entries/42', async ({ request }) => {
+        started = true;
+        await new Promise<void>((resolve) => {
+          request.signal.addEventListener(
+            'abort',
+            () => {
+              aborted = true;
+              resolve();
+            },
+            { once: true },
+          );
+        });
+        return HttpResponse.json(entry);
+      }),
+    );
+    const wrapper = await mountModal(event);
+    await vi.waitFor(() => expect(started).toBe(true));
+    wrapper.unmount();
+    await vi.waitFor(() => expect(aborted).toBe(true));
+  });
+
+  it('does not allow editing when the leave entry fails to load', async () => {
+    const event = createLeaveEvent();
+    event.metadata = { ...event.metadata, leaveSeriesId: undefined };
+    server.use(http.get('*/api/scheduling/leave/entries/42', () => new HttpResponse(null, { status: 500 })));
+    const wrapper = await mountModal(event);
+    await vi.waitFor(() => expect(wrapper.findComponent(LeaveDetailsPanel).props('isLoading')).toBe(false));
+    const vm = wrapper.vm as unknown as { selectTab: (tab: 'edit') => void };
+    vm.selectTab('edit');
+    await flushPromises();
+    expect(wrapper.findComponent({ name: 'LeaveForm' }).exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it.each(['event', 'series'] as const)(
+    'restores the scope choice when the %s request fails and allows retry',
+    async (scope) => {
+      let requests = 0;
+      const url = scope === 'event' ? '*/api/scheduling/leave/entries/42' : '*/api/scheduling/leave/series/77';
+      server.use(
+        http.get(url, () => {
+          requests++;
+          return requests === 1 ? new HttpResponse(null, { status: 500 }) : HttpResponse.json(entry);
+        }),
+      );
+      const wrapper = await mountModal();
+      const vm = wrapper.vm as unknown as { selectedOpenScope: 'event' | 'series' | null };
+      vm.selectedOpenScope = scope;
+      await vi.waitFor(() => {
+        expect(requests).toBe(1);
+        expect(wrapper.find('.leave-modal__scope-choice').exists()).toBe(true);
+      });
+      expect(vm.selectedOpenScope).toBeNull();
+      vm.selectedOpenScope = scope;
+      await vi.waitFor(() => expect(requests).toBe(2));
+      await vi.waitFor(() => expect(wrapper.findComponent(LeaveDetailsPanel).props('audit')).toBeTruthy());
+      wrapper.unmount();
+    },
+  );
+
   async function mountEntryEditor(loaded: boolean, endAtUtc: string | null) {
     const event = createLeaveEvent();
     event.start = '2026-06-11T02:00:00Z'; // 19:00 in Vancouver, after the default end time.
@@ -101,17 +187,15 @@ describe('CalendarSchedulingLeaveDetailModal', () => {
       },
     });
     const vm = wrapper.vm as unknown as {
-      selectOpenScope: (scope: 'event') => Promise<void>;
+      selectedOpenScope: 'event' | 'series' | null;
+      selectedEntry: unknown;
       selectTab: (tabId: 'edit') => void;
       editFormData: LeaveFormData;
       handleSave: () => Promise<void>;
     };
-    if (loaded) {
-      await vm.selectOpenScope('event');
-      expect(requestedEntry).toBe(true);
-    } else {
-      expect(requestedEntry).toBe(false);
-    }
+    if (loaded) vm.selectedOpenScope = 'event';
+    await vi.waitFor(() => expect(vm.selectedEntry).toBeTruthy());
+    expect(requestedEntry).toBe(true);
     vm.selectTab('edit');
     await flushPromises();
     return { wrapper, vm, savedRequests };
@@ -194,12 +278,14 @@ describe('CalendarSchedulingLeaveDetailModal', () => {
     );
     const wrapper = await mountModal();
     const vm = wrapper.vm as unknown as {
-      selectOpenScope: (scope: 'event') => Promise<void>;
+      selectedOpenScope: 'event' | 'series' | null;
+      selectedEntry: unknown;
       selectTab: (tabId: 'edit') => void;
       handleSave: () => Promise<void>;
     };
 
-    await vm.selectOpenScope('event');
+    vm.selectedOpenScope = 'event';
+    await vi.waitFor(() => expect(vm.selectedEntry).toBeTruthy());
     vm.selectTab('edit');
     await flushPromises();
     expect(wrapper.getComponent({ name: 'LeaveForm' }).props('showRequired')).toBe(true);
@@ -232,11 +318,13 @@ describe('CalendarSchedulingLeaveDetailModal', () => {
     );
     const wrapper = await mountModal();
     const vm = wrapper.vm as unknown as {
-      selectOpenScope: (scope: 'event') => Promise<void>;
+      selectedOpenScope: 'event' | 'series' | null;
+      selectedEntry: unknown;
       selectTab: (tabId: 'edit') => void;
     };
 
-    await vm.selectOpenScope('event');
+    vm.selectedOpenScope = 'event';
+    await vi.waitFor(() => expect(vm.selectedEntry).toBeTruthy());
     vm.selectTab('edit');
     await flushPromises();
 
@@ -266,11 +354,14 @@ describe('CalendarSchedulingLeaveDetailModal', () => {
         ),
       );
       const wrapper = await mountModal(event);
-      const vm = wrapper.vm as unknown as { selectOpenScope: (scope: 'event' | 'series') => Promise<void> };
-      await vm.selectOpenScope(scope);
+      const vm = wrapper.vm as unknown as { selectedOpenScope: 'event' | 'series' | null };
+      vm.selectedOpenScope = scope;
       await flushPromises();
 
       await vi.waitFor(() => {
+        expect(wrapper.getComponent(LeaveDetailsPanel).props('timeZone')).toBe(
+          scope === 'series' ? 'America/Toronto' : 'America/Vancouver',
+        );
         const rows = wrapper.getComponent(LeaveDetailsPanel).props('detailRows');
         expect(rows.find((row) => row.label === 'Time')?.value).toBe(
           scope === 'series'

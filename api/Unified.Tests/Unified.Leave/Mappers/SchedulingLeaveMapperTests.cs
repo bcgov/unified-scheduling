@@ -20,9 +20,18 @@ public sealed class SchedulingLeaveMapperTests
     public void ToSchedulingLeaveEntryResponse_MapsEventSeriesAndUsers()
     {
         var entry = CreateEntry();
+        entry.CreatedById = UserA;
+        entry.UpdatedById = UserB;
+        entry.CreatedOn = Start;
+        entry.UpdatedOn = Start.AddDays(1);
+        entry.Event!.CreatedById = CancelledBy;
 
         var result = _mapper.ToSchedulingLeaveEntryResponse(entry);
 
+        Assert.Equal(entry.CreatedById, result.CreatedById);
+        Assert.Equal(entry.CreatedOn, result.CreatedOn);
+        Assert.Equal(entry.UpdatedById, result.UpdatedById);
+        Assert.Equal(entry.UpdatedOn, result.UpdatedOn);
         Assert.Equal(7, result.Id);
         Assert.Equal(3, result.LeaveSeriesId);
         Assert.Equal(2, result.LeaveTypeId);
@@ -54,6 +63,10 @@ public sealed class SchedulingLeaveMapperTests
         var series = new LeaveSeries
         {
             Id = 3,
+            CreatedById = UserA,
+            UpdatedById = UserB,
+            CreatedOn = Start,
+            UpdatedOn = Start.AddDays(1),
             EventSeriesId = 4,
             LeaveTypeId = 2,
             EventSeries = new EventSeries
@@ -70,6 +83,10 @@ public sealed class SchedulingLeaveMapperTests
 
         var result = _mapper.ToSchedulingLeaveSeriesResponse(series, [10, 11], [20, 21]);
 
+        Assert.Equal(series.CreatedById, result.CreatedById);
+        Assert.Equal(series.CreatedOn, result.CreatedOn);
+        Assert.Equal(series.UpdatedById, result.UpdatedById);
+        Assert.Equal(series.UpdatedOn, result.UpdatedOn);
         Assert.Equal(3, result.Id);
         Assert.Equal(2, result.LeaveTypeId);
         Assert.Equal("Series", result.Title);

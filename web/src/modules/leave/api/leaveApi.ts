@@ -5,7 +5,7 @@ import type {
   SchedulingLeaveSeriesResponse as LeaveSeriesResponse,
   SchedulingCalendarEventResponse,
 } from '@/api-access/generated/models';
-import { useFetchAPI } from '@/api-access/useFetchAPI';
+import { useFetchAPI, type UseFetchAPIOptions } from '@/api-access/useFetchAPI';
 
 const leaveEntryUrl = (id: number) => `/api/scheduling/leave/entries/${id}`;
 const leaveSeriesUrl = (id: number) => `/api/scheduling/leave/series/${id}`;
@@ -39,6 +39,18 @@ export async function getLeaveCalendarEvents(
   return result.data.value;
 }
 
+function readOptions(signal?: AbortSignal): UseFetchAPIOptions {
+  return {
+    options: {
+      immediate: false,
+      beforeFetch({ options }) {
+        if (signal) options.signal = options.signal ? AbortSignal.any([options.signal, signal]) : signal;
+        return { options };
+      },
+    },
+  };
+}
+
 // Read: Leave Entry and Series API functions
 
 export function useUserLeaveEntries(userId: string) {
@@ -55,20 +67,14 @@ export function useUserLeaveSeries(userId: string) {
   );
 }
 
-export async function getLeaveEntry(id: number) {
-  const result = useFetchAPI<LeaveEntryResponse>(
-    { url: leaveEntryUrl(id), method: 'GET' },
-    { options: { immediate: false } },
-  );
+export async function getLeaveEntry(id: number, signal?: AbortSignal) {
+  const result = useFetchAPI<LeaveEntryResponse>({ url: leaveEntryUrl(id), method: 'GET' }, readOptions(signal));
   await result.execute();
   return result;
 }
 
-export async function getLeaveSeries(id: number) {
-  const result = useFetchAPI<LeaveSeriesResponse>(
-    { url: leaveSeriesUrl(id), method: 'GET' },
-    { options: { immediate: false } },
-  );
+export async function getLeaveSeries(id: number, signal?: AbortSignal) {
+  const result = useFetchAPI<LeaveSeriesResponse>({ url: leaveSeriesUrl(id), method: 'GET' }, readOptions(signal));
   await result.execute();
   return result;
 }

@@ -50,7 +50,9 @@ public sealed class UserTrainingService(
                 ExpiryDate = ut.ExpiryDate,
                 NoticeState = ut.NoticeState,
                 Notes = ut.Notes,
+                CreatedById = ut.CreatedById,
                 CreatedOn = ut.CreatedOn,
+                UpdatedById = ut.UpdatedById,
                 UpdatedOn = ut.UpdatedOn,
             })
             .ToListAsync(cancellationToken);
@@ -81,7 +83,9 @@ public sealed class UserTrainingService(
                 ExpiryDate = ut.ExpiryDate,
                 NoticeState = ut.NoticeState,
                 Notes = ut.Notes,
+                CreatedById = ut.CreatedById,
                 CreatedOn = ut.CreatedOn,
+                UpdatedById = ut.UpdatedById,
                 UpdatedOn = ut.UpdatedOn,
             })
             .FirstOrDefaultAsync(cancellationToken);
@@ -426,7 +430,9 @@ public sealed class UserTrainingService(
                 ExpiryDate = ut.ExpiryDate,
                 NoticeState = ut.NoticeState,
                 Notes = ut.Notes,
+                CreatedById = ut.CreatedById,
                 CreatedOn = ut.CreatedOn,
+                UpdatedById = ut.UpdatedById,
                 UpdatedOn = ut.UpdatedOn,
             })
             .SingleAsync(cancellationToken);

@@ -23,7 +23,9 @@ export const GetApiTrainingsUsersUserIdResponseItem = zod.object({
   expiryDate: zod.iso.datetime({ offset: true }).nullish(),
   noticeState: zod.string(),
   notes: zod.string().nullish(),
+  createdById: zod.uuid().nullish(),
   createdOn: zod.iso.datetime({ offset: true }).optional(),
+  updatedById: zod.uuid().nullish(),
   updatedOn: zod.iso.datetime({ offset: true }).nullish(),
 });
 export const GetApiTrainingsUsersUserIdResponse = zod.array(GetApiTrainingsUsersUserIdResponseItem);
@@ -46,7 +48,9 @@ export const GetApiTrainingsTrainingIdUsersUserIdResponse = zod.object({
   expiryDate: zod.iso.datetime({ offset: true }).nullish(),
   noticeState: zod.string(),
   notes: zod.string().nullish(),
+  createdById: zod.uuid().nullish(),
   createdOn: zod.iso.datetime({ offset: true }).optional(),
+  updatedById: zod.uuid().nullish(),
   updatedOn: zod.iso.datetime({ offset: true }).nullish(),
 });
 
@@ -84,7 +88,9 @@ export const PostApiTrainingUserTrainingsResponse = zod.object({
   expiryDate: zod.iso.datetime({ offset: true }).nullish(),
   noticeState: zod.string(),
   notes: zod.string().nullish(),
+  createdById: zod.uuid().nullish(),
   createdOn: zod.iso.datetime({ offset: true }).optional(),
+  updatedById: zod.uuid().nullish(),
   updatedOn: zod.iso.datetime({ offset: true }).nullish(),
 });
 
@@ -115,7 +121,9 @@ export const PutApiTrainingUserTrainingsIdResponse = zod.object({
   expiryDate: zod.iso.datetime({ offset: true }).nullish(),
   noticeState: zod.string(),
   notes: zod.string().nullish(),
+  createdById: zod.uuid().nullish(),
   createdOn: zod.iso.datetime({ offset: true }).optional(),
+  updatedById: zod.uuid().nullish(),
   updatedOn: zod.iso.datetime({ offset: true }).nullish(),
 });
 

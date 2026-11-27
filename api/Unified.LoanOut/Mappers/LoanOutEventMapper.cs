@@ -21,9 +21,12 @@ public sealed class LoanOutEventMapper(CalendarEventMapper calendarEventMapper)
             loanOutEntry.Event!,
             userIds
         );
-
         return response with
         {
+            CreatedById = loanOutEntry.CreatedById,
+            CreatedOn = loanOutEntry.CreatedOn == default ? null : loanOutEntry.CreatedOn,
+            UpdatedById = loanOutEntry.UpdatedById,
+            UpdatedOn = loanOutEntry.UpdatedOn,
             Id = loanOutEntry.Id,
             LoanOutLocationId = loanOutEntry.LoanOutLocationId,
             LoanOutSeriesId = loanOutEntry.LoanOutSeriesId,
@@ -43,9 +46,12 @@ public sealed class LoanOutEventMapper(CalendarEventMapper calendarEventMapper)
             userIds,
             eventIds
         );
-
         return response with
         {
+            CreatedById = series.CreatedById,
+            CreatedOn = series.CreatedOn == default ? null : series.CreatedOn,
+            UpdatedById = series.UpdatedById,
+            UpdatedOn = series.UpdatedOn,
             Id = series.Id,
             LoanOutLocationId = series.LoanOutLocationId,
             LoanOutEntryIds = loanOutEntryIds,

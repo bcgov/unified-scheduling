@@ -1,5 +1,6 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Unified.Db;
 using Unified.Db.Models;
 using Unified.Db.Models.Calendar;
@@ -30,13 +31,16 @@ internal sealed class LeaveTestDatabase : IAsyncDisposable
 
     public UnifiedDbContext Db { get; }
 
-    public static async Task<LeaveTestDatabase> CreateAsync()
+    public static async Task<LeaveTestDatabase> CreateAsync(params IInterceptor[] interceptors)
     {
         var connection = new SqliteConnection("Data Source=:memory:");
         connection.CreateFunction("now", () => DateTimeOffset.UtcNow.ToString("O"));
         await connection.OpenAsync(TestContext.Current.CancellationToken);
 
-        var options = new DbContextOptionsBuilder<UnifiedDbContext>().UseSqlite(connection).Options;
+        var options = new DbContextOptionsBuilder<UnifiedDbContext>()
+            .UseSqlite(connection)
+            .AddInterceptors(interceptors)
+            .Options;
         var db = new SqliteTestUnifiedDbContext(options);
         await db.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
 

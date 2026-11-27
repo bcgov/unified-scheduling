@@ -3,12 +3,13 @@ import type { UserTrainingResponse } from '@/api-access/generated/models';
 import UaDataTable from '@/shared/components/UaDataTable.vue';
 import UaModal from '@/shared/components/UaModal.vue';
 import UaAlert from '@/shared/components/UaAlert.vue';
+import UaAuditDisplay, { type AuditFields } from '@/shared/components/UaAuditDisplay.vue';
 import { toCalendarDateString, toDateTime } from '@/utils/date';
 import { computed, ref } from 'vue';
 import { DateTime } from 'luxon';
 
 const props = defineProps<{
-  training: UserTrainingResponse;
+  training: UserTrainingResponse & AuditFields;
   trainings: UserTrainingResponse[];
   timeZone?: string;
 }>();
@@ -94,6 +95,19 @@ const getTrainingStatus = (training: UserTrainingResponse) => {
 
         <v-col cols="12" sm="4" class="user-training-details__label">Notes</v-col>
         <v-col cols="12" sm="8">{{ props.training.notes?.trim() || '-' }}</v-col>
+
+        <template v-if="props.training.createdOn || props.training.createdById">
+          <v-col cols="12" sm="4" class="user-training-details__label">Created by:</v-col>
+          <v-col cols="12" sm="8"
+            ><UaAuditDisplay :audit="props.training" mode="created" :time-zone="trainingTimeZone"
+          /></v-col>
+        </template>
+        <template v-if="props.training.updatedOn">
+          <v-col cols="12" sm="4" class="user-training-details__label">Last updated by:</v-col>
+          <v-col cols="12" sm="8"
+            ><UaAuditDisplay :audit="props.training" mode="updated" :time-zone="trainingTimeZone"
+          /></v-col>
+        </template>
       </v-row>
     </div>
 

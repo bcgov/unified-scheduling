@@ -72,6 +72,35 @@ const sampleTraining = {
 describe('UserTrainingVersionsModal', () => {
   afterEach(() => vi.useRealTimers());
 
+  it('shows creation and update audit details for the selected training', () => {
+    const training = {
+      ...sampleTraining,
+      createdById: 'creator',
+      updatedById: 'editor',
+      updatedOn: '2026-01-21T00:00:00Z',
+    };
+    const wrapper = mount(UserTrainingVersionsModal, {
+      props: { training, trainings: [training], timeZone: 'America/Vancouver' },
+      global: {
+        stubs: {
+          UaModal: UaModalStub,
+          VTabs: VTabsStub,
+          VTab: true,
+          VRow: VRowStub,
+          VCol: VColStub,
+          UaAuditDisplay: {
+            props: ['audit', 'mode', 'timeZone'],
+            template: '<span>{{ mode }} {{ audit.createdById }} {{ audit.updatedById }} {{ timeZone }}</span>',
+          },
+        },
+      },
+    });
+    expect(wrapper.text()).toContain('Created by:');
+    expect(wrapper.text()).toContain('Last updated by:');
+    expect(wrapper.text()).toContain('created creator editor America/Vancouver');
+    expect(wrapper.text()).toContain('updated creator editor America/Vancouver');
+  });
+
   it.each([
     ['America/Vancouver', '2026-12-01', '2026-12-02T06:59:59.999Z', '3:00 PM'],
     ['America/Edmonton', '2026-07-01', '2026-07-02T05:59:59.999Z', '4:00 PM'],

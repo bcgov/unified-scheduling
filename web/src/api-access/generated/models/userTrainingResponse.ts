@@ -20,7 +20,11 @@ export interface UserTrainingResponse {
   noticeState: string;
   /** @nullable */
   notes?: string | null;
+  /** @nullable */
+  createdById?: string | null;
   createdOn?: string;
+  /** @nullable */
+  updatedById?: string | null;
   /** @nullable */
   updatedOn?: string | null;
 }

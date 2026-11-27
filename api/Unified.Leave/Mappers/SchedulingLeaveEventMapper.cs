@@ -60,9 +60,12 @@ public sealed class SchedulingLeaveEventMapper(
             leaveEntry.Event!,
             userIds
         );
-
         return response with
         {
+            CreatedById = leaveEntry.CreatedById,
+            CreatedOn = leaveEntry.CreatedOn == default ? null : leaveEntry.CreatedOn,
+            UpdatedById = leaveEntry.UpdatedById,
+            UpdatedOn = leaveEntry.UpdatedOn,
             Id = leaveEntry.Id,
             LeaveTypeId = leaveEntry.LeaveTypeId,
             LeaveSeriesId = leaveEntry.LeaveSeriesId,
@@ -83,9 +86,12 @@ public sealed class SchedulingLeaveEventMapper(
             userIds,
             eventIds
         );
-
         return response with
         {
+            CreatedById = series.CreatedById,
+            CreatedOn = series.CreatedOn == default ? null : series.CreatedOn,
+            UpdatedById = series.UpdatedById,
+            UpdatedOn = series.UpdatedOn,
             Id = series.Id,
             LeaveTypeId = series.LeaveTypeId,
             LeaveDate = GetLeaveDate(response.AllDay, response.StartAtUtc, response.TimeZoneId),
