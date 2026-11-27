@@ -234,7 +234,7 @@ public class UserServiceTests : IAsyncLifetime
         Assert.Equal(1, defaults.Page);
         Assert.Equal(25, defaults.PageSize);
         Assert.Equal(1, clamped.Page);
-        Assert.Equal(100, clamped.PageSize);
+        Assert.Equal(150, clamped.PageSize);
     }
 
     [Fact]

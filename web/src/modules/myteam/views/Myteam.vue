@@ -15,11 +15,11 @@ import UserFormModal from '../components/UserFormModal.vue';
 import { useAccessControl } from '@/composables/useAccessControl';
 import { useLocationsStore } from '@/stores/LocationsStore';
 
-const DEFAULT_PAGE_SIZE = 10;
+const DEFAULT_PAGE_SIZE = 50;
 const PAGE_SIZE_OPTIONS = [
-  { value: 10, title: '10' },
-  { value: 25, title: '25' },
   { value: 50, title: '50' },
+  { value: 100, title: '100' },
+  { value: 150, title: '150' },
 ];
 
 const accessControl = useAccessControl();

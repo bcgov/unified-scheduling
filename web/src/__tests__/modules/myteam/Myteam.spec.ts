@@ -46,7 +46,7 @@ describe('Myteam', () => {
 
         expect(url.searchParams.get('IsEnabled')).toBe('true');
         expect(url.searchParams.get('Page')).toBe('1');
-        expect(url.searchParams.get('PageSize')).toBe('10');
+        expect(url.searchParams.get('PageSize')).toBe('50');
 
         return users;
       }),
@@ -74,10 +74,10 @@ describe('Myteam', () => {
   it('pages results, changes page size, and resets the page for multiple locations and search', async () => {
     const app = await createTestApp({ permissions: ['UsersView', 'UserGlobalSearch'] });
     const template = getGetApiUsersResponseMock()[0]!;
-    const users = Array.from({ length: 32 }, (_, index) => ({
+    const users = Array.from({ length: 120 }, (_, index) => ({
       ...template,
       id: `user-${index + 1}`,
-      firstName: `Member${String(index + 1).padStart(2, '0')}`,
+      firstName: `Member${String(index + 1).padStart(3, '0')}`,
       lastName: 'Example',
       homeLocationId: (index % 3) + 1,
     }));
@@ -121,44 +121,43 @@ describe('Myteam', () => {
       expect(wrapper.text()).not.toContain(absent);
     };
 
-    expectRequest('1', '10');
-    expectUsers('Member01 Example', 'Member11 Example', 10);
+    expectRequest('1', '50');
+    expectUsers('Member001 Example', 'Member051 Example', 50);
 
     pager.vm.$emit('update:page', 2);
     await flushPromises();
-    expectRequest('2', '10');
-    expectUsers('Member11 Example', 'Member01 Example', 10);
+    expectRequest('2', '50');
+    expectUsers('Member051 Example', 'Member001 Example', 50);
 
-    pager.vm.$emit('update:items-per-page', 25);
+    pager.vm.$emit('update:items-per-page', 100);
     await flushPromises();
-    expectRequest('1', '25');
-    expectUsers('Member01 Example', 'Member26 Example', 25);
+    expectRequest('1', '100');
+    expectUsers('Member001 Example', 'Member101 Example', 100);
 
     pager.vm.$emit('update:page', 2);
     await flushPromises();
-    expectRequest('2', '25');
-    expectUsers('Member26 Example', 'Member01 Example', 7);
+    expectRequest('2', '100');
+    expectUsers('Member101 Example', 'Member001 Example', 20);
 
     wrapper.getComponent(UaAutocomplete).vm.$emit('update:modelValue', [1, 2]);
     await flushPromises();
-    expectRequest('1', '25', ['1', '2']);
-    expectUsers('Member01 Example', 'Member03 Example', 22);
+    expectRequest('1', '100', ['1', '2']);
+    expectUsers('Member001 Example', 'Member003 Example', 80);
 
-    pager.vm.$emit('update:items-per-page', 10);
+    pager.vm.$emit('update:items-per-page', 50);
     await flushPromises();
     pager.vm.$emit('update:page', 2);
     await flushPromises();
-    expectRequest('2', '10', ['1', '2']);
-    expectUsers('Member16 Example', 'Member01 Example', 10);
+    expectRequest('2', '50', ['1', '2']);
+    expectUsers('Member076 Example', 'Member001 Example', 30);
 
     const searchInput = wrapper.get('#team-search');
-    await searchInput.setValue('Member02');
+    await searchInput.setValue('Member002');
     await searchInput.trigger('keydown.enter');
     await flushPromises();
-    expectRequest('1', '10', ['1', '2'], 'Member02');
-    expectUsers('Member02 Example', 'Member16 Example', 1);
+    expectRequest('1', '50', ['1', '2'], 'Member002');
+    expectUsers('Member002 Example', 'Member076 Example', 1);
   });
-
   it('renders an error state when the users request fails', async () => {
     const app = await createTestApp();
 

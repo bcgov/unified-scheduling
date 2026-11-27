@@ -26,7 +26,7 @@ public sealed class UserService(
 ) : IUserService
 {
     private const int DefaultPageSize = 25;
-    private const int MaxPageSize = 100;
+    private const int MaxPageSize = 150;
 
     public async Task<IReadOnlyCollection<UserResponse>> GetAllAsync(
         UserQueryParams? queryParams = null,
