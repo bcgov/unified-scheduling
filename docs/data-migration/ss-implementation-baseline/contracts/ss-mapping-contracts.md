@@ -52,7 +52,8 @@ affected lineages are rolled back. Insert-only null date/photo fallbacks use one
 
 `HistoryStartDate=2020-01-01` means midnight America/Vancouver, initially
 `2020-01-01T08:00:00Z`. Include EndDate >= boundary regardless of row timezone for acting rank,
-away, leave, training, Duty, DutySlot and Shift. Include unexpired Assignments and every
+away, leave, Duty, DutySlot and Shift. Training (SheriffTraining) has no history date limit:
+every row is considered regardless of EndDate (2026-11 change). Include unexpired Assignments and every
 Assignment needed by an included Duty. People, roles, UserRole and needed references are
 not history-filtered. Earlier cutoff changes trigger resumable backfill independent of normal
 incremental progress; later changes do not delete targets. Boundary moved from 2015-01-01 to 2020-01-01 on 2026-11-17.
@@ -60,7 +61,8 @@ incremental progress; later changes do not delete targets. Boundary moved from 2
 Copy DateTimeOffset instants as UTC. Preserve supplied valid IANA timezone; reject invalid
 values. Q-X1: person-event null timezone stays null (read-path fallback must be checked);
 blank is invalid. Roster timezone null, blank or invalid rejects. This is not permission
-to reinterpret source instants or substitute a host timezone.
+to reinterpret source instants or substitute a host timezone. The only exception is the
+Training America/Vancouver standard-time adjustment (see Training History And Reporting).
 Reject inverted/equal intervals except training permits equal start/end. No invented intervals.
 
 ## References And JC (T051)
@@ -154,7 +156,7 @@ type is expired; record any edit/picker loss as a Unified backlog item.
   timestamptz copies its UTC instant; null EffectiveDate -> fixed UTC run start.
   Copy source course expiry exactly, including null.
 - Copy Mandatory. New Rotating=true if source true, ValidityPeriod>0, or repeated eligible
-  same-user/course history exists; otherwise false.
+  same-user/course history exists (any date; no history boundary); otherwise false.
 - ValidityPeriod 0 -> null, 1461 -> 1460, >1825 -> 1825; other positive values unchanged;
   negatives reject. AdvanceNotice 0 -> null; positive must be below mapped non-null
   validity, or any positive when validity null; negatives reject.
@@ -228,21 +230,97 @@ copied cancellation instant/reason; no invented cancelled actor.
 
 ## Training History And Reporting
 
-Skip/count records with own ExpiryDate non-null and every record of an Excused=true sheriff;
+Skip/count records with own ExpiryDate non-null and every record of an Excused=true sheriff
+(`ExcusedSheriff`) unless `Sources:SS:Jobs:Training:IncludeExcused=true`, in which case excused
+users' records follow every other rule (including Carbine profile eligibility);
 no new target/link. If later excluded after migration, preserve old targets/links and warn.
-Course retirement and past certificate expiry do not exclude eligible histories.
+Course retirement and past certificate expiry do not exclude eligible histories. No history
+date limit applies to training. A rerun never overwrites a migrated UserTraining edited in
+Unified since it was migrated (e.g. the 2026-11-01 time zone correction): unchanged source is a
+no-op; changed source over a drifted target is skipped as `Excluded/OwnedTargetDrift`.
 
 Require resolved user and Type 6 course. StartDate -> AwardedOn; EndDate -> EndingOn;
 equality allowed, reversed dates reject. Copy TrainingCertificationExpiry exactly, including
-null, with no expiry calculation. FirstNotice false -> None, true -> Sent, never Pending.
+null, with no expiry calculation (except the Vancouver adjustment below). FirstNotice false -> None,
+true -> Sent, never Pending.
+
+America/Vancouver standard-time adjustment (2026-11-25). America/Vancouver moved to a permanent
+UTC-07:00 offset on 2026-11-01. SS still stored standard-time instants at the old UTC-08:00 offset, so
+those rows would show one hour late in Unified, which renders with IANA rules (-08:00 before the change,
+-07:00 after). Only sheriffs whose SS home location (`User.HomeLocationId` -> `Location.Timezone`)
+is exactly `America/Vancouver` (trimmed, ordinal comparison) are adjusted. SS shows and enters training in the home
+location zone and keeps no home-location history. The row's own `Timezone` column is ignored for this
+decision. A null or missing home location, or any other zone (America/Edmonton, America/Creston,
+America/Dawson_Creek, America/Fort_Nelson, Etc/UTC, ...), means no adjustment and no extra outcome.
+For those sheriffs, each of StartDate, EndDate and TrainingCertificationExpiry is shifted -1 hour
+(UTC = local + 7h instead of local + 8h) independently when the instant is at or after
+`2026-11-01T09:00:00Z` and falls in old-rule Pacific standard time (outside second Sunday of March 10:00Z
+to first Sunday of November 09:00Z of its UTC year). Instants before the change are already displayed
+correctly with -08:00 and stay unchanged; old-rule DST instants stay unchanged. Example: SS
+2026-12-01 09:00 PST is stored as `17:00Z`; Unified gets `16:00Z` = 09:00 at -07:00. An interval spanning a
+DST transition shifts only the standard-time endpoint; EndingOn is then clamped to AwardedOn if the
+shift would reverse it (only possible for spans under an hour across the fall-back). The expiry is shifted
+so the SS end-of-year expiry (local 23:59:59 at -08:00) keeps its calendar date. Migrated rows are
+always AllDay=false (SS has no all-day concept), so the rule applies to every migrated row. A Unified
+edit to AllDay=true is drift. The rule is always on and has no option: turning it off would knowingly
+migrate wrong wall-clock times. The dry-run configuration hash already changes with the code (assembly MVID).
+PerRow, Bulk and dry run share `SsTrainingRules.MapHistoryTimes`. Version ordering (EndDate, StartDate,
+source ID) uses the mapped values.
+
+The adjustment manages only incoming SS values still captured at -08:00. Times already in Unified are
+never adjusted (already-migrated rows were fixed by hand in Unified). The history payload hash keeps its
+original shape and hashes only raw SS values, never the mapped instants, so the adjustment alone never
+makes an already-migrated history look changed: a rerun leaves it `ExistingCrosswalk`/`UnchangedMappedSource`
+with no write and no drift check. New histories are inserted with the mapped instants. When a real SS change
+(hash change) takes the owned-update path, `SsTrainingRules.KeepTargetTimes` decides each of AwardedOn,
+EndingOn and ExpiryDate: the Unified value is kept while it equals the raw SS value or its mapped value
+(unchanged in SS, fixed by hand or not); only an SS value that changed is written, with its mapped instant.
+EndingOn is clamped to AwardedOn if the kept/replaced mix would reverse the interval. Drift detection and
+`Migrated/TargetAlreadyMatchesMappedSource` adoption compare against these kept values.
+Known limitation (unchanged): the history payload hash serializes the start/end ValueTuple as `{}`, so an SS
+edit to only StartDate/EndDate of an otherwise unchanged history is not reapplied
+(`UnchangedMappedSource`). Fixing it would rewrite every SheriffTraining hash.
 For Other course, Comment -> `Other training: {Comment}`, append newline + distinct Note;
 if equal include labeled Comment once; absent Comment copies Note. Preserve source text.
 A Comment on another course rejects. Validate target lengths rather than truncate.
 
 Keep every eligible history distinct by source ID. Within user/course, allocate versions
-in EndDate, StartDate, source-ID order after existing maximum (empty starts 1); never renumber.
-A later older row gets max+1 plus out-of-order finding. Use tracked migration inserts with
+in EndDate, StartDate, source-ID order after existing maximum (empty starts 1), so the current
+certificate (highest version) is the newest history. A later older row (e.g. a pre-2020 backfill)
+keeps that order: it takes the lowest version of the newer rows and the migration-owned, undrifted
+newer rows move up one version (Version and update stamp only; dates, notes and Unified edits are
+untouched; crosswalk evidence is refreshed so reruns are no-ops). If a newer row is Unified-created
+or drifted it is never moved: the older row takes the highest free version above every history that sorts before it and below the
+newer rows, else it is
+Excluded as OlderHistoryBlockedByUnownedVersion (or OwnedTargetDrift) and reconsidered on rerun.
+Either way it records an out-of-order finding. Use tracked migration inserts with
 audit/FK/unique validation; do not invoke renewal or user-creation side effects.
+
+An owned update that changes a history's dates without a user/course rebind (a real SS date change, with
+incoming Vancouver values mapped) keeps its version unless the new dates change its order among
+the other histories of the group. Example: the 2026-11-01 fall-back pair A (ends 08:50Z, PDT) and B
+(ends 09:10Z, PST) was migrated as A=v1, B=v2; SS then changes B to end 09:12 PST, mapped to 08:12Z, before A. Then the history is
+placed again with the same rule as a backfill (its current version is a free gap): it takes the lowest
+version of the histories now newer than it, and the migration-owned, undrifted run between moves up one
+version (B=v1, A=v2, so A stays the current certificate). The updated row is parked on `-Id` first so
+the unique (UserId, TrainingId, Version) index never collides; moved rows get the same Version-only
+update, mutation receipt and refreshed crosswalk evidence as a backfill shift, so the next rerun is a
+no-op. If a row that would have to move is Unified-created, drifted or lacks version proof, the whole
+owned update is skipped (`Excluded/OwnedTargetDrift`, `OlderHistoryBlockedByUnownedVersion` or
+`MissingOriginalTargetVersionProof`): no dates are corrected and nothing is written, because correcting
+the dates alone would leave the wrong current certificate. The crosswalk is untouched, so every rerun
+reconsiders it. A drifted row adopted as `TargetAlreadyMatchesMappedSource` (a Unified user already applied
+the correction) is a user edit and is never renumbered. PerRow and Bulk share
+`SsTrainingRules.HistoryOrderChanged` and `PlaceHistory`.
+
+Journaled rollback of a PerRow Training run restores every row to its first before-image one row at a
+time, so the `-Id` parking used by these permutations (backfill shift chains, re-placement swaps, rebinds,
+cycles) is not replayed. Before restoring any original, `SsRollbackService` therefore parks every
+restored UserTrainings row whose UserId/TrainingId/Version changed, and every run-created history still
+present, on `-Id` (Version is then always restored and verified). The unique index cannot collide in any
+restore order. Bulk Training runs are not journaled, and the Bulk undo refuses runs with Update/Renumber
+mutations (`BulkUndoRequiresInsertLinkComposeOnlyRun`), so a Bulk correction run cannot be undone and
+nothing is changed.
 
 SheriffStandardTraining is intentionally not migrated/reported separately. Unified mandatory
 flags/profile applicability replace future-user rules; stored SS histories still migrate.

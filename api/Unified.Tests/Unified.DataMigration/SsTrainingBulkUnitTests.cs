@@ -151,6 +151,53 @@ public sealed class SsTrainingBulkUnitTests
     }
 
     [Fact]
+    public void IncludeExcused_DefaultsFalse_AndIsAcceptedOnlyForTraining()
+    {
+        Assert.False(new MigrationJobOptions().IncludeExcused);
+        Assert.True(_validator.Validate(null, Enabled(jobs => jobs.Training.IncludeExcused = true)).Succeeded);
+        foreach (var job in new[] { "MyTeam", "Scheduling", "Report" })
+        {
+            var result = _validator.Validate(null, Enabled(jobs => jobs.For(job).IncludeExcused = true));
+            Assert.True(result.Failed);
+            Assert.Contains(result.Failures, x => x.Contains($"SS:{job}:IncludeExcused", StringComparison.Ordinal));
+        }
+    }
+
+    [Fact]
+    public void ExcusedSheriff_ExcludedOnlyWhenIncludeExcusedIsOff_AndRepeatsFollowTheSwitch()
+    {
+        var excused = new SsRow(new Dictionary<string, object?> { ["Id"] = "u1", ["Excused"] = true });
+        var active = new SsRow(new Dictionary<string, object?> { ["Id"] = "u2", ["Excused"] = false });
+        Assert.True(SsTrainingRules.ExcludedExcused(excused, includeExcused: false));
+        Assert.False(SsTrainingRules.ExcludedExcused(excused, includeExcused: true));
+        Assert.False(SsTrainingRules.ExcludedExcused(active, includeExcused: false));
+        Assert.Equal("ExcusedSheriff", SsTrainingRules.ExcludedHistoryReason(linked: false, excused: true));
+
+        var sheriff = Guid.NewGuid();
+        var users = new Dictionary<string, SsRow>
+        {
+            [sheriff.ToString()] = new(
+                new Dictionary<string, object?> { ["Id"] = sheriff.ToString(), ["Excused"] = true }
+            ),
+        };
+        // Pre-2020 repeats count too: Training has no history date limit.
+        SsRow History(int id, int year) =>
+            new(
+                new Dictionary<string, object?>
+                {
+                    ["Id"] = id.ToString(),
+                    ["SheriffId"] = sheriff,
+                    ["TrainingTypeId"] = 7,
+                    ["EndDate"] = new DateTime(year, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+                    ["ExpiryDate"] = null,
+                }
+            );
+        List<SsRow> histories = [History(1, 2009), History(2, 2010)];
+        Assert.Empty(SsTrainingRules.RepeatedCourses(histories, users, includeExcused: false));
+        Assert.Equal(new int?[] { 7 }, SsTrainingRules.RepeatedCourses(histories, users, includeExcused: true));
+    }
+
+    [Fact]
     public void SafeTargetFields_MatchPerRowWriteSession()
     {
         Assert.Equal(
@@ -192,6 +239,96 @@ public sealed class SsTrainingBulkUnitTests
         Assert.True(SsMigrationExecutor.IsTriggerEvidence(json, run));
         Assert.Equal(expected, SsMigrationExecutor.IsTriggerEvidence(json, run, mode));
         Assert.False(SsMigrationExecutor.IsTriggerEvidence("not json", run, mode));
+    }
+
+    private static SsTrainingRules.HistorySlot Slot(int id, int version, int year, string? legacy) =>
+        new(
+            id,
+            version,
+            new DateTimeOffset(year, 6, 15, 16, 0, 0, TimeSpan.Zero),
+            new DateTimeOffset(year, 6, 16, 0, 0, 0, TimeSpan.Zero),
+            legacy
+        );
+
+    private static SsTrainingRules.HistoryPlacement Place(
+        IReadOnlyCollection<SsTrainingRules.HistorySlot> group,
+        int year,
+        Func<SsTrainingRules.HistorySlot, string?>? block = null
+    ) =>
+        SsTrainingRules.PlaceHistory(
+            group,
+            "9000",
+            new DateTimeOffset(year, 6, 15, 16, 0, 0, TimeSpan.Zero),
+            new DateTimeOffset(year, 6, 16, 0, 0, 0, TimeSpan.Zero),
+            block ?? (_ => null)
+        );
+
+    [Fact]
+    public void PlaceHistory_NewestAppends_OlderBackfillKeepsCurrentCertificateHighest()
+    {
+        // First-run order: newest appends at max+1 and never touches existing rows.
+        var newest = Place([Slot(1, 1, 2020, "1"), Slot(2, 2, 2026, "2")], 2027);
+        Assert.Equal((3, 0, (string?)null), (newest.Version, newest.Shift.Count, newest.Skip));
+        Assert.Equal(1, Place([], 2009).Version);
+
+        // Backfilled 2009 below an owned 2020/2026 pair: takes version 1, the owned rows move up (top first).
+        var backfill = Place([Slot(1, 1, 2020, "1"), Slot(2, 2, 2026, "2")], 2009);
+        Assert.Equal(1, backfill.Version);
+        Assert.Equal([2, 1], backfill.Shift);
+        Assert.Null(backfill.Skip);
+
+        // Between two rows: only the contiguous run from the first newer version moves.
+        var between = Place([Slot(1, 1, 2015, "1"), Slot(2, 2, 2026, "2"), Slot(3, 5, 2027, "3")], 2020);
+        Assert.Equal((2, (string?)null), (between.Version, between.Skip));
+        Assert.Equal([2], between.Shift);
+
+        // Same dates: the source ID breaks the tie like HistoryOrder.
+        Assert.Equal(2, Place([Slot(1, 1, 2020, "8999"), Slot(2, 2, 2020, "9001")], 2020).Version);
+    }
+
+    [Fact]
+    public void PlaceHistory_NeverMovesUnownedOrDriftedRows()
+    {
+        List<SsTrainingRules.HistorySlot> group = [Slot(1, 2, 2015, "1"), Slot(2, 3, 2026, null)];
+        string? Unowned(SsTrainingRules.HistorySlot x) =>
+            x.LegacyId is null ? SsTrainingRules.UnownedNewerHistoryReason : null;
+
+        // A free version below the newer rows is used instead of moving them.
+        var below = Place(group, 2009, Unowned);
+        Assert.Equal((1, 0, (string?)null), (below.Version, below.Shift.Count, below.Skip));
+
+        // No free version below: skipped with the blocking reason (drift wins over unowned).
+        var full = Place([Slot(0, 1, 2014, "0"), .. group], 2009, Unowned);
+        Assert.Equal(SsTrainingRules.UnownedNewerHistoryReason, full.Skip);
+        Assert.Empty(full.Shift);
+        var drifted = Place([Slot(0, 1, 2014, "0"), .. group], 2009, x => x.Id == 0 ? "OwnedTargetDrift" : Unowned(x));
+        Assert.Equal("OwnedTargetDrift", drifted.Skip);
+    }
+
+    [Fact]
+    public void PlaceHistory_FallbackGapMustSitAboveOlderHistories()
+    {
+        string? Unowned(SsTrainingRules.HistorySlot x) =>
+            x.LegacyId is null ? SsTrainingRules.UnownedNewerHistoryReason : null;
+
+        // 2015 at v2, unowned 2026 at v3, v1 free: a 2020 backfill may not take v1 (2020 -> 2015 -> 2026).
+        var lowerGapOnly = Place([Slot(1, 2, 2015, "1"), Slot(2, 3, 2026, null)], 2020, Unowned);
+        Assert.Equal(
+            (0, 0, SsTrainingRules.UnownedNewerHistoryReason),
+            (lowerGapOnly.Version, lowerGapOnly.Shift.Count, lowerGapOnly.Skip)
+        );
+
+        // An older Unified-created row also bounds the gap by its dates.
+        var unownedOlder = Place([Slot(1, 2, 2015, null), Slot(2, 3, 2026, null)], 2020, Unowned);
+        Assert.Equal(SsTrainingRules.UnownedNewerHistoryReason, unownedOlder.Skip);
+
+        // Drift on the blocker is still reported as OwnedTargetDrift.
+        var drifted = Place([Slot(1, 2, 2015, "1"), Slot(2, 3, 2026, "2")], 2020, _ => "OwnedTargetDrift");
+        Assert.Equal("OwnedTargetDrift", drifted.Skip);
+
+        // A free version between the older row and the blocker is used; the highest such gap wins.
+        var gap = Place([Slot(0, 1, 2010, "0"), Slot(1, 2, 2015, "1"), Slot(2, 6, 2026, null)], 2020, Unowned);
+        Assert.Equal((5, 0, (string?)null), (gap.Version, gap.Shift.Count, gap.Skip));
     }
 
     private static IEnumerable<string> PrivateSet(string name) =>

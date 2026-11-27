@@ -34,7 +34,8 @@ public static class MigrationDiagnostics
         MissingOriginalTargetVersionProof MissingParent MissingPrimaryCrosswalk MissingRank MissingRole MissingRoleName MissingRoomCode
         MissingShiftLocation MissingSourceAssignment MissingSourceCoverage MissingSourceUser MissingStaffPermissionSnapshot
         MissingStandardRole MissingStart MissingStatsClassification MissingStatusTimezoneFallback MissingTraining MissingUnifiedSystemUser
-        MissingUser MixedShiftTimezones NegativeTrainingPeriod NoOverlappingShiftUserLinkDropped NullIdentityTextToEmpty OrderOverflow
+        MissingUser MixedShiftTimezones NegativeTrainingPeriod NoOverlappingShiftUserLinkDropped NullIdentityTextToEmpty
+        OlderHistoryBlockedByUnownedVersion OrderOverflow
         OriginalBeforeImageUnavailable OriginalRollbackKeyRequired OwnedFullGroupUpdate OwnedMappedUpdate OwnedTargetDrift OwnedUpdateRequiresReview
         ParentDutyNotMigrated PreviousPrivatePhotoCannotBeRestored PreviouslyMigratedNowExcludedRetained ReportMustRollbackFirst
         ReportRequiresMyTeamLineage RestoredRowAlsoDependsOnDeletedTarget RetainedLeaveTargetCollision ReversedDates RunNotApplied
@@ -42,8 +43,9 @@ public static class MigrationDiagnostics
         SimulationCandidateReceiptMismatch SimulationExplicitSchemaUnsupported SimulationOnlyNotAppliedLineage SimulationParentRehydrationFailed
         SimulationUnkeyedTableUnsupported SlotFlagsRepresentedOnEntry SlotPartlyOutsideShift SourceChangedSinceApplied SourceJobRunning
         SsoIdentityCollision StaleSimulationInputsOrTargetBaseline StandaloneInsufficientPatternOccurrences StandaloneMissingRruleOccurrence
-        StandaloneSplitDuty StandaloneUnsupportedPattern StatsAssumptionC1S3 TargetTrainingAllDayNotInSource TargetTrainingTimezoneUnavailable
-        TrainingCannotChangeMyTeamMappedFields UnapprovedTrainingCategory UnexpectedNonOtherComment UnifiedMandatoryPolicyReplacesFutureRules
+        StandaloneSplitDuty StandaloneUnsupportedPattern StatsAssumptionC1S3 TargetAlreadyMatchesMappedSource
+        TargetTrainingAllDayNotInSource TargetTrainingTimezoneUnavailable
+        TrainingCannotChangeMyTeamMappedFields UnapprovedTrainingCategory UnchangedMappedSource UnexpectedNonOtherComment UnifiedMandatoryPolicyReplacesFutureRules
         UnifiedSystemUser UnkeyedDependentTableRequiresExplicitResolution UnknownEntityOwnership UnknownLeaveType UnknownSourceLookupType
         UnknownSourceOutcome UnknownTargetType UnownedGraphDependent UnresolvedPrimaryRetryItems UnresolvedRank UnsupportedScopedCourse
         UnsupportedSimulationJob UnusedClassificationCode UserIdentityCollision VersionOverflow WrongOrMissingSimulationCandidateNamespace

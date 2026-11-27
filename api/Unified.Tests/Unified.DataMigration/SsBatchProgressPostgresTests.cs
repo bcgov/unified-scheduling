@@ -85,8 +85,10 @@ public sealed class SsBatchProgressPostgresTests : IAsyncLifetime
             throw new InvalidOperationException("synthetic");
         if (id % 4 == 0)
         {
+            // Exercises the generic deferred "Before*" exclusion work-item rule (still emitted by
+            // MyTeam/Leave/Scheduling). The Training writers no longer emit a history-boundary exclusion.
             session.Outcome("TrainingValidation", row.Id, "NeedsAction", "Aux");
-            session.Outcome(type, row.Id, "Excluded", "BeforeHistoryBoundary");
+            session.Outcome(type, row.Id, "Excluded", "BeforeSyntheticBoundary");
             return Task.CompletedTask;
         }
         session.Outcome(type, row.Id, "Migrated", id % 6 == 0 ? "ExistingCrosswalk" : null);

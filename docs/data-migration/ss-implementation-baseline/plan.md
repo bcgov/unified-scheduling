@@ -99,7 +99,7 @@ backup/restore procedure and explicit owner approval are recommended before real
 Validate entity ownership at startup. CASS stays disabled and source-isolated.
 Controls are per `(Source, Job)` plus source-wide pause/abort. Poll at batch boundaries.
 
-`CutoverDate=2026-12-01`; history starts `2020-01-01` Vancouver midnight.
+`CutoverDate=2026-12-01`; history starts `2020-01-01` Vancouver midnight (Training: no history limit).
 Freeze cutover after applied work. One immutable UTC run start supplies insert-only fallbacks.
 JC is scheduled apart by operators, outside this DB gate.
 

@@ -154,6 +154,7 @@ An authorized operator can review a source-specific run, pause or abort it safel
   Earlier changes trigger resumable, idempotent backfill independent of normal watermarks,
   with Q-X4 protection. Later changes delete nothing (amended 2026-11-17: 2015 -> 2020). Include unexpired Assignments and
   every Assignment referenced by an included Duty; people/roles/needed references are unfiltered.
+  Training (SheriffTraining) histories are exempt: no history date limit (amended 2026-11).
 - **FR-020**: All SS jobs MUST use fixed required CutoverDate `2026-12-01`, lock it after
   applied work and preserve status/series/leave-type expiry on replay.
 - **FR-021**: MyTeam owns identities/references/people events; Training owns courses,

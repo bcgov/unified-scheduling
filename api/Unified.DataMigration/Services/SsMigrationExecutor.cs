@@ -137,6 +137,7 @@ public sealed class SsMigrationExecutor(
             BulkChunkSize = configured.BulkChunkSize,
             PlanReplacementFamiliesOnly = configured.PlanReplacementFamiliesOnly,
             PrefetchReplayRecords = configured.PrefetchReplayRecords,
+            IncludeExcused = configured.IncludeExcused,
         };
         if (!flags.Value.Enabled || !source.Enabled || !settings.Enabled)
             throw new InvalidOperationException("SS migration job is disabled.");
@@ -383,8 +384,8 @@ public sealed class SsMigrationExecutor(
                 ).ExecuteAsync(
                     run,
                     rows,
-                    boundary,
                     source.HistoryStartDate,
+                    settings.IncludeExcused,
                     settings.BulkChunkSize,
                     token => FenceAsync(run, token, captureJournal: false),
                     ct
@@ -420,7 +421,7 @@ public sealed class SsMigrationExecutor(
                 token => FenceAsync(run, token)
             );
             await batches.BeginAsync(ct);
-            await WriteJobAsync(job, rows, session, boundary, ct);
+            await WriteJobAsync(job, rows, session, boundary, settings.IncludeExcused, ct);
             await batches.CommitAsync(true, ct);
             return;
         }
@@ -492,13 +493,14 @@ public sealed class SsMigrationExecutor(
         Dictionary<string, List<SsRow>> rows,
         SsWriteSession session,
         DateTimeOffset boundary,
+        bool includeExcused,
         CancellationToken ct
     )
     {
         if (job == "MyTeam")
             await myTeam.WriteAsync(rows, session, boundary, ct);
         if (job == "Training")
-            await training.WriteAsync(rows, session, boundary, ct);
+            await training.WriteAsync(rows, session, includeExcused, ct); // Training has no history date limit.
         if (job == "Scheduling")
         {
             await scheduling.WriteAsync(rows, session, boundary, ct);

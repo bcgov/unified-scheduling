@@ -545,13 +545,61 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run) : 
                 CultureInfo.InvariantCulture
             );
 
-    public async Task<bool> ReplayAsync(
+    /// <summary>A drifted owned target that already equals the mapped source values (no write; unchanged).</summary>
+    public const string TargetAlreadyMatchesMappedSourceReason = "TargetAlreadyMatchesMappedSource";
+
+    public Task<bool> ReplayAsync(
         string type,
         SsRow source,
         string sourceHash,
         bool reference,
         CancellationToken ct,
         Func<Task>? applyOwnedUpdate = null
+    ) => ReplayCoreAsync(type, source, sourceHash, reference, ct, applyOwnedUpdate, skipOwnedTargetDrift: false);
+
+    /// <summary>
+    /// Owned (non-reference) replay where a drifted target (edited in Unified since the job last wrote it,
+    /// e.g. the 2026-11-01 time zone correction) is skipped: the target and crosswalk are left unchanged and
+    /// the row is recorded as Excluded/OwnedTargetDrift (counted as skipped, FR-018) instead of Rejected.
+    /// When <paramref name="targetMatchesMapped"/> reports that the drifted target already equals the new mapped
+    /// values, nothing is written to the target: the crosswalk adopts the current target image (source hash,
+    /// after-hash, source timestamp) and the row is recorded as Migrated/TargetAlreadyMatchesMappedSource
+    /// (counted as unchanged), so later reruns are no-ops.
+    /// <paramref name="ownedUpdateBlock"/> runs only for an undrifted owned target whose mapped source changed,
+    /// before anything is written: a non-null reason skips the whole update (Excluded/reason; target and
+    /// crosswalk untouched, reconsidered on rerun) so no partial change is applied.
+    /// </summary>
+    public Task<bool> ReplaySkippingDriftAsync(
+        string type,
+        SsRow source,
+        string sourceHash,
+        CancellationToken ct,
+        Func<Task> applyOwnedUpdate,
+        Func<Task<bool>>? targetMatchesMapped = null,
+        Func<Task<string?>>? ownedUpdateBlock = null
+    ) =>
+        ReplayCoreAsync(
+            type,
+            source,
+            sourceHash,
+            false,
+            ct,
+            applyOwnedUpdate,
+            skipOwnedTargetDrift: true,
+            targetMatchesMapped,
+            ownedUpdateBlock
+        );
+
+    private async Task<bool> ReplayCoreAsync(
+        string type,
+        SsRow source,
+        string sourceHash,
+        bool reference,
+        CancellationToken ct,
+        Func<Task>? applyOwnedUpdate,
+        bool skipOwnedTargetDrift,
+        Func<Task<bool>>? targetMatchesMapped = null,
+        Func<Task<string?>>? ownedUpdateBlock = null
     )
     {
         if (Rebinding.Contains((type, source.Id)))
@@ -611,7 +659,29 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run) : 
                 record.TargetType == "User" && version != prior.Version
                 || record.AfterHash != await TargetFingerprintAsync(record.TargetType, record.TargetKey, ct)
             )
-                throw new SsReject("OwnedTargetDrift");
+            {
+                if (!skipOwnedTargetDrift)
+                    throw new SsReject("OwnedTargetDrift");
+                if (record.TargetType != "User" && targetMatchesMapped is not null && await targetMatchesMapped())
+                {
+                    // Same no-write precedent as UnchangedMappedSource: only crosswalk evidence moves.
+                    record.PayloadHash = sourceHash;
+                    record.AfterHash = await TargetFingerprintAsync(record.TargetType, record.TargetKey, ct);
+                    record.SourceUpdatedAtUtc = source.Date("UpdatedOn") ?? source.Date("CreatedOn");
+                    record.LastAppliedRunId = run.Id;
+                    Outcome(type, source.Id, "Migrated", TargetAlreadyMatchesMappedSourceReason);
+                    return true;
+                }
+                // Leave the record untouched so every later run re-detects the drift and skips again.
+                Outcome(type, source.Id, "Excluded", "OwnedTargetDrift");
+                return true;
+            }
+            if (ownedUpdateBlock is not null && await ownedUpdateBlock() is { } blocked)
+            {
+                // Nothing written; the record is untouched so the next run reconsiders the update.
+                Outcome(type, source.Id, "Excluded", blocked);
+                return true;
+            }
             Store.BeforeOwnedUpdate($"OwnedUpdate:{type}");
             await applyOwnedUpdate();
             await Store.SaveAsync(ct);
@@ -654,6 +724,62 @@ public sealed class SsWriteSession(UnifiedDbContext db, DataMigrationRun run) : 
         }
         Outcome(type, source.Id, "Migrated", "ExistingCrosswalk");
         return true;
+    }
+
+    /// <summary>
+    /// Null when the job may renumber the owned target of <paramref name="record"/> (it has the original
+    /// version proof and still matches what the job last wrote); otherwise the reason it must stay untouched.
+    /// </summary>
+    internal async Task<string?> OwnedTargetBlockAsync(DataMigrationRecord record, CancellationToken ct)
+    {
+        if ((await Store.LatestMutationAsync(record.Id, ct))?.Version is null)
+            return "MissingOriginalTargetVersionProof";
+        return record.AfterHash == await TargetFingerprintAsync(record.TargetType, record.TargetKey, ct)
+            ? null
+            : "OwnedTargetDrift";
+    }
+
+    /// <summary>
+    /// Applies a job-internal change (version renumbering) to an owned, undrifted target and refreshes the
+    /// crosswalk evidence like an owned update, so later runs do not see it as drift. Source hashes are kept.
+    /// </summary>
+    internal async Task RenumberOwnedAsync(DataMigrationRecord record, Action apply, CancellationToken ct)
+    {
+        Store.BeforeOwnedUpdate($"OwnedRenumber:{record.EntityType}");
+        apply();
+        await Store.SaveAsync(ct);
+        record.AfterHash = await TargetFingerprintAsync(record.TargetType, record.TargetKey, ct);
+        record.LastAppliedRunId = run.Id;
+        var version = await TargetVersionAsync(record.TargetType, record.TargetKey, false, ct);
+        Store.AddMutation(
+            new DataMigrationMutation
+            {
+                RunId = run.Id,
+                DataMigrationRecordId = record.Id,
+                Sequence = await Store.NextSequenceAsync(run.Id, ct),
+                Operation = "Update",
+                AfterHash = record.AfterHash,
+                Version = version,
+            }
+        );
+        await Store.SaveAsync(ct);
+        foreach (var alias in await Store.AliasesAsync(record.TargetType, record.TargetKey, record.Id, ct))
+        {
+            alias.AfterHash = record.AfterHash;
+            Store.AddMutation(
+                new DataMigrationMutation
+                {
+                    RunId = run.Id,
+                    DataMigrationRecordId = alias.Id,
+                    Sequence = await Store.NextSequenceAsync(run.Id, ct),
+                    Operation = "GraphRefresh",
+                    AfterHash = record.AfterHash!,
+                    Version = version,
+                }
+            );
+            await Store.SaveAsync(ct);
+        }
+        updatedTargets.Add($"{record.TargetType}:{record.TargetKey}");
     }
 
     public async Task LinkAsync(
