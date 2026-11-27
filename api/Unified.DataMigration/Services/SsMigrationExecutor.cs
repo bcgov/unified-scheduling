@@ -421,8 +421,6 @@ public sealed class SsMigrationExecutor(
                 token => FenceAsync(run, token)
             );
             await batches.BeginAsync(ct);
-            session.PlanReplacementFamiliesOnly = settings.PlanReplacementFamiliesOnly;
-            session.PrefetchReplayRecords = settings.PrefetchReplayRecords;
             await WriteJobAsync(job, rows, session, boundary, settings.IncludeExcused, ct);
             await batches.CommitAsync(true, ct);
             return;
