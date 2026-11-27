@@ -115,7 +115,16 @@ public sealed class UserService(
             query = query.Where(x => x.HomeLocationId != null && locationIds.Contains(x.HomeLocationId.Value));
         }
 
-        return query.OrderBy(x => x.FirstName).ThenBy(x => x.LastName).ThenBy(x => x.Id);
+        return query
+            .OrderBy(user =>
+                DB.PositionTypes.Where(position => position.Code == user.Rank && position.Code != string.Empty)
+                    .Select(position => (long?)position.DisplayOrder)
+                    .FirstOrDefault()
+                ?? long.MaxValue
+            )
+            .ThenBy(user => user.LastName)
+            .ThenBy(user => user.FirstName)
+            .ThenBy(user => user.Id);
     }
 
     private IQueryable<User> BuildFilteredQuery(UserQueryParams? queryParams)

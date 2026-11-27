@@ -22,6 +22,7 @@ export const getGetApiLookupTrainingsResponseMock = (): TrainingLookupResponse[]
     Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
       mandatory: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       validityDays: faker.helpers.arrayElement([faker.number.int(), null]),
+      annualValidityFromCompletionDate: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       advanceNoticeDays: faker.helpers.arrayElement([faker.number.int(), null]),
       rotating: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       trainingCategoryId: faker.helpers.arrayElement([faker.number.int(), null]),
@@ -47,6 +48,7 @@ export const getGetApiLookupTrainingsResponseMock = (): TrainingLookupResponse[]
     Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
       mandatory: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       validityDays: faker.helpers.arrayElement([faker.number.int(), null]),
+      annualValidityFromCompletionDate: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       advanceNoticeDays: faker.helpers.arrayElement([faker.number.int(), null]),
       rotating: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       trainingCategoryId: faker.helpers.arrayElement([faker.number.int(), null]),
@@ -72,6 +74,7 @@ export const getGetApiLookupTrainingsResponseMock = (): TrainingLookupResponse[]
     Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
       mandatory: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       validityDays: faker.helpers.arrayElement([faker.number.int(), null]),
+      annualValidityFromCompletionDate: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       advanceNoticeDays: faker.helpers.arrayElement([faker.number.int(), null]),
       rotating: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       trainingCategoryId: faker.helpers.arrayElement([faker.number.int(), null]),
@@ -103,6 +106,7 @@ export const getPostApiLookupTrainingsResponseMock = (
     {
       mandatory: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       validityDays: faker.helpers.arrayElement([faker.number.int(), null]),
+      annualValidityFromCompletionDate: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       advanceNoticeDays: faker.helpers.arrayElement([faker.number.int(), null]),
       rotating: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       trainingCategoryId: faker.helpers.arrayElement([faker.number.int(), null]),
@@ -129,6 +133,7 @@ export const getPostApiLookupTrainingsResponseMock = (
     {
       mandatory: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       validityDays: faker.helpers.arrayElement([faker.number.int(), null]),
+      annualValidityFromCompletionDate: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       advanceNoticeDays: faker.helpers.arrayElement([faker.number.int(), null]),
       rotating: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       trainingCategoryId: faker.helpers.arrayElement([faker.number.int(), null]),
@@ -155,6 +160,7 @@ export const getPostApiLookupTrainingsResponseMock = (
     {
       mandatory: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       validityDays: faker.helpers.arrayElement([faker.number.int(), null]),
+      annualValidityFromCompletionDate: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       advanceNoticeDays: faker.helpers.arrayElement([faker.number.int(), null]),
       rotating: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       trainingCategoryId: faker.helpers.arrayElement([faker.number.int(), null]),
@@ -187,6 +193,7 @@ export const getGetApiLookupTrainingsIdResponseMock = (
     {
       mandatory: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       validityDays: faker.helpers.arrayElement([faker.number.int(), null]),
+      annualValidityFromCompletionDate: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       advanceNoticeDays: faker.helpers.arrayElement([faker.number.int(), null]),
       rotating: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       trainingCategoryId: faker.helpers.arrayElement([faker.number.int(), null]),
@@ -213,6 +220,7 @@ export const getGetApiLookupTrainingsIdResponseMock = (
     {
       mandatory: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       validityDays: faker.helpers.arrayElement([faker.number.int(), null]),
+      annualValidityFromCompletionDate: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       advanceNoticeDays: faker.helpers.arrayElement([faker.number.int(), null]),
       rotating: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       trainingCategoryId: faker.helpers.arrayElement([faker.number.int(), null]),
@@ -239,6 +247,7 @@ export const getGetApiLookupTrainingsIdResponseMock = (
     {
       mandatory: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       validityDays: faker.helpers.arrayElement([faker.number.int(), null]),
+      annualValidityFromCompletionDate: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       advanceNoticeDays: faker.helpers.arrayElement([faker.number.int(), null]),
       rotating: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       trainingCategoryId: faker.helpers.arrayElement([faker.number.int(), null]),
@@ -271,6 +280,7 @@ export const getPutApiLookupTrainingsIdResponseMock = (
     {
       mandatory: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       validityDays: faker.helpers.arrayElement([faker.number.int(), null]),
+      annualValidityFromCompletionDate: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       advanceNoticeDays: faker.helpers.arrayElement([faker.number.int(), null]),
       rotating: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       trainingCategoryId: faker.helpers.arrayElement([faker.number.int(), null]),
@@ -297,6 +307,7 @@ export const getPutApiLookupTrainingsIdResponseMock = (
     {
       mandatory: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       validityDays: faker.helpers.arrayElement([faker.number.int(), null]),
+      annualValidityFromCompletionDate: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       advanceNoticeDays: faker.helpers.arrayElement([faker.number.int(), null]),
       rotating: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       trainingCategoryId: faker.helpers.arrayElement([faker.number.int(), null]),
@@ -323,6 +334,7 @@ export const getPutApiLookupTrainingsIdResponseMock = (
     {
       mandatory: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       validityDays: faker.helpers.arrayElement([faker.number.int(), null]),
+      annualValidityFromCompletionDate: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       advanceNoticeDays: faker.helpers.arrayElement([faker.number.int(), null]),
       rotating: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       trainingCategoryId: faker.helpers.arrayElement([faker.number.int(), null]),
@@ -355,6 +367,7 @@ export const getPatchApiLookupTrainingsIdOrderResponseMock = (
     {
       mandatory: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       validityDays: faker.helpers.arrayElement([faker.number.int(), null]),
+      annualValidityFromCompletionDate: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       advanceNoticeDays: faker.helpers.arrayElement([faker.number.int(), null]),
       rotating: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       trainingCategoryId: faker.helpers.arrayElement([faker.number.int(), null]),
@@ -381,6 +394,7 @@ export const getPatchApiLookupTrainingsIdOrderResponseMock = (
     {
       mandatory: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       validityDays: faker.helpers.arrayElement([faker.number.int(), null]),
+      annualValidityFromCompletionDate: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       advanceNoticeDays: faker.helpers.arrayElement([faker.number.int(), null]),
       rotating: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       trainingCategoryId: faker.helpers.arrayElement([faker.number.int(), null]),
@@ -407,6 +421,7 @@ export const getPatchApiLookupTrainingsIdOrderResponseMock = (
     {
       mandatory: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       validityDays: faker.helpers.arrayElement([faker.number.int(), null]),
+      annualValidityFromCompletionDate: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       advanceNoticeDays: faker.helpers.arrayElement([faker.number.int(), null]),
       rotating: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       trainingCategoryId: faker.helpers.arrayElement([faker.number.int(), null]),

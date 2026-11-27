@@ -7,6 +7,7 @@ using Unified.Common.Events;
 using Unified.Common.Time;
 using Unified.Db;
 using Unified.Db.Models;
+using Unified.Db.Models.Lookup;
 using Unified.Db.Models.Training;
 using Unified.Db.Models.UserManagement;
 using Unified.Tests.TestHelpers;
@@ -201,7 +202,7 @@ public class UserServiceTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task GetPagedAsync_Should_Order_By_FirstName_And_Return_Requested_Page_With_Total_Count()
+    public async Task GetPagedAsync_Should_Return_Requested_Page_By_LastName_When_Unranked()
     {
         // Arrange
         await SeedTestData();
@@ -214,7 +215,83 @@ public class UserServiceTests : IAsyncLifetime
         Assert.Equal(2, result.Page);
         Assert.Equal(1, result.PageSize);
         Assert.Equal(4, result.TotalCount);
-        Assert.Equal("Bob", Assert.Single(result.Data).FirstName);
+        Assert.Equal("Alice", Assert.Single(result.Data).FirstName);
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_Should_Order_By_Rank_And_Break_Ties_Across_Pages()
+    {
+        // Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var higherRank = CreatePositionType("Zeta", 1);
+        var expiredRank = CreatePositionType("Alpha", int.MaxValue);
+        expiredRank.ExpiryDate = expiredRank.EffectiveDate.AddYears(1);
+        _dbContext.PositionTypes.AddRange(higherRank, expiredRank, CreatePositionType(string.Empty, 2));
+
+        var earlierLastName = CreateUser("Zoe", "Adams", 1, true, higherRank.Code);
+        var earlierFirstName = CreateUser("Aaron", "Baker", 1, true, higherRank.Code);
+        var lowerId = CreateUser("Alex", "Baker", 1, true, higherRank.Code);
+        lowerId.Id = new Guid("10000000-0000-0000-0000-000000000001");
+        var higherId = CreateUser("Alex", "Baker", 1, true, higherRank.Code);
+        higherId.Id = new Guid("10000000-0000-0000-0000-000000000002");
+        higherId.IdirName = "alex.baker.second";
+        var expiredRankUser = CreateUser("Eve", "Adams", 1, true, expiredRank.Code);
+        var emptyRankUser = CreateUser("Bea", "Adams", 1, true, string.Empty);
+        var unknownRankUser = CreateUser("Cal", "Adams", 1, true, "Unknown");
+        var nullRankUser = CreateUser("Dan", "Adams", 1, true);
+        _dbContext.Users.AddRange(
+            nullRankUser,
+            unknownRankUser,
+            emptyRankUser,
+            expiredRankUser,
+            higherId,
+            lowerId,
+            earlierFirstName,
+            earlierLastName
+        );
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        // Act
+        var queryParams = new PagedUserQueryParams { Page = 1, PageSize = 3 };
+        var first = await _userService.GetPagedAsync(queryParams, cancellationToken);
+        var second = await _userService.GetPagedAsync(queryParams with { Page = 2 }, cancellationToken);
+        var third = await _userService.GetPagedAsync(queryParams with { Page = 3 }, cancellationToken);
+
+        // Assert
+        Assert.Equal(8, first.TotalCount);
+        Assert.Equal(8, second.TotalCount);
+        Assert.Equal(8, third.TotalCount);
+        Assert.Equal([earlierLastName.Id, earlierFirstName.Id, lowerId.Id], first.Data.Select(user => user.Id));
+        Assert.Equal([higherId.Id, expiredRankUser.Id, emptyRankUser.Id], second.Data.Select(user => user.Id));
+        Assert.Equal([unknownRankUser.Id, nullRankUser.Id], third.Data.Select(user => user.Id));
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_Should_Use_Updated_Display_Order_And_Keep_Unpaged_Name_Order()
+    {
+        // Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var firstRank = CreatePositionType("Alpha", 1);
+        var secondRank = CreatePositionType("Zeta", 2);
+        var firstByLastName = CreateUser("Zoe", "Adams", 1, true, firstRank.Code);
+        var secondByLastName = CreateUser("Ada", "Zimmer", 1, true, secondRank.Code);
+        _dbContext.PositionTypes.AddRange(firstRank, secondRank);
+        _dbContext.Users.AddRange(firstByLastName, secondByLastName);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        // Act
+        var initial = await _userService.GetPagedAsync(cancellationToken: cancellationToken);
+        firstRank.DisplayOrder = 3;
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        var updated = await _userService.GetPagedAsync(cancellationToken: cancellationToken);
+        var unpaged = await _userService.GetAllAsync(cancellationToken: cancellationToken);
+
+        // Assert
+        Assert.Equal(2, initial.TotalCount);
+        Assert.Equal(2, updated.TotalCount);
+        Assert.Equal([firstByLastName.Id, secondByLastName.Id], initial.Data.Select(user => user.Id));
+        Assert.Equal([secondByLastName.Id, firstByLastName.Id], updated.Data.Select(user => user.Id));
+        Assert.Equal([firstByLastName.Id, secondByLastName.Id], unpaged.Select(user => user.Id));
     }
 
     [Fact]
@@ -273,23 +350,26 @@ public class UserServiceTests : IAsyncLifetime
 
         // Assert
         Assert.Equal(3, result.TotalCount);
-        Assert.Equal(["Bob", "Jane", "John"], result.Data.Select(u => u.FirstName));
+        Assert.Equal(["Jane", "Bob", "John"], result.Data.Select(u => u.FirstName));
     }
 
     [Fact]
-    public async Task GetPagedAsync_Should_Combine_Location_Union_With_Search_And_Status_Filters()
+    public async Task GetPagedAsync_Should_Order_By_Rank_With_Location_Union_Search_And_Status_Filters()
     {
         // Arrange
         await SeedTestData();
         var location3 = await _dbContext
             .Locations.AsNoTracking()
             .FirstAsync(l => l.Id != 1 && l.Id != 2, TestContext.Current.CancellationToken);
+        var higherRank = CreatePositionType("Zeta", 10);
+        var lowerRank = CreatePositionType("Alpha", 20);
+        _dbContext.PositionTypes.AddRange(higherRank, lowerRank);
         _dbContext.Users.AddRange(
-            CreateUser("Victor", "Johnstone", 1, true),
-            CreateUser("Zed", "Johnstone", 2, true),
-            CreateUser("Yan", "Johnstone", location3.Id, true),
-            CreateUser("Xia", "Johnstone", null, true),
-            CreateUser("Walt", "Johnstone", 1, false)
+            CreateUser("Victor", "Johnstone", 1, true, lowerRank.Code),
+            CreateUser("Zed", "Johnstone", 2, true, higherRank.Code),
+            CreateUser("Yan", "Johnstone", location3.Id, true, higherRank.Code),
+            CreateUser("Xia", "Johnstone", null, true, higherRank.Code),
+            CreateUser("Walt", "Johnstone", 1, false, higherRank.Code)
         );
         await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
@@ -329,16 +409,16 @@ public class UserServiceTests : IAsyncLifetime
 
         // Assert
         Assert.Equal(6, union.TotalCount);
-        Assert.Equal(["Bob", "Jane", "John", "Victor", "Walt", "Zed"], union.Data.Select(u => u.FirstName));
+        Assert.Equal(["Walt", "Zed", "Victor", "Jane", "Bob", "John"], union.Data.Select(u => u.FirstName));
 
         Assert.Equal(3, unionSearch.TotalCount);
-        Assert.Equal(["Victor", "Walt", "Zed"], unionSearch.Data.Select(u => u.FirstName));
+        Assert.Equal(["Walt", "Zed", "Victor"], unionSearch.Data.Select(u => u.FirstName));
 
         Assert.Equal(2, unionSearchEnabled.TotalCount);
-        Assert.Equal(["Victor", "Zed"], unionSearchEnabled.Data.Select(u => u.FirstName));
+        Assert.Equal(["Zed", "Victor"], unionSearchEnabled.Data.Select(u => u.FirstName));
 
         Assert.Equal(2, paged.TotalCount);
-        Assert.Equal("Zed", Assert.Single(paged.Data).FirstName);
+        Assert.Equal("Victor", Assert.Single(paged.Data).FirstName);
 
         Assert.Equal(1, singleLocation.TotalCount);
         Assert.Equal("Yan", Assert.Single(singleLocation.Data).FirstName);
@@ -364,13 +444,29 @@ public class UserServiceTests : IAsyncLifetime
         Assert.Equal("John", Assert.Single(result.Data).FirstName);
     }
 
-    private static User CreateUser(string firstName, string lastName, int? homeLocationId, bool isEnabled) =>
+    private static PositionType CreatePositionType(string code, int displayOrder) =>
+        new()
+        {
+            Code = code,
+            Description = code,
+            DisplayOrder = displayOrder,
+            EffectiveDate = DateTimeOffset.UnixEpoch,
+        };
+
+    private static User CreateUser(
+        string firstName,
+        string lastName,
+        int? homeLocationId,
+        bool isEnabled,
+        string? rank = null
+    ) =>
         new()
         {
             Id = Guid.NewGuid(),
             IdirName = $"{firstName}.{lastName}".ToLowerInvariant(),
             IdirId = Guid.NewGuid(),
             IsEnabled = isEnabled,
+            Rank = rank,
             FirstName = firstName,
             LastName = lastName,
             Gender = Gender.Male,

@@ -36,6 +36,7 @@ export const GetApiAuthUserResponse = zod.object({
       'UsersView',
       'UsersExpire',
       'UsersViewOtherProfiles',
+      'UserGlobalSearch',
       'UsersLeaveCreate',
       'UsersLeaveEdit',
       'UsersLeaveDelete',
