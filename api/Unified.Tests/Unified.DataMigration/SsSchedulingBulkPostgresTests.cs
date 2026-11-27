@@ -1464,7 +1464,13 @@ public sealed class SsSchedulingBulkPostgresTests : IAsyncLifetime
             .DataMigrationRuns.AsNoTracking()
             .Where(x => x.Source == "SS" && !x.DryRun)
             .OrderBy(x => x.StartedOn)
-            .Select(x => new { x.Id, x.Job, x.StartedOn, x.CompletedOn })
+            .Select(x => new
+            {
+                x.Id,
+                x.Job,
+                x.StartedOn,
+                x.CompletedOn,
+            })
             .ToListAsync(ct);
         var ids = new Dictionary<Guid, string>();
         var starts = new Dictionary<DateTimeOffset, string>();
@@ -1475,10 +1481,7 @@ public sealed class SsSchedulingBulkPostgresTests : IAsyncLifetime
             foreach (var run in group)
             {
                 var name = $"{group.Key}#{++ordinal}";
-                Assert.True(
-                    run.StartedOn is not null && run.CompletedOn is not null,
-                    $"{name}: incomplete run window"
-                );
+                Assert.True(run.StartedOn is not null && run.CompletedOn is not null, $"{name}: incomplete run window");
                 var start = run.StartedOn!.Value.ToUniversalTime();
                 var end = run.CompletedOn!.Value.ToUniversalTime();
                 Assert.True(end >= start, $"{name}: invalid run window");
@@ -1569,8 +1572,11 @@ public sealed class SsSchedulingBulkPostgresTests : IAsyncLifetime
 
         private bool DynamicTable(string table) =>
             targetTables.ContainsValue(table)
-            || table is "DataMigrationRecords" or "DataMigrationMutations" or "DataMigrationWorkItems"
-                or "DataMigrationCheckpoints";
+            || table
+                is "DataMigrationRecords"
+                    or "DataMigrationMutations"
+                    or "DataMigrationWorkItems"
+                    or "DataMigrationCheckpoints";
 
         private void Check(bool condition, string what) => Assert.True(condition, $"{label}: {what}");
 
@@ -1588,8 +1594,14 @@ public sealed class SsSchedulingBulkPostgresTests : IAsyncLifetime
                 Check(l == r, $"{table} baseline identity differs");
                 return;
             }
-            Check(!forward.TryGetValue((table, left), out var priorRight) || priorRight == right, $"{table} ID mapping differs");
-            Check(!reverse.TryGetValue((table, right), out var priorLeft) || priorLeft == left, $"{table} ID mapping is not one-to-one");
+            Check(
+                !forward.TryGetValue((table, left), out var priorRight) || priorRight == right,
+                $"{table} ID mapping differs"
+            );
+            Check(
+                !reverse.TryGetValue((table, right), out var priorLeft) || priorLeft == left,
+                $"{table} ID mapping is not one-to-one"
+            );
             forward[(table, left)] = right;
             reverse[(table, right)] = left;
         }
@@ -1604,12 +1616,19 @@ public sealed class SsSchedulingBulkPostgresTests : IAsyncLifetime
             {
                 var b = right[key];
                 Check(a.TargetType == b.TargetType, $"crosswalk target type differs for {key.Type}:{key.Id}");
-                Pair("DataMigrationRecords", a.Id.ToString(CultureInfo.InvariantCulture), b.Id.ToString(CultureInfo.InvariantCulture));
+                Pair(
+                    "DataMigrationRecords",
+                    a.Id.ToString(CultureInfo.InvariantCulture),
+                    b.Id.ToString(CultureInfo.InvariantCulture)
+                );
                 if (targetTables.TryGetValue(a.TargetType, out var table))
                     Pair(table, a.TargetKey, b.TargetKey);
                 else
                     Check(a.TargetKey == b.TargetKey, $"crosswalk target differs for {key.Type}:{key.Id}");
-                Check((a.AfterHash is null) == (b.AfterHash is null), $"crosswalk hash presence differs for {key.Type}:{key.Id}");
+                Check(
+                    (a.AfterHash is null) == (b.AfterHash is null),
+                    $"crosswalk hash presence differs for {key.Type}:{key.Id}"
+                );
                 if (a.AfterHash is not null)
                     Pair("target-after-hash", a.AfterHash, b.AfterHash!);
                 if (key.Type is "Duty" or "DutySlot" or "DutyEntry" or "AssignmentSeries")
@@ -1631,8 +1650,14 @@ public sealed class SsSchedulingBulkPostgresTests : IAsyncLifetime
                     $"inverse journal operation {i} differs"
                 );
                 Check(a.ChangedColumns.SequenceEqual(b.ChangedColumns), $"{a.Table} changed columns differ");
-                Check(a.BeforeHadPhoto == b.BeforeHadPhoto && a.PhotoChanged == b.PhotoChanged, $"{a.Table} photo flags differ");
-                Check((a.AfterVersion == "missing") == (b.AfterVersion == "missing"), $"{a.Table} version state differs");
+                Check(
+                    a.BeforeHadPhoto == b.BeforeHadPhoto && a.PhotoChanged == b.PhotoChanged,
+                    $"{a.Table} photo flags differ"
+                );
+                Check(
+                    (a.AfterVersion == "missing") == (b.AfterVersion == "missing"),
+                    $"{a.Table} version state differs"
+                );
                 Check((a.AfterHash == "missing") == (b.AfterHash == "missing"), $"{a.Table} after-image state differs");
                 Pair("journal-after-hash", a.AfterHash, b.AfterHash);
                 CompareObject(a.Table, a.RowKey, b.RowKey);
@@ -1652,7 +1677,10 @@ public sealed class SsSchedulingBulkPostgresTests : IAsyncLifetime
             using var b = JsonDocument.Parse(right);
             var aFields = a.RootElement.EnumerateObject().OrderBy(x => x.Name, StringComparer.Ordinal).ToList();
             var bFields = b.RootElement.EnumerateObject().OrderBy(x => x.Name, StringComparer.Ordinal).ToList();
-            Check(aFields.Select(x => x.Name).SequenceEqual(bFields.Select(x => x.Name)), $"{table} image columns differ");
+            Check(
+                aFields.Select(x => x.Name).SequenceEqual(bFields.Select(x => x.Name)),
+                $"{table} image columns differ"
+            );
             for (var i = 0; i < aFields.Count; i++)
                 CompareValue(table, a.RootElement, b.RootElement, aFields[i].Name, aFields[i].Value, bFields[i].Value);
         }
@@ -1678,7 +1706,8 @@ public sealed class SsSchedulingBulkPostgresTests : IAsyncLifetime
                 Pair(table, a, b);
                 return;
             }
-            var principal = property?.GetContainingForeignKeys()
+            var principal = property
+                ?.GetContainingForeignKeys()
                 .Select(x => x.PrincipalEntityType.GetTableName())
                 .FirstOrDefault(x => x is not null && DynamicTable(x));
             if (principal is not null)
@@ -1707,8 +1736,11 @@ public sealed class SsSchedulingBulkPostgresTests : IAsyncLifetime
             if (
                 table == "DataMigrationRecords"
                 && column == "PayloadHash"
-                && leftRow.GetProperty("EntityType").GetString() is "Duty" or "DutySlot" or "DutyEntry"
-                    or "AssignmentSeries"
+                && leftRow.GetProperty("EntityType").GetString()
+                    is "Duty"
+                        or "DutySlot"
+                        or "DutyEntry"
+                        or "AssignmentSeries"
             )
             {
                 Pair("id-bound-payload-hash", a, b);
@@ -1729,8 +1761,18 @@ public sealed class SsSchedulingBulkPostgresTests : IAsyncLifetime
             var type = Nullable.GetUnderlyingType(property?.ClrType ?? typeof(object)) ?? property?.ClrType;
             if (
                 (type == typeof(DateTimeOffset) || type == typeof(DateTime))
-                && DateTimeOffset.TryParse(a, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var aTime)
-                && DateTimeOffset.TryParse(b, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var bTime)
+                && DateTimeOffset.TryParse(
+                    a,
+                    CultureInfo.InvariantCulture,
+                    DateTimeStyles.AssumeUniversal,
+                    out var aTime
+                )
+                && DateTimeOffset.TryParse(
+                    b,
+                    CultureInfo.InvariantCulture,
+                    DateTimeStyles.AssumeUniversal,
+                    out var bTime
+                )
             )
             {
                 if (aTime == bTime)
@@ -1746,7 +1788,10 @@ public sealed class SsSchedulingBulkPostgresTests : IAsyncLifetime
                 var foundRight = rightRuns.Starts.TryGetValue(bTime.ToUniversalTime(), out var rightStart);
                 if (foundLeft || foundRight)
                 {
-                    Check(foundLeft && foundRight && leftStart == rightStart, $"{table}.{column} run timestamp differs");
+                    Check(
+                        foundLeft && foundRight && leftStart == rightStart,
+                        $"{table}.{column} run timestamp differs"
+                    );
                     return;
                 }
             }
@@ -1782,29 +1827,31 @@ public sealed class SsSchedulingBulkPostgresTests : IAsyncLifetime
         };
         Comparison().AssertEquivalent([original], [equal]);
         var changed = Assert.ThrowsAny<Exception>(() =>
-            Comparison().AssertEquivalent(
-                [original],
-                [
-                    equal with
-                    {
-                        BeforeImage =
-                            """{"Id":20,"Title":"changed","EventSeriesId":null,"UpdatedOn":"2040-01-01T00:00:01Z"}""",
-                    },
-                ]
-            )
+            Comparison()
+                .AssertEquivalent(
+                    [original],
+                    [
+                        equal with
+                        {
+                            BeforeImage =
+                                """{"Id":20,"Title":"changed","EventSeriesId":null,"UpdatedOn":"2040-01-01T00:00:01Z"}""",
+                        },
+                    ]
+                )
         );
         Assert.Contains("Events.Title", changed.Message);
         var changedUpdatedOn = Assert.ThrowsAny<Exception>(() =>
-            Comparison().AssertEquivalent(
-                [original],
-                [
-                    equal with
-                    {
-                        BeforeImage =
-                            """{"Id":20,"Title":"original","EventSeriesId":null,"UpdatedOn":"2040-01-01T00:00:02Z"}""",
-                    },
-                ]
-            )
+            Comparison()
+                .AssertEquivalent(
+                    [original],
+                    [
+                        equal with
+                        {
+                            BeforeImage =
+                                """{"Id":20,"Title":"original","EventSeriesId":null,"UpdatedOn":"2040-01-01T00:00:02Z"}""",
+                        },
+                    ]
+                )
         );
         Assert.Contains("Events.UpdatedOn", changedUpdatedOn.Message);
         var missing = Assert.ThrowsAny<Exception>(() =>
@@ -1863,10 +1910,11 @@ public sealed class SsSchedulingBulkPostgresTests : IAsyncLifetime
                 false
             );
 
-        Comparison().AssertEquivalent(
-            [Row(10, leftFirst.StartedOn.AddSeconds(10))],
-            [Row(20, rightFirst.StartedOn.AddSeconds(30))]
-        );
+        Comparison()
+            .AssertEquivalent(
+                [Row(10, leftFirst.StartedOn.AddSeconds(10))],
+                [Row(20, rightFirst.StartedOn.AddSeconds(30))]
+            );
         Comparison().AssertEquivalent([Row(10, leftFirst.StartedOn)], [Row(20, rightFirst.CompletedOn)]);
         // An identical out-of-run edit must not be rejected just because one clone's window contains its value.
         var shared = leftFirst.StartedOn.AddSeconds(10);
@@ -1877,17 +1925,19 @@ public sealed class SsSchedulingBulkPostgresTests : IAsyncLifetime
         );
         Assert.Contains("Events.UpdatedOn", arbitrary.Message);
         var differentRuns = Assert.ThrowsAny<Exception>(() =>
-            Comparison().AssertEquivalent(
-                [Row(10, leftFirst.StartedOn.AddSeconds(10))],
-                [Row(20, rightSecond.StartedOn.AddSeconds(10))]
-            )
+            Comparison()
+                .AssertEquivalent(
+                    [Row(10, leftFirst.StartedOn.AddSeconds(10))],
+                    [Row(20, rightSecond.StartedOn.AddSeconds(10))]
+                )
         );
         Assert.Contains("Events.UpdatedOn", differentRuns.Message);
         var outsideWindow = Assert.ThrowsAny<Exception>(() =>
-            Comparison().AssertEquivalent(
-                [Row(10, leftFirst.StartedOn.AddSeconds(10))],
-                [Row(20, rightFirst.CompletedOn.AddSeconds(1))]
-            )
+            Comparison()
+                .AssertEquivalent(
+                    [Row(10, leftFirst.StartedOn.AddSeconds(10))],
+                    [Row(20, rightFirst.CompletedOn.AddSeconds(1))]
+                )
         );
         Assert.Contains("Events.UpdatedOn", outsideWindow.Message);
 

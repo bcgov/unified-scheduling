@@ -25,8 +25,7 @@ internal static class MigrationTechnicalFailure
             text.Append(Truncate(current.GetType().FullName ?? current.GetType().Name, 200));
             if (current is PostgresException pg)
             {
-                text.Append(" [SqlState=")
-                    .Append(SafeSqlState(pg.SqlState) ? pg.SqlState : "invalid");
+                text.Append(" [SqlState=").Append(SafeSqlState(pg.SqlState) ? pg.SqlState : "invalid");
                 if (SafeIdentifier(pg.ConstraintName))
                     text.Append(";Constraint=").Append(pg.ConstraintName);
                 if (SafeIdentifier(pg.TableName))
@@ -54,8 +53,7 @@ internal static class MigrationTechnicalFailure
         value is { Length: 5 } && value.All(c => c is >= 'A' and <= 'Z' or >= '0' and <= '9');
 
     internal static bool SafeIdentifier(string? value) =>
-        value is { Length: > 0 and <= 128 }
-        && value.All(c => char.IsAsciiLetterOrDigit(c) || c is '_' or '$' or '-');
+        value is { Length: > 0 and <= 128 } && value.All(c => char.IsAsciiLetterOrDigit(c) || c is '_' or '$' or '-');
 
     private static string Truncate(string value, int max) => value.Length <= max ? value : value[..(max - 3)] + "...";
 

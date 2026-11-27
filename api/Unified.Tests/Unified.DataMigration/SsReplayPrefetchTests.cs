@@ -73,19 +73,21 @@ public sealed class SsReplayPrefetchTests : IAsyncDisposable
         using var prefetch = new SsReplayPrefetch(db, rows);
 
         for (var group = 0; group < GroupCount; group++)
-        foreach (var member in Group(rows, group))
-        {
-            var (known, entry) = await prefetch.TryGetAsync("Shift", member.Id, true, ct);
-            var expected = await db.DataMigrationRecords.AsNoTracking().SingleOrDefaultAsync(
-                x => x.Source == "SS" && x.EntityType == "Shift" && x.LegacyId == member.Id,
-                ct
-            );
-            if (known)
+            foreach (var member in Group(rows, group))
             {
-                Assert.Equal(expected?.TargetKey, entry?.TargetKey);
-                Assert.Equal(expected?.PayloadHash, entry?.PayloadHash);
+                var (known, entry) = await prefetch.TryGetAsync("Shift", member.Id, true, ct);
+                var expected = await db
+                    .DataMigrationRecords.AsNoTracking()
+                    .SingleOrDefaultAsync(
+                        x => x.Source == "SS" && x.EntityType == "Shift" && x.LegacyId == member.Id,
+                        ct
+                    );
+                if (known)
+                {
+                    Assert.Equal(expected?.TargetKey, entry?.TargetKey);
+                    Assert.Equal(expected?.PayloadHash, entry?.PayloadHash);
+                }
             }
-        }
 
         Assert.Equal(PageCount, prefetch.PageLoads);
         Assert.Equal(PageCount, reads.Count); // Actual EF page queries, not just the cache's own counter.
@@ -107,7 +109,12 @@ public sealed class SsReplayPrefetchTests : IAsyncDisposable
             db.ChangeTracker.Clear();
             var session = new SsWriteSession(
                 db,
-                new DataMigrationRun { Source = "SS", Job = "Scheduling", Status = "Running" }
+                new DataMigrationRun
+                {
+                    Source = "SS",
+                    Job = "Scheduling",
+                    Status = "Running",
+                }
             )
             {
                 PrefetchReplayRecords = enabled,
@@ -149,7 +156,16 @@ public sealed class SsReplayPrefetchTests : IAsyncDisposable
         Assert.Equal(0, reads.Count);
         var fast = await RunAsync(true);
 
-        Assert.Equal(new[] { "unchanged", "LinkedOnlyTargetCannotUpdate", "GroupMergeRequiresMultiTargetRepartition", "missing" }, full.Verdicts);
+        Assert.Equal(
+            new[]
+            {
+                "unchanged",
+                "LinkedOnlyTargetCannotUpdate",
+                "GroupMergeRequiresMultiTargetRepartition",
+                "missing",
+            },
+            full.Verdicts
+        );
         Assert.Equal(full.Verdicts, fast.Verdicts);
         Assert.Equal(full.Outcomes, fast.Outcomes);
         Assert.Equal(PageCount, reads.Count);
@@ -164,15 +180,17 @@ public sealed class SsReplayPrefetchTests : IAsyncDisposable
             ct
         );
         db.DataMigrationRecords.AddRange(
-            Enumerable.Range(0, 2).Select(_ => new DataMigrationRecord
-            {
-                Source = "SS",
-                EntityType = "Shift",
-                LegacyId = "1",
-                TargetType = "ShiftEntry",
-                TargetKey = "1",
-                PayloadHash = "hash",
-            })
+            Enumerable
+                .Range(0, 2)
+                .Select(_ => new DataMigrationRecord
+                {
+                    Source = "SS",
+                    EntityType = "Shift",
+                    LegacyId = "1",
+                    TargetType = "ShiftEntry",
+                    TargetKey = "1",
+                    PayloadHash = "hash",
+                })
         );
         await db.SaveChangesAsync(ct);
         db.ChangeTracker.Clear();
@@ -187,7 +205,12 @@ public sealed class SsReplayPrefetchTests : IAsyncDisposable
         Assert.Equal(1, prefetch.PageLoads);
         var session = new SsWriteSession(
             db,
-            new DataMigrationRun { Source = "SS", Job = "Scheduling", Status = "Running" }
+            new DataMigrationRun
+            {
+                Source = "SS",
+                Job = "Scheduling",
+                Status = "Running",
+            }
         )
         {
             PrefetchReplayRecords = true,

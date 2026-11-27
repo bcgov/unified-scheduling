@@ -406,12 +406,16 @@ public sealed class MigrationApplySafetyTests : IAsyncDisposable
             constraintName: new string('c', 5000)
         );
         Assert.True(
-            MigrationTechnicalFailure.Describe(new InvalidOperationException(new string('x', 5000), longMetadata))
+            MigrationTechnicalFailure
+                .Describe(new InvalidOperationException(new string('x', 5000), longMetadata))
                 .Length <= MigrationTechnicalFailure.MaxDescriptionLength
         );
-        Assert.DoesNotContain("secret\nforged", MigrationTechnicalFailure.Describe(
-            new Npgsql.PostgresException("safe", "ERROR", "ERROR", "23505", tableName: "secret\nforged")
-        ));
+        Assert.DoesNotContain(
+            "secret\nforged",
+            MigrationTechnicalFailure.Describe(
+                new Npgsql.PostgresException("safe", "ERROR", "ERROR", "23505", tableName: "secret\nforged")
+            )
+        );
     }
 
     [Fact]
