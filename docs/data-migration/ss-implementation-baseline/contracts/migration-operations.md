@@ -167,6 +167,9 @@ projection, ordering, serialization or framing changes.
 
 Ordinary responses/findings/logs expose only safe keys, classes, counts and metrics.
 Never return connection strings, credentials, photos, protected source comments or raw errors.
+SS worker technical failures retain bounded exception types, PostgreSQL SQLSTATE and safe identifier
+metadata, and migration stack frames in stderr and migration-only failure evidence; exception messages,
+detail and unapproved hints are excluded, and the worker exception does not chain the original error.
 Rollback impact values are intentionally sensitive: separate restricted storage/download,
 audited access and retention; not ordinary findings or a public report.
 No automatic backup restore, source writes or production enablement.

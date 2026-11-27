@@ -436,12 +436,17 @@ public sealed class SsMigrationExecutor(
                 if (ex is Npgsql.PostgresException pg)
                     Console.WriteLine(
                         "SafeSqlState="
-                            + pg.SqlState
+                            + (MigrationTechnicalFailure.SafeSqlState(pg.SqlState) ? pg.SqlState : "invalid")
                             + ";Position="
                             + pg.Position
                             + ";Table="
-                            + pg.TableName
-                            + (pg.MessageText == "Simulation schema clone failed" ? ";Phase=" + pg.Hint : "")
+                            + (MigrationTechnicalFailure.SafeIdentifier(pg.TableName) ? pg.TableName : "unavailable")
+                            + (
+                                pg.MessageText == "Simulation schema clone failed"
+                                && pg.Hint is "inventory" or "create" or "copy" or "sequence" or "foreign-key"
+                                    ? ";Phase=" + pg.Hint
+                                    : ""
+                            )
                     );
                 foreach (
                     var frame in new System.Diagnostics.StackTrace(ex, true)
@@ -474,8 +479,8 @@ public sealed class SsMigrationExecutor(
                 throw new SsMigrationTerminalizationException();
             }
             if (!failed)
-                throw new InvalidOperationException("SS migration stopped after its run fence was revoked.", ex);
-            throw new InvalidOperationException("SS migration failed; inspect migration-only run evidence.", ex);
+                throw new InvalidOperationException("SS migration stopped after its run fence was revoked.");
+            throw new InvalidOperationException("SS migration failed; inspect migration-only run evidence.");
         }
     }
 
