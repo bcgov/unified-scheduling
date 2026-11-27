@@ -15,6 +15,9 @@ using Unified.Tests.TestHelpers;
 
 namespace Unified.Tests.Unified.Audit;
 
+[CollectionDefinition(nameof(AuditPipelineCollection), DisableParallelization = true)]
+public sealed class AuditPipelineCollection;
+
 /// <summary>
 /// Exercises the real Audit.NET pipeline end-to-end against a relational (SQLite) <see cref="UnifiedDbContext"/> -
 /// the in-memory provider used by other Audit tests doesn't support transactions, so it can't verify the
@@ -22,6 +25,7 @@ namespace Unified.Tests.Unified.Audit;
 /// default for the whole assembly by <see cref="ModuleInitialization"/>); each test re-enables and
 /// re-disables it around its own body via <see cref="InitializeAsync"/>/<see cref="DisposeAsync"/>.
 /// </summary>
+[Collection(nameof(AuditPipelineCollection))]
 public sealed class AuditPipelineTests : IAsyncLifetime
 {
     private readonly Guid _actorId = Guid.NewGuid();

@@ -11,6 +11,7 @@ export interface TrainingLookupRequest {
   mandatory?: boolean;
   /** @nullable */
   validityDays?: number | null;
+  annualValidityFromCompletionDate?: boolean;
   /** @nullable */
   advanceNoticeDays?: number | null;
   rotating?: boolean;

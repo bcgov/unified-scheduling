@@ -7,9 +7,9 @@
 import { faker } from '@faker-js/faker';
 
 import { HttpResponse, http } from 'msw';
-import type { RequestHandlerOptions } from 'msw';
+import type { HttpResponseResolver, PathParams, RequestHandlerOptions } from 'msw';
 
-import type { TestEmailResponse } from '../models';
+import type { TestEmailRequest, TestEmailResponse } from '../models';
 
 export const getPostApiDevEmailTestResponseMock = (
   overrideResponse: Partial<Extract<TestEmailResponse, object>> = {},
@@ -53,12 +53,14 @@ export const getPostApiDevEmailTestResponseMock = (
 export const getPostApiDevEmailTestMockHandler = (
   overrideResponse?:
     | TestEmailResponse
-    | ((info: Parameters<Parameters<typeof http.post>[1]>[0]) => Promise<TestEmailResponse> | TestEmailResponse),
+    | ((
+        info: Parameters<HttpResponseResolver<PathParams, TestEmailRequest>>[0],
+      ) => Promise<TestEmailResponse> | TestEmailResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.post(
+  return http.post<PathParams, TestEmailRequest>(
     '*/api/dev/email/test',
-    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<PathParams, TestEmailRequest>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'

@@ -1,3 +1,4 @@
+using System.Collections;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Unified.DataMigration.Sources;
@@ -8,7 +9,7 @@ namespace Unified.DataMigration.Services;
 
 /// <summary>
 /// PerRow rerun speed-up (<see cref="Options.MigrationJobOptions.PrefetchReplayRecords"/>): crosswalk records are
-/// read untracked a page at a time, in source write order, instead of one query per row.
+/// read untracked a page at a time, in source-list order, instead of one query per row.
 /// <para>
 /// A cached value is trusted only for a key EF has never tracked in this job. Every crosswalk write (insert,
 /// update, rebind, delete) goes through a tracked entity, so an untracked key still holds the value its page read,
@@ -27,6 +28,7 @@ internal sealed class SsReplayPrefetch : IDisposable
     private readonly Dictionary<string, Dictionary<string, int>> positions = [];
     private readonly Dictionary<(string Type, string Id), Entry?> known = [];
     private readonly Dictionary<string, LinkedList<int>> pages = [];
+    private readonly Dictionary<string, BitArray> loadedPages = [];
     private readonly HashSet<(string Type, string Id)> touched = [];
 
     internal long Hits { get; private set; }
@@ -93,9 +95,16 @@ internal sealed class SsReplayPrefetch : IDisposable
         if (!index.TryGetValue(id, out var position))
             return;
         var page = position / PageSize;
-        var loaded = pages.TryGetValue(type, out var order) ? order : pages[type] = new LinkedList<int>();
-        if (loaded.Contains(page))
+        if (!loadedPages.TryGetValue(type, out var loadedOnce))
+        {
+            loadedOnce = new BitArray(list.Count / PageSize + (list.Count % PageSize == 0 ? 0 : 1));
+            loadedPages[type] = loadedOnce;
+        }
+        // A grouped write can revisit source pages in a completely different order. Never reload an
+        // evicted 1000-row page: a miss falls back to the original per-row/group query instead.
+        if (loadedOnce[page])
             return;
+        var loaded = pages.TryGetValue(type, out var order) ? order : pages[type] = new LinkedList<int>();
         var slice = PageIds(list, page);
         var rows = await db
             .DataMigrationRecords.AsNoTracking()
@@ -123,6 +132,7 @@ internal sealed class SsReplayPrefetch : IDisposable
             var row = group.Single();
             known[(type, row.LegacyId)] = new Entry(row.TargetKey, row.PayloadHash, row.SourceUpdatedAtUtc);
         }
+        loadedOnce[page] = true;
         loaded.AddFirst(page);
         if (loaded.Count > PagesPerType)
         {

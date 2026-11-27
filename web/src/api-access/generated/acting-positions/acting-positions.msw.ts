@@ -7,9 +7,9 @@
 import { faker } from '@faker-js/faker';
 
 import { HttpResponse, http } from 'msw';
-import type { RequestHandlerOptions } from 'msw';
+import type { HttpResponseResolver, RequestHandlerOptions } from 'msw';
 
-import type { ActingPositionResponseDto } from '../models';
+import type { ActingPositionRequestDto, ActingPositionResponseDto, ExpireActingPositionRequestDto } from '../models';
 
 export const getGetApiUsersUserIdActingPositionsResponseMock = (): ActingPositionResponseDto[] =>
   faker.helpers.arrayElement([
@@ -226,13 +226,13 @@ export const getGetApiUsersUserIdActingPositionsMockHandler = (
   overrideResponse?:
     | ActingPositionResponseDto[]
     | ((
-        info: Parameters<Parameters<typeof http.get>[1]>[0],
+        info: Parameters<HttpResponseResolver<{ userId: string }>>[0],
       ) => Promise<ActingPositionResponseDto[]> | ActingPositionResponseDto[]),
   options?: RequestHandlerOptions,
 ) => {
-  return http.get(
+  return http.get<{ userId: string }>(
     '*/api/users/:userId/acting-positions',
-    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ userId: string }>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -250,13 +250,13 @@ export const getPostApiUsersUserIdActingPositionsMockHandler = (
   overrideResponse?:
     | ActingPositionResponseDto
     | ((
-        info: Parameters<Parameters<typeof http.post>[1]>[0],
+        info: Parameters<HttpResponseResolver<{ userId: string }, ActingPositionRequestDto>>[0],
       ) => Promise<ActingPositionResponseDto> | ActingPositionResponseDto),
   options?: RequestHandlerOptions,
 ) => {
-  return http.post(
+  return http.post<{ userId: string }, ActingPositionRequestDto>(
     '*/api/users/:userId/acting-positions',
-    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ userId: string }, ActingPositionRequestDto>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -274,13 +274,17 @@ export const getPutApiUsersUserIdActingPositionsActingPositionIdMockHandler = (
   overrideResponse?:
     | ActingPositionResponseDto
     | ((
-        info: Parameters<Parameters<typeof http.put>[1]>[0],
+        info: Parameters<
+          HttpResponseResolver<{ userId: string; actingPositionId: string }, ActingPositionRequestDto>
+        >[0],
       ) => Promise<ActingPositionResponseDto> | ActingPositionResponseDto),
   options?: RequestHandlerOptions,
 ) => {
-  return http.put(
+  return http.put<{ userId: string; actingPositionId: string }, ActingPositionRequestDto>(
     '*/api/users/:userId/acting-positions/:actingPositionId',
-    async (info: Parameters<Parameters<typeof http.put>[1]>[0]) => {
+    async (
+      info: Parameters<HttpResponseResolver<{ userId: string; actingPositionId: string }, ActingPositionRequestDto>>[0],
+    ) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -298,13 +302,13 @@ export const getPostApiUsersUserIdActingPositionsExpireMockHandler = (
   overrideResponse?:
     | ActingPositionResponseDto
     | ((
-        info: Parameters<Parameters<typeof http.post>[1]>[0],
+        info: Parameters<HttpResponseResolver<{ userId: string }, ExpireActingPositionRequestDto>>[0],
       ) => Promise<ActingPositionResponseDto> | ActingPositionResponseDto),
   options?: RequestHandlerOptions,
 ) => {
-  return http.post(
+  return http.post<{ userId: string }, ExpireActingPositionRequestDto>(
     '*/api/users/:userId/acting-positions/expire',
-    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ userId: string }, ExpireActingPositionRequestDto>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'

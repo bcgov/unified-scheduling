@@ -7,9 +7,10 @@
 import { faker } from '@faker-js/faker';
 
 import { HttpResponse, http } from 'msw';
-import type { RequestHandlerOptions } from 'msw';
+import type { HttpResponseResolver, PathParams, RequestHandlerOptions } from 'msw';
 
-import type { SchedulingCalendarDataResponse } from '../models';
+import { CalendarEventExceptionReasonCode } from '../models';
+import type { SchedulingCalendarDataResponse, SchedulingCalendarRequest } from '../models';
 
 export const getPostApiSchedulingCalendarEventsResponseMock = (
   overrideResponse: Partial<Extract<SchedulingCalendarDataResponse, object>> = {},
@@ -30,10 +31,7 @@ export const getPostApiSchedulingCalendarEventsResponseMock = (
           leaveSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
           leaveTypeId: faker.helpers.arrayElement([faker.number.int(), null]),
           leaveTypeName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-          leaveDate: faker.helpers.arrayElement([
-            faker.helpers.arrayElement([faker.date.past().toISOString().split('T')[0], null]),
-            undefined,
-          ]),
+          leaveDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), null]),
           loanOutEntryId: faker.helpers.arrayElement([faker.number.int(), null]),
           loanOutSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
           loanOutLocationId: faker.helpers.arrayElement([faker.number.int(), null]),
@@ -59,10 +57,8 @@ export const getPostApiSchedulingCalendarEventsResponseMock = (
           allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
           isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
           exceptionReasonCodes: faker.helpers.arrayElement([
-            [],
-            ['DateTimeChanged'],
-            ['IsAway'],
-            ['DateTimeChanged', 'IsAway'],
+            faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+            undefined,
           ]),
           eventTypeCode: faker.string.alpha({ length: { min: 10, max: 20 } }),
           statusTypeCode: faker.string.alpha({ length: { min: 10, max: 20 } }),
@@ -114,6 +110,7 @@ export const getPostApiSchedulingCalendarEventsResponseMock = (
           leaveSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
           leaveTypeId: faker.helpers.arrayElement([faker.number.int(), null]),
           leaveTypeName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+          leaveDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), null]),
           loanOutEntryId: faker.helpers.arrayElement([faker.number.int(), null]),
           loanOutSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
           loanOutLocationId: faker.helpers.arrayElement([faker.number.int(), null]),
@@ -139,10 +136,8 @@ export const getPostApiSchedulingCalendarEventsResponseMock = (
           allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
           isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
           exceptionReasonCodes: faker.helpers.arrayElement([
-            [],
-            ['DateTimeChanged'],
-            ['IsAway'],
-            ['DateTimeChanged', 'IsAway'],
+            faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+            undefined,
           ]),
           eventTypeCode: faker.string.alpha({ length: { min: 10, max: 20 } }),
           statusTypeCode: faker.string.alpha({ length: { min: 10, max: 20 } }),
@@ -194,6 +189,7 @@ export const getPostApiSchedulingCalendarEventsResponseMock = (
           leaveSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
           leaveTypeId: faker.helpers.arrayElement([faker.number.int(), null]),
           leaveTypeName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+          leaveDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), null]),
           loanOutEntryId: faker.helpers.arrayElement([faker.number.int(), null]),
           loanOutSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
           loanOutLocationId: faker.helpers.arrayElement([faker.number.int(), null]),
@@ -219,10 +215,8 @@ export const getPostApiSchedulingCalendarEventsResponseMock = (
           allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
           isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
           exceptionReasonCodes: faker.helpers.arrayElement([
-            [],
-            ['DateTimeChanged'],
-            ['IsAway'],
-            ['DateTimeChanged', 'IsAway'],
+            faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+            undefined,
           ]),
           eventTypeCode: faker.string.alpha({ length: { min: 10, max: 20 } }),
           statusTypeCode: faker.string.alpha({ length: { min: 10, max: 20 } }),
@@ -265,13 +259,13 @@ export const getPostApiSchedulingCalendarEventsMockHandler = (
   overrideResponse?:
     | SchedulingCalendarDataResponse
     | ((
-        info: Parameters<Parameters<typeof http.post>[1]>[0],
+        info: Parameters<HttpResponseResolver<PathParams, SchedulingCalendarRequest>>[0],
       ) => Promise<SchedulingCalendarDataResponse> | SchedulingCalendarDataResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.post(
+  return http.post<PathParams, SchedulingCalendarRequest>(
     '*/api/scheduling/calendar/events',
-    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<PathParams, SchedulingCalendarRequest>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'

@@ -5,20 +5,23 @@
  * OpenAPI spec version: 1.0.0
  */
 import type { CalendarEventExceptionReasonCode } from './calendarEventExceptionReasonCode.ts';
-
 import type { ShiftAssignmentEntryResponse } from './shiftAssignmentEntryResponse.ts';
 
 export interface ShiftEntryResponse {
   concurrencyToken?: number;
   /** @nullable */
+  lunchAvailableMinutes?: number | null;
+  /** @nullable */
+  workedLunchMinutes?: number | null;
+  /** @nullable */
   shiftSeriesId?: number | null;
   eventId?: number;
-  isException?: boolean;
-  exceptionReasonCodes?: CalendarEventExceptionReasonCode[];
   assignmentLinks?: ShiftAssignmentEntryResponse[];
   id?: number;
   /** @nullable */
   eventSeriesId?: number | null;
+  isException?: boolean;
+  exceptionReasonCodes?: CalendarEventExceptionReasonCode[];
   /** @nullable */
   eventTypeCode?: string | null;
   /** @nullable */
@@ -48,9 +51,5 @@ export interface ShiftEntryResponse {
   allDay?: boolean;
   /** @nullable */
   locationId?: number | null;
-  /** @nullable */
-  lunchAvailableMinutes?: number | null;
-  /** @nullable */
-  workedLunchMinutes?: number | null;
   userIds?: string[];
 }

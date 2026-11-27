@@ -222,6 +222,7 @@ public sealed class TrainingLookupStrategy(UnifiedDbContext db) : ITrainingLooku
             ExpiryDate = training.ExpiryDate,
             Mandatory = training.Mandatory,
             ValidityDays = training.ValidityDays,
+            AnnualValidityFromCompletionDate = training.AnnualValidityFromCompletionDate,
             AdvanceNoticeDays = training.AdvanceNoticeDays,
             Rotating = training.Rotating,
             TrainingCategoryId = training.TrainingCategoryId,

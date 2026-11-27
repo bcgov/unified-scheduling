@@ -267,7 +267,10 @@ export const calendarDropUserOnAssignmentResourceAction: CalendarDropAction = {
     const existingShift = resolveExistingShiftForDroppedUser(context);
     if (context.drop.resourceType === 'user') {
       if (existingShift) {
-        showCalendarSchedulingEventDetail(existingShift, { initialOpenScope: 'event', initialTab: 'edit' });
+        showCalendarSchedulingEventDetail(existingShift, {
+          initialOpenScope: 'event',
+          initialTab: isSchedulingPublished(existingShift.statusTypeCode) ? 'details' : 'edit',
+        });
       } else {
         showCalendarSchedulingResourceActionModal(resource, context.drop.date);
       }
@@ -285,7 +288,7 @@ export const calendarDropUserOnAssignmentResourceAction: CalendarDropAction = {
     }
     const assignmentEvent = assignmentEvents[0];
     const assignmentEntryId = assignmentEvent ? resolveAssignmentEntryId(assignmentEvent) : undefined;
-    if (assignmentEvent && !getSchedulingLifecycleCapabilities(assignmentEvent.statusTypeCode).canEdit) {
+    if (assignmentEvent && getSchedulingLifecycleCapabilities(assignmentEvent.statusTypeCode).status !== 'draft') {
       if (assignmentEntryId && canViewAssignments(runtimeContext)) {
         showCalendarSchedulingAssignmentModal(context.drop.date, {
           mode: 'view',

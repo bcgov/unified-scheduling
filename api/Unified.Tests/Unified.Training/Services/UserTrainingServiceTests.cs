@@ -467,6 +467,27 @@ public class UserTrainingServiceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task CalculateExpiryDate_WhenAnnualValidityUsesCompletionDate_PreservesLocalCompletionDay()
+    {
+        var training = await _db.Trainings.SingleAsync(
+            item => item.Id == TrainingWithValidityId,
+            TestContext.Current.CancellationToken
+        );
+        training.AnnualValidityFromCompletionDate = true;
+        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var request = new UserTrainingExpiryDateRequest
+        {
+            TrainingId = TrainingWithValidityId,
+            AwardedOn = new DateTimeOffset(2026, 10, 17, 0, 0, 0, TimeSpan.FromHours(14)),
+        };
+
+        var result = await _service.CalculateExpiryDateAsync(request, TestContext.Current.CancellationToken);
+
+        Assert.Equal(new DateTimeOffset(2027, 10, 17, 23, 59, 59, TimeSpan.FromHours(14)), result.ExpiryDate);
+    }
+
+    [Fact]
     public async Task CalculateExpiryDate_WhenTrainingHasNoValidityDays_ReturnsNull()
     {
         var request = new UserTrainingExpiryDateRequest
@@ -481,19 +502,22 @@ public class UserTrainingServiceTests : IAsyncLifetime
     }
 
     [Theory]
-    [InlineData("America/Vancouver", true, 30)]
-    [InlineData("America/Vancouver", false, 30)]
+    [InlineData("America/Vancouver", true, 30, false)]
+    [InlineData("America/Vancouver", false, 30, false)]
     // Skipped due to missing NuGet timezone mapping support for these Vancouver cases.
-    [InlineData("America/Vancouver", true, 365, Skip = "Missing NuGet timezone mapping support.")]
-    [InlineData("America/Vancouver", false, 365, Skip = "Missing NuGet timezone mapping support.")]
-    [InlineData("America/Edmonton", true, 30)]
-    [InlineData("America/Edmonton", false, 30)]
-    [InlineData("America/Edmonton", true, 365)]
-    [InlineData("America/Edmonton", false, 365)]
+    [InlineData("America/Vancouver", true, 365, false, Skip = "Missing NuGet timezone mapping support.")]
+    [InlineData("America/Vancouver", false, 365, false, Skip = "Missing NuGet timezone mapping support.")]
+    [InlineData("America/Edmonton", true, 30, false)]
+    [InlineData("America/Edmonton", false, 30, false)]
+    [InlineData("America/Edmonton", true, 365, false)]
+    [InlineData("America/Edmonton", false, 365, false)]
+    [InlineData("America/Edmonton", true, 365, true)]
+    [InlineData("America/Edmonton", false, 365, true)]
     public async Task ExpiryPreview_CreateUpdateAndRenew_UseTheSameUserTimezoneCalculation(
         string timeZoneId,
         bool allDay,
-        int validityDays
+        int validityDays,
+        bool annualValidityFromCompletionDate
     )
     {
         var cancellationToken = TestContext.Current.CancellationToken;
@@ -501,13 +525,24 @@ public class UserTrainingServiceTests : IAsyncLifetime
         location.Timezone = timeZoneId;
         var rules = await _db.Trainings.SingleAsync(item => item.Id == TrainingWithValidityId, cancellationToken);
         rules.ValidityDays = validityDays;
+        rules.AnnualValidityFromCompletionDate = annualValidityFromCompletionDate;
         await _db.SaveChangesAsync(cancellationToken);
-        var endingOn = new DateTimeOffset(2026, 7, 20, allDay ? 0 : 23, 0, 0, TimeSpan.Zero);
+        var endingOn = new DateTimeOffset(
+            2026,
+            7,
+            20,
+            allDay ? 0
+                : annualValidityFromCompletionDate ? 2
+                : 23,
+            0,
+            0,
+            TimeSpan.Zero
+        );
         var request = new UserTrainingRequest
         {
             UserId = CallerId,
             TrainingId = TrainingWithValidityId,
-            AwardedOn = allDay ? endingOn : endingOn.AddHours(-1),
+            AwardedOn = new DateTimeOffset(2026, 7, 18, allDay ? 0 : 15, 0, 0, TimeSpan.Zero),
             EndingOn = endingOn,
             AllDay = allDay,
         };
@@ -524,7 +559,13 @@ public class UserTrainingServiceTests : IAsyncLifetime
         var created = await _service.CreateAsync(request, cancellationToken);
 
         var zone = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
-        var expectedLocalDate = validityDays == 365 ? new DateTime(2026, 12, 31) : new DateTime(2026, 8, 19);
+        var expectedLocalDate = annualValidityFromCompletionDate
+            ? allDay
+                ? new DateTime(2027, 7, 20)
+                : new DateTime(2027, 7, 19)
+            : validityDays == 365
+                ? new DateTime(2026, 12, 31)
+                : new DateTime(2026, 8, 19);
         var localExpiry = TimeZoneInfo.ConvertTime(created.ExpiryDate!.Value, zone);
         Assert.Equal(expectedLocalDate, localExpiry.Date);
         if (allDay || validityDays == 365)
@@ -532,8 +573,10 @@ public class UserTrainingServiceTests : IAsyncLifetime
         else
             Assert.Equal(endingOn.AddDays(30), created.ExpiryDate);
         Assert.Equal(preview.ExpiryDate, created.ExpiryDate);
-        if (allDay && timeZoneId == "America/Vancouver" && validityDays == 365)
-            Assert.Equal(new DateTimeOffset(2027, 1, 1, 6, 59, 59, 999, TimeSpan.Zero), created.ExpiryDate);
+        var createdPersisted = await _db
+            .UserTrainings.AsNoTracking()
+            .SingleAsync(item => item.Id == created.Id, cancellationToken);
+        Assert.Equal(preview.ExpiryDate, createdPersisted.ExpiryDate);
 
         var updated = await _service.UpdateAsync(
             created.Id,

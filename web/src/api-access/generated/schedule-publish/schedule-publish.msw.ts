@@ -7,9 +7,9 @@
 import { faker } from '@faker-js/faker';
 
 import { HttpResponse, http } from 'msw';
-import type { RequestHandlerOptions } from 'msw';
+import type { HttpResponseResolver, PathParams, RequestHandlerOptions } from 'msw';
 
-import type { SchedulePublishPreviewResponse, SchedulePublishResult } from '../models';
+import type { SchedulePublishPreviewResponse, SchedulePublishRequest, SchedulePublishResult } from '../models';
 
 export const getPostApiSchedulingPublishPreviewResponseMock = (
   overrideResponse: Partial<Extract<SchedulePublishPreviewResponse, object>> = {},
@@ -56,6 +56,16 @@ export const getPostApiSchedulingPublishPreviewResponseMock = (
         shiftConflicts: Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           message: faker.string.alpha({ length: { min: 10, max: 20 } }),
         })),
+        restrictedWarnings: faker.helpers.arrayElement([
+          Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
+            eventId: faker.string.alpha({ length: { min: 10, max: 20 } }),
+            sourceModule: faker.string.alpha({ length: { min: 10, max: 20 } }),
+            resourceId: faker.string.uuid(),
+            message: faker.string.alpha({ length: { min: 10, max: 20 } }),
+          })),
+          undefined,
+        ]),
+        hasRestrictedConflicts: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       },
       canPublish: faker.datatype.boolean(),
       ...overrideResponse,
@@ -101,6 +111,16 @@ export const getPostApiSchedulingPublishPreviewResponseMock = (
         shiftConflicts: Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           message: faker.string.alpha({ length: { min: 10, max: 20 } }),
         })),
+        restrictedWarnings: faker.helpers.arrayElement([
+          Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
+            eventId: faker.string.alpha({ length: { min: 10, max: 20 } }),
+            sourceModule: faker.string.alpha({ length: { min: 10, max: 20 } }),
+            resourceId: faker.string.uuid(),
+            message: faker.string.alpha({ length: { min: 10, max: 20 } }),
+          })),
+          undefined,
+        ]),
+        hasRestrictedConflicts: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       },
       canPublish: faker.datatype.boolean(),
       ...overrideResponse,
@@ -146,6 +166,16 @@ export const getPostApiSchedulingPublishPreviewResponseMock = (
         shiftConflicts: Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           message: faker.string.alpha({ length: { min: 10, max: 20 } }),
         })),
+        restrictedWarnings: faker.helpers.arrayElement([
+          Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
+            eventId: faker.string.alpha({ length: { min: 10, max: 20 } }),
+            sourceModule: faker.string.alpha({ length: { min: 10, max: 20 } }),
+            resourceId: faker.string.uuid(),
+            message: faker.string.alpha({ length: { min: 10, max: 20 } }),
+          })),
+          undefined,
+        ]),
+        hasRestrictedConflicts: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       },
       canPublish: faker.datatype.boolean(),
       ...overrideResponse,
@@ -177,13 +207,13 @@ export const getPostApiSchedulingPublishPreviewMockHandler = (
   overrideResponse?:
     | SchedulePublishPreviewResponse
     | ((
-        info: Parameters<Parameters<typeof http.post>[1]>[0],
+        info: Parameters<HttpResponseResolver<PathParams, SchedulePublishRequest>>[0],
       ) => Promise<SchedulePublishPreviewResponse> | SchedulePublishPreviewResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.post(
+  return http.post<PathParams, SchedulePublishRequest>(
     '*/api/scheduling/publish/preview',
-    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<PathParams, SchedulePublishRequest>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -201,13 +231,13 @@ export const getPostApiSchedulingPublishMockHandler = (
   overrideResponse?:
     | SchedulePublishResult
     | ((
-        info: Parameters<Parameters<typeof http.post>[1]>[0],
+        info: Parameters<HttpResponseResolver<PathParams, SchedulePublishRequest>>[0],
       ) => Promise<SchedulePublishResult> | SchedulePublishResult),
   options?: RequestHandlerOptions,
 ) => {
-  return http.post(
+  return http.post<PathParams, SchedulePublishRequest>(
     '*/api/scheduling/publish',
-    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<PathParams, SchedulePublishRequest>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'

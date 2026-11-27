@@ -30,7 +30,7 @@ describe('assignment drops', () => {
     { statusTypeCode: 'Draft', existingTargetLink: false },
     { statusTypeCode: 'Published', existingTargetLink: true },
   ])(
-    'preserves loaded values and enforces lifecycle for $statusTypeCode assignments (existing target link: $existingTargetLink)',
+    'preserves loaded values when saving a $statusTypeCode assignment with drag selections (existing target link: $existingTargetLink)',
     async ({ statusTypeCode, existingTargetLink }) => {
       let releaseDefinitions!: () => void;
       const definitionsReady = new Promise<void>((resolve) => {
@@ -151,47 +151,41 @@ describe('assignment drops', () => {
         await flushPromises();
         expect(vm.formData.startTime).toBe('11:00');
         expect(vm.formData.endTime).toBe('15:00');
+
+        const shiftEntryLinks = existingTargetLink
+          ? [
+              { shiftEntryId: 44, assignedUserIds: [existingUserId, draggedUserId] },
+              { shiftEntryId: 45, assignedUserIds: [otherShiftUserId, draggedUserId] },
+            ]
+          : [
+              { shiftEntryId: 45, assignedUserIds: [otherShiftUserId, draggedUserId] },
+              { shiftEntryId: 44, assignedUserIds: [draggedUserId] },
+            ];
+
+        expect(document.body.textContent).toContain('Edit Assignment');
         await vm.handleSave();
-        if (statusTypeCode === 'Published') {
-          expect(document.body.textContent).toContain('Assignment Details');
-          expect(
-            Array.from(document.body.querySelectorAll('button')).some(
-              (button) => button.textContent?.trim() === 'Save',
-            ),
-          ).toBe(false);
-          expect(updates).toEqual([]);
-        } else {
-          expect(updates).toEqual([
-            {
-              concurrencyToken: assignment.concurrencyToken,
-              assignmentDefinitionId: 7,
-              assignmentSeriesId: 211,
-              title: assignment.title,
-              description: assignment.description,
-              notes: assignment.notes,
-              color: assignment.color,
-              startAtUtc: assignment.startAtUtc,
-              endAtUtc: assignment.endAtUtc,
-              seriesStartAtUtc: assignment.seriesStartAtUtc,
-              seriesEndAtUtc: assignment.seriesEndAtUtc,
-              timeZoneId: assignment.timeZoneId,
-              allDay: false,
-              locationId: 12,
-              categoryId: 10,
-              subCategoryId: 20,
-              capacity: 4,
-              shiftEntryLinks: existingTargetLink
-                ? [
-                    { shiftEntryId: 44, assignedUserIds: [existingUserId, draggedUserId] },
-                    { shiftEntryId: 45, assignedUserIds: [otherShiftUserId, draggedUserId] },
-                  ]
-                : [
-                    { shiftEntryId: 45, assignedUserIds: [otherShiftUserId, draggedUserId] },
-                    { shiftEntryId: 44, assignedUserIds: [draggedUserId] },
-                  ],
-            },
-          ]);
-        }
+        expect(updates).toEqual([
+          {
+            concurrencyToken: assignment.concurrencyToken,
+            assignmentDefinitionId: 7,
+            assignmentSeriesId: 211,
+            title: assignment.title,
+            description: assignment.description,
+            notes: assignment.notes,
+            color: assignment.color,
+            startAtUtc: assignment.startAtUtc,
+            endAtUtc: assignment.endAtUtc,
+            seriesStartAtUtc: assignment.seriesStartAtUtc,
+            seriesEndAtUtc: assignment.seriesEndAtUtc,
+            timeZoneId: assignment.timeZoneId,
+            allDay: false,
+            locationId: 12,
+            categoryId: 10,
+            subCategoryId: 20,
+            capacity: 4,
+            ...(statusTypeCode === 'Draft' ? { shiftEntryLinks } : {}),
+          },
+        ]);
       } finally {
         releaseDefinitions();
         wrapper.unmount();

@@ -122,6 +122,13 @@ export const getGetApiConfigResponseMock = (
             },
             undefined,
           ]),
+          DataMigration: faker.helpers.arrayElement([
+            {
+              source: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+              enabled: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+            },
+            undefined,
+          ]),
           Leave: faker.helpers.arrayElement([
             {
               source: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
@@ -172,6 +179,7 @@ export const getGetApiConfigResponseMock = (
         },
         undefined,
       ]),
+      emailDistributionAvailable: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       defaultLunchMinutes: faker.helpers.arrayElement([faker.number.int(), undefined]),
       ...overrideResponse,
     },
@@ -222,6 +230,13 @@ export const getGetApiConfigResponseMock = (
             },
             undefined,
           ]),
+          DataMigration: faker.helpers.arrayElement([
+            {
+              source: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+              enabled: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+            },
+            undefined,
+          ]),
           Leave: faker.helpers.arrayElement([
             {
               source: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
@@ -272,6 +287,7 @@ export const getGetApiConfigResponseMock = (
         },
         undefined,
       ]),
+      emailDistributionAvailable: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       defaultLunchMinutes: faker.helpers.arrayElement([faker.number.int(), undefined]),
       ...overrideResponse,
     },
@@ -322,6 +338,13 @@ export const getGetApiConfigResponseMock = (
             },
             undefined,
           ]),
+          DataMigration: faker.helpers.arrayElement([
+            {
+              source: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+              enabled: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+            },
+            undefined,
+          ]),
           Leave: faker.helpers.arrayElement([
             {
               source: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
@@ -372,6 +395,7 @@ export const getGetApiConfigResponseMock = (
         },
         undefined,
       ]),
+      emailDistributionAvailable: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       defaultLunchMinutes: faker.helpers.arrayElement([faker.number.int(), undefined]),
       ...overrideResponse,
     },

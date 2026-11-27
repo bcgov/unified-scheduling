@@ -17,7 +17,7 @@ import {
   type ShiftResourceFormData,
 } from './calendarSchedulingShiftForm';
 import { timeOptions } from './schedulingDateTime';
-import { normalizeSchedulingLifecycleStatus } from './schedulingLifecycle';
+import { isSchedulingPublished, normalizeSchedulingLifecycleStatus } from './schedulingLifecycle';
 import { parsePositiveInteger } from './calendarSchedulingShiftIds';
 
 const props = withDefaults(
@@ -145,7 +145,7 @@ const availableWorkedLunchOptions = computed(() => {
 watch(
   () => formData.value.userIds,
   () => {
-    pruneLinkUsersToCurrentShiftUsers();
+    if (!isSchedulingPublished(formData.value.statusTypeCode)) pruneLinkUsersToCurrentShiftUsers();
   },
 );
 
@@ -166,16 +166,21 @@ function updateLocation(value: SelectValue | undefined) {
     return;
   }
 
-  formData.value = {
+  const nextFormData = {
     ...formData.value,
     locationId,
     userIds: [],
-    assignmentEntryId: null,
-    assignmentEntryIds: [],
-    assignmentEntryLinks: [],
-    assignmentSeriesId: null,
-    assignmentSeriesLinks: [],
   };
+  formData.value = isSchedulingPublished(formData.value.statusTypeCode)
+    ? nextFormData
+    : {
+        ...nextFormData,
+        assignmentEntryId: null,
+        assignmentEntryIds: [],
+        assignmentEntryLinks: [],
+        assignmentSeriesId: null,
+        assignmentSeriesLinks: [],
+      };
 }
 
 function updateLunchAvailable(value: SelectValue | undefined) {

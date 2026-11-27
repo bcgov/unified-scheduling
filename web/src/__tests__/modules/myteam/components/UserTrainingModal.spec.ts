@@ -2,6 +2,7 @@ import type { UserTrainingRequest, UserTrainingResponse } from '@/api-access/gen
 import UserTrainingModal from '@/modules/myteam/components/UserTrainingModal.vue';
 import { createTestApp } from '@/__tests__/helpers/createTestApp';
 import { server } from '@/__tests__/mocks/server';
+import type { SelectOption } from '@/types/select';
 import { flushPromises, mount } from '@vue/test-utils';
 import { http, HttpResponse } from 'msw';
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -28,6 +29,7 @@ const mountModal = async (
   mode: 'create' | 'edit' | 'renew' = 'create',
   record = training,
   timeZone: string | null = 'America/Vancouver',
+  trainingOptions: SelectOption[] = [{ code: 10, description: 'CPR' }],
 ) => {
   const { mountPlugins } = await createTestApp();
   return mount(UserTrainingModal, {
@@ -35,7 +37,7 @@ const mountModal = async (
       userId,
       timeZone: timeZone ?? undefined,
       mode,
-      trainingOptions: [{ code: 10, description: 'CPR' }],
+      trainingOptions,
       training: mode === 'create' ? null : record,
     },
     global: {
@@ -57,7 +59,7 @@ const save = async (wrapper: ModalWrapper) => {
 };
 
 const fillTraining = async (wrapper: ModalWrapper, startTime = '15:00', endTime = '18:00') => {
-  wrapper.findComponent({ name: 'UaSelect' }).vm.$emit('update:modelValue', 10);
+  wrapper.findComponent({ name: 'UaAutocomplete' }).vm.$emit('update:modelValue', 10);
   await wrapper.get('input#user-training-awarded-on').setValue('2026-07-20');
   await wrapper.get('input#user-training-ending-on').setValue('2026-07-20');
   await wrapper.get('input#user-training-awarded-time').setValue(startTime);
@@ -88,6 +90,20 @@ describe('UserTrainingModal', () => {
         return HttpResponse.json({ expiryDate: '2026-12-31T23:59:59Z' });
       }),
     );
+  });
+
+  it('uses searchable autocomplete for training and displays disabled options', async () => {
+    const wrapper = await mountModal('create', training, 'America/Vancouver', [
+      { code: 10, description: 'CPR', props: { disabled: true } },
+      { code: 11, description: 'First Aid', props: { disabled: false } },
+    ]);
+
+    const trainingAutocomplete = wrapper.findComponent({ name: 'UaAutocomplete' });
+    expect(trainingAutocomplete.props('clientFilter')).toBe(true);
+    expect(trainingAutocomplete.props('items')).toEqual([
+      { code: 10, description: 'CPR', props: { disabled: true } },
+      { code: 11, description: 'First Aid', props: { disabled: false } },
+    ]);
   });
 
   it('creates same-day training from 3 PM to 6 PM with the Vancouver offset', async () => {
@@ -150,7 +166,7 @@ describe('UserTrainingModal', () => {
 
   it('waits for the To date before calculating expiry', async () => {
     const wrapper = await mountModal();
-    wrapper.findComponent({ name: 'UaSelect' }).vm.$emit('update:modelValue', 10);
+    wrapper.findComponent({ name: 'UaAutocomplete' }).vm.$emit('update:modelValue', 10);
     await wrapper.get('input#user-training-awarded-on').setValue('2026-07-20');
     await flushPromises();
 
@@ -180,6 +196,29 @@ describe('UserTrainingModal', () => {
     await wrapper.get('input#user-training-ending-time').setValue('19:30');
     await flushPromises();
     expect(expiryQueries.at(-1)?.searchParams.get('AwardedOn')).toBe('2026-07-22T19:30:00.000-07:00');
+  });
+
+  it('generates and saves expiry when only the To date has a time', async () => {
+    const wrapper = await mountModal();
+    await fillTraining(wrapper, '', '16:28');
+
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'Generate expiry')!
+      .trigger('click');
+    await flushPromises();
+
+    expect(expiryQueries.at(-1)?.searchParams.get('AllDay')).toBe('false');
+    expect(expiryQueries.at(-1)?.searchParams.get('AwardedOn')).toBe('2026-07-20T16:28:00.000-07:00');
+    expect((wrapper.get('input#user-training-expiry-date').element as HTMLInputElement).value).toBe('2026-12-31');
+
+    await save(wrapper);
+
+    expect(created[0]).toMatchObject({
+      allDay: false,
+      endingOn: '2026-07-20T16:28:00.000-07:00',
+    });
+    expect(Date.parse(created[0]!.awardedOn)).toBe(Date.parse('2026-07-20T00:00:00.000-07:00'));
   });
 
   it('preserves a manually entered expiry when To changes', async () => {
@@ -215,7 +254,7 @@ describe('UserTrainingModal', () => {
 
   it('shows validation instead of throwing when dates are missing', async () => {
     const wrapper = await mountModal();
-    wrapper.findComponent({ name: 'UaSelect' }).vm.$emit('update:modelValue', 10);
+    wrapper.findComponent({ name: 'UaAutocomplete' }).vm.$emit('update:modelValue', 10);
     await save(wrapper);
 
     expect(created).toHaveLength(0);
@@ -349,17 +388,13 @@ describe('UserTrainingModal', () => {
     expect(wrapper.text()).toContain('home location with a valid timezone');
   });
 
-  it.each([
-    ['15:00', '', 'Invalid to time.'],
-    ['', '18:00', 'Invalid from time.'],
-    ['15:00', '15:00', 'To date and time must be after From.'],
-  ])('rejects an invalid timed pair (%s, %s)', async (startTime, endTime, message) => {
+  it('rejects a timed To value that is not after From when the From time is present', async () => {
     const wrapper = await mountModal();
-    await fillTraining(wrapper, startTime, endTime);
+    await fillTraining(wrapper, '15:00', '15:00');
     await save(wrapper);
 
     expect(created).toHaveLength(0);
-    expect(wrapper.text()).toContain(message);
+    expect(wrapper.text()).toContain('To date and time must be after From.');
   });
 
   it.each([

@@ -9,6 +9,26 @@ import UserTrainingReport from '@/modules/reports/UserTrainingReport.vue';
 import type { UserTrainingReportItem } from '@/modules/reports/userTrainingReportApi';
 import UaBtn from '@/shared/components/UaBtn.vue';
 
+const UaSelectStub = defineComponent({
+  name: 'UaSelect',
+  props: {
+    id: { type: String, required: true },
+    items: { type: Array, required: true },
+  },
+  template: '<div />',
+});
+
+const UaAutocompleteStub = defineComponent({
+  name: 'UaAutocomplete',
+  props: {
+    id: { type: String, required: true },
+    items: { type: Array, required: true },
+    clientFilter: { type: Boolean, default: false },
+  },
+  template:
+    '<div><div class="autocomplete-menu"><slot name="prepend-item" /></div><div class="autocomplete-input"><slot name="prepend-inner" /></div></div>',
+});
+
 const UaDataTableStub = defineComponent({
   name: 'UaDataTable',
   props: {
@@ -61,7 +81,13 @@ describe('UserTrainingReport', () => {
       http.get('*/api/reports/user-training', () =>
         HttpResponse.json({ rows: [allDay, timed, missing], totalRows: 3 }),
       ),
-      ...['/api/users', '/api/region', '/api/location/all', '/api/lookup/trainings'].map((path) =>
+      http.get('*/api/lookup/trainings', () =>
+        HttpResponse.json([
+          { id: 1, code: 'MANDATORY', mandatory: true },
+          { id: 2, code: 'OPTIONAL', mandatory: false },
+        ]),
+      ),
+      ...['/api/users', '/api/region', '/api/location/all'].map((path) =>
         http.get(`*${path}`, () => HttpResponse.json([])),
       ),
     );
@@ -83,11 +109,53 @@ describe('UserTrainingReport', () => {
         stubs: {
           UaCard: { template: '<div><slot /><slot name="actions" /></div>' },
           UaDataTable: UaDataTableStub,
-          UaSelect: true,
+          UaSelect: UaSelectStub,
+          UaAutocomplete: UaAutocompleteStub,
           UaTextField: true,
         },
       },
     });
+    const autocompleteFilters = wrapper.findAllComponents(UaAutocompleteStub);
+    expect(autocompleteFilters).toHaveLength(4);
+    expect(autocompleteFilters.every((filter) => filter.props('clientFilter'))).toBe(true);
+    expect(wrapper.findAllComponents(UaSelectStub).map((filter) => filter.props('id'))).toEqual([
+      'user-training-report-status',
+    ]);
+    await vi.waitFor(() =>
+      expect(
+        autocompleteFilters
+          .find((filter) => filter.props('id') === 'user-training-report-training-code')!
+          .props('items'),
+      ).toContainEqual({
+        code: 'MANDATORY',
+        description: 'MANDATORY',
+      }),
+    );
+    expect(
+      autocompleteFilters.find((filter) => filter.props('id') === 'user-training-report-training-code')!.props('items'),
+    ).not.toContainEqual(expect.objectContaining({ code: 'OPTIONAL' }));
+
+    const mandatoryOnlyToggle = wrapper.find('button[aria-label="Show mandatory trainings only"]');
+    expect(mandatoryOnlyToggle.exists()).toBe(true);
+    expect(wrapper.find('.autocomplete-menu .mandatory-only-toggle').exists()).toBe(true);
+    expect(wrapper.find('.autocomplete-input .mandatory-only-toggle').exists()).toBe(false);
+    expect(mandatoryOnlyToggle.attributes('role')).toBe('switch');
+    expect(mandatoryOnlyToggle.attributes('aria-checked')).toBe('true');
+    await mandatoryOnlyToggle.trigger('click');
+    expect(
+      wrapper
+        .findAllComponents(UaAutocompleteStub)
+        .find((filter) => filter.props('id') === 'user-training-report-training-code')!
+        .props('items'),
+    ).toContainEqual({ code: 'OPTIONAL', description: 'OPTIONAL' });
+    expect(mandatoryOnlyToggle.attributes('aria-checked')).toBe('false');
+    await mandatoryOnlyToggle.trigger('click');
+    expect(
+      wrapper
+        .findAllComponents(UaAutocompleteStub)
+        .find((filter) => filter.props('id') === 'user-training-report-training-code')!
+        .props('items'),
+    ).not.toContainEqual(expect.objectContaining({ code: 'OPTIONAL' }));
     await wrapper
       .findAllComponents(UaBtn)
       .find((button) => button.text() === 'Generate report')!

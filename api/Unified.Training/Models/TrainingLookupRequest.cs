@@ -10,6 +10,8 @@ public sealed record TrainingLookupRequest : LookupCodeRequest
 
     public int? ValidityDays { get; init; }
 
+    public bool AnnualValidityFromCompletionDate { get; init; }
+
     public int? AdvanceNoticeDays { get; init; }
 
     public bool Rotating { get; init; }

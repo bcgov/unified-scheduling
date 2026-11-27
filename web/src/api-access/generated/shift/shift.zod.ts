@@ -324,8 +324,6 @@ export const GetApiSchedulingShiftsEntriesResponseItem = zod.object({
   workedLunchMinutes: zod.int().nullish(),
   shiftSeriesId: zod.int().nullish(),
   eventId: zod.int().optional(),
-  isException: zod.boolean().optional(),
-  exceptionReasonCodes: zod.array(zod.enum(['DateTimeChanged', 'IsAway'])).optional(),
   assignmentLinks: zod
     .array(
       zod.object({
@@ -342,6 +340,8 @@ export const GetApiSchedulingShiftsEntriesResponseItem = zod.object({
     .optional(),
   id: zod.int().optional(),
   eventSeriesId: zod.int().nullish(),
+  isException: zod.boolean().optional(),
+  exceptionReasonCodes: zod.array(zod.enum(['DateTimeChanged', 'IsAway'])).optional(),
   eventTypeCode: zod.string().nullish(),
   statusTypeCode: zod.string().nullish(),
   cancelledAt: zod.iso.datetime({ offset: true }).nullish(),
@@ -394,8 +394,6 @@ export const PostApiSchedulingShiftsEntriesResponse = zod.object({
   workedLunchMinutes: zod.int().nullish(),
   shiftSeriesId: zod.int().nullish(),
   eventId: zod.int().optional(),
-  isException: zod.boolean().optional(),
-  exceptionReasonCodes: zod.array(zod.enum(['DateTimeChanged', 'IsAway'])).optional(),
   assignmentLinks: zod
     .array(
       zod.object({
@@ -412,6 +410,8 @@ export const PostApiSchedulingShiftsEntriesResponse = zod.object({
     .optional(),
   id: zod.int().optional(),
   eventSeriesId: zod.int().nullish(),
+  isException: zod.boolean().optional(),
+  exceptionReasonCodes: zod.array(zod.enum(['DateTimeChanged', 'IsAway'])).optional(),
   eventTypeCode: zod.string().nullish(),
   statusTypeCode: zod.string().nullish(),
   cancelledAt: zod.iso.datetime({ offset: true }).nullish(),
@@ -441,8 +441,6 @@ export const GetApiSchedulingShiftsEntriesIdResponse = zod.object({
   workedLunchMinutes: zod.int().nullish(),
   shiftSeriesId: zod.int().nullish(),
   eventId: zod.int().optional(),
-  isException: zod.boolean().optional(),
-  exceptionReasonCodes: zod.array(zod.enum(['DateTimeChanged', 'IsAway'])).optional(),
   assignmentLinks: zod
     .array(
       zod.object({
@@ -459,6 +457,8 @@ export const GetApiSchedulingShiftsEntriesIdResponse = zod.object({
     .optional(),
   id: zod.int().optional(),
   eventSeriesId: zod.int().nullish(),
+  isException: zod.boolean().optional(),
+  exceptionReasonCodes: zod.array(zod.enum(['DateTimeChanged', 'IsAway'])).optional(),
   eventTypeCode: zod.string().nullish(),
   statusTypeCode: zod.string().nullish(),
   cancelledAt: zod.iso.datetime({ offset: true }).nullish(),
@@ -527,8 +527,6 @@ export const PutApiSchedulingShiftsEntriesIdResponse = zod.object({
   workedLunchMinutes: zod.int().nullish(),
   shiftSeriesId: zod.int().nullish(),
   eventId: zod.int().optional(),
-  isException: zod.boolean().optional(),
-  exceptionReasonCodes: zod.array(zod.enum(['DateTimeChanged', 'IsAway'])).optional(),
   assignmentLinks: zod
     .array(
       zod.object({
@@ -545,6 +543,8 @@ export const PutApiSchedulingShiftsEntriesIdResponse = zod.object({
     .optional(),
   id: zod.int().optional(),
   eventSeriesId: zod.int().nullish(),
+  isException: zod.boolean().optional(),
+  exceptionReasonCodes: zod.array(zod.enum(['DateTimeChanged', 'IsAway'])).optional(),
   eventTypeCode: zod.string().nullish(),
   statusTypeCode: zod.string().nullish(),
   cancelledAt: zod.iso.datetime({ offset: true }).nullish(),
@@ -580,8 +580,6 @@ export const PostApiSchedulingShiftsEntriesIdPublishResponse = zod.object({
   workedLunchMinutes: zod.int().nullish(),
   shiftSeriesId: zod.int().nullish(),
   eventId: zod.int().optional(),
-  isException: zod.boolean().optional(),
-  exceptionReasonCodes: zod.array(zod.enum(['DateTimeChanged', 'IsAway'])).optional(),
   assignmentLinks: zod
     .array(
       zod.object({
@@ -598,6 +596,8 @@ export const PostApiSchedulingShiftsEntriesIdPublishResponse = zod.object({
     .optional(),
   id: zod.int().optional(),
   eventSeriesId: zod.int().nullish(),
+  isException: zod.boolean().optional(),
+  exceptionReasonCodes: zod.array(zod.enum(['DateTimeChanged', 'IsAway'])).optional(),
   eventTypeCode: zod.string().nullish(),
   statusTypeCode: zod.string().nullish(),
   cancelledAt: zod.iso.datetime({ offset: true }).nullish(),
@@ -634,8 +634,6 @@ export const PostApiSchedulingShiftsEntriesIdExpireResponse = zod.object({
   workedLunchMinutes: zod.int().nullish(),
   shiftSeriesId: zod.int().nullish(),
   eventId: zod.int().optional(),
-  isException: zod.boolean().optional(),
-  exceptionReasonCodes: zod.array(zod.enum(['DateTimeChanged', 'IsAway'])).optional(),
   assignmentLinks: zod
     .array(
       zod.object({
@@ -652,6 +650,8 @@ export const PostApiSchedulingShiftsEntriesIdExpireResponse = zod.object({
     .optional(),
   id: zod.int().optional(),
   eventSeriesId: zod.int().nullish(),
+  isException: zod.boolean().optional(),
+  exceptionReasonCodes: zod.array(zod.enum(['DateTimeChanged', 'IsAway'])).optional(),
   eventTypeCode: zod.string().nullish(),
   statusTypeCode: zod.string().nullish(),
   cancelledAt: zod.iso.datetime({ offset: true }).nullish(),

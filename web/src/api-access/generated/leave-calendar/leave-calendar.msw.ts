@@ -7,9 +7,10 @@
 import { faker } from '@faker-js/faker';
 
 import { HttpResponse, http } from 'msw';
-import type { RequestHandlerOptions } from 'msw';
+import type { HttpResponseResolver, PathParams, RequestHandlerOptions } from 'msw';
 
-import type { LeaveCalendarEvent } from '../models';
+import { CalendarEventExceptionReasonCode } from '../models';
+import type { CalendarEventQueryContext, LeaveCalendarEvent } from '../models';
 
 export const getPostApiLeaveCalendarEventsResponseMock = (): LeaveCalendarEvent[] =>
   faker.helpers.arrayElement([
@@ -18,6 +19,7 @@ export const getPostApiLeaveCalendarEventsResponseMock = (): LeaveCalendarEvent[
       leaveEntryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       leaveSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       leaveTypeId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      leaveDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), null]),
       leaveTypeName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       userIds: faker.helpers.arrayElement([
@@ -37,6 +39,10 @@ export const getPostApiLeaveCalendarEventsResponseMock = (): LeaveCalendarEvent[
       timeZoneId: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.string.alpha({ length: { min: 10, max: 20 } }),
       statusTypeCode: faker.string.alpha({ length: { min: 10, max: 20 } }),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -49,6 +55,7 @@ export const getPostApiLeaveCalendarEventsResponseMock = (): LeaveCalendarEvent[
       leaveEntryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       leaveSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       leaveTypeId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      leaveDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), null]),
       leaveTypeName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       userIds: faker.helpers.arrayElement([
@@ -68,6 +75,10 @@ export const getPostApiLeaveCalendarEventsResponseMock = (): LeaveCalendarEvent[
       timeZoneId: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.string.alpha({ length: { min: 10, max: 20 } }),
       statusTypeCode: faker.string.alpha({ length: { min: 10, max: 20 } }),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -80,6 +91,7 @@ export const getPostApiLeaveCalendarEventsResponseMock = (): LeaveCalendarEvent[
       leaveEntryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       leaveSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       leaveTypeId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      leaveDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), null]),
       leaveTypeName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       userIds: faker.helpers.arrayElement([
@@ -99,6 +111,10 @@ export const getPostApiLeaveCalendarEventsResponseMock = (): LeaveCalendarEvent[
       timeZoneId: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.string.alpha({ length: { min: 10, max: 20 } }),
       statusTypeCode: faker.string.alpha({ length: { min: 10, max: 20 } }),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -111,12 +127,14 @@ export const getPostApiLeaveCalendarEventsResponseMock = (): LeaveCalendarEvent[
 export const getPostApiLeaveCalendarEventsMockHandler = (
   overrideResponse?:
     | LeaveCalendarEvent[]
-    | ((info: Parameters<Parameters<typeof http.post>[1]>[0]) => Promise<LeaveCalendarEvent[]> | LeaveCalendarEvent[]),
+    | ((
+        info: Parameters<HttpResponseResolver<PathParams, CalendarEventQueryContext>>[0],
+      ) => Promise<LeaveCalendarEvent[]> | LeaveCalendarEvent[]),
   options?: RequestHandlerOptions,
 ) => {
-  return http.post(
+  return http.post<PathParams, CalendarEventQueryContext>(
     '*/api/leave/calendar/events',
-    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<PathParams, CalendarEventQueryContext>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'

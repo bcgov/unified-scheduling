@@ -36,6 +36,11 @@ const getCustomCode = (validityDays: number) => `${CUSTOM_CODE_PREFIX}${validity
 
 export const annualValidityDayCode = ANNUAL_CODE;
 
+export const isAnnualValidityCode = (code: string): boolean => {
+  const validityDays = getValidityDaysFromCode(code);
+  return validityDays != null && validityDays >= 365 && validityDays % 365 === 0;
+};
+
 export const getValidityDayCodeFromDays = (validityDays: number | null | undefined): string => {
   if (validityDays == null) {
     return ONE_TIME_CODE;

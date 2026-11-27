@@ -20,7 +20,8 @@ public interface IAssignmentEntryService
         int id,
         AssignmentEntryUpdateRequest request,
         CancellationToken cancellationToken = default,
-        Guid? conflictOverrideActorId = null
+        Guid? conflictOverrideActorId = null,
+        bool canAssign = false
     );
 
     Task<AssignmentEntryResponse?> PublishAssignmentEntryAsync(int id, CancellationToken cancellationToken = default);

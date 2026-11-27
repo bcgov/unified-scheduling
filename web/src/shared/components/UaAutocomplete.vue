@@ -3,10 +3,17 @@ import type { SelectOption, SelectValue } from '@/types/select';
 
 defineOptions({ inheritAttrs: false });
 
-const { items } = defineProps<{
-  items: SelectOption[];
-  loading?: boolean;
-}>();
+const props = withDefaults(
+  defineProps<{
+    items: SelectOption[];
+    loading?: boolean;
+    clientFilter?: boolean;
+    browserAutocomplete?: 'on' | 'off';
+  }>(),
+  {
+    browserAutocomplete: 'on',
+  },
+);
 
 const emit = defineEmits<{
   'update:search': [value: string];
@@ -18,14 +25,23 @@ const model = defineModel<SelectValue>();
 <template>
   <v-autocomplete
     v-bind="$attrs"
-    :items="items"
-    :loading="loading"
+    :items="props.items"
+    :loading="props.loading"
+    :no-filter="!props.clientFilter"
+    :autocomplete="props.browserAutocomplete"
+    clear-on-select
     v-model="model"
     item-title="description"
     item-value="code"
     hide-details="auto"
-    no-filter
     single-line
     @update:search="emit('update:search', $event)"
-  />
+  >
+    <template v-if="$slots['prepend-item']" #prepend-item>
+      <slot name="prepend-item" />
+    </template>
+    <template v-if="$slots['prepend-inner']" #prepend-inner>
+      <slot name="prepend-inner" />
+    </template>
+  </v-autocomplete>
 </template>

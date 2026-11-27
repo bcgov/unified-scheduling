@@ -151,6 +151,36 @@ public class UserServiceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task UserSearches_ReturnSameProfileFieldsAsGetById()
+    {
+        await SeedTestData();
+        var paged = await _userService.GetPagedAsync(
+            new PagedUserQueryParams { Search = "Smith", LocationId = [1] },
+            TestContext.Current.CancellationToken
+        );
+        var unpaged = await _userService.GetAllAsync(
+            new UserQueryParams { Search = "Smith", LocationId = 1 },
+            TestContext.Current.CancellationToken
+        );
+        var pagedUser = Assert.Single(paged.Data);
+        var unpagedUser = Assert.Single(unpaged);
+        var profile = await _userService.GetByIdAsync(pagedUser.Id, TestContext.Current.CancellationToken);
+
+        Assert.NotNull(profile);
+        Assert.Equal("john.smith@example.com", profile.Email);
+        Assert.NotNull(profile.IdirId);
+        Assert.NotNull(profile.LastLogin);
+        Assert.Equal(profile.Email, pagedUser.Email);
+        Assert.Equal(profile.IdirId, pagedUser.IdirId);
+        Assert.Equal(profile.Gender, pagedUser.Gender);
+        Assert.Equal(profile.LastLogin, pagedUser.LastLogin);
+        Assert.Equal(profile.Email, unpagedUser.Email);
+        Assert.Equal(profile.IdirId, unpagedUser.IdirId);
+        Assert.Equal(profile.Gender, unpagedUser.Gender);
+        Assert.Equal(profile.LastLogin, unpagedUser.LastLogin);
+    }
+
+    [Fact]
     public async Task GetAllAsync_Should_Return_All_Users_When_No_QueryParams()
     {
         // Arrange
@@ -168,6 +198,198 @@ public class UserServiceTests : IAsyncLifetime
             user => Assert.Equal("Jones", user.LastName),
             user => Assert.Equal("Smith", user.LastName)
         );
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_Should_Order_By_FirstName_And_Return_Requested_Page_With_Total_Count()
+    {
+        // Arrange
+        await SeedTestData();
+        var queryParams = new PagedUserQueryParams { Page = 2, PageSize = 1 };
+
+        // Act
+        var result = await _userService.GetPagedAsync(queryParams, TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.Equal(2, result.Page);
+        Assert.Equal(1, result.PageSize);
+        Assert.Equal(4, result.TotalCount);
+        Assert.Equal("Bob", Assert.Single(result.Data).FirstName);
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_Should_Apply_Defaults_And_Clamp_PageSize()
+    {
+        // Arrange
+        await SeedTestData();
+
+        // Act
+        var defaults = await _userService.GetPagedAsync(null, TestContext.Current.CancellationToken);
+        var clamped = await _userService.GetPagedAsync(
+            new PagedUserQueryParams { Page = 0, PageSize = 1000 },
+            TestContext.Current.CancellationToken
+        );
+
+        // Assert
+        Assert.Equal(1, defaults.Page);
+        Assert.Equal(25, defaults.PageSize);
+        Assert.Equal(1, clamped.Page);
+        Assert.Equal(150, clamped.PageSize);
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_Should_Apply_Search_And_IsEnabled_Filters()
+    {
+        // Arrange
+        await SeedTestData();
+
+        // Act
+        var bySearch = await _userService.GetPagedAsync(
+            new PagedUserQueryParams { Search = "Doe" },
+            TestContext.Current.CancellationToken
+        );
+        var disabled = await _userService.GetPagedAsync(
+            new PagedUserQueryParams { IsEnabled = false },
+            TestContext.Current.CancellationToken
+        );
+
+        // Assert
+        Assert.Equal("Jane", Assert.Single(bySearch.Data).FirstName);
+        Assert.Equal(1, bySearch.TotalCount);
+        Assert.Equal("Bob", Assert.Single(disabled.Data).FirstName);
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_Should_Filter_By_Multiple_Locations()
+    {
+        // Arrange
+        await SeedTestData();
+
+        // Act
+        var result = await _userService.GetPagedAsync(
+            new PagedUserQueryParams { LocationId = [1, 2] },
+            TestContext.Current.CancellationToken
+        );
+
+        // Assert
+        Assert.Equal(3, result.TotalCount);
+        Assert.Equal(["Bob", "Jane", "John"], result.Data.Select(u => u.FirstName));
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_Should_Combine_Location_Union_With_Search_And_Status_Filters()
+    {
+        // Arrange
+        await SeedTestData();
+        var location3 = await _dbContext
+            .Locations.AsNoTracking()
+            .FirstAsync(l => l.Id != 1 && l.Id != 2, TestContext.Current.CancellationToken);
+        _dbContext.Users.AddRange(
+            CreateUser("Victor", "Johnstone", 1, true),
+            CreateUser("Zed", "Johnstone", 2, true),
+            CreateUser("Yan", "Johnstone", location3.Id, true),
+            CreateUser("Xia", "Johnstone", null, true),
+            CreateUser("Walt", "Johnstone", 1, false)
+        );
+        await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        // Act
+        var union = await _userService.GetPagedAsync(
+            new PagedUserQueryParams { LocationId = [1, 2] },
+            TestContext.Current.CancellationToken
+        );
+        var unionSearch = await _userService.GetPagedAsync(
+            new PagedUserQueryParams { LocationId = [1, 2], Search = "Johnstone" },
+            TestContext.Current.CancellationToken
+        );
+        var unionSearchEnabled = await _userService.GetPagedAsync(
+            new PagedUserQueryParams
+            {
+                LocationId = [1, 2],
+                Search = "Johnstone",
+                IsEnabled = true,
+            },
+            TestContext.Current.CancellationToken
+        );
+        var singleLocation = await _userService.GetPagedAsync(
+            new PagedUserQueryParams { LocationId = [location3.Id] },
+            TestContext.Current.CancellationToken
+        );
+        var paged = await _userService.GetPagedAsync(
+            new PagedUserQueryParams
+            {
+                LocationId = [1, 2],
+                Search = "Johnstone",
+                IsEnabled = true,
+                Page = 2,
+                PageSize = 1,
+            },
+            TestContext.Current.CancellationToken
+        );
+
+        // Assert
+        Assert.Equal(6, union.TotalCount);
+        Assert.Equal(["Bob", "Jane", "John", "Victor", "Walt", "Zed"], union.Data.Select(u => u.FirstName));
+
+        Assert.Equal(3, unionSearch.TotalCount);
+        Assert.Equal(["Victor", "Walt", "Zed"], unionSearch.Data.Select(u => u.FirstName));
+
+        Assert.Equal(2, unionSearchEnabled.TotalCount);
+        Assert.Equal(["Victor", "Zed"], unionSearchEnabled.Data.Select(u => u.FirstName));
+
+        Assert.Equal(2, paged.TotalCount);
+        Assert.Equal("Zed", Assert.Single(paged.Data).FirstName);
+
+        Assert.Equal(1, singleLocation.TotalCount);
+        Assert.Equal("Yan", Assert.Single(singleLocation.Data).FirstName);
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_Should_Page_Within_Location_Union_And_Keep_Total_Count()
+    {
+        // Arrange
+        await SeedTestData();
+        var query = new PagedUserQueryParams
+        {
+            LocationId = [1, 2],
+            Page = 2,
+            PageSize = 2,
+        };
+
+        // Act
+        var result = await _userService.GetPagedAsync(query, TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.Equal(3, result.TotalCount);
+        Assert.Equal("John", Assert.Single(result.Data).FirstName);
+    }
+
+    private static User CreateUser(string firstName, string lastName, int? homeLocationId, bool isEnabled) =>
+        new()
+        {
+            Id = Guid.NewGuid(),
+            IdirName = $"{firstName}.{lastName}".ToLowerInvariant(),
+            IdirId = Guid.NewGuid(),
+            IsEnabled = isEnabled,
+            FirstName = firstName,
+            LastName = lastName,
+            Gender = Gender.Male,
+            Email = $"{firstName}.{lastName}@example.com".ToLowerInvariant(),
+            HomeLocationId = homeLocationId,
+        };
+
+    [Fact]
+    public async Task GetPagedAsync_Should_Reject_Unknown_Location()
+    {
+        // Arrange
+        await SeedTestData();
+        var queryParams = new PagedUserQueryParams { LocationId = [1, 9999] };
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            _userService.GetPagedAsync(queryParams, TestContext.Current.CancellationToken)
+        );
+        Assert.Contains("9999", ex.Message);
     }
 
     [Fact]

@@ -9,6 +9,7 @@ import { faker } from '@faker-js/faker';
 import { HttpResponse, http } from 'msw';
 import type { HttpResponseResolver, PathParams, RequestHandlerOptions } from 'msw';
 
+import { CalendarEventExceptionReasonCode } from '../models';
 import type {
   ExpireShiftRequest,
   ShiftEntryRequest,
@@ -940,13 +941,6 @@ export const getGetApiSchedulingShiftsEntriesResponseMock = (): ShiftEntryRespon
       workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      exceptionReasonCodes: faker.helpers.arrayElement([
-        [],
-        ['DateTimeChanged'],
-        ['IsAway'],
-        ['DateTimeChanged', 'IsAway'],
-      ]),
       assignmentLinks: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -967,6 +961,11 @@ export const getGetApiSchedulingShiftsEntriesResponseMock = (): ShiftEntryRespon
       ]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -994,13 +993,6 @@ export const getGetApiSchedulingShiftsEntriesResponseMock = (): ShiftEntryRespon
       workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      exceptionReasonCodes: faker.helpers.arrayElement([
-        [],
-        ['DateTimeChanged'],
-        ['IsAway'],
-        ['DateTimeChanged', 'IsAway'],
-      ]),
       assignmentLinks: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1021,6 +1013,11 @@ export const getGetApiSchedulingShiftsEntriesResponseMock = (): ShiftEntryRespon
       ]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -1048,13 +1045,6 @@ export const getGetApiSchedulingShiftsEntriesResponseMock = (): ShiftEntryRespon
       workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      exceptionReasonCodes: faker.helpers.arrayElement([
-        [],
-        ['DateTimeChanged'],
-        ['IsAway'],
-        ['DateTimeChanged', 'IsAway'],
-      ]),
       assignmentLinks: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1075,6 +1065,11 @@ export const getGetApiSchedulingShiftsEntriesResponseMock = (): ShiftEntryRespon
       ]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -1108,13 +1103,6 @@ export const getPostApiSchedulingShiftsEntriesResponseMock = (
       workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      exceptionReasonCodes: faker.helpers.arrayElement([
-        [],
-        ['DateTimeChanged'],
-        ['IsAway'],
-        ['DateTimeChanged', 'IsAway'],
-      ]),
       assignmentLinks: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1135,6 +1123,11 @@ export const getPostApiSchedulingShiftsEntriesResponseMock = (
       ]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -1163,13 +1156,6 @@ export const getPostApiSchedulingShiftsEntriesResponseMock = (
       workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      exceptionReasonCodes: faker.helpers.arrayElement([
-        [],
-        ['DateTimeChanged'],
-        ['IsAway'],
-        ['DateTimeChanged', 'IsAway'],
-      ]),
       assignmentLinks: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1190,6 +1176,11 @@ export const getPostApiSchedulingShiftsEntriesResponseMock = (
       ]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -1218,13 +1209,6 @@ export const getPostApiSchedulingShiftsEntriesResponseMock = (
       workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      exceptionReasonCodes: faker.helpers.arrayElement([
-        [],
-        ['DateTimeChanged'],
-        ['IsAway'],
-        ['DateTimeChanged', 'IsAway'],
-      ]),
       assignmentLinks: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1245,6 +1229,11 @@ export const getPostApiSchedulingShiftsEntriesResponseMock = (
       ]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -1279,13 +1268,6 @@ export const getGetApiSchedulingShiftsEntriesIdResponseMock = (
       workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      exceptionReasonCodes: faker.helpers.arrayElement([
-        [],
-        ['DateTimeChanged'],
-        ['IsAway'],
-        ['DateTimeChanged', 'IsAway'],
-      ]),
       assignmentLinks: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1306,6 +1288,11 @@ export const getGetApiSchedulingShiftsEntriesIdResponseMock = (
       ]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -1334,13 +1321,6 @@ export const getGetApiSchedulingShiftsEntriesIdResponseMock = (
       workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      exceptionReasonCodes: faker.helpers.arrayElement([
-        [],
-        ['DateTimeChanged'],
-        ['IsAway'],
-        ['DateTimeChanged', 'IsAway'],
-      ]),
       assignmentLinks: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1361,6 +1341,11 @@ export const getGetApiSchedulingShiftsEntriesIdResponseMock = (
       ]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -1389,13 +1374,6 @@ export const getGetApiSchedulingShiftsEntriesIdResponseMock = (
       workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      exceptionReasonCodes: faker.helpers.arrayElement([
-        [],
-        ['DateTimeChanged'],
-        ['IsAway'],
-        ['DateTimeChanged', 'IsAway'],
-      ]),
       assignmentLinks: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1416,6 +1394,11 @@ export const getGetApiSchedulingShiftsEntriesIdResponseMock = (
       ]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -1450,13 +1433,6 @@ export const getPutApiSchedulingShiftsEntriesIdResponseMock = (
       workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      exceptionReasonCodes: faker.helpers.arrayElement([
-        [],
-        ['DateTimeChanged'],
-        ['IsAway'],
-        ['DateTimeChanged', 'IsAway'],
-      ]),
       assignmentLinks: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1477,6 +1453,11 @@ export const getPutApiSchedulingShiftsEntriesIdResponseMock = (
       ]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -1505,13 +1486,6 @@ export const getPutApiSchedulingShiftsEntriesIdResponseMock = (
       workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      exceptionReasonCodes: faker.helpers.arrayElement([
-        [],
-        ['DateTimeChanged'],
-        ['IsAway'],
-        ['DateTimeChanged', 'IsAway'],
-      ]),
       assignmentLinks: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1532,6 +1506,11 @@ export const getPutApiSchedulingShiftsEntriesIdResponseMock = (
       ]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -1560,13 +1539,6 @@ export const getPutApiSchedulingShiftsEntriesIdResponseMock = (
       workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      exceptionReasonCodes: faker.helpers.arrayElement([
-        [],
-        ['DateTimeChanged'],
-        ['IsAway'],
-        ['DateTimeChanged', 'IsAway'],
-      ]),
       assignmentLinks: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1587,6 +1559,11 @@ export const getPutApiSchedulingShiftsEntriesIdResponseMock = (
       ]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -1621,13 +1598,6 @@ export const getPostApiSchedulingShiftsEntriesIdPublishResponseMock = (
       workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      exceptionReasonCodes: faker.helpers.arrayElement([
-        [],
-        ['DateTimeChanged'],
-        ['IsAway'],
-        ['DateTimeChanged', 'IsAway'],
-      ]),
       assignmentLinks: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1648,6 +1618,11 @@ export const getPostApiSchedulingShiftsEntriesIdPublishResponseMock = (
       ]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -1676,13 +1651,6 @@ export const getPostApiSchedulingShiftsEntriesIdPublishResponseMock = (
       workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      exceptionReasonCodes: faker.helpers.arrayElement([
-        [],
-        ['DateTimeChanged'],
-        ['IsAway'],
-        ['DateTimeChanged', 'IsAway'],
-      ]),
       assignmentLinks: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1703,6 +1671,11 @@ export const getPostApiSchedulingShiftsEntriesIdPublishResponseMock = (
       ]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -1731,13 +1704,6 @@ export const getPostApiSchedulingShiftsEntriesIdPublishResponseMock = (
       workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      exceptionReasonCodes: faker.helpers.arrayElement([
-        [],
-        ['DateTimeChanged'],
-        ['IsAway'],
-        ['DateTimeChanged', 'IsAway'],
-      ]),
       assignmentLinks: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1758,6 +1724,11 @@ export const getPostApiSchedulingShiftsEntriesIdPublishResponseMock = (
       ]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -1792,13 +1763,6 @@ export const getPostApiSchedulingShiftsEntriesIdExpireResponseMock = (
       workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      exceptionReasonCodes: faker.helpers.arrayElement([
-        [],
-        ['DateTimeChanged'],
-        ['IsAway'],
-        ['DateTimeChanged', 'IsAway'],
-      ]),
       assignmentLinks: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1819,6 +1783,11 @@ export const getPostApiSchedulingShiftsEntriesIdExpireResponseMock = (
       ]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -1847,13 +1816,6 @@ export const getPostApiSchedulingShiftsEntriesIdExpireResponseMock = (
       workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      exceptionReasonCodes: faker.helpers.arrayElement([
-        [],
-        ['DateTimeChanged'],
-        ['IsAway'],
-        ['DateTimeChanged', 'IsAway'],
-      ]),
       assignmentLinks: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1874,6 +1836,11 @@ export const getPostApiSchedulingShiftsEntriesIdExpireResponseMock = (
       ]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -1902,13 +1869,6 @@ export const getPostApiSchedulingShiftsEntriesIdExpireResponseMock = (
       workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null]),
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      exceptionReasonCodes: faker.helpers.arrayElement([
-        [],
-        ['DateTimeChanged'],
-        ['IsAway'],
-        ['DateTimeChanged', 'IsAway'],
-      ]),
       assignmentLinks: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1929,6 +1889,11 @@ export const getPostApiSchedulingShiftsEntriesIdExpireResponseMock = (
       ]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),

@@ -7,7 +7,7 @@
 import { faker } from '@faker-js/faker';
 
 import { HttpResponse, http } from 'msw';
-import type { RequestHandlerOptions } from 'msw';
+import type { HttpResponseResolver, RequestHandlerOptions } from 'msw';
 
 import type { AuditEntityFieldsResponse, AuditEntityTypesResponse, AuditHistoryResponse } from '../models';
 
@@ -152,12 +152,12 @@ export const getGetApiAuditSchemaEntityTypesEntityTypeFieldsResponseMock = (
 export const getGetApiAuditHistoryMockHandler = (
   overrideResponse?:
     | AuditHistoryResponse
-    | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<AuditHistoryResponse> | AuditHistoryResponse),
+    | ((info: Parameters<HttpResponseResolver>[0]) => Promise<AuditHistoryResponse> | AuditHistoryResponse),
   options?: RequestHandlerOptions,
 ) => {
   return http.get(
     '*/api/audit/history',
-    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -174,14 +174,12 @@ export const getGetApiAuditHistoryMockHandler = (
 export const getGetApiAuditSchemaEntityTypesMockHandler = (
   overrideResponse?:
     | AuditEntityTypesResponse
-    | ((
-        info: Parameters<Parameters<typeof http.get>[1]>[0],
-      ) => Promise<AuditEntityTypesResponse> | AuditEntityTypesResponse),
+    | ((info: Parameters<HttpResponseResolver>[0]) => Promise<AuditEntityTypesResponse> | AuditEntityTypesResponse),
   options?: RequestHandlerOptions,
 ) => {
   return http.get(
     '*/api/audit/schema/entity-types',
-    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -199,13 +197,13 @@ export const getGetApiAuditSchemaEntityTypesEntityTypeFieldsMockHandler = (
   overrideResponse?:
     | AuditEntityFieldsResponse
     | ((
-        info: Parameters<Parameters<typeof http.get>[1]>[0],
+        info: Parameters<HttpResponseResolver<{ entityType: string }>>[0],
       ) => Promise<AuditEntityFieldsResponse> | AuditEntityFieldsResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.get(
+  return http.get<{ entityType: string }>(
     '*/api/audit/schema/entity-types/:entityType/fields',
-    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ entityType: string }>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'

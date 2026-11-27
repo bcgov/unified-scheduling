@@ -7,12 +7,18 @@
 import { faker } from '@faker-js/faker';
 
 import { HttpResponse, http } from 'msw';
-import type { RequestHandlerOptions } from 'msw';
+import type { HttpResponseResolver, PathParams, RequestHandlerOptions } from 'msw';
 
+import { CalendarEventExceptionReasonCode } from '../models';
 import type {
+  ProposedShiftAssignmentOptionsRequest,
   ProposedShiftAssignmentOptionsResponse,
+  ShiftAssignmentEntryRequest,
   ShiftAssignmentEntryResponse,
+  ShiftAssignmentEntryUpdateRequest,
   ShiftAssignmentSeriesLinkResponse,
+  ShiftAssignmentSeriesRequest,
+  ShiftAssignmentSeriesUpdateRequest,
 } from '../models';
 
 export const getPostApiSchedulingShiftAssignmentsOptionsResponseMock = (
@@ -45,7 +51,6 @@ export const getPostApiSchedulingShiftAssignmentsOptionsResponseMock = (
           ]),
           startAtUtc: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
           eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
-          isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
           assignmentLinks: faker.helpers.arrayElement([
             Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
               id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -66,6 +71,11 @@ export const getPostApiSchedulingShiftAssignmentsOptionsResponseMock = (
           ]),
           id: faker.helpers.arrayElement([faker.number.int(), undefined]),
           eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+          isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+          exceptionReasonCodes: faker.helpers.arrayElement([
+            faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+            undefined,
+          ]),
           eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
           statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
           cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -180,7 +190,6 @@ export const getPostApiSchedulingShiftAssignmentsOptionsResponseMock = (
           ]),
           startAtUtc: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
           eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
-          isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
           assignmentLinks: faker.helpers.arrayElement([
             Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
               id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -201,6 +210,11 @@ export const getPostApiSchedulingShiftAssignmentsOptionsResponseMock = (
           ]),
           id: faker.helpers.arrayElement([faker.number.int(), undefined]),
           eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+          isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+          exceptionReasonCodes: faker.helpers.arrayElement([
+            faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+            undefined,
+          ]),
           eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
           statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
           cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -315,7 +329,6 @@ export const getPostApiSchedulingShiftAssignmentsOptionsResponseMock = (
           ]),
           startAtUtc: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
           eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
-          isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
           assignmentLinks: faker.helpers.arrayElement([
             Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
               id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -336,6 +349,11 @@ export const getPostApiSchedulingShiftAssignmentsOptionsResponseMock = (
           ]),
           id: faker.helpers.arrayElement([faker.number.int(), undefined]),
           eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+          isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+          exceptionReasonCodes: faker.helpers.arrayElement([
+            faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+            undefined,
+          ]),
           eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
           statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
           cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -736,13 +754,13 @@ export const getPostApiSchedulingShiftAssignmentsOptionsMockHandler = (
   overrideResponse?:
     | ProposedShiftAssignmentOptionsResponse
     | ((
-        info: Parameters<Parameters<typeof http.post>[1]>[0],
+        info: Parameters<HttpResponseResolver<PathParams, ProposedShiftAssignmentOptionsRequest>>[0],
       ) => Promise<ProposedShiftAssignmentOptionsResponse> | ProposedShiftAssignmentOptionsResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.post(
+  return http.post<PathParams, ProposedShiftAssignmentOptionsRequest>(
     '*/api/scheduling/shift-assignments/options',
-    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<PathParams, ProposedShiftAssignmentOptionsRequest>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -760,13 +778,13 @@ export const getPostApiSchedulingShiftAssignmentsEntriesMockHandler = (
   overrideResponse?:
     | ShiftAssignmentEntryResponse
     | ((
-        info: Parameters<Parameters<typeof http.post>[1]>[0],
+        info: Parameters<HttpResponseResolver<PathParams, ShiftAssignmentEntryRequest>>[0],
       ) => Promise<ShiftAssignmentEntryResponse> | ShiftAssignmentEntryResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.post(
+  return http.post<PathParams, ShiftAssignmentEntryRequest>(
     '*/api/scheduling/shift-assignments/entries',
-    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<PathParams, ShiftAssignmentEntryRequest>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -784,13 +802,13 @@ export const getPutApiSchedulingShiftAssignmentsEntriesIdMockHandler = (
   overrideResponse?:
     | ShiftAssignmentEntryResponse
     | ((
-        info: Parameters<Parameters<typeof http.put>[1]>[0],
+        info: Parameters<HttpResponseResolver<{ id: string }, ShiftAssignmentEntryUpdateRequest>>[0],
       ) => Promise<ShiftAssignmentEntryResponse> | ShiftAssignmentEntryResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.put(
+  return http.put<{ id: string }, ShiftAssignmentEntryUpdateRequest>(
     '*/api/scheduling/shift-assignments/entries/:id',
-    async (info: Parameters<Parameters<typeof http.put>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ id: string }, ShiftAssignmentEntryUpdateRequest>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -805,12 +823,12 @@ export const getPutApiSchedulingShiftAssignmentsEntriesIdMockHandler = (
 };
 
 export const getDeleteApiSchedulingShiftAssignmentsEntriesIdMockHandler = (
-  overrideResponse?: void | ((info: Parameters<Parameters<typeof http.delete>[1]>[0]) => Promise<void> | void),
+  overrideResponse?: void | ((info: Parameters<HttpResponseResolver<{ id: string }>>[0]) => Promise<void> | void),
   options?: RequestHandlerOptions,
 ) => {
-  return http.delete(
+  return http.delete<{ id: string }>(
     '*/api/scheduling/shift-assignments/entries/:id',
-    async (info: Parameters<Parameters<typeof http.delete>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ id: string }>>[0]) => {
       if (typeof overrideResponse === 'function') {
         await overrideResponse(info);
       }
@@ -825,13 +843,13 @@ export const getPostApiSchedulingShiftAssignmentsSeriesMockHandler = (
   overrideResponse?:
     | ShiftAssignmentSeriesLinkResponse
     | ((
-        info: Parameters<Parameters<typeof http.post>[1]>[0],
+        info: Parameters<HttpResponseResolver<PathParams, ShiftAssignmentSeriesRequest>>[0],
       ) => Promise<ShiftAssignmentSeriesLinkResponse> | ShiftAssignmentSeriesLinkResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.post(
+  return http.post<PathParams, ShiftAssignmentSeriesRequest>(
     '*/api/scheduling/shift-assignments/series',
-    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<PathParams, ShiftAssignmentSeriesRequest>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -849,13 +867,13 @@ export const getPutApiSchedulingShiftAssignmentsSeriesIdMockHandler = (
   overrideResponse?:
     | ShiftAssignmentSeriesLinkResponse
     | ((
-        info: Parameters<Parameters<typeof http.put>[1]>[0],
+        info: Parameters<HttpResponseResolver<{ id: string }, ShiftAssignmentSeriesUpdateRequest>>[0],
       ) => Promise<ShiftAssignmentSeriesLinkResponse> | ShiftAssignmentSeriesLinkResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.put(
+  return http.put<{ id: string }, ShiftAssignmentSeriesUpdateRequest>(
     '*/api/scheduling/shift-assignments/series/:id',
-    async (info: Parameters<Parameters<typeof http.put>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ id: string }, ShiftAssignmentSeriesUpdateRequest>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -870,12 +888,12 @@ export const getPutApiSchedulingShiftAssignmentsSeriesIdMockHandler = (
 };
 
 export const getDeleteApiSchedulingShiftAssignmentsSeriesIdMockHandler = (
-  overrideResponse?: void | ((info: Parameters<Parameters<typeof http.delete>[1]>[0]) => Promise<void> | void),
+  overrideResponse?: void | ((info: Parameters<HttpResponseResolver<{ id: string }>>[0]) => Promise<void> | void),
   options?: RequestHandlerOptions,
 ) => {
-  return http.delete(
+  return http.delete<{ id: string }>(
     '*/api/scheduling/shift-assignments/series/:id',
-    async (info: Parameters<Parameters<typeof http.delete>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ id: string }>>[0]) => {
       if (typeof overrideResponse === 'function') {
         await overrideResponse(info);
       }

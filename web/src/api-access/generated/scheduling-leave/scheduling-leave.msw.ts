@@ -7,17 +7,29 @@
 import { faker } from '@faker-js/faker';
 
 import { HttpResponse, http } from 'msw';
-import type { RequestHandlerOptions } from 'msw';
+import type { HttpResponseResolver, PathParams, RequestHandlerOptions } from 'msw';
 
-import type { SchedulingLeaveEntryResponse, SchedulingLeaveSeriesResponse } from '../models';
+import { CalendarEventExceptionReasonCode } from '../models';
+import type {
+  SchedulingLeaveEntryRequest,
+  SchedulingLeaveEntryResponse,
+  SchedulingLeaveSeriesRequest,
+  SchedulingLeaveSeriesResponse,
+} from '../models';
 
 export const getGetApiSchedulingLeaveUsersUserIdEntriesResponseMock = (): SchedulingLeaveEntryResponse[] =>
   faker.helpers.arrayElement([
     Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
       leaveSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       leaveTypeId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      leaveDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), null]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -42,8 +54,14 @@ export const getGetApiSchedulingLeaveUsersUserIdEntriesResponseMock = (): Schedu
     Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
       leaveSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       leaveTypeId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      leaveDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), null]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -68,8 +86,14 @@ export const getGetApiSchedulingLeaveUsersUserIdEntriesResponseMock = (): Schedu
     Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
       leaveSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       leaveTypeId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      leaveDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), null]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -97,6 +121,7 @@ export const getGetApiSchedulingLeaveUsersUserIdSeriesResponseMock = (): Schedul
   faker.helpers.arrayElement([
     Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
       leaveTypeId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      leaveDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), null]),
       leaveEntryIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.number.int()),
         undefined,
@@ -129,6 +154,7 @@ export const getGetApiSchedulingLeaveUsersUserIdSeriesResponseMock = (): Schedul
     })),
     Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
       leaveTypeId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      leaveDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), null]),
       leaveEntryIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.number.int()),
         undefined,
@@ -161,6 +187,7 @@ export const getGetApiSchedulingLeaveUsersUserIdSeriesResponseMock = (): Schedul
     })),
     Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
       leaveTypeId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      leaveDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), null]),
       leaveEntryIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.number.int()),
         undefined,
@@ -199,6 +226,7 @@ export const getGetApiSchedulingLeaveSeriesIdResponseMock = (
   faker.helpers.arrayElement([
     {
       leaveTypeId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      leaveDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), null]),
       leaveEntryIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.number.int()),
         undefined,
@@ -232,6 +260,7 @@ export const getGetApiSchedulingLeaveSeriesIdResponseMock = (
     },
     {
       leaveTypeId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      leaveDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), null]),
       leaveEntryIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.number.int()),
         undefined,
@@ -265,6 +294,7 @@ export const getGetApiSchedulingLeaveSeriesIdResponseMock = (
     },
     {
       leaveTypeId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      leaveDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), null]),
       leaveEntryIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.number.int()),
         undefined,
@@ -304,6 +334,7 @@ export const getPutApiSchedulingLeaveSeriesIdResponseMock = (
   faker.helpers.arrayElement([
     {
       leaveTypeId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      leaveDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), null]),
       leaveEntryIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.number.int()),
         undefined,
@@ -337,6 +368,7 @@ export const getPutApiSchedulingLeaveSeriesIdResponseMock = (
     },
     {
       leaveTypeId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      leaveDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), null]),
       leaveEntryIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.number.int()),
         undefined,
@@ -370,6 +402,7 @@ export const getPutApiSchedulingLeaveSeriesIdResponseMock = (
     },
     {
       leaveTypeId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      leaveDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), null]),
       leaveEntryIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.number.int()),
         undefined,
@@ -409,6 +442,7 @@ export const getPostApiSchedulingLeaveSeriesResponseMock = (
   faker.helpers.arrayElement([
     {
       leaveTypeId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      leaveDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), null]),
       leaveEntryIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.number.int()),
         undefined,
@@ -442,6 +476,7 @@ export const getPostApiSchedulingLeaveSeriesResponseMock = (
     },
     {
       leaveTypeId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      leaveDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), null]),
       leaveEntryIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.number.int()),
         undefined,
@@ -475,6 +510,7 @@ export const getPostApiSchedulingLeaveSeriesResponseMock = (
     },
     {
       leaveTypeId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      leaveDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), null]),
       leaveEntryIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.number.int()),
         undefined,
@@ -515,8 +551,14 @@ export const getGetApiSchedulingLeaveEntriesIdResponseMock = (
     {
       leaveSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       leaveTypeId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      leaveDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), null]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -542,8 +584,14 @@ export const getGetApiSchedulingLeaveEntriesIdResponseMock = (
     {
       leaveSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       leaveTypeId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      leaveDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), null]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -569,8 +617,14 @@ export const getGetApiSchedulingLeaveEntriesIdResponseMock = (
     {
       leaveSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       leaveTypeId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      leaveDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), null]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -602,8 +656,14 @@ export const getPutApiSchedulingLeaveEntriesIdResponseMock = (
     {
       leaveSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       leaveTypeId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      leaveDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), null]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -629,8 +689,14 @@ export const getPutApiSchedulingLeaveEntriesIdResponseMock = (
     {
       leaveSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       leaveTypeId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      leaveDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), null]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -656,8 +722,14 @@ export const getPutApiSchedulingLeaveEntriesIdResponseMock = (
     {
       leaveSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       leaveTypeId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      leaveDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), null]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -689,8 +761,14 @@ export const getPostApiSchedulingLeaveEntriesResponseMock = (
     {
       leaveSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       leaveTypeId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      leaveDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), null]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -716,8 +794,14 @@ export const getPostApiSchedulingLeaveEntriesResponseMock = (
     {
       leaveSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       leaveTypeId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      leaveDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), null]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -743,8 +827,14 @@ export const getPostApiSchedulingLeaveEntriesResponseMock = (
     {
       leaveSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       leaveTypeId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      leaveDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), null]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -773,13 +863,13 @@ export const getGetApiSchedulingLeaveUsersUserIdEntriesMockHandler = (
   overrideResponse?:
     | SchedulingLeaveEntryResponse[]
     | ((
-        info: Parameters<Parameters<typeof http.get>[1]>[0],
+        info: Parameters<HttpResponseResolver<{ userId: string }>>[0],
       ) => Promise<SchedulingLeaveEntryResponse[]> | SchedulingLeaveEntryResponse[]),
   options?: RequestHandlerOptions,
 ) => {
-  return http.get(
+  return http.get<{ userId: string }>(
     '*/api/scheduling/leave/users/:userId/entries',
-    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ userId: string }>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -797,13 +887,13 @@ export const getGetApiSchedulingLeaveUsersUserIdSeriesMockHandler = (
   overrideResponse?:
     | SchedulingLeaveSeriesResponse[]
     | ((
-        info: Parameters<Parameters<typeof http.get>[1]>[0],
+        info: Parameters<HttpResponseResolver<{ userId: string }>>[0],
       ) => Promise<SchedulingLeaveSeriesResponse[]> | SchedulingLeaveSeriesResponse[]),
   options?: RequestHandlerOptions,
 ) => {
-  return http.get(
+  return http.get<{ userId: string }>(
     '*/api/scheduling/leave/users/:userId/series',
-    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ userId: string }>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -821,13 +911,13 @@ export const getGetApiSchedulingLeaveSeriesIdMockHandler = (
   overrideResponse?:
     | SchedulingLeaveSeriesResponse
     | ((
-        info: Parameters<Parameters<typeof http.get>[1]>[0],
+        info: Parameters<HttpResponseResolver<{ id: string }>>[0],
       ) => Promise<SchedulingLeaveSeriesResponse> | SchedulingLeaveSeriesResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.get(
+  return http.get<{ id: string }>(
     '*/api/scheduling/leave/series/:id',
-    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ id: string }>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -845,13 +935,13 @@ export const getPutApiSchedulingLeaveSeriesIdMockHandler = (
   overrideResponse?:
     | SchedulingLeaveSeriesResponse
     | ((
-        info: Parameters<Parameters<typeof http.put>[1]>[0],
+        info: Parameters<HttpResponseResolver<{ id: string }, SchedulingLeaveSeriesRequest>>[0],
       ) => Promise<SchedulingLeaveSeriesResponse> | SchedulingLeaveSeriesResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.put(
+  return http.put<{ id: string }, SchedulingLeaveSeriesRequest>(
     '*/api/scheduling/leave/series/:id',
-    async (info: Parameters<Parameters<typeof http.put>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ id: string }, SchedulingLeaveSeriesRequest>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -866,12 +956,12 @@ export const getPutApiSchedulingLeaveSeriesIdMockHandler = (
 };
 
 export const getDeleteApiSchedulingLeaveSeriesIdMockHandler = (
-  overrideResponse?: void | ((info: Parameters<Parameters<typeof http.delete>[1]>[0]) => Promise<void> | void),
+  overrideResponse?: void | ((info: Parameters<HttpResponseResolver<{ id: string }>>[0]) => Promise<void> | void),
   options?: RequestHandlerOptions,
 ) => {
-  return http.delete(
+  return http.delete<{ id: string }>(
     '*/api/scheduling/leave/series/:id',
-    async (info: Parameters<Parameters<typeof http.delete>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ id: string }>>[0]) => {
       if (typeof overrideResponse === 'function') {
         await overrideResponse(info);
       }
@@ -886,13 +976,13 @@ export const getPostApiSchedulingLeaveSeriesMockHandler = (
   overrideResponse?:
     | SchedulingLeaveSeriesResponse
     | ((
-        info: Parameters<Parameters<typeof http.post>[1]>[0],
+        info: Parameters<HttpResponseResolver<PathParams, SchedulingLeaveSeriesRequest>>[0],
       ) => Promise<SchedulingLeaveSeriesResponse> | SchedulingLeaveSeriesResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.post(
+  return http.post<PathParams, SchedulingLeaveSeriesRequest>(
     '*/api/scheduling/leave/series',
-    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<PathParams, SchedulingLeaveSeriesRequest>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -910,13 +1000,13 @@ export const getGetApiSchedulingLeaveEntriesIdMockHandler = (
   overrideResponse?:
     | SchedulingLeaveEntryResponse
     | ((
-        info: Parameters<Parameters<typeof http.get>[1]>[0],
+        info: Parameters<HttpResponseResolver<{ id: string }>>[0],
       ) => Promise<SchedulingLeaveEntryResponse> | SchedulingLeaveEntryResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.get(
+  return http.get<{ id: string }>(
     '*/api/scheduling/leave/entries/:id',
-    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ id: string }>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -934,13 +1024,13 @@ export const getPutApiSchedulingLeaveEntriesIdMockHandler = (
   overrideResponse?:
     | SchedulingLeaveEntryResponse
     | ((
-        info: Parameters<Parameters<typeof http.put>[1]>[0],
+        info: Parameters<HttpResponseResolver<{ id: string }, SchedulingLeaveEntryRequest>>[0],
       ) => Promise<SchedulingLeaveEntryResponse> | SchedulingLeaveEntryResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.put(
+  return http.put<{ id: string }, SchedulingLeaveEntryRequest>(
     '*/api/scheduling/leave/entries/:id',
-    async (info: Parameters<Parameters<typeof http.put>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ id: string }, SchedulingLeaveEntryRequest>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -955,12 +1045,12 @@ export const getPutApiSchedulingLeaveEntriesIdMockHandler = (
 };
 
 export const getDeleteApiSchedulingLeaveEntriesIdMockHandler = (
-  overrideResponse?: void | ((info: Parameters<Parameters<typeof http.delete>[1]>[0]) => Promise<void> | void),
+  overrideResponse?: void | ((info: Parameters<HttpResponseResolver<{ id: string }>>[0]) => Promise<void> | void),
   options?: RequestHandlerOptions,
 ) => {
-  return http.delete(
+  return http.delete<{ id: string }>(
     '*/api/scheduling/leave/entries/:id',
-    async (info: Parameters<Parameters<typeof http.delete>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ id: string }>>[0]) => {
       if (typeof overrideResponse === 'function') {
         await overrideResponse(info);
       }
@@ -975,13 +1065,13 @@ export const getPostApiSchedulingLeaveEntriesMockHandler = (
   overrideResponse?:
     | SchedulingLeaveEntryResponse
     | ((
-        info: Parameters<Parameters<typeof http.post>[1]>[0],
+        info: Parameters<HttpResponseResolver<PathParams, SchedulingLeaveEntryRequest>>[0],
       ) => Promise<SchedulingLeaveEntryResponse> | SchedulingLeaveEntryResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.post(
+  return http.post<PathParams, SchedulingLeaveEntryRequest>(
     '*/api/scheduling/leave/entries',
-    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<PathParams, SchedulingLeaveEntryRequest>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'

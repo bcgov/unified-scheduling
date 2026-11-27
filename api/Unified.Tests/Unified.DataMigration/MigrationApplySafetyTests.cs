@@ -332,7 +332,9 @@ public sealed class MigrationApplySafetyTests : IAsyncDisposable
     [InlineData("Report", 0, 0, "NeedsAction", 0)]
     [InlineData("Report", 1, 0, "Failed", 1)]
     [InlineData("Report", 0, 1, "Failed", 0)]
+    [InlineData("MyTeam", 0, 0, "Failed", 1)]
     [InlineData("Training", 0, 0, "Failed", 1)]
+    [InlineData("Scheduling", 0, 0, "Failed", 1)]
     public void WorkerTechnicalError_PreservesRealDataFailures(
         string job,
         int failed,
@@ -356,31 +358,142 @@ public sealed class MigrationApplySafetyTests : IAsyncDisposable
     }
 
     [Fact]
-    public void TechnicalFailureDescription_KeepsOriginalCauseWithoutRowDetail()
+    public void TechnicalFailureDescription_UsesSafeMetadataWithoutProtectedMessages()
     {
+        const string wrapperValue = "protected-wrapper-credential";
+        const string messageValue = "protected-postgres-message-value";
+        const string detailValue = "protected-postgres-detail-value";
+        const string hintValue = "protected-postgres-hint-value";
         var pg = new Npgsql.PostgresException(
-            "duplicate key value violates unique constraint",
+            messageValue,
             "ERROR",
             "ERROR",
             "23505",
-            detail: "Key (LegacyId)=(secret-row) already exists.",
+            detail: detailValue,
+            hint: hintValue,
             tableName: "DataMigrationRecords",
             constraintName: "IX_DataMigrationRecords_Source_EntityType_LegacyId"
         );
-        var ex = new DbUpdateException("An error occurred while saving the entity changes.", pg);
+        var ex = new DbUpdateException(wrapperValue, pg);
 
         var text = MigrationTechnicalFailure.Describe(ex);
-
         Assert.Contains("Microsoft.EntityFrameworkCore.DbUpdateException", text);
         Assert.Contains("Npgsql.PostgresException", text);
         Assert.Contains("SqlState=23505", text);
         Assert.Contains("Constraint=IX_DataMigrationRecords_Source_EntityType_LegacyId", text);
         Assert.Contains("Table=DataMigrationRecords", text);
-        Assert.DoesNotContain("secret-row", text);
-        Assert.True(
-            MigrationTechnicalFailure.Describe(new InvalidOperationException(new string('x', 5000))).Length
-                <= MigrationTechnicalFailure.MaxDescriptionLength
+        var run = new DataMigrationRun
+        {
+            Source = "SS",
+            Job = "Scheduling",
+            Status = "Running",
+        };
+        MigrationTechnicalFailure.Record(db, run, "ExecutionFailed", "SS job failed. Cause: " + text);
+        var stored = Assert.Single(db.DataMigrationFailures.Local).ErrorMessage;
+        foreach (var value in new[] { wrapperValue, messageValue, detailValue, hintValue })
+        {
+            Assert.DoesNotContain(value, text);
+            Assert.DoesNotContain(value, stored);
+        }
+        Assert.Contains("SqlState=23505", stored);
+        Assert.True(stored.Length <= 2048);
+        var longMetadata = new Npgsql.PostgresException(
+            new string('s', 5000),
+            "ERROR",
+            "ERROR",
+            "23505",
+            tableName: new string('t', 5000),
+            constraintName: new string('c', 5000)
         );
+        Assert.True(
+            MigrationTechnicalFailure
+                .Describe(new InvalidOperationException(new string('x', 5000), longMetadata))
+                .Length <= MigrationTechnicalFailure.MaxDescriptionLength
+        );
+        Assert.DoesNotContain(
+            "secret\nforged",
+            MigrationTechnicalFailure.Describe(
+                new Npgsql.PostgresException("safe", "ERROR", "ERROR", "23505", tableName: "secret\nforged")
+            )
+        );
+    }
+
+    [Fact]
+    public void TechnicalFailureDescription_RetainsMigrationFrames()
+    {
+        options.Sources.SS.Enabled = false;
+        var ex = Assert.Throws<InvalidOperationException>(() => Executor().ValidateRequest("MyTeam"));
+
+        var text = MigrationTechnicalFailure.Describe(ex);
+
+        Assert.Contains("SsMigrationExecutor.ValidateRequest:", text);
+        Assert.DoesNotContain("SS migration job is disabled.", text);
+    }
+
+    [Theory]
+    [InlineData("MyTeam")]
+    [InlineData("Training")]
+    [InlineData("Scheduling")]
+    [InlineData("Report")]
+    public async Task WorkerFailure_LogsSafeCauseAndDoesNotChainTheOriginal(string job)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        const string protectedValue = "protectedsourcecredential";
+        options.Sources.SS.ConnectionString = protectedValue + "=unused";
+        var original = Assert.ThrowsAny<Exception>(() =>
+            new Npgsql.NpgsqlConnectionStringBuilder(options.Sources.SS.ConnectionString)
+        );
+        Assert.Contains(protectedValue, original.ToString(), StringComparison.OrdinalIgnoreCase);
+        // SQLite models the acquisition lock in memory; the deliberately invalid source string fails
+        // during parsing, before any source connection or network operation.
+        connection.CreateFunction<int, int, int>("pg_advisory_xact_lock", (_, _) => 0);
+        if (job != "MyTeam")
+        {
+            DataMigrationRun Completed(string name, Guid? parent = null) =>
+                new()
+                {
+                    Source = "SS",
+                    Job = name,
+                    Status = "Completed",
+                    DryRun = true,
+                    StartedOn = DateTimeOffset.UnixEpoch,
+                    CompletedOn = DateTimeOffset.UnixEpoch,
+                    CutoverDate = options.Sources.SS.CutoverDate,
+                    HistoryStartDate = options.Sources.SS.HistoryStartDate,
+                    MyTeamRunId = parent,
+                };
+            var parent = Completed("MyTeam");
+            db.DataMigrationRuns.Add(parent);
+            if (job == "Report")
+                db.DataMigrationRuns.AddRange(Completed("Training", parent.Id), Completed("Scheduling", parent.Id));
+            await db.SaveChangesAsync(ct);
+            db.ChangeTracker.Clear();
+        }
+
+        using var output = new StringWriter();
+        var prior = Console.Error;
+        InvalidOperationException error;
+        try
+        {
+            Console.SetError(output);
+            error = await Assert.ThrowsAsync<InvalidOperationException>(() => Executor().ExecuteAsync(job, ct));
+        }
+        finally
+        {
+            Console.SetError(prior);
+        }
+
+        var failure = await db.DataMigrationFailures.AsNoTracking().SingleAsync(ct);
+        var line = Assert.Single(
+            output.ToString().Split('\n'),
+            x => x.Contains($"SsMigrationFailure Run={failure.RunId} Job={job}")
+        );
+        Assert.Contains("Cause=", line);
+        Assert.Contains("Cause:", failure.ErrorMessage);
+        Assert.DoesNotContain(protectedValue, line, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(protectedValue, failure.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(protectedValue, error.ToString(), StringComparison.OrdinalIgnoreCase);
+        Assert.Null(error.InnerException);
     }
 
     [Fact]

@@ -18,6 +18,7 @@ export const PostApiLeaveCalendarEventsResponseItem = zod.object({
   leaveEntryId: zod.int().optional(),
   leaveSeriesId: zod.int().nullish(),
   leaveTypeId: zod.int().optional(),
+  leaveDate: zod.iso.date().nullish(),
   leaveTypeName: zod.string().nullish(),
   eventId: zod.int().optional(),
   userIds: zod.array(zod.uuid()).optional(),

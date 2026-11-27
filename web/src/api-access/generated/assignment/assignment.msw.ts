@@ -7,9 +7,18 @@
 import { faker } from '@faker-js/faker';
 
 import { HttpResponse, http } from 'msw';
-import type { RequestHandlerOptions } from 'msw';
+import type { HttpResponseResolver, PathParams, RequestHandlerOptions } from 'msw';
 
-import type { AssignmentEntryResponse, AssignmentSeriesResponse } from '../models';
+import { CalendarEventExceptionReasonCode } from '../models';
+import type {
+  AssignmentEntryRequest,
+  AssignmentEntryResponse,
+  AssignmentEntryUpdateRequest,
+  AssignmentSeriesRequest,
+  AssignmentSeriesResponse,
+  AssignmentSeriesUpdateRequest,
+  ExpireShiftRequest,
+} from '../models';
 
 export const getGetApiSchedulingAssignmentsSeriesResponseMock = (): AssignmentSeriesResponse[] =>
   faker.helpers.arrayElement([
@@ -1018,7 +1027,6 @@ export const getGetApiSchedulingAssignmentsEntriesResponseMock = (): AssignmentE
       ]),
       startAtUtc: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       assignmentLinks: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1039,6 +1047,11 @@ export const getGetApiSchedulingAssignmentsEntriesResponseMock = (): AssignmentE
       ]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -1079,7 +1092,6 @@ export const getGetApiSchedulingAssignmentsEntriesResponseMock = (): AssignmentE
       ]),
       startAtUtc: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       assignmentLinks: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1100,6 +1112,11 @@ export const getGetApiSchedulingAssignmentsEntriesResponseMock = (): AssignmentE
       ]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -1140,7 +1157,6 @@ export const getGetApiSchedulingAssignmentsEntriesResponseMock = (): AssignmentE
       ]),
       startAtUtc: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       assignmentLinks: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1161,6 +1177,11 @@ export const getGetApiSchedulingAssignmentsEntriesResponseMock = (): AssignmentE
       ]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -1207,7 +1228,6 @@ export const getPostApiSchedulingAssignmentsEntriesResponseMock = (
       ]),
       startAtUtc: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       assignmentLinks: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1228,6 +1248,11 @@ export const getPostApiSchedulingAssignmentsEntriesResponseMock = (
       ]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -1269,7 +1294,6 @@ export const getPostApiSchedulingAssignmentsEntriesResponseMock = (
       ]),
       startAtUtc: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       assignmentLinks: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1290,6 +1314,11 @@ export const getPostApiSchedulingAssignmentsEntriesResponseMock = (
       ]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -1331,7 +1360,6 @@ export const getPostApiSchedulingAssignmentsEntriesResponseMock = (
       ]),
       startAtUtc: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       assignmentLinks: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1352,6 +1380,11 @@ export const getPostApiSchedulingAssignmentsEntriesResponseMock = (
       ]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -1399,7 +1432,6 @@ export const getGetApiSchedulingAssignmentsEntriesIdResponseMock = (
       ]),
       startAtUtc: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       assignmentLinks: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1420,6 +1452,11 @@ export const getGetApiSchedulingAssignmentsEntriesIdResponseMock = (
       ]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -1461,7 +1498,6 @@ export const getGetApiSchedulingAssignmentsEntriesIdResponseMock = (
       ]),
       startAtUtc: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       assignmentLinks: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1482,6 +1518,11 @@ export const getGetApiSchedulingAssignmentsEntriesIdResponseMock = (
       ]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -1523,7 +1564,6 @@ export const getGetApiSchedulingAssignmentsEntriesIdResponseMock = (
       ]),
       startAtUtc: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       assignmentLinks: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1544,6 +1584,11 @@ export const getGetApiSchedulingAssignmentsEntriesIdResponseMock = (
       ]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -1591,7 +1636,6 @@ export const getPutApiSchedulingAssignmentsEntriesIdResponseMock = (
       ]),
       startAtUtc: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       assignmentLinks: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1612,6 +1656,11 @@ export const getPutApiSchedulingAssignmentsEntriesIdResponseMock = (
       ]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -1653,7 +1702,6 @@ export const getPutApiSchedulingAssignmentsEntriesIdResponseMock = (
       ]),
       startAtUtc: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       assignmentLinks: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1674,6 +1722,11 @@ export const getPutApiSchedulingAssignmentsEntriesIdResponseMock = (
       ]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -1715,7 +1768,6 @@ export const getPutApiSchedulingAssignmentsEntriesIdResponseMock = (
       ]),
       startAtUtc: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       assignmentLinks: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1736,6 +1788,11 @@ export const getPutApiSchedulingAssignmentsEntriesIdResponseMock = (
       ]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -1783,7 +1840,6 @@ export const getPostApiSchedulingAssignmentsEntriesIdPublishResponseMock = (
       ]),
       startAtUtc: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       assignmentLinks: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1804,6 +1860,11 @@ export const getPostApiSchedulingAssignmentsEntriesIdPublishResponseMock = (
       ]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -1845,7 +1906,6 @@ export const getPostApiSchedulingAssignmentsEntriesIdPublishResponseMock = (
       ]),
       startAtUtc: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       assignmentLinks: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1866,6 +1926,11 @@ export const getPostApiSchedulingAssignmentsEntriesIdPublishResponseMock = (
       ]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -1907,7 +1972,6 @@ export const getPostApiSchedulingAssignmentsEntriesIdPublishResponseMock = (
       ]),
       startAtUtc: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       assignmentLinks: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1928,6 +1992,11 @@ export const getPostApiSchedulingAssignmentsEntriesIdPublishResponseMock = (
       ]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -1975,7 +2044,6 @@ export const getPostApiSchedulingAssignmentsEntriesIdExpireResponseMock = (
       ]),
       startAtUtc: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       assignmentLinks: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1996,6 +2064,11 @@ export const getPostApiSchedulingAssignmentsEntriesIdExpireResponseMock = (
       ]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -2037,7 +2110,6 @@ export const getPostApiSchedulingAssignmentsEntriesIdExpireResponseMock = (
       ]),
       startAtUtc: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       assignmentLinks: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -2058,6 +2130,11 @@ export const getPostApiSchedulingAssignmentsEntriesIdExpireResponseMock = (
       ]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -2099,7 +2176,6 @@ export const getPostApiSchedulingAssignmentsEntriesIdExpireResponseMock = (
       ]),
       startAtUtc: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       assignmentLinks: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -2120,6 +2196,11 @@ export const getPostApiSchedulingAssignmentsEntriesIdExpireResponseMock = (
       ]),
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReasonCodes: faker.helpers.arrayElement([
+        faker.helpers.arrayElements(Object.values(CalendarEventExceptionReasonCode)),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       statusTypeCode: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -2146,14 +2227,12 @@ export const getPostApiSchedulingAssignmentsEntriesIdExpireResponseMock = (
 export const getGetApiSchedulingAssignmentsSeriesMockHandler = (
   overrideResponse?:
     | AssignmentSeriesResponse[]
-    | ((
-        info: Parameters<Parameters<typeof http.get>[1]>[0],
-      ) => Promise<AssignmentSeriesResponse[]> | AssignmentSeriesResponse[]),
+    | ((info: Parameters<HttpResponseResolver>[0]) => Promise<AssignmentSeriesResponse[]> | AssignmentSeriesResponse[]),
   options?: RequestHandlerOptions,
 ) => {
   return http.get(
     '*/api/scheduling/assignments/series',
-    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -2171,13 +2250,13 @@ export const getPostApiSchedulingAssignmentsSeriesMockHandler = (
   overrideResponse?:
     | AssignmentSeriesResponse
     | ((
-        info: Parameters<Parameters<typeof http.post>[1]>[0],
+        info: Parameters<HttpResponseResolver<PathParams, AssignmentSeriesRequest>>[0],
       ) => Promise<AssignmentSeriesResponse> | AssignmentSeriesResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.post(
+  return http.post<PathParams, AssignmentSeriesRequest>(
     '*/api/scheduling/assignments/series',
-    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<PathParams, AssignmentSeriesRequest>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -2195,13 +2274,13 @@ export const getGetApiSchedulingAssignmentsSeriesIdMockHandler = (
   overrideResponse?:
     | AssignmentSeriesResponse
     | ((
-        info: Parameters<Parameters<typeof http.get>[1]>[0],
+        info: Parameters<HttpResponseResolver<{ id: string }>>[0],
       ) => Promise<AssignmentSeriesResponse> | AssignmentSeriesResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.get(
+  return http.get<{ id: string }>(
     '*/api/scheduling/assignments/series/:id',
-    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ id: string }>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -2219,13 +2298,13 @@ export const getPutApiSchedulingAssignmentsSeriesIdMockHandler = (
   overrideResponse?:
     | AssignmentSeriesResponse
     | ((
-        info: Parameters<Parameters<typeof http.put>[1]>[0],
+        info: Parameters<HttpResponseResolver<{ id: string }, AssignmentSeriesUpdateRequest>>[0],
       ) => Promise<AssignmentSeriesResponse> | AssignmentSeriesResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.put(
+  return http.put<{ id: string }, AssignmentSeriesUpdateRequest>(
     '*/api/scheduling/assignments/series/:id',
-    async (info: Parameters<Parameters<typeof http.put>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ id: string }, AssignmentSeriesUpdateRequest>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -2240,12 +2319,12 @@ export const getPutApiSchedulingAssignmentsSeriesIdMockHandler = (
 };
 
 export const getDeleteApiSchedulingAssignmentsSeriesIdMockHandler = (
-  overrideResponse?: void | ((info: Parameters<Parameters<typeof http.delete>[1]>[0]) => Promise<void> | void),
+  overrideResponse?: void | ((info: Parameters<HttpResponseResolver<{ id: string }>>[0]) => Promise<void> | void),
   options?: RequestHandlerOptions,
 ) => {
-  return http.delete(
+  return http.delete<{ id: string }>(
     '*/api/scheduling/assignments/series/:id',
-    async (info: Parameters<Parameters<typeof http.delete>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ id: string }>>[0]) => {
       if (typeof overrideResponse === 'function') {
         await overrideResponse(info);
       }
@@ -2260,13 +2339,13 @@ export const getPostApiSchedulingAssignmentsSeriesIdPublishMockHandler = (
   overrideResponse?:
     | AssignmentSeriesResponse
     | ((
-        info: Parameters<Parameters<typeof http.post>[1]>[0],
+        info: Parameters<HttpResponseResolver<{ id: string }>>[0],
       ) => Promise<AssignmentSeriesResponse> | AssignmentSeriesResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.post(
+  return http.post<{ id: string }>(
     '*/api/scheduling/assignments/series/:id/publish',
-    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ id: string }>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -2284,13 +2363,13 @@ export const getPostApiSchedulingAssignmentsSeriesIdExpireMockHandler = (
   overrideResponse?:
     | AssignmentSeriesResponse
     | ((
-        info: Parameters<Parameters<typeof http.post>[1]>[0],
+        info: Parameters<HttpResponseResolver<{ id: string }, null | ExpireShiftRequest>>[0],
       ) => Promise<AssignmentSeriesResponse> | AssignmentSeriesResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.post(
+  return http.post<{ id: string }, null | ExpireShiftRequest>(
     '*/api/scheduling/assignments/series/:id/expire',
-    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ id: string }, null | ExpireShiftRequest>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -2307,14 +2386,12 @@ export const getPostApiSchedulingAssignmentsSeriesIdExpireMockHandler = (
 export const getGetApiSchedulingAssignmentsEntriesMockHandler = (
   overrideResponse?:
     | AssignmentEntryResponse[]
-    | ((
-        info: Parameters<Parameters<typeof http.get>[1]>[0],
-      ) => Promise<AssignmentEntryResponse[]> | AssignmentEntryResponse[]),
+    | ((info: Parameters<HttpResponseResolver>[0]) => Promise<AssignmentEntryResponse[]> | AssignmentEntryResponse[]),
   options?: RequestHandlerOptions,
 ) => {
   return http.get(
     '*/api/scheduling/assignments/entries',
-    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -2332,13 +2409,13 @@ export const getPostApiSchedulingAssignmentsEntriesMockHandler = (
   overrideResponse?:
     | AssignmentEntryResponse
     | ((
-        info: Parameters<Parameters<typeof http.post>[1]>[0],
+        info: Parameters<HttpResponseResolver<PathParams, AssignmentEntryRequest>>[0],
       ) => Promise<AssignmentEntryResponse> | AssignmentEntryResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.post(
+  return http.post<PathParams, AssignmentEntryRequest>(
     '*/api/scheduling/assignments/entries',
-    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<PathParams, AssignmentEntryRequest>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -2356,13 +2433,13 @@ export const getGetApiSchedulingAssignmentsEntriesIdMockHandler = (
   overrideResponse?:
     | AssignmentEntryResponse
     | ((
-        info: Parameters<Parameters<typeof http.get>[1]>[0],
+        info: Parameters<HttpResponseResolver<{ id: string }>>[0],
       ) => Promise<AssignmentEntryResponse> | AssignmentEntryResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.get(
+  return http.get<{ id: string }>(
     '*/api/scheduling/assignments/entries/:id',
-    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ id: string }>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -2380,13 +2457,13 @@ export const getPutApiSchedulingAssignmentsEntriesIdMockHandler = (
   overrideResponse?:
     | AssignmentEntryResponse
     | ((
-        info: Parameters<Parameters<typeof http.put>[1]>[0],
+        info: Parameters<HttpResponseResolver<{ id: string }, AssignmentEntryUpdateRequest>>[0],
       ) => Promise<AssignmentEntryResponse> | AssignmentEntryResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.put(
+  return http.put<{ id: string }, AssignmentEntryUpdateRequest>(
     '*/api/scheduling/assignments/entries/:id',
-    async (info: Parameters<Parameters<typeof http.put>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ id: string }, AssignmentEntryUpdateRequest>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -2401,12 +2478,12 @@ export const getPutApiSchedulingAssignmentsEntriesIdMockHandler = (
 };
 
 export const getDeleteApiSchedulingAssignmentsEntriesIdMockHandler = (
-  overrideResponse?: void | ((info: Parameters<Parameters<typeof http.delete>[1]>[0]) => Promise<void> | void),
+  overrideResponse?: void | ((info: Parameters<HttpResponseResolver<{ id: string }>>[0]) => Promise<void> | void),
   options?: RequestHandlerOptions,
 ) => {
-  return http.delete(
+  return http.delete<{ id: string }>(
     '*/api/scheduling/assignments/entries/:id',
-    async (info: Parameters<Parameters<typeof http.delete>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ id: string }>>[0]) => {
       if (typeof overrideResponse === 'function') {
         await overrideResponse(info);
       }
@@ -2421,13 +2498,13 @@ export const getPostApiSchedulingAssignmentsEntriesIdPublishMockHandler = (
   overrideResponse?:
     | AssignmentEntryResponse
     | ((
-        info: Parameters<Parameters<typeof http.post>[1]>[0],
+        info: Parameters<HttpResponseResolver<{ id: string }>>[0],
       ) => Promise<AssignmentEntryResponse> | AssignmentEntryResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.post(
+  return http.post<{ id: string }>(
     '*/api/scheduling/assignments/entries/:id/publish',
-    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ id: string }>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
@@ -2445,13 +2522,13 @@ export const getPostApiSchedulingAssignmentsEntriesIdExpireMockHandler = (
   overrideResponse?:
     | AssignmentEntryResponse
     | ((
-        info: Parameters<Parameters<typeof http.post>[1]>[0],
+        info: Parameters<HttpResponseResolver<{ id: string }, null | ExpireShiftRequest>>[0],
       ) => Promise<AssignmentEntryResponse> | AssignmentEntryResponse),
   options?: RequestHandlerOptions,
 ) => {
-  return http.post(
+  return http.post<{ id: string }, null | ExpireShiftRequest>(
     '*/api/scheduling/assignments/entries/:id/expire',
-    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<{ id: string }, null | ExpireShiftRequest>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'

@@ -9,6 +9,7 @@ using Unified.Common.Contracts;
 using Unified.Common.Events;
 using Unified.Common.Jobs;
 using Unified.Common.Mvc;
+using Unified.Common.Time;
 using Unified.Db;
 using Unified.Tests.TestHelpers;
 using Unified.Training;
@@ -209,6 +210,7 @@ public sealed class TrainingModuleTests
         var services = new ServiceCollection();
         services.AddLogging();
         services.AddSingleton<IConfiguration>(configuration);
+        services.AddSingleton<ITimeZoneService, TimeZoneService>();
         services.AddTrainingModule(configuration);
         services.AddScoped<UnifiedDbContext>(sp => new SqliteTestUnifiedDbContext(
             new DbContextOptionsBuilder<UnifiedDbContext>().UseSqlite("Data Source=:memory:").Options

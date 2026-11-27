@@ -184,6 +184,41 @@ describe('UserTrainingView', () => {
     expect(renewButtons).toHaveLength(1);
   });
 
+  it('passes all training options alphabetically and disables already assigned trainings', async () => {
+    getApiLookupTrainingsMock.mockReturnValueOnce({
+      data: ref([
+        { id: 3, code: 'Zebra', description: 'Zebra', rotating: false },
+        { id: 1, code: 'CPR', description: 'CPR', rotating: true },
+        { id: 4, code: 'Alpha', description: 'Alpha', rotating: false },
+      ]),
+      error: ref(null),
+      isFetching: ref(false),
+      execute: vi.fn(),
+    });
+    const wrapper = mount(UserTrainingView, {
+      props: { user: makeUser() },
+      global: {
+        stubs: {
+          UaDataTable: UaDataTableStub,
+          UaAlert: true,
+          UaBtn: true,
+          UaPlaceholderPage: true,
+          UserTrainingModal: true,
+          UserTrainingVersionsModal: true,
+          VIcon: true,
+        },
+      },
+    });
+
+    await wrapper.get('.user-training-view__header').get('ua-btn-stub').trigger('click');
+
+    expect(wrapper.findComponent({ name: 'UserTrainingModal' }).props('trainingOptions')).toEqual([
+      { code: 4, description: 'Alpha', props: { disabled: false } },
+      { code: 1, description: 'CPR', props: { disabled: true } },
+      { code: 3, description: 'Zebra', props: { disabled: false } },
+    ]);
+  });
+
   it('uses the training user home timezone for display and the edit modal', async () => {
     useLocationsStore().entities.push({ id: 2, name: 'Edmonton', timezone: 'America/Edmonton' });
     getApiTrainingsUsersUserIdMock.mockReturnValueOnce({

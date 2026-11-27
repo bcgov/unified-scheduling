@@ -11,13 +11,13 @@ export const GetApiSchedulingLeaveUsersUserIdEntriesParams = zod.strictObject({
 });
 
 export const GetApiSchedulingLeaveUsersUserIdEntriesResponseItem = zod.object({
-  isException: zod.boolean().optional(),
-  exceptionReasonCodes: zod.array(zod.enum(['DateTimeChanged', 'IsAway'])).optional(),
   leaveSeriesId: zod.int().nullish(),
   leaveTypeId: zod.int().optional(),
   leaveDate: zod.iso.date().nullish(),
   id: zod.int().optional(),
   eventSeriesId: zod.int().nullish(),
+  isException: zod.boolean().optional(),
+  exceptionReasonCodes: zod.array(zod.enum(['DateTimeChanged', 'IsAway'])).optional(),
   eventTypeCode: zod.string().nullish(),
   statusTypeCode: zod.string().nullish(),
   cancelledAt: zod.iso.datetime({ offset: true }).nullish(),
@@ -198,13 +198,13 @@ export const GetApiSchedulingLeaveEntriesIdParams = zod.strictObject({
 });
 
 export const GetApiSchedulingLeaveEntriesIdResponse = zod.object({
-  isException: zod.boolean().optional(),
-  exceptionReasonCodes: zod.array(zod.enum(['DateTimeChanged', 'IsAway'])).optional(),
   leaveSeriesId: zod.int().nullish(),
   leaveTypeId: zod.int().optional(),
   leaveDate: zod.iso.date().nullish(),
   id: zod.int().optional(),
   eventSeriesId: zod.int().nullish(),
+  isException: zod.boolean().optional(),
+  exceptionReasonCodes: zod.array(zod.enum(['DateTimeChanged', 'IsAway'])).optional(),
   eventTypeCode: zod.string().nullish(),
   statusTypeCode: zod.string().nullish(),
   cancelledAt: zod.iso.datetime({ offset: true }).nullish(),
@@ -247,13 +247,13 @@ export const PutApiSchedulingLeaveEntriesIdBody = zod.strictObject({
 });
 
 export const PutApiSchedulingLeaveEntriesIdResponse = zod.object({
-  isException: zod.boolean().optional(),
-  exceptionReasonCodes: zod.array(zod.enum(['DateTimeChanged', 'IsAway'])).optional(),
   leaveSeriesId: zod.int().nullish(),
   leaveTypeId: zod.int().optional(),
   leaveDate: zod.iso.date().nullish(),
   id: zod.int().optional(),
   eventSeriesId: zod.int().nullish(),
+  isException: zod.boolean().optional(),
+  exceptionReasonCodes: zod.array(zod.enum(['DateTimeChanged', 'IsAway'])).optional(),
   eventTypeCode: zod.string().nullish(),
   statusTypeCode: zod.string().nullish(),
   cancelledAt: zod.iso.datetime({ offset: true }).nullish(),
@@ -298,13 +298,13 @@ export const PostApiSchedulingLeaveEntriesBody = zod.strictObject({
 });
 
 export const PostApiSchedulingLeaveEntriesResponse = zod.object({
-  isException: zod.boolean().optional(),
-  exceptionReasonCodes: zod.array(zod.enum(['DateTimeChanged', 'IsAway'])).optional(),
   leaveSeriesId: zod.int().nullish(),
   leaveTypeId: zod.int().optional(),
   leaveDate: zod.iso.date().nullish(),
   id: zod.int().optional(),
   eventSeriesId: zod.int().nullish(),
+  isException: zod.boolean().optional(),
+  exceptionReasonCodes: zod.array(zod.enum(['DateTimeChanged', 'IsAway'])).optional(),
   eventTypeCode: zod.string().nullish(),
   statusTypeCode: zod.string().nullish(),
   cancelledAt: zod.iso.datetime({ offset: true }).nullish(),

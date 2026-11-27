@@ -15,6 +15,7 @@ export const GetApiLookupTrainingsQueryParams = zod.strictObject({
 export const GetApiLookupTrainingsResponseItem = zod.object({
   mandatory: zod.boolean().optional(),
   validityDays: zod.int().nullish(),
+  annualValidityFromCompletionDate: zod.boolean().optional(),
   advanceNoticeDays: zod.int().nullish(),
   rotating: zod.boolean().optional(),
   trainingCategoryId: zod.int().nullish(),
@@ -44,6 +45,7 @@ export const PostApiLookupTrainingsBody = zod.strictObject({
   description: zod.string().nullish(),
   mandatory: zod.boolean().optional(),
   validityDays: zod.int().nullish(),
+  annualValidityFromCompletionDate: zod.boolean().optional(),
   advanceNoticeDays: zod.int().nullish(),
   rotating: zod.boolean().optional(),
   trainingCategoryId: zod.int().nullish(),
@@ -54,6 +56,7 @@ export const PostApiLookupTrainingsBody = zod.strictObject({
 export const PostApiLookupTrainingsResponse = zod.object({
   mandatory: zod.boolean().optional(),
   validityDays: zod.int().nullish(),
+  annualValidityFromCompletionDate: zod.boolean().optional(),
   advanceNoticeDays: zod.int().nullish(),
   rotating: zod.boolean().optional(),
   trainingCategoryId: zod.int().nullish(),
@@ -85,6 +88,7 @@ export const GetApiLookupTrainingsIdParams = zod.strictObject({
 export const GetApiLookupTrainingsIdResponse = zod.object({
   mandatory: zod.boolean().optional(),
   validityDays: zod.int().nullish(),
+  annualValidityFromCompletionDate: zod.boolean().optional(),
   advanceNoticeDays: zod.int().nullish(),
   rotating: zod.boolean().optional(),
   trainingCategoryId: zod.int().nullish(),
@@ -117,6 +121,7 @@ export const PutApiLookupTrainingsIdBody = zod.strictObject({
   description: zod.string().nullish(),
   mandatory: zod.boolean().optional(),
   validityDays: zod.int().nullish(),
+  annualValidityFromCompletionDate: zod.boolean().optional(),
   advanceNoticeDays: zod.int().nullish(),
   rotating: zod.boolean().optional(),
   trainingCategoryId: zod.int().nullish(),
@@ -127,6 +132,7 @@ export const PutApiLookupTrainingsIdBody = zod.strictObject({
 export const PutApiLookupTrainingsIdResponse = zod.object({
   mandatory: zod.boolean().optional(),
   validityDays: zod.int().nullish(),
+  annualValidityFromCompletionDate: zod.boolean().optional(),
   advanceNoticeDays: zod.int().nullish(),
   rotating: zod.boolean().optional(),
   trainingCategoryId: zod.int().nullish(),
@@ -162,6 +168,7 @@ export const PatchApiLookupTrainingsIdOrderBody = zod.strictObject({
 export const PatchApiLookupTrainingsIdOrderResponse = zod.object({
   mandatory: zod.boolean().optional(),
   validityDays: zod.int().nullish(),
+  annualValidityFromCompletionDate: zod.boolean().optional(),
   advanceNoticeDays: zod.int().nullish(),
   rotating: zod.boolean().optional(),
   trainingCategoryId: zod.int().nullish(),

@@ -83,14 +83,19 @@ const headers = computed(() => [
   { title: 'Actions', key: 'actions', sortable: false, align: 'end' as const, width: 190 },
 ]);
 
-const trainingOptions = computed<SelectOption[]>(() =>
-  (trainings.value ?? []).map((training: TrainingLookupResponse) => ({
-    code: training.id,
-    description: training.code?.trim() || training.description?.trim() || `Training ${training.id}`,
-  })),
-);
-
 const assignedTrainingIds = computed(() => new Set((userTrainings.value ?? []).map((training) => training.trainingId)));
+
+const trainingOptions = computed<SelectOption[]>(() => {
+  const assignedIds = assignedTrainingIds.value;
+
+  return (trainings.value ?? [])
+    .map((training: TrainingLookupResponse) => ({
+      code: training.id,
+      description: training.code?.trim() || training.description?.trim() || `Training ${training.id}`,
+      props: { disabled: assignedIds.has(training.id) },
+    }))
+    .sort((left, right) => left.description.localeCompare(right.description));
+});
 
 const rotatingTrainingIds = computed(
   () =>
@@ -150,10 +155,6 @@ const selectedTrainingVersions = computed<UserTrainingResponse[]>(() => {
     .filter((training) => training.trainingId === selectedDetailsTraining.value?.trainingId)
     .sort(compareExpiryDesc);
 });
-
-const availableTrainingOptions = computed<SelectOption[]>(() =>
-  trainingOptions.value.filter((option) => !assignedTrainingIds.value.has(Number(option.code))),
-);
 
 const handleOpenAddModal = () => {
   trainingModalMode.value = 'create';
@@ -357,7 +358,7 @@ const combinedError = computed(() => userTrainingsError.value ?? trainingsError.
       :user-id="props.user.id"
       :time-zone="trainingTimeZone"
       :mode="trainingModalMode"
-      :training-options="availableTrainingOptions"
+      :training-options="trainingOptions"
       :training="selectedTraining"
       @close="handleCloseTrainingModal"
       @saved="handleSaved"

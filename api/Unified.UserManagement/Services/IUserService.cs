@@ -9,6 +9,11 @@ public interface IUserService
         CancellationToken cancellationToken = default
     );
 
+    Task<PagedUserResponse> GetPagedAsync(
+        PagedUserQueryParams? queryParams = null,
+        CancellationToken cancellationToken = default
+    );
+
     Task<UserResponse?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
 
     Task<UserResponse> CreateAsync(UserRequestDto request, CancellationToken cancellationToken = default);

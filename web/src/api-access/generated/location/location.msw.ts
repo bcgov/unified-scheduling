@@ -7,7 +7,7 @@
 import { faker } from '@faker-js/faker';
 
 import { HttpResponse, http } from 'msw';
-import type { RequestHandlerOptions } from 'msw';
+import type { HttpResponseResolver, RequestHandlerOptions } from 'msw';
 
 import type { LocationDto } from '../models';
 
@@ -50,12 +50,12 @@ export const getGetApiLocationAllResponseMock = (): LocationDto[] =>
 
 export const getGetApiLocationAllMockHandler = (
   overrideResponse?:
-    LocationDto[] | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<LocationDto[]> | LocationDto[]),
+    LocationDto[] | ((info: Parameters<HttpResponseResolver>[0]) => Promise<LocationDto[]> | LocationDto[]),
   options?: RequestHandlerOptions,
 ) => {
   return http.get(
     '*/api/location/all',
-    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'

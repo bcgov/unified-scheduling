@@ -3,6 +3,7 @@ using Unified.Calendar.Services;
 using Unified.Db.Models.Calendar;
 using Unified.Db.Models.Scheduling;
 using Unified.Scheduling.Models;
+using Unified.Scheduling.Services;
 
 namespace Unified.Scheduling.Mappings;
 
@@ -70,10 +71,7 @@ internal static class ShiftResponseMapper
         IEnumerable<ShiftAssignmentEntry> links
     ) =>
         links
-            .Where(link =>
-                link.Users.Count > 0
-                && link.AssignmentEntry?.Event?.StatusTypeCode != CalendarEventStatusTypeCodes.Cancelled
-            )
+            .Where(ShiftAssignmentGuards.HasAllocationOnAssignment)
             .Select(link =>
             {
                 var userIds = link.Users.Select(user => user.UserId).Distinct().ToList();

@@ -4,14 +4,16 @@
  * Unified.Api | v1
  * OpenAPI spec version: 1.0.0
  */
-
 import type { CalendarEventExceptionReasonCode } from './calendarEventExceptionReasonCode.ts';
+
 export interface LeaveCalendarEvent {
   id: string;
   leaveEntryId?: number;
   /** @nullable */
   leaveSeriesId?: number | null;
   leaveTypeId?: number;
+  /** @nullable */
+  leaveDate?: string | null;
   /** @nullable */
   leaveTypeName?: string | null;
   eventId?: number;

@@ -265,6 +265,8 @@ var app = builder.Build();
     // CORS must be between UseRouting and UseAuthentication
     app.UseCors("UnifiedCorsPolicy");
 
+    // TEMPORARY: expires pre-base-path (Path=/) auth cookies; remove after one release per environment.
+    app.UseLegacyAuthCookieCleanup();
     app.UseAuthentication();
     app.UseAuthorization();
 

@@ -15,6 +15,7 @@ export const Permissions = {
   UsersView: 'UsersView',
   UsersExpire: 'UsersExpire',
   UsersViewOtherProfiles: 'UsersViewOtherProfiles',
+  UserGlobalSearch: 'UserGlobalSearch',
   UsersLeaveCreate: 'UsersLeaveCreate',
   UsersLeaveEdit: 'UsersLeaveEdit',
   UsersLeaveDelete: 'UsersLeaveDelete',

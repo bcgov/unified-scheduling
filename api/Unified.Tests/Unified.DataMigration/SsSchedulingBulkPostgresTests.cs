@@ -36,6 +36,7 @@ using Unified.LoanOut.Seeders;
 using Unified.Scheduling.Interceptors;
 using Unified.Scheduling.Seeders;
 using Unified.Stats.Seeders;
+using Unified.Tests.TestHelpers;
 using Unified.UserManagement;
 using Unified.UserManagement.Seeders;
 using MsOptions = Microsoft.Extensions.Options.Options;
@@ -1095,6 +1096,61 @@ public sealed class SsSchedulingBulkPostgresTests : IAsyncLifetime
         );
     }
 
+    [Fact(Skip = TemplatesSkipReason, SkipUnless = nameof(AreTemplatesConfigured))]
+    public async Task DryRun_RerunOptimisationsApplyOnlyToPerRow()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        EnableAudit();
+        SsPhaseLog.Observer = ObservePhase;
+        var fixture = await AdverseFixtureAsync(ct);
+        var cases = new[]
+        {
+            (Mode: MigrationPersistenceMode.PerRow, Plan: false, Prefetch: false),
+            (Mode: MigrationPersistenceMode.PerRow, Plan: true, Prefetch: false),
+            (Mode: MigrationPersistenceMode.PerRow, Plan: false, Prefetch: true),
+            (Mode: MigrationPersistenceMode.PerRow, Plan: true, Prefetch: true),
+            (Mode: MigrationPersistenceMode.Bulk, Plan: true, Prefetch: true),
+        };
+        string[] compared = [.. BusinessSections, "linked"];
+        KeyValuePair<(string Type, string Id), string>[]? expected = null;
+
+        foreach (var (mode, plan, prefetch) in cases)
+        {
+            var fresh = new Clone(
+                await CreateDatabaseAsync(
+                    $"migration_it_sched_dry_flags_{databases.Count}_{suffix}",
+                    await SeededTargetAsync(ct),
+                    ct
+                ),
+                NewOptions(fixture.Source, mode, 7, 5),
+                fixture.BaselineMax
+            );
+            fresh.Options.Sources.SS.Jobs.Scheduling.PlanReplacementFamiliesOnly = plan;
+            fresh.Options.Sources.SS.Jobs.Scheduling.PrefetchReplayRecords = prefetch;
+            var baseline = await SnapshotAsync(fresh, true, ct);
+            var myTeam = await RunAsync(fresh, ct, job: "MyTeam", dryRun: true);
+            await AssertRunAsync(fresh, myTeam, "Completed", ct);
+
+            var reads = new SsReplayPrefetchTests.PageReadCounter();
+            var run = await RunAsync(fresh, ct, dryRun: true, interceptors: [reads]);
+            await AssertNoTechnicalFailureAsync(fresh, run, ct);
+            var perRow = mode == MigrationPersistenceMode.PerRow;
+            Assert.Equal(perRow && plan, PlanSkipped(run));
+            Assert.Equal(perRow && prefetch, reads.Count > 0);
+            AssertEquivalent(baseline, await SnapshotAsync(fresh, true, ct), compared, "dry run");
+
+            var outcomes = (await OutcomesAsync(fresh, run, ct))
+                .Where(x => IsGraphType(x.Key.Type))
+                .OrderBy(x => x.Key)
+                .ToArray();
+            Assert.NotEmpty(outcomes);
+            if (expected is null)
+                expected = outcomes;
+            else
+                Assert.Equal(expected, outcomes);
+        }
+    }
+
     // ------------------------------------------------------------------ PerRow rerun guards
 
     // Pins the PerRow rules that decide whether a source row still needs transfer. Rerun speed-ups must keep every
@@ -1261,7 +1317,7 @@ public sealed class SsSchedulingBulkPostgresTests : IAsyncLifetime
         WITH lost AS (
           SELECT "TargetType","TargetKey" FROM "DataMigrationRecords"
           WHERE "Source"='SS' AND "EntityType"='SchedulingComponent'
-          ORDER BY "TargetType","TargetKey" LIMIT 2),
+          ORDER BY "LegacyId" LIMIT 2),
         gone AS (
           SELECT r."Id" FROM "DataMigrationRecords" r JOIN lost l
             ON l."TargetType"=r."TargetType" AND l."TargetKey"=r."TargetKey"
@@ -1287,8 +1343,11 @@ public sealed class SsSchedulingBulkPostgresTests : IAsyncLifetime
 
         async Task<Guid> RoundAsync(Clone expected, Clone actual, string label)
         {
+            var perRow = expected.Options.Sources.SS.Jobs.Scheduling.PersistenceMode == MigrationPersistenceMode.PerRow;
             var expectedBefore = await TargetKeysAsync(expected, ct);
             var actualBefore = await TargetKeysAsync(actual, ct);
+            var expectedCrosswalksBefore = perRow ? await CrosswalkIdentitiesAsync(expected, ct) : null;
+            var actualCrosswalksBefore = perRow ? await CrosswalkIdentitiesAsync(actual, ct) : null;
             var expectedRun = await RunAsync(expected, ct);
             var actualRun = await RunAsync(actual, ct);
             await AssertNoTechnicalFailureAsync(expected, expectedRun, ct);
@@ -1301,6 +1360,38 @@ public sealed class SsSchedulingBulkPostgresTests : IAsyncLifetime
             // Rebinding only happens in graph replacement, which reads the plan: it must never have been skipped.
             if (expectedRebound.Count > 0)
                 Assert.False(PlanSkipped(actualRun), $"{label}: planning skipped although a graph was replaced");
+            var expectedJournal = await JournalRowsAsync(expected, expectedRun, ct);
+            var actualJournal = await JournalRowsAsync(actual, actualRun, ct);
+            if (perRow)
+            {
+                await using var modelContext = Db(expected.ConnectionString);
+                var comparison = new JournalComparison(
+                    modelContext.Model,
+                    expected.BaselineMax,
+                    await JournalRunLabelsAsync(expected, ct),
+                    await JournalRunLabelsAsync(actual, ct),
+                    label
+                );
+                comparison.PairCrosswalks(expectedCrosswalksBefore!, actualCrosswalksBefore!);
+                comparison.PairCrosswalks(
+                    await CrosswalkIdentitiesAsync(expected, ct),
+                    await CrosswalkIdentitiesAsync(actual, ct)
+                );
+                comparison.AssertEquivalent(expectedJournal, actualJournal);
+            }
+            else
+            {
+                Assert.Empty(expectedJournal);
+                Assert.Empty(actualJournal);
+            }
+            if (label == "changed captured component")
+            {
+                Assert.Contains("Shift:910031", expectedRebound);
+                Assert.Contains(
+                    expectedJournal,
+                    x => x.Table == "ShiftEntries" && x.Operation == "D" && x.BeforeImage is not null
+                );
+            }
             return actualRun;
         }
 
@@ -1313,8 +1404,11 @@ public sealed class SsSchedulingBulkPostgresTests : IAsyncLifetime
         await ExecuteAsync(fast.ConnectionString, DropTwoComponentReceipts, ct);
         await RoundAsync(full, fast, "resume after capture failure");
         // A Unified edit, a renamed (reference) court room and a new graph.
-        await ExecuteAsync(full.ConnectionString, AdverseTargetDrift, ct);
-        await ExecuteAsync(fast.ConnectionString, AdverseTargetDrift, ct);
+        var driftSql = AdverseTargetDrift.Replace("now()", "@updatedOn", StringComparison.Ordinal);
+        Assert.Contains("@updatedOn", driftSql);
+        var driftOn = DateTimeOffset.UtcNow;
+        await ExecuteAsync(full.ConnectionString, driftSql, ct, new NpgsqlParameter("updatedOn", driftOn));
+        await ExecuteAsync(fast.ConnectionString, driftSql, ct, new NpgsqlParameter("updatedOn", driftOn));
         await ExecuteAsync(fixture.Source, AdverseRound2Delta, ct);
         await RoundAsync(full, fast, "reference target changed");
         await RoundAsync(full, fast, "rerun after reference change");
@@ -1360,6 +1454,564 @@ public sealed class SsSchedulingBulkPostgresTests : IAsyncLifetime
     // Legacy rows that existed before the round and now point at a different (or no) target.
     private static List<string> Rebound(Dictionary<string, string> before, Dictionary<string, string> after) =>
         before.Where(x => !after.TryGetValue(x.Key, out var now) || now != x.Value).Select(x => x.Key).Order().ToList();
+
+    private sealed record CrosswalkIdentity(
+        long Id,
+        string TargetType,
+        string TargetKey,
+        string PayloadHash,
+        string? AfterHash
+    );
+
+    private static async Task<Dictionary<(string Type, string Id), CrosswalkIdentity>> CrosswalkIdentitiesAsync(
+        Clone clone,
+        CancellationToken ct
+    )
+    {
+        await using var db = Db(clone.ConnectionString);
+        var records = await db
+            .DataMigrationRecords.AsNoTracking()
+            .Where(x => x.Source == "SS")
+            .Select(x => new
+            {
+                x.Id,
+                x.EntityType,
+                x.LegacyId,
+                x.TargetType,
+                x.TargetKey,
+                x.PayloadHash,
+                x.AfterHash,
+            })
+            .ToListAsync(ct);
+        return records.ToDictionary(
+            x => (x.EntityType, x.LegacyId),
+            x => new CrosswalkIdentity(x.Id, x.TargetType, x.TargetKey, x.PayloadHash, x.AfterHash)
+        );
+    }
+
+    private sealed record JournalWindow(string Run, DateTimeOffset StartedOn, DateTimeOffset CompletedOn);
+
+    private sealed record JournalLabels(
+        Dictionary<Guid, string> Runs,
+        Dictionary<DateTimeOffset, string> Starts,
+        IReadOnlyList<JournalWindow> Windows
+    )
+    {
+        internal string? RunAt(DateTimeOffset timestamp)
+        {
+            string? found = null;
+            foreach (var window in Windows)
+            {
+                if (timestamp < window.StartedOn || timestamp > window.CompletedOn)
+                    continue;
+                if (found is not null)
+                    return null; // Overlapping windows are ambiguous and cannot normalize different values.
+                found = window.Run;
+            }
+            return found;
+        }
+    }
+
+    private static async Task<JournalLabels> JournalRunLabelsAsync(Clone clone, CancellationToken ct)
+    {
+        await using var db = Db(clone.ConnectionString);
+        var runs = await db
+            .DataMigrationRuns.AsNoTracking()
+            .Where(x => x.Source == "SS" && !x.DryRun)
+            .OrderBy(x => x.StartedOn)
+            .Select(x => new
+            {
+                x.Id,
+                x.Job,
+                x.StartedOn,
+                x.CompletedOn,
+            })
+            .ToListAsync(ct);
+        var ids = new Dictionary<Guid, string>();
+        var starts = new Dictionary<DateTimeOffset, string>();
+        var windows = new List<JournalWindow>();
+        foreach (var group in runs.GroupBy(x => x.Job))
+        {
+            var ordinal = 0;
+            foreach (var run in group)
+            {
+                var name = $"{group.Key}#{++ordinal}";
+                Assert.True(run.StartedOn is not null && run.CompletedOn is not null, $"{name}: incomplete run window");
+                var start = run.StartedOn!.Value.ToUniversalTime();
+                var end = run.CompletedOn!.Value.ToUniversalTime();
+                Assert.True(end >= start, $"{name}: invalid run window");
+                ids.Add(run.Id, name);
+                Assert.True(starts.TryAdd(start, name), $"{name}: ambiguous run start");
+                windows.Add(new JournalWindow(name, start, end));
+            }
+        }
+        return new JournalLabels(ids, starts, windows);
+    }
+
+    private sealed record JournalRow(
+        Guid KeyId,
+        string Schema,
+        string Table,
+        string Operation,
+        string RowKey,
+        string? BeforeImage,
+        string AfterHash,
+        string AfterVersion,
+        string[] ChangedColumns,
+        bool BeforeHadPhoto,
+        bool PhotoChanged
+    );
+
+    private static async Task<List<JournalRow>> JournalRowsAsync(Clone clone, Guid run, CancellationToken ct)
+    {
+        await using var connection = new NpgsqlConnection(clone.ConnectionString);
+        await connection.OpenAsync(ct);
+        await using var command = new NpgsqlCommand(
+            """
+            SELECT "KeyId","SchemaName","TableName","Operation","RowKey"::text,
+                   CASE WHEN "BeforeImage" IS NULL THEN NULL ELSE pgp_sym_decrypt("BeforeImage",@key) END,
+                   "AfterHash","AfterVersion","ChangedColumns","BeforeHadPhoto","PhotoChanged"
+            FROM "DataMigrationJournals" WHERE "RunId"=@run ORDER BY "Id"
+            """,
+            connection
+        );
+        // Only the fixed synthetic test key from EnableRollbackJournal is used.
+        command.Parameters.AddWithValue("key", Convert.ToBase64String(new byte[32]));
+        command.Parameters.AddWithValue("run", run);
+        await using var reader = await command.ExecuteReaderAsync(ct);
+        var rows = new List<JournalRow>();
+        while (await reader.ReadAsync(ct))
+            rows.Add(
+                new JournalRow(
+                    reader.GetGuid(0),
+                    reader.GetString(1),
+                    reader.GetString(2),
+                    reader.GetString(3),
+                    reader.GetString(4),
+                    reader.IsDBNull(5) ? null : reader.GetString(5),
+                    reader.GetString(6),
+                    reader.GetString(7),
+                    reader.GetFieldValue<string[]>(8),
+                    reader.GetBoolean(9),
+                    reader.GetBoolean(10)
+                )
+            );
+        return rows;
+    }
+
+    // Compare the actual ordered inverse operations and decrypted images, not mutation nullness. IDs are paired
+    // bijectively and anchored by crosswalks before AND after the run, including deleted/replaced graph targets.
+    // Scheduling row/graph saves flush before the final run completion. In these isolated clones there are no
+    // concurrent target editors, and the sole out-of-run edit uses the same timestamp on both sides. A matching
+    // run window is therefore treated as a generated UpdatedOn, not as proof of timestamp provenance generally.
+    // Other normalization is limited to run starts, generated IDs, xmin and hashes that incorporate those IDs.
+    private sealed class JournalComparison(
+        IModel model,
+        Dictionary<string, long> baseline,
+        JournalLabels leftRuns,
+        JournalLabels rightRuns,
+        string label
+    )
+    {
+        private readonly Dictionary<string, IEntityType> tables = model
+            .GetEntityTypes()
+            .Where(x => x.GetTableName() is not null)
+            .GroupBy(x => x.GetTableName()!)
+            .ToDictionary(x => x.Key, x => x.First());
+        private readonly Dictionary<string, string> targetTables = BusinessTypes.ToDictionary(
+            x => x.Name,
+            x => model.FindEntityType(x)!.GetTableName()!
+        );
+        private readonly Dictionary<(string Table, string Id), string> forward = [];
+        private readonly Dictionary<(string Table, string Id), string> reverse = [];
+
+        private bool DynamicTable(string table) =>
+            targetTables.ContainsValue(table)
+            || table
+                is "DataMigrationRecords"
+                    or "DataMigrationMutations"
+                    or "DataMigrationWorkItems"
+                    or "DataMigrationCheckpoints";
+
+        private void Check(bool condition, string what) => Assert.True(condition, $"{label}: {what}");
+
+        private void Pair(string table, string left, string right)
+        {
+            var business = BusinessTypes.FirstOrDefault(x => targetTables[x.Name] == table);
+            if (
+                business is not null
+                && baseline.TryGetValue(business.Name, out var floor)
+                && long.TryParse(left, NumberStyles.Integer, CultureInfo.InvariantCulture, out var l)
+                && long.TryParse(right, NumberStyles.Integer, CultureInfo.InvariantCulture, out var r)
+                && (l <= floor || r <= floor)
+            )
+            {
+                Check(l == r, $"{table} baseline identity differs");
+                return;
+            }
+            Check(
+                !forward.TryGetValue((table, left), out var priorRight) || priorRight == right,
+                $"{table} ID mapping differs"
+            );
+            Check(
+                !reverse.TryGetValue((table, right), out var priorLeft) || priorLeft == left,
+                $"{table} ID mapping is not one-to-one"
+            );
+            forward[(table, left)] = right;
+            reverse[(table, right)] = left;
+        }
+
+        internal void PairCrosswalks(
+            Dictionary<(string Type, string Id), CrosswalkIdentity> left,
+            Dictionary<(string Type, string Id), CrosswalkIdentity> right
+        )
+        {
+            Check(left.Keys.ToHashSet().SetEquals(right.Keys), "crosswalk identities differ");
+            foreach (var (key, a) in left)
+            {
+                var b = right[key];
+                Check(a.TargetType == b.TargetType, $"crosswalk target type differs for {key.Type}:{key.Id}");
+                Pair(
+                    "DataMigrationRecords",
+                    a.Id.ToString(CultureInfo.InvariantCulture),
+                    b.Id.ToString(CultureInfo.InvariantCulture)
+                );
+                if (targetTables.TryGetValue(a.TargetType, out var table))
+                    Pair(table, a.TargetKey, b.TargetKey);
+                else
+                    Check(a.TargetKey == b.TargetKey, $"crosswalk target differs for {key.Type}:{key.Id}");
+                Check(
+                    (a.AfterHash is null) == (b.AfterHash is null),
+                    $"crosswalk hash presence differs for {key.Type}:{key.Id}"
+                );
+                if (a.AfterHash is not null)
+                    Pair("target-after-hash", a.AfterHash, b.AfterHash!);
+                if (key.Type is "Duty" or "DutySlot" or "DutyEntry" or "AssignmentSeries")
+                    Pair("id-bound-payload-hash", a.PayloadHash, b.PayloadHash);
+                else
+                    Check(a.PayloadHash == b.PayloadHash, $"crosswalk payload differs for {key.Type}:{key.Id}");
+            }
+        }
+
+        internal void AssertEquivalent(IReadOnlyList<JournalRow> left, IReadOnlyList<JournalRow> right)
+        {
+            Check(left.Count == right.Count, "inverse journal operation count differs");
+            for (var i = 0; i < left.Count; i++)
+            {
+                var a = left[i];
+                var b = right[i];
+                Check(
+                    a.KeyId == b.KeyId && a.Schema == b.Schema && a.Table == b.Table && a.Operation == b.Operation,
+                    $"inverse journal operation {i} differs"
+                );
+                Check(a.ChangedColumns.SequenceEqual(b.ChangedColumns), $"{a.Table} changed columns differ");
+                Check(
+                    a.BeforeHadPhoto == b.BeforeHadPhoto && a.PhotoChanged == b.PhotoChanged,
+                    $"{a.Table} photo flags differ"
+                );
+                Check(
+                    (a.AfterVersion == "missing") == (b.AfterVersion == "missing"),
+                    $"{a.Table} version state differs"
+                );
+                Check((a.AfterHash == "missing") == (b.AfterHash == "missing"), $"{a.Table} after-image state differs");
+                Pair("journal-after-hash", a.AfterHash, b.AfterHash);
+                CompareObject(a.Table, a.RowKey, b.RowKey);
+                if (a.Operation == "I")
+                    Check(a.BeforeImage is null && b.BeforeImage is null, $"{a.Table} insert has a before-image");
+                else
+                {
+                    Check(a.BeforeImage is not null && b.BeforeImage is not null, $"{a.Table} before-image missing");
+                    CompareObject(a.Table, a.BeforeImage!, b.BeforeImage!);
+                }
+            }
+        }
+
+        private void CompareObject(string table, string left, string right)
+        {
+            using var a = JsonDocument.Parse(left);
+            using var b = JsonDocument.Parse(right);
+            var aFields = a.RootElement.EnumerateObject().OrderBy(x => x.Name, StringComparer.Ordinal).ToList();
+            var bFields = b.RootElement.EnumerateObject().OrderBy(x => x.Name, StringComparer.Ordinal).ToList();
+            Check(
+                aFields.Select(x => x.Name).SequenceEqual(bFields.Select(x => x.Name)),
+                $"{table} image columns differ"
+            );
+            for (var i = 0; i < aFields.Count; i++)
+                CompareValue(table, a.RootElement, b.RootElement, aFields[i].Name, aFields[i].Value, bFields[i].Value);
+        }
+
+        private void CompareValue(
+            string table,
+            JsonElement leftRow,
+            JsonElement rightRow,
+            string column,
+            JsonElement left,
+            JsonElement right
+        )
+        {
+            Check(left.ValueKind == right.ValueKind, $"{table}.{column} image kind differs");
+            if (left.ValueKind == JsonValueKind.Null)
+                return;
+            var a = left.ValueKind == JsonValueKind.String ? left.GetString()! : left.GetRawText();
+            var b = right.ValueKind == JsonValueKind.String ? right.GetString()! : right.GetRawText();
+            tables.TryGetValue(table, out var entity);
+            var property = entity?.GetProperties().FirstOrDefault(x => x.GetColumnName() == column);
+            if (property?.IsPrimaryKey() == true && DynamicTable(table))
+            {
+                Pair(table, a, b);
+                return;
+            }
+            var principal = property
+                ?.GetContainingForeignKeys()
+                .Select(x => x.PrincipalEntityType.GetTableName())
+                .FirstOrDefault(x => x is not null && DynamicTable(x));
+            if (principal is not null)
+            {
+                Pair(principal, a, b);
+                return;
+            }
+            if (table == "DataMigrationRecords" && column == "TargetKey")
+            {
+                var target = leftRow.GetProperty("TargetType").GetString()!;
+                Check(target == rightRow.GetProperty("TargetType").GetString(), "crosswalk image target type differs");
+                if (targetTables.TryGetValue(target, out var targetTable))
+                {
+                    Pair(targetTable, a, b);
+                    return;
+                }
+            }
+            if (
+                table == "DataMigrationRecords" && column == "AfterHash"
+                || table == "DataMigrationMutations" && column == "AfterHash"
+            )
+            {
+                Pair("target-after-hash", a, b);
+                return;
+            }
+            if (
+                table == "DataMigrationRecords"
+                && column == "PayloadHash"
+                && leftRow.GetProperty("EntityType").GetString()
+                    is "Duty"
+                        or "DutySlot"
+                        or "DutyEntry"
+                        or "AssignmentSeries"
+            )
+            {
+                Pair("id-bound-payload-hash", a, b);
+                return;
+            }
+            if (table == "DataMigrationMutations" && column == "Version")
+                return; // PostgreSQL xmin differs between transactions.
+            if (Guid.TryParse(a, out var aGuid) && Guid.TryParse(b, out var bGuid))
+            {
+                var foundLeft = leftRuns.Runs.TryGetValue(aGuid, out var leftRun);
+                var foundRight = rightRuns.Runs.TryGetValue(bGuid, out var rightRun);
+                if (foundLeft || foundRight)
+                {
+                    Check(foundLeft && foundRight && leftRun == rightRun, $"{table}.{column} run differs");
+                    return;
+                }
+            }
+            var type = Nullable.GetUnderlyingType(property?.ClrType ?? typeof(object)) ?? property?.ClrType;
+            if (
+                (type == typeof(DateTimeOffset) || type == typeof(DateTime))
+                && DateTimeOffset.TryParse(
+                    a,
+                    CultureInfo.InvariantCulture,
+                    DateTimeStyles.AssumeUniversal,
+                    out var aTime
+                )
+                && DateTimeOffset.TryParse(
+                    b,
+                    CultureInfo.InvariantCulture,
+                    DateTimeStyles.AssumeUniversal,
+                    out var bTime
+                )
+            )
+            {
+                if (aTime == bTime)
+                    return;
+                if (column == "UpdatedOn")
+                {
+                    var leftWindow = leftRuns.RunAt(aTime);
+                    var rightWindow = rightRuns.RunAt(bTime);
+                    Check(leftWindow is not null && leftWindow == rightWindow, $"{table}.{column} run window differs");
+                    return;
+                }
+                var foundLeft = leftRuns.Starts.TryGetValue(aTime.ToUniversalTime(), out var leftStart);
+                var foundRight = rightRuns.Starts.TryGetValue(bTime.ToUniversalTime(), out var rightStart);
+                if (foundLeft || foundRight)
+                {
+                    Check(
+                        foundLeft && foundRight && leftStart == rightStart,
+                        $"{table}.{column} run timestamp differs"
+                    );
+                    return;
+                }
+            }
+            Check(a == b, $"{table}.{column} before-image differs");
+        }
+    }
+
+    [Fact]
+    public void JournalComparison_DetectsMissingAndChangedBeforeImages()
+    {
+        using var db = new SqliteTestUnifiedDbContext(
+            new DbContextOptionsBuilder<UnifiedDbContext>().UseSqlite("DataSource=:memory:").Options
+        );
+        var labels = new JournalLabels([], [], []);
+        JournalComparison Comparison() => new(db.Model, [], labels, labels, "synthetic");
+        var original = new JournalRow(
+            Guid.Empty,
+            "public",
+            "Events",
+            "D",
+            """{"Id":10}""",
+            """{"Id":10,"Title":"original","EventSeriesId":null,"UpdatedOn":"2040-01-01T00:00:01Z"}""",
+            "missing",
+            "missing",
+            [],
+            false,
+            false
+        );
+        var equal = original with
+        {
+            RowKey = """{"Id":20}""",
+            BeforeImage = """{"Id":20,"Title":"original","EventSeriesId":null,"UpdatedOn":"2040-01-01T00:00:01Z"}""",
+        };
+        Comparison().AssertEquivalent([original], [equal]);
+        var changed = Assert.ThrowsAny<Exception>(() =>
+            Comparison()
+                .AssertEquivalent(
+                    [original],
+                    [
+                        equal with
+                        {
+                            BeforeImage =
+                                """{"Id":20,"Title":"changed","EventSeriesId":null,"UpdatedOn":"2040-01-01T00:00:01Z"}""",
+                        },
+                    ]
+                )
+        );
+        Assert.Contains("Events.Title", changed.Message);
+        var changedUpdatedOn = Assert.ThrowsAny<Exception>(() =>
+            Comparison()
+                .AssertEquivalent(
+                    [original],
+                    [
+                        equal with
+                        {
+                            BeforeImage =
+                                """{"Id":20,"Title":"original","EventSeriesId":null,"UpdatedOn":"2040-01-01T00:00:02Z"}""",
+                        },
+                    ]
+                )
+        );
+        Assert.Contains("Events.UpdatedOn", changedUpdatedOn.Message);
+        var missing = Assert.ThrowsAny<Exception>(() =>
+            Comparison().AssertEquivalent([original], [equal with { BeforeImage = null }])
+        );
+        Assert.Contains("before-image missing", missing.Message);
+
+        var leftStart = new DateTimeOffset(2026, 11, 25, 0, 0, 0, TimeSpan.Zero);
+        var rightStart = leftStart.AddSeconds(1);
+        var leftLabels = new JournalLabels([], new() { [leftStart] = "Scheduling#1" }, []);
+        var rightLabels = new JournalLabels([], new() { [rightStart] = "Scheduling#1" }, []);
+        new JournalComparison(db.Model, [], leftLabels, rightLabels, "run timestamps").AssertEquivalent(
+            [
+                original with
+                {
+                    BeforeImage =
+                        """{"Id":10,"Title":"original","EventSeriesId":null,"CreatedOn":"2026-11-25T00:00:00Z"}""",
+                },
+            ],
+            [
+                equal with
+                {
+                    BeforeImage =
+                        """{"Id":20,"Title":"original","EventSeriesId":null,"CreatedOn":"2026-11-25T00:00:01Z"}""",
+                },
+            ]
+        );
+    }
+
+    [Fact]
+    public void JournalComparison_NormalizesUpdatedOnOnlyWithinMatchingRunWindows()
+    {
+        using var db = new SqliteTestUnifiedDbContext(
+            new DbContextOptionsBuilder<UnifiedDbContext>().UseSqlite("DataSource=:memory:").Options
+        );
+        var start = new DateTimeOffset(2026, 11, 25, 0, 0, 0, TimeSpan.Zero);
+        var leftFirst = new JournalWindow("Scheduling#1", start, start.AddMinutes(1));
+        var leftSecond = new JournalWindow("Scheduling#2", start.AddMinutes(10), start.AddMinutes(11));
+        var rightFirst = new JournalWindow("Scheduling#1", start.AddMinutes(2), start.AddMinutes(3));
+        var rightSecond = new JournalWindow("Scheduling#2", start.AddMinutes(12), start.AddMinutes(13));
+        var leftLabels = new JournalLabels([], [], [leftFirst, leftSecond]);
+        var rightLabels = new JournalLabels([], [], [rightFirst, rightSecond]);
+        JournalComparison Comparison() => new(db.Model, [], leftLabels, rightLabels, "windows");
+        JournalRow Row(int id, DateTimeOffset updatedOn) =>
+            new(
+                Guid.Empty,
+                "public",
+                "Events",
+                "D",
+                JsonSerializer.Serialize(new { Id = id }),
+                JsonSerializer.Serialize(new { Id = id, UpdatedOn = updatedOn }),
+                "missing",
+                "missing",
+                [],
+                false,
+                false
+            );
+
+        Comparison()
+            .AssertEquivalent(
+                [Row(10, leftFirst.StartedOn.AddSeconds(10))],
+                [Row(20, rightFirst.StartedOn.AddSeconds(30))]
+            );
+        Comparison().AssertEquivalent([Row(10, leftFirst.StartedOn)], [Row(20, rightFirst.CompletedOn)]);
+        // An identical out-of-run edit must not be rejected just because one clone's window contains its value.
+        var shared = leftFirst.StartedOn.AddSeconds(10);
+        Comparison().AssertEquivalent([Row(10, shared)], [Row(20, shared)]);
+
+        var arbitrary = Assert.ThrowsAny<Exception>(() =>
+            Comparison().AssertEquivalent([Row(10, start.AddDays(-2))], [Row(20, start.AddDays(-1))])
+        );
+        Assert.Contains("Events.UpdatedOn", arbitrary.Message);
+        var differentRuns = Assert.ThrowsAny<Exception>(() =>
+            Comparison()
+                .AssertEquivalent(
+                    [Row(10, leftFirst.StartedOn.AddSeconds(10))],
+                    [Row(20, rightSecond.StartedOn.AddSeconds(10))]
+                )
+        );
+        Assert.Contains("Events.UpdatedOn", differentRuns.Message);
+        var outsideWindow = Assert.ThrowsAny<Exception>(() =>
+            Comparison()
+                .AssertEquivalent(
+                    [Row(10, leftFirst.StartedOn.AddSeconds(10))],
+                    [Row(20, rightFirst.CompletedOn.AddSeconds(1))]
+                )
+        );
+        Assert.Contains("Events.UpdatedOn", outsideWindow.Message);
+
+        var overlap = leftLabels with
+        {
+            Windows =
+            [
+                leftFirst,
+                new JournalWindow("Scheduling#2", leftFirst.StartedOn.AddSeconds(5), leftFirst.CompletedOn),
+            ],
+        };
+        var ambiguous = Assert.ThrowsAny<Exception>(() =>
+            new JournalComparison(db.Model, [], overlap, rightLabels, "overlap").AssertEquivalent(
+                [Row(10, leftFirst.StartedOn.AddSeconds(10))],
+                [Row(20, rightFirst.StartedOn.AddSeconds(10))]
+            )
+        );
+        Assert.Contains("Events.UpdatedOn", ambiguous.Message);
+    }
 
     [Fact(Skip = TemplatesSkipReason, SkipUnless = nameof(AreTemplatesConfigured))]
     public async Task ReplayPrefetch_NeverAnswersForARecordTrackedInTheJob()
@@ -2461,11 +3113,17 @@ public sealed class SsSchedulingBulkPostgresTests : IAsyncLifetime
         return Convert.ToInt64(await command.ExecuteScalarAsync(ct), CultureInfo.InvariantCulture);
     }
 
-    private static async Task ExecuteAsync(string connectionString, string sql, CancellationToken ct)
+    private static async Task ExecuteAsync(
+        string connectionString,
+        string sql,
+        CancellationToken ct,
+        params NpgsqlParameter[] parameters
+    )
     {
         await using var connection = new NpgsqlConnection(connectionString);
         await connection.OpenAsync(ct);
         await using var command = new NpgsqlCommand(sql, connection) { CommandTimeout = 600 };
+        command.Parameters.AddRange(parameters);
         await command.ExecuteNonQueryAsync(ct);
     }
 

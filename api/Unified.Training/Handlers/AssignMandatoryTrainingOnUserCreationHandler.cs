@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Unified.Common.Contracts;
 using Unified.Common.Events;
+using Unified.Common.Time;
 using Unified.Db;
 using Unified.Db.Models.Training;
 using Unified.Training.Helpers;
@@ -11,18 +12,26 @@ namespace Unified.Training.Handlers;
 /// <summary>
 /// Stages mandatory training assignments when a user-creation signal is published.
 /// </summary>
-public sealed class AssignMandatoryTrainingOnUserCreationHandler(UnifiedDbContext DB)
+public sealed class AssignMandatoryTrainingOnUserCreationHandler(UnifiedDbContext DB, ITimeZoneService timeZoneService)
     : IEntitySideEffect<UserCreatedSignal>
 {
     public async Task HandleAsync(UserCreatedSignal signal, CancellationToken cancellationToken)
     {
         var userId = signal.UserId;
         var now = signal.OccurredAtUtc.ToUniversalTime();
-        var userTrainingProfileId = await DB
+        var userDetails = await DB
             .Users.AsNoTracking()
             .Where(user => user.Id == userId)
-            .Select(user => user.TrainingProfileId)
+            .Select(user => new
+            {
+                user.TrainingProfileId,
+                TimeZoneId = user.HomeLocation != null ? user.HomeLocation.Timezone : null,
+            })
             .SingleOrDefaultAsync(cancellationToken);
+        var userTrainingProfileId = userDetails?.TrainingProfileId;
+        var timeZone = timeZoneService.ResolveOrUtc(userDetails?.TimeZoneId);
+        var localNow = TimeZoneInfo.ConvertTime(now, timeZone);
+        var allDayDate = new DateTimeOffset(localNow.Date, TimeSpan.Zero);
 
         var mandatoryTrainings = await DB
             .Trainings.AsNoTracking()
@@ -32,7 +41,12 @@ public sealed class AssignMandatoryTrainingOnUserCreationHandler(UnifiedDbContex
                 && (training.ExpiryDate == null || training.ExpiryDate > now)
             )
             .WhereApplicableToTrainingProfile(userTrainingProfileId)
-            .Select(training => new { training.Id, training.ValidityDays })
+            .Select(training => new
+            {
+                training.Id,
+                training.ValidityDays,
+                training.AnnualValidityFromCompletionDate,
+            })
             .ToListAsync(cancellationToken);
 
         if (mandatoryTrainings.Count == 0)
@@ -62,10 +76,17 @@ public sealed class AssignMandatoryTrainingOnUserCreationHandler(UnifiedDbContex
                     UserId = userId,
                     TrainingId = training.Id,
                     Version = 1,
-                    AwardedOn = now,
-                    EndingOn = now,
+                    AwardedOn = allDayDate,
+                    EndingOn = allDayDate,
                     AllDay = true,
-                    ExpiryDate = UserTrainingHelper.CalculateExpiryDate(now, training.ValidityDays),
+                    ExpiryDate = UserTrainingHelper.CalculateExpiryDate(
+                        localNow,
+                        training.ValidityDays,
+                        allDay: true,
+                        timeZone,
+                        timeZoneService,
+                        training.AnnualValidityFromCompletionDate
+                    ),
                     NoticeState = UserTrainingNoticeStates.None,
                     Notes = null,
                 }

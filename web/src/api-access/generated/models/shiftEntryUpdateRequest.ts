@@ -12,6 +12,10 @@ export interface ShiftEntryUpdateRequest {
   /** @nullable */
   conflictOverrides?: CalendarConflictAcknowledgement[] | null;
   /** @nullable */
+  lunchAvailableMinutes?: number | null;
+  /** @nullable */
+  workedLunchMinutes?: number | null;
+  /** @nullable */
   shiftSeriesId?: number | null;
   /** @nullable */
   assignmentEntryLinks?: AssignmentEntryLinkRequest[] | null;
@@ -34,9 +38,5 @@ export interface ShiftEntryUpdateRequest {
   allDay?: boolean;
   /** @nullable */
   locationId?: number | null;
-  /** @nullable */
-  lunchAvailableMinutes?: number | null;
-  /** @nullable */
-  workedLunchMinutes?: number | null;
   userIds?: string[];
 }

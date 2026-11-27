@@ -67,11 +67,16 @@ run that has no such family (first apply, unchanged rerun, recapture) skips plan
 read across components (day groups, definition groups). Outcomes, crosswalks and receipts are unchanged.
 
 Scheduling PerRow may also opt in to `PrefetchReplayRecords=true` (default `false`). Existing crosswalk
-records are read untracked, 1000 source rows at a time in write order, instead of one query per row. A page
+records are read untracked, 1000 source-list rows at a time, instead of one query per row. A page
 answers only the no-write verdicts (no crosswalk yet; unchanged hash and source timestamp) and only for a
 record EF has not tracked in this job; any write, rebind, duplicate or rolled-back savepoint uses the per-row
-query. Graph replacement then tracks only the records of the replaced graph instead of every root record.
-The run logs `SsReplayPrefetch Run=... Hits=... Fallbacks=... Pages=...`. Bulk ignores the switch.
+query. Each source page is loaded at most once per job; after eviction, an interleaved access falls back to
+the original per-row or group query rather than repeatedly loading the whole page. At most 16 pages per
+type are cached. Graph replacement then tracks only the records of the replaced graph instead of every root record.
+The run logs `SsReplayPrefetch Run=... Hits=... Fallbacks=... Pages=...`.
+Both switches also apply to Scheduling PerRow dry-run simulations. Simulations do not copy applied crosswalks, so they
+cannot prove rerun parity against an applied target and can fail on existing-target collisions. Use an isolated apply
+rehearsal to verify rerun guards. Bulk ignores both switches, including in dry runs.
 
 Training may opt in to `DataMigration:Sources:SS:Jobs:Training:IncludeExcused=true` (default `false`; refused by
 options validation on any other job). Off, SheriffTraining rows of SS users with `Excused=true` are
@@ -176,6 +181,9 @@ projection, ordering, serialization or framing changes.
 
 Ordinary responses/findings/logs expose only safe keys, classes, counts and metrics.
 Never return connection strings, credentials, photos, protected source comments or raw errors.
+SS worker technical failures retain bounded exception types, PostgreSQL SQLSTATE and safe identifier
+metadata, and migration stack frames in stderr and migration-only failure evidence; exception messages,
+detail and unapproved hints are excluded, and the worker exception does not chain the original error.
 Rollback impact values are intentionally sensitive: separate restricted storage/download,
 audited access and retention; not ordinary findings or a public report.
 No automatic backup restore, source writes or production enablement.

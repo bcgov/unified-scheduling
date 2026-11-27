@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Unified.Common.Contracts;
+using Unified.Common.Time;
 using Unified.Db;
 using Unified.Db.Models;
 using Unified.Db.Models.Training;
@@ -25,7 +26,7 @@ public sealed class AssignMandatoryTrainingOnUserCreationHandlerTests : IAsyncLi
         await _db.Database.OpenConnectionAsync();
         await _db.Database.EnsureCreatedAsync();
 
-        _handler = new AssignMandatoryTrainingOnUserCreationHandler(_db);
+        _handler = new AssignMandatoryTrainingOnUserCreationHandler(_db, new TimeZoneService());
     }
 
     public async ValueTask DisposeAsync()
@@ -66,7 +67,57 @@ public sealed class AssignMandatoryTrainingOnUserCreationHandlerTests : IAsyncLi
         Assert.Equal([globalMandatory.Id, matchingMandatory.Id], assignedTrainingIds);
     }
 
-    private async Task<User> SeedUserAsync(string firstName, string lastName, int? trainingProfileId = null)
+    [Fact]
+    public async Task HandleAsync_AnnualValidityFromCompletionDate_UsesUsersHomeTimezoneForExpiry()
+    {
+        var now = new DateTimeOffset(2025, 10, 18, 1, 0, 0, TimeSpan.Zero);
+        var location = new Location
+        {
+            Id = 10,
+            AgencyId = "VANCOUVER",
+            Name = "Vancouver",
+            Timezone = "America/Vancouver",
+        };
+        _db.Locations.Add(location);
+        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var user = await SeedUserAsync("Casey", "Vancouver", homeLocationId: location.Id);
+        var training = await SeedTrainingAsync(
+            704,
+            "ANNIVERSARY",
+            mandatory: true,
+            validityDays: 365,
+            annualValidityFromCompletionDate: true
+        );
+        training.EffectiveDate = now.AddDays(-1);
+        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        await _handler.HandleAsync(new UserCreatedSignal(user.Id, now), TestContext.Current.CancellationToken);
+        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var assignedTraining = await _db.UserTrainings.SingleAsync(TestContext.Current.CancellationToken);
+        var expectedAllDayDate = new DateTimeOffset(2025, 10, 17, 0, 0, 0, TimeSpan.Zero);
+        var expectedExpiry = new DateTimeOffset(
+            2026,
+            10,
+            17,
+            23,
+            59,
+            59,
+            999,
+            TimeSpan.FromHours(-7)
+        ).ToUniversalTime();
+        Assert.Equal(expectedAllDayDate, assignedTraining.AwardedOn);
+        Assert.Equal(expectedAllDayDate, assignedTraining.EndingOn);
+        Assert.Equal(expectedExpiry, assignedTraining.ExpiryDate);
+    }
+
+    private async Task<User> SeedUserAsync(
+        string firstName,
+        string lastName,
+        int? trainingProfileId = null,
+        int? homeLocationId = null
+    )
     {
         var user = new User
         {
@@ -78,6 +129,7 @@ public sealed class AssignMandatoryTrainingOnUserCreationHandlerTests : IAsyncLi
             LastName = lastName,
             Gender = Gender.Other,
             TrainingProfileId = trainingProfileId,
+            HomeLocationId = homeLocationId,
         };
 
         _db.Users.Add(user);
@@ -90,7 +142,9 @@ public sealed class AssignMandatoryTrainingOnUserCreationHandlerTests : IAsyncLi
         int id,
         string code,
         bool mandatory,
-        IReadOnlyCollection<int>? mandatoryTrainingProfileIds = null
+        IReadOnlyCollection<int>? mandatoryTrainingProfileIds = null,
+        int? validityDays = null,
+        bool annualValidityFromCompletionDate = false
     )
     {
         var category = await _db.TrainingCategories.FirstOrDefaultAsync(
@@ -110,6 +164,8 @@ public sealed class AssignMandatoryTrainingOnUserCreationHandlerTests : IAsyncLi
             Code = code,
             Description = code,
             Mandatory = mandatory,
+            ValidityDays = validityDays,
+            AnnualValidityFromCompletionDate = annualValidityFromCompletionDate,
             EffectiveDate = DateTimeOffset.UtcNow.AddDays(-1),
             Rotating = true,
             TrainingCategoryId = category.Id,

@@ -7,9 +7,9 @@
 import { faker } from '@faker-js/faker';
 
 import { HttpResponse, http } from 'msw';
-import type { RequestHandlerOptions } from 'msw';
+import type { HttpResponseResolver, PathParams, RequestHandlerOptions } from 'msw';
 
-import type { TrainingCalendarEvent } from '../models';
+import type { TrainingCalendarEvent, TrainingCalendarEventsRequest } from '../models';
 
 export const getPostApiTrainingCalendarEventsResponseMock = (): TrainingCalendarEvent[] =>
   faker.helpers.arrayElement([
@@ -61,13 +61,13 @@ export const getPostApiTrainingCalendarEventsMockHandler = (
   overrideResponse?:
     | TrainingCalendarEvent[]
     | ((
-        info: Parameters<Parameters<typeof http.post>[1]>[0],
+        info: Parameters<HttpResponseResolver<PathParams, TrainingCalendarEventsRequest>>[0],
       ) => Promise<TrainingCalendarEvent[]> | TrainingCalendarEvent[]),
   options?: RequestHandlerOptions,
 ) => {
-  return http.post(
+  return http.post<PathParams, TrainingCalendarEventsRequest>(
     '*/api/training/calendar/events',
-    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+    async (info: Parameters<HttpResponseResolver<PathParams, TrainingCalendarEventsRequest>>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
